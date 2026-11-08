@@ -25,6 +25,20 @@ export interface TerminalView {
   fitAddon: FitAddon;
 }
 
+/**
+ * Fit a terminal to its box, and put its scrollbar back where its lines are.
+ * While the box is hidden the browser drops the scroll element to the top, and xterm 5 records that without scrolling the lines (`Viewport._handleScroll`), so the terminal comes back drawing its lines where they were under a bar at the top; a scroll of the terminal's own makes xterm put the bar where its lines are.
+ */
+export function fitTerminal({ term, fitAddon }: TerminalView): void {
+  fitAddon.fit();
+  const { viewportY, baseY } = term.buffer.active;
+  if (baseY === 0) return;
+  // A line away and back, toward the side there is room on, so the lines end where they started.
+  const step = viewportY > 0 ? -1 : 1;
+  term.scrollLines(step);
+  term.scrollLines(-step);
+}
+
 let canvasLogged = false;
 
 // Whether this is WSL, which main answers once (`askPlatform`); until it has, every key goes on as it does elsewhere.

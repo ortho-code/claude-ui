@@ -68,3 +68,19 @@ test('the terminal area out of sight is not fitted, and is fitted to its size ag
   await expect(page.locator('#terminals')).toBeVisible();
   await expect.poll(async () => (await lastSize(app))[1]).toBeGreaterThan(cols);
 });
+
+test("the tab on show comes back into sight with its scrollbar where its lines are", async ({ app, page }) => {
+  await app.boot({ ...withLayout(shared), ...fixture });
+  await goLive(page, app);
+  expect(await app.emit('onTerminalData', 1, Array.from({ length: 200 }, (_, i) => `\r\nline ${i + 1}`).join(''))).toBe(1);
+  const viewport = page.locator('#terminals .term.active .xterm-viewport');
+  const atBottom = (): Promise<boolean> => viewport.evaluate((el) => el.scrollHeight > el.clientHeight && el.scrollTop + el.clientHeight >= el.scrollHeight - 1);
+  await expect.poll(atBottom).toBe(true);
+
+  await railItem(page, /^Status/).click();
+  await expect(page.locator('#terminals')).toBeHidden();
+  await railItem(page, /^Claude/).click();
+  await expect(page.locator('#terminals')).toBeVisible();
+  await settle(page);
+  expect(await atBottom(), 'the scrollbar is at the bottom, where the last line is drawn').toBe(true);
+});

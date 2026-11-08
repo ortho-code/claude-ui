@@ -278,6 +278,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A PR that sessions spell with different capitals, such as `ScientaNL/Scienta` and `ScientaNL/scienta`, is asked about once, and its change marks every session linking it, instead of only those spelling it one way.
 - A jump to a group lands at the group's first row from anywhere in the list, where from inside the group it stayed put and from below it landed at the group's end.
 - A project's jump menu shows each group's dot as it stands, also while the menu is open, where it could show a status from before the last change.
+- A terminal coming back into view, a shell or a claude tab, has its scrollbar where its lines are, where it could sit at the top while the terminal showed its last lines.
 
 ## 0.3.0 — 2026-08-29
 

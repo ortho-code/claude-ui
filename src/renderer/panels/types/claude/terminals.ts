@@ -9,7 +9,7 @@ import { clearSetAside, markSetAside } from '../../../state/setaside';
 import { clearNeedsYou, markNeedsYou, marks, restoreNeedsYou } from '../../../state/needsyou';
 import { clearNudge, setScheduled } from '../../../state/statuses';
 import { leaveTab, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
-import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
+import { bindTerminal, createTerminal, fitTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
 import { fromMarkup } from '../../../dom';
 import { isQuitting, whenQuitting } from '../../../quitting';
@@ -301,7 +301,7 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
     const onShow = isOnShow(token);
     terminal.el.classList.add('active');
     // The pty is created at a default size; hand it the real one now that the pane has a real one.
-    terminal.fitAddon.fit();
+    fitTerminal(terminal);
     if (onShow) terminal.term.focus();
     else terminal.el.classList.remove('active');
     window.claudeUi.resizeTerminal(terminalId, terminal.term.cols, terminal.term.rows);
@@ -342,7 +342,7 @@ export function activateTab(token: string, start = true): void {
   store.set({ activeTab: token });
   // A cold tab's (empty) terminal stays hidden, so the placeholder can explain itself instead of showing a blank black pane.
   for (const other of store.get().tabs) terminalOf(other.token).el.classList.toggle('active', other.token === token && (other.terminalId !== null || other.startFailed));
-  terminal.fitAddon.fit();
+  fitTerminal(terminal);
   // A cold tab starts the moment you select it — selecting IS starting, with no separate affordance, because that is how activating a tab has always behaved and laziness should show up only as a wait.
   // Fire-and-forget: activateTab is called from click handlers and stays synchronous.
   if (tab.terminalId === null) {
@@ -396,10 +396,10 @@ function fitActive(): void {
   const activeTab = tabOnShow(store.get());
   // A terminal area with no size is hidden — behind another panel of its group, or folded — and a fit now would tell the pty xterm's 80×24 default (the hidden-pane trap); the ResizeObserver below fits it once it has a size again.
   if (!activeTab || terminalsEl.clientWidth === 0 || terminalsEl.clientHeight === 0) return;
-  const { term, fitAddon } = terminalOf(activeTab.token);
-  fitAddon.fit();
+  const terminal = terminalOf(activeTab.token);
+  fitTerminal(terminal);
   if (activeTab.terminalId === null) return; // cold: nothing to resize until it starts
-  window.claudeUi.resizeTerminal(activeTab.terminalId, term.cols, term.rows);
+  window.claudeUi.resizeTerminal(activeTab.terminalId, terminal.term.cols, terminal.term.rows);
 }
 
 // Re-fit whenever the terminal area changes size — the window resized, the tab bar wrapping to a new row, a divider dragged, the layout rebuilt — so the terminal always fills its pane instead of being clipped.

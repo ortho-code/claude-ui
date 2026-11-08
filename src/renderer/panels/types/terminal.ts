@@ -6,7 +6,7 @@ import { folderName } from '../../logic';
 import type { MenuItem } from '../../menu';
 import { store } from '../../state/app';
 import { projName } from '../../state/views';
-import { bindTerminal, createTerminal, unbindTerminal, type TerminalView } from '../../terminal';
+import { bindTerminal, createTerminal, fitTerminal, unbindTerminal, type TerminalView } from '../../terminal';
 import './terminal.css';
 import { CWD_OPTION, isFixedPath, optionsOf, type OptionDecl } from '../options';
 import type { MountedPanel, PanelHost, PanelTab, PanelType, Where } from '../contract';
@@ -638,7 +638,7 @@ class TerminalPanel implements MountedPanel {
 
   private fit(shell: Shell): void {
     if (!shell.view || shell.box.hidden || shell.box.clientWidth === 0 || shell.box.clientHeight === 0) return;
-    shell.view.fitAddon.fit();
+    fitTerminal(shell.view);
     if (shell.terminalId !== null) window.claudeUi.resizeTerminal(shell.terminalId, shell.view.term.cols, shell.view.term.rows);
   }
 }
