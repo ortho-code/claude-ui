@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import type { SessionsSnapshot } from '../../../../../src/renderer/panels/snapshot';
 import { PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
+import { row } from '../../../support/window';
 import { runs } from '../../layout/layout';
 import { bootList, print, type PrintedList } from './list';
 
@@ -51,13 +52,41 @@ test('a run is given every session not finished, by id, with its title, project,
     version: 1,
     sessions: [
       // A status the docs do not name, such as the marker a starting claude sends, is no status.
-      { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, needsYou: [], setAside: SET_ASIDE, prs: [] },
-      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, needsYou: [{ ...REASON, category: 'finish-up' }], setAside: null, prs: [
+      { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, asks: false, needsYou: [], setAside: SET_ASIDE, prs: [] },
+      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, asks: true, needsYou: [{ ...REASON, category: 'finish-up' }], setAside: null, prs: [
           { ...asked.prs[0], status: MERGED },
           { ...asked.prs[1], status: REVIEWED },
         ],
       },
     ],
+  });
+});
+
+test('a session asks for you as its dot and the switcher count it: waiting, finished or marked, unless read or claude is at work', async ({ app, page }) => {
+  const id = (n: number): string => `00000000-0000-4000-8000-0000000000e${n}`;
+  const cases = { waiting: id(1), finished: id(2), marked: id(3), busyMarked: id(4), readWaiting: id(5), busy: id(6) };
+  const sessions = Object.entries(cases).map(([title, each]) => session({ id: each, title }));
+  const mark = [{ type: 'pr.merged' as const, at: 1_000, pr: 'acme/app#9' }];
+  await bootList(app, page, LIST, {
+    more: {
+      sessions,
+      statuses: { [cases.waiting]: 'waiting', [cases.finished]: 'idle', [cases.busyMarked]: 'busy', [cases.readWaiting]: 'waiting', [cases.busy]: 'busy' },
+      needsYou: { [cases.marked]: mark, [cases.busyMarked]: mark },
+      history: Object.fromEntries(sessions.map((each) => [each.id, []])),
+    },
+  });
+  await row(page, 'readWaiting').locator('.nudge').click();
+  await expect(row(page, 'readWaiting').locator('.nudge')).toHaveClass(/\backed\b/);
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect.poll(async () => (await runs(app, 'changes')).length).toBe(2);
+  const { sessions: given } = await snapshotOf(app, 1);
+  expect(Object.fromEntries(given.map((each) => [each.id, each.asks]))).toEqual({
+    [cases.waiting]: true,
+    [cases.finished]: true,
+    [cases.marked]: true,
+    [cases.busyMarked]: false,
+    [cases.readWaiting]: false,
+    [cases.busy]: false,
   });
 });
 

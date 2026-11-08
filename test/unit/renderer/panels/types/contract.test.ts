@@ -4,18 +4,21 @@ import { FIELD_KINDS, KINDS, MANIFEST_FIELDS, MANIFEST_OPTION_KINDS, OPTION_FIEL
 import { CUTS, LIST_FIELDS, LIVE_FIELDS, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
 import { TONES } from '../../../../../src/renderer/tone';
 import { CONTROL_NAMES } from '../../../../../src/renderer/panels/run';
+import { SNAPSHOT_FIELDS } from '../../../../../src/renderer/panels/snapshot';
 
 // docs/panel-types.md is the contract a type is written against, and these are the checkers that read it: a field one names that the other does not is the drift this holds shut.
 const doc = readFileSync(new URL('../../../../../docs/panel-types.md', import.meta.url), 'utf8');
 const lines = doc.split('\n');
 
-/** The field names in the first column of the table under `heading`. */
+/** The field names in the first column of the first table under `heading`: a section may go on to a second table of something else, as the sessions file's reasons. */
 function tableFields(heading: string): string[] {
   const start = lines.indexOf(heading);
   expect(start, `docs/panel-types.md has no "${heading}"`).toBeGreaterThanOrEqual(0);
   const fields: string[] = [];
+  let inTable = false;
   for (const line of lines.slice(start + 1)) {
-    if (line.startsWith('#')) break;
+    if (line.startsWith('#') || (inTable && !line.startsWith('|'))) break;
+    inTable ||= line.startsWith('|');
     const match = /^\| `([^`]+)` \|/.exec(line);
     if (match) fields.push(match[1]);
   }
@@ -73,6 +76,10 @@ describe('docs/panel-types.md', () => {
     expect(sorted(listed("A live value's `field` is one of:"))).toEqual(sorted(LIVE_FIELDS));
     expect(sorted(listed('`tone` is one of:'))).toEqual(sorted(TONES));
     expect(sorted(listed('`cut` is one of:'))).toEqual(sorted(CUTS));
+  });
+
+  it('names every field of a session in the sessions file, and no other', () => {
+    expect(sorted(tableFields('### The sessions'))).toEqual(sorted(SNAPSHOT_FIELDS));
   });
 
   it('shows a panel.json the app reads without a word to say about it', () => {

@@ -1,9 +1,9 @@
 import { categoryOf } from '../../shared/needsyou';
 import { prKey } from '../../shared/prs';
 import type { ClosedHow, SetAside, NeedsYou, PrRole, PrStatus } from '../../shared/types';
-import { sessionLabel } from '../logic';
+import { asksForYou, sessionLabel } from '../logic';
 import { store, type AppState, type View } from '../state/app';
-import { switcherPool, tabWith } from '../state/views';
+import { sessionNudge, switcherPool, tabWith } from '../state/views';
 
 /**
  * THE SESSIONS SNAPSHOT: the sessions the app has, as a list panel's script is given them in a file of its run's own (`CLAUDE_UI_SESSIONS`), so it can choose its rows from them; the live values keep the rows it chose current between runs.
@@ -39,12 +39,18 @@ export interface SnapshotSession {
   status: SnapshotStatus | null;
   /** Its dot was marked read. */
   read: boolean;
+  /** It asks for you now, by the rule its dot and the switcher's count follow (`asksForYou`, `sessionNudge`). */
+  asks: boolean;
   /** Why it is marked as needing you, every reason; empty when it is not. */
   needsYou: readonly SnapshotReason[];
   /** Until when it is set aside, null for whenever; null when it is not set aside. */
   setAside: SetAside | null;
   prs: { repository: string; number: number; url: string; status: SnapshotPrStatus | null }[];
 }
+
+/** Every field of a session in the file, each once: a record, so a field added to `SnapshotSession` cannot be left out of the list docs/panel-types.md is held to. */
+const FIELDS: Record<keyof SnapshotSession, true> = { id: true, title: true, project: true, group: true, status: true, read: true, asks: true, needsYou: true, setAside: true, prs: true };
+export const SNAPSHOT_FIELDS = Object.keys(FIELDS);
 
 /** What GitHub says of a PR, as the file gives it: the status without what only the app's own comparison reads, the ids of the reviews asking for changes. */
 export type SnapshotPrStatus = { state: 'merged' | 'closed'; role: PrRole | null } | Omit<Extract<PrStatus, { state: 'open' }>, 'changesRequested'>;
@@ -61,7 +67,7 @@ export interface SessionsSnapshot {
 }
 
 /** The slices the snapshot is made of: what a panel that watches sessions is told about. */
-export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'needsYouTypes', 'setAside', 'groupState', 'prStatus'] as const satisfies readonly (keyof AppState)[];
+export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'needsYouTypes', 'setAside', 'groupState', 'prStatus', 'settings'] as const satisfies readonly (keyof AppState)[];
 
 /** Every session not finished, as the switcher counts them, each once, by id, so the same sessions in a new order are the same snapshot. */
 export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.get()): SessionsSnapshot {
@@ -82,6 +88,7 @@ export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = 
         group: group ? { id: group.id, name: group.name } : null,
         status: status !== undefined && STATUSES.has(status) ? (status as SnapshotStatus) : null,
         read: view.acked.has(id),
+        asks: asksForYou(sessionNudge(id, view)),
         needsYou: (view.needsYou.get(id) ?? []).map((reason) => ({ ...reason, category: categoryOf(view.needsYouTypes, reason.type) })),
         setAside: view.setAside.get(id) ?? null,
         prs: session.prs.map((pr) => {
