@@ -31,7 +31,7 @@ One JSON object, which may carry comments (`//` and `/* */`) and trailing commas
 | `version` | Required, `1`: the one shape this version of the app reads. |
 | `kind` | Required: what kind of panel the type is. |
 | `title` | What a panel of the type is called when its layout entry gives no `title`; the entry's id without either. |
-| `icon` | Its icon on a strip of icons, by name from the app's set (see the README's Panels section); `list` without one. |
+| `icon` | Its icon on a strip of icons, by name from the app's set (see [the layout file](guide/layout.md#the-layout-file)); `list` without one. |
 | `run` | Required: the script, a path relative to the type's folder and inside it, and executable. |
 | `interval` | How often a panel of the type runs again on its own, as `30s`, `5m` or `1h`, from `10s` to `24h`; without one it runs only at the other moments [What the app does with it](#what-the-app-does-with-it) lists. |
 | `options` | Settings of the type's own, which a layout entry gives under `options` and the script gets as variables. |
@@ -80,7 +80,7 @@ A `list` is written as one, here for the `actions` declared above:
 ```
 
 `interval` overrides the manifest's.
-`"watch": "git"` runs the panel again when the git working tree of the folder it runs in changes, as a `command` panel's does (see the README's Panels section).
+`"watch": "git"` runs the panel again when the git working tree of the folder it runs in changes, as a `command` panel's does (see [the panel types](guide/layout.md#the-panel-types)).
 `"watch": "sessions"` runs it again when the sessions file (below) would say something else than it said to the last run, once nothing more has changed for 2 seconds.
 
 ## What the script is given
@@ -162,7 +162,7 @@ The categories are `your-turn`, `back-to-work`, `ready-to-merge`, `look-again`, 
 | `pr.closed` | `finish-up` | A PR it links was closed without merging. |
 
 A PR's type names its PR in `pr`, `owner/name#number`.
-A PR's type marks a session only for your roles on the PR its file lists (the README's What needs you): as shipped, failing checks, a conflict, changes requested and approved for your own PRs, new commits since your review and your review asked for a PR you review, and the rest for every role.
+A PR's type marks a session only for your roles on the PR its file lists ([What needs you](guide/status.md#what-needs-you)): as shipped, failing checks, a conflict, changes requested and approved for your own PRs, new commits since your review and your review asked for a PR you review, and the rest for every role.
 Several changes found in one look at a PR are a reason each, with the same `at`, such as `pr.checks-failed` and `pr.approved` together; the app names them on one line, "PR #7 checks failed, approved".
 Claude asking you something or being ready are types too, `claude.asks` and `claude.ready` in `your-turn`, but they are never in `needsYou`: `status` and `read` say them.
 

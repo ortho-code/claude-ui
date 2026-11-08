@@ -229,7 +229,7 @@ The table is the widest each folder can need; a small change runs only the check
 A change across rows runs what each of its rows lists.
 The first takes about ten seconds, the next two about half a minute, and the last two up to two minutes, most of it the window's checks.
 
-A doc needs more than the text rules where a unit test holds it to the code: the variables `docs/panel-types.md` names, the icon names in the README; those tests name the doc they read, so a search of `test/unit` for its file name finds them, and `npm test` covers every one at once.
+A doc needs more than the text rules where a unit test holds it to the code: the variables `docs/panel-types.md` names, the icon names in `docs/guide/layout.md`; those tests name the doc they read, so a search of `test/unit` for its file name finds them, and `npm test` covers every one at once.
 A comment still reaches the linter (one that fills an empty block, a `// falls through`, a `@deprecated` tag), the compiler (what a `@ts-expect-error` covers) and the text rules (a wrapped line), but not the window: once the proof passes, the bundled code is the same, its directives included, and only the source map beside it differs.
 A comment change the proof fails, a directive's among them, is a change to code, and goes by the row of its folder.
 So does a stylesheet's comment: the proof takes every `/* … */` out as a space, which is wrong between two selectors, where a comment leaves them joined, and inside a string, where it is no comment at all.
@@ -1629,7 +1629,7 @@ The contract itself, field by field, is `docs/panel-types.md`; this section is w
 
 **One list of fields per object, and the document is held to it.**
 Each checker names the fields it reads in one list (`MANIFEST_FIELDS` and `OPTION_FIELDS` in `types/folder.ts`, `LIST_FIELDS` in `types/listdoc.ts`) and reads a field only through that list (`panels/fields.ts`), so a field it reads that the list lacks is a type error.
-A test reads the document's tables and its lists of kinds and tones against the same lists, checks its marked examples with the checkers themselves, and holds its table of variables to what the runner sets: a field added on either side alone fails, the way the README's icon list is held to the icon set.
+A test reads the document's tables and its lists of kinds and tones against the same lists, checks its marked examples with the checkers themselves, and holds its table of variables to what the runner sets: a field added on either side alone fails, the way the layout guide's icon list is held to the icon set.
 
 **The folder's name is the type's name**, so the two cannot disagree, and a folder is shared by copying it.
 A folder named like a built-in type, or with a name that cannot be a type's, is not read, and a note under the whole layout says so, since no single entry is where it went wrong.

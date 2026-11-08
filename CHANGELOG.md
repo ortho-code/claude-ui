@@ -121,7 +121,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Finished and Set aside… beside Undo in the message a close leaves, for the sessions it closed, whatever closed them: the tab's button, its menu or the bar.
   The message either one leaves has an Undo that puts the tabs back too, and cancelling Set aside… brings the close's message back.
 - Each reason the app marks a session as needing you for, a PR's change, a reminder or running when the app closed, can be switched off, alone or with its whole category, and a PR's reason given the `roles` it marks for, by `needsYou` in `settings.json`, such as `"needsYou": { "pr.approved": { "enabled": false } }`.
-  Its marks already there go, and a `needsYou` with a mistake is not used at all, which Settings names; the reasons and their ids are in the README.
+  Its marks already there go, and a `needsYou` with a mistake is not used at all, which Settings names; the reasons and their ids are in the guide.
 - Which state a session's dot shows when several hold, such as busy and needing you, is `strength` in `settings.json`, a list where the first that holds wins, so a category such as `back-to-work` can show over a busy claude; the default shows the dots as before.
 - How each status, needs-you category and type is drawn is `looks` in `settings.json`: a colour, a dot, ring, spinner or icon, a pulse, or the look of another, each field set or left to what it belongs to; nothing changes until you set one.
 - The sessions file gives each PR's `role`, whether it is yours, one you review or someone else's, and for an open PR its approvals, whether new commits came since your review, and whether your review is asked.

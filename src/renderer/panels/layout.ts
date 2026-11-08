@@ -18,7 +18,7 @@ export const DEFAULT_MIN = 120;
 
 /**
  * The window when there is no layout file, or an unparsable one and no last good layout: the two built-ins in the arrangement the app has always had, the sidebar a fixed 320px beside a terminal that takes the rest.
- * Resolved through the same function as any file, and shown in the README as the starting point to copy; nothing is written to disk.
+ * Resolved through the same function as any file, and shown in the layout guide as the starting point to copy; nothing is written to disk.
  */
 export const DEFAULT_LAYOUT: Layout = {
   version: LAYOUT_VERSION,

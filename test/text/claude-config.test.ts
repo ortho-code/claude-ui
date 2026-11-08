@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { linesBreaking, tracked } from './tracked';
 
 /**
- * `README.md`, `UPGRADING.md`, `CHANGELOG.md` and `docs/` are for people, and never name the Claude config: `CLAUDE.md`, the local one beside it, or the repo's `.claude/` (`CLAUDE.md` § Conventions).
+ * `README.md`, `CONTRIBUTING.md`, `UPGRADING.md`, `CHANGELOG.md` and `docs/` are for people, and never name the Claude config: `CLAUDE.md`, the local one beside it, or the repo's `.claude/` (`CLAUDE.md` § Conventions).
  * The session store, `~/.claude`, is the app's subject and named freely.
  */
 const CLAUDE_CONFIG = /CLAUDE(\.local)?\.md|(?<![~\w/.])\.claude\b/;
@@ -25,7 +25,7 @@ function creditsAsker(file: string, text: string): string[] {
 
 describe('the Claude config', () => {
   it('is named in no document written for people', () => {
-    const forPeople = tracked(/^(README\.md|UPGRADING\.md|CHANGELOG\.md|docs\/.*)$/);
+    const forPeople = tracked(/^(README\.md|CONTRIBUTING\.md|UPGRADING\.md|CHANGELOG\.md|docs\/.*)$/);
     expect(forPeople.flatMap(({ file, text }) => namesConfig(file, text))).toEqual([]);
   });
 

@@ -10,7 +10,7 @@ export const OTHER = `${HOME}/projects/other`;
 export const here = session();
 export const there = session({ id: '00000000-0000-4000-8000-0000000000d1', title: 'Over there', cwd: OTHER, repoRoot: OTHER });
 
-/** The README's second example with both commands as command lines, so nothing asks main about a script: a collapsible sidebar, a drawer with a shell, and a railed right-hand group of two commands. */
+/** The layout guide's second example with both commands as command lines, so nothing asks main about a script: a collapsible sidebar, a drawer with a shell, and a railed right-hand group of two commands. */
 export const LAYOUT = {
   version: 2,
   root: {

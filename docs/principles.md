@@ -57,7 +57,7 @@ The app offers ways of working and prescribes none.
 
 ## What is yours stays yours
 
-- The config folder is yours: the app writes only `settings.json`, at the moments [Panels](../README.md#panels) lists, and the `.local.json` files beside your own; it never writes your layout or any other file there.
+- The config folder is yours: the app writes only `settings.json`, at the moments [the config folder](guide/layout.md#the-config-folder) lists, and the `.local.json` files beside your own; it never writes your layout or any other file there.
 - A panel type you were sent runs as you, so read it before you add it; anything a panel does beyond running its script, such as opening a link or starting a session, is something you press.
 - The log records what the app did, not your prompts or conversations, apart from the last few lines a session printed when it failed to start.
 - The usage record notes when sessions were finished, set aside or kept, when the review opened and ended, and what marked a session as needing you, as moments, session ids, types and counts, and stays on this machine.

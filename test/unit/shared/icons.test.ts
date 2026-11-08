@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { ICON_NAMES, isIconName } from '../../../src/shared/icons';
 
-describe('the README', () => {
+describe('the layout guide', () => {
   it('names every icon a panel can pick, and no other, so the list cannot drift from the set', () => {
-    const readme = readFileSync(new URL('../../../README.md', import.meta.url), 'utf8');
-    const line = readme.split('\n').find((text) => text.startsWith('`icon` picks its icon by name:'));
+    const guide = readFileSync(new URL('../../../docs/guide/layout.md', import.meta.url), 'utf8');
+    const line = guide.split('\n').find((text) => text.startsWith('`icon` picks its icon by name:'));
     expect(line).toBeDefined();
     const named = [...line!.slice(line!.indexOf(':')).matchAll(/`([a-z]+)`/g)].map((match) => match[1]);
     expect([...named].sort()).toEqual([...ICON_NAMES].sort());

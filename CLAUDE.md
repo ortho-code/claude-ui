@@ -1,7 +1,7 @@
 # claude-ui — start here
 
 This file loads into every Claude session automatically.
-`README.md` and `docs/` do not, so this is the entry point.
+`README.md`, `CONTRIBUTING.md` and `docs/` do not, so this is the entry point.
 
 ## What this is
 
@@ -10,13 +10,13 @@ Same-folder sessions by design, never a worktree per session.
 
 ## Read before working
 
-- `README.md` — what the app does, its settings and panels, how to install and run it.
+- `README.md` — what the app does, in short, and how to install it; `docs/guide/` — how to use it, by area; `CONTRIBUTING.md` — running it from source and the project's layout.
 - `docs/architecture.md` — environment, process model, build, planned terminal and cues.
 - `docs/principles.md` — what the app holds to: Claude Code as the source of truth, the core against extensions, shaping by the user, observing rather than deciding, no imposed workflow.
 
 Read all three at the start of any change.
 Check a change against `docs/principles.md`, and where it would go against a principle, say so and ask, rather than bend the principle or the change quietly.
-`README.md` § What it does describes the app as it is; keep it current as features land.
+`docs/guide/` describes the app as it is, and `README.md` § What it does sums it up; keep both current as features land.
 
 ## Working in this repo
 
@@ -56,7 +56,7 @@ Check a change against `docs/principles.md`, and where it would go against a pri
 
 - Same-folder sessions; never spawn a git worktree per session.
 - Stage new files as you create them; leave commits to the user.
-- `README.md` and `docs/` are human-facing and must not mention this file or `.claude/`.
+- `README.md`, `CONTRIBUTING.md` and `docs/` are human-facing and must not mention this file or `.claude/`.
   This file may point at them and at code.
   Nor do they tell Claude how to work: how a session should work here goes in this file or `.claude/`, even where a doc covers the same ground for people.
   A decision they or a code comment record says when and why, never who asked for it: "(decided 2026-10-20)" with the reason in plain words, not "(user, 2026-10-20)" or a quote from a chat.

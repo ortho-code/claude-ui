@@ -24,7 +24,7 @@ const booted = (layout: unknown, nodes: Record<string, NodeState>): Partial<Brid
   groupState: { groups: [{ id: 'g-work', name: 'Work', repoRoot: OTHER }], groupOf: { [there.id]: 'g-work' } },
 });
 
-/** The README's layout with the session list sharing the sidebar's group with a command panel. */
+/** The layout guide's layout with the session list sharing the sidebar's group with a command panel. */
 const SHARED = structuredClone(LAYOUT);
 SHARED.root.columns[0].panels!.push({ id: 'status2', type: 'command', title: 'Status', icon: 'git', options: { command: 'git status --short' } });
 
