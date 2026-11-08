@@ -4,6 +4,7 @@ import { exitLater } from '../../../../support/clock';
 import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { switchedOff } from '../../../../support/needsyou';
+import { openSettings } from '../../../../support/settings';
 import { row, switcherRollUp, tab, tabLabels, toastButton } from '../../../../support/window';
 
 // A session marked as needing you, as a launch marks the ones that were running when the app closed (resume.spec.ts), keeps the mark until you act on it: a prompt there, Clear needs you, closing its tab, leaving claude yourself, or finishing it.
@@ -94,8 +95,8 @@ test('a strength order changed on disk while the app runs repaints every dot and
 test('a strength order with a mistake is not used, and Settings says why', async ({ app, page }) => {
   await app.boot({ ...fixture, statuses: { [one.id]: 'busy' }, settings: settingsFileWith('settings.json', { strength: ['waiting', 'reminder', 'busy', 'background', 'needs-you', 'idle', 'closed'] }) });
   for (const dot of dots(page)) await expect(dot).toHaveClass(/\bbusy\b/);
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Settings' }).locator('#settings-dots-problems')).toHaveText(
+  const dialog = await openSettings(page);
+  await expect(dialog.locator('#settings-dots-problems')).toHaveText(
     'The order in settings.json is not used: "reminder" is neither a status, "needs-you" nor a needs-you category.',
   );
 });

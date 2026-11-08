@@ -3,6 +3,7 @@ import { PALETTE } from '../../../../../src/shared/looks';
 import { session, settingsFileWith } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { pixels } from '../../../support/looks';
+import { openSettings } from '../../../support/settings';
 import { LAYOUT, here, railItem, withLayout } from '../../layout/layout';
 import { row, switcherRollUp, tab } from '../../../support/window';
 
@@ -120,6 +121,6 @@ test("an attention toast's edge takes its dot's look's colour", async ({ app, pa
 test('looks with a mistake are not used, and Settings says why', async ({ app, page }) => {
   await app.boot({ ...fixture, settings: settingsFileWith('settings.json', { looks: { reminders: { colour: 'peach' }, merged: { colour: 'red' } } }) });
   expect(await fill(row(page, one.title).locator('.nudge'))).toBe(rgb(PALETTE.mauve));
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Settings' }).locator('#settings-dots-problems')).toHaveText('The looks in settings.json are not used: "merged" is neither a status, "needs-you", a category nor a type.');
+  const dialog = await openSettings(page);
+  await expect(dialog.locator('#settings-dots-problems')).toHaveText('The looks in settings.json are not used: "merged" is neither a status, "needs-you", a category nor a type.');
 });

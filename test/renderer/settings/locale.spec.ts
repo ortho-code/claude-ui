@@ -1,11 +1,11 @@
 import { expect, test } from '../support/harness';
+import { openSettings } from '../support/settings';
 
 // The language the app formats times and dates in, in Settings: the system's until another is saved into settings.json, which a time field follows from the next launch and the rest of the app at once (decided 2026-10-29).
 
 test("the language is the system's until a tag is saved into settings.json, and one that is no tag is refused", async ({ app, page }) => {
   await app.boot();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  const dialog = await openSettings(page);
   const language = dialog.getByLabel('Language for times and dates');
   await expect(language).toHaveValue('');
   // The checks' browser reads its system as en-US, as Chromium reads this machine's C.

@@ -1,12 +1,11 @@
 import { expect, test } from '../support/harness';
+import { openSettings } from '../support/settings';
 
 test('Settings lists each of the app folders once, and each Open names its own folder', async ({ app, page }) => {
   await app.boot({ folders: { config: '/home/tester/.config/claude-ui/config', logs: '/home/tester/.config/claude-ui/logs' } });
-  const toggle = page.getByRole('button', { name: 'Settings', exact: true });
-  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  const dialog = await openSettings(page);
   const rows = dialog.locator('#settings-folders .dialog-section');
 
-  await toggle.click();
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0)).toContainText('Config folder');
   await expect(rows.nth(0).locator('.dialog-path')).toHaveText('/home/tester/.config/claude-ui/config');
@@ -21,6 +20,6 @@ test('Settings lists each of the app folders once, and each Open names its own f
   // The rows are built afresh each time Settings opens, so opening it again must not add a second set.
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toBeHidden();
-  await toggle.click();
+  await openSettings(page);
   await expect(rows).toHaveCount(2);
 });

@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { SettingsFileRead } from '../../../src/shared/settings';
 import { expect, test } from '../support/harness';
 import { CONFIG_ROOT, noLocalLayout, settingsFileWith } from '../support/fixture';
+import { openSettings } from '../support/settings';
 
 // The launch flags in Settings (docs/architecture.md § The config folder): saved into settings.json, which the dialog says once under its title, with only a value of the file's that is not used said under the field.
 const file = (json: unknown): SettingsFileRead => settingsFileWith('settings.json', json);
@@ -17,9 +18,7 @@ interface SettingsDialog {
 }
 
 const open = async (page: Page): Promise<SettingsDialog> => {
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Settings' });
-  await expect(dialog).toBeVisible();
+  const dialog = await openSettings(page);
   return {
     dialog,
     field: dialog.locator('#settings-flags'),

@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { SettingsFileRead } from '../../../src/shared/settings';
 import { expect, test } from '../support/harness';
 import { settingsFileWith } from '../support/fixture';
+import { openSettings } from '../support/settings';
 
 // What a launch does with the sessions that were running when the app closed, in Settings: a dropdown, marked as needing you unless chosen otherwise, saved into settings.json, as the flags are.
 const file = (json: unknown): SettingsFileRead => settingsFileWith('settings.json', json);
@@ -13,9 +14,7 @@ interface Running {
 }
 
 const open = async (page: Page): Promise<Running> => {
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Settings' });
-  await expect(dialog).toBeVisible();
+  const dialog = await openSettings(page);
   return {
     dialog,
     choice: dialog.getByRole('combobox', { name: 'Sessions running when the app closed' }),

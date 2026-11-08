@@ -4,6 +4,7 @@ import type { PrStatus, SessionPr, SessionSummary } from '../../../../../../src/
 import { session, settingsFileWith } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { lookOf, token } from '../../../../support/looks';
+import { openSettings } from '../../../../support/settings';
 import { row, tab } from '../../../../support/window';
 
 // The window asks main what GitHub says of the PRs the sessions link: at launch, when a PR is linked, on a timer the answer sets, and when the window comes back into focus.
@@ -156,9 +157,9 @@ const prStatusIs = (on: boolean): SettingsFileRead => settingsFileWith('settings
 
 /** Tick or untick PR status in Settings and save. */
 async function saveWith(page: Page, on: boolean): Promise<void> {
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('checkbox', { name: 'PR status from GitHub' }).setChecked(on);
-  await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Save' }).click();
+  const dialog = await openSettings(page);
+  await dialog.getByRole('checkbox', { name: 'PR status from GitHub' }).setChecked(on);
+  await dialog.getByRole('button', { name: 'Save' }).click();
 }
 
 test('with PR status off in the settings, the window asks GitHub nothing, from launch on, and every mark keeps the accent', async ({ app, page }) => {

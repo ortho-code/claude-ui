@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
+import { openSettings } from '../../../../support/settings';
 import { row, tab, tabLabel } from '../../../../support/window';
 
 // What a tab's button does is a setting, `leaveButton`: stop a running session and then close the tab, as it did before there was a setting, or mark its session finished (decided 2026-10-28); close or finish in one press, claude asked to leave first; or no button, leaving it all to the tab's menu (decided 2026-11-03).
@@ -104,8 +105,7 @@ test('with leaveButton none, a tab has no button, its kebab ends it, and a middl
 test('a change to the setting redraws the button at once', async ({ app, page }) => {
   await app.boot(fixture);
   await expect(button(page)).toHaveAttribute('data-mark', 'close');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  const dialog = await openSettings(page);
   const choice = dialog.getByRole('combobox', { name: 'Leave button' });
   await expect(choice.locator('option')).toHaveText(['Stop, then close the tab', 'Stop, then mark the session finished', 'Close the tab', 'Mark the session finished', 'No button, only the menu']);
   await expect(choice).toHaveValue('stop-close');

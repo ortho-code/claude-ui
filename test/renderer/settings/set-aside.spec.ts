@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../support/harness';
 import { session, settingsFileWith } from '../support/fixture';
+import { openSettings } from '../support/settings';
 import { row } from '../support/window';
 
 // The set-aside choices and their time of day in Settings: today's three and 09:00 unless chosen otherwise, saved into settings.json, a choice that does not read named under its field, and what Set aside…'s dated choices come due at (decided 2026-10-29, the choices settable 2026-11-05).
@@ -15,8 +16,7 @@ async function choicesOffered(page: Page): Promise<Locator> {
 
 test('the time is 09:00 until another is saved into settings.json, and a cleared one is refused', async ({ app, page }) => {
   await app.boot();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  const dialog = await openSettings(page);
   const time = dialog.getByLabel('Time of day for a choice without one');
   await expect(time).toHaveValue('09:00');
 
@@ -41,8 +41,7 @@ test("Set aside…'s dated choices come due at the time the settings say, and Pi
 test('the choices show as written, a wrong one is refused under the field, and saved ones are what Set aside… offers at once', async ({ app, page }) => {
   await page.clock.setFixedTime(new Date(2026, 9, 29, 15, 30));
   await app.boot({ sessions: [one] });
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  const dialog = await openSettings(page);
   const choices = dialog.getByLabel('Set aside: the choices');
   await expect(choices).toHaveValue('tomorrow, in 1w, whenever');
 
@@ -64,8 +63,7 @@ test('the choices show as written, a wrong one is refused under the field, and s
 test("a list in the file with a choice that does not read is not used, and says why under the field, today's three in force", async ({ app, page }) => {
   await page.clock.setFixedTime(new Date(2026, 9, 29, 15, 30));
   await app.boot({ sessions: [one], settings: settingsFileWith('settings.json', { setAside: ['in 2h', 'in 2x'] }) });
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Settings' });
+  const dialog = await openSettings(page);
   await expect(dialog.locator('#settings-set-aside-problems')).toHaveText(
     'The choices in settings.json are not used: "in 2x" is not a choice the app reads: write "whenever", "in 30m", "in 2h", "in 3d 14:00", "in 1w", "tomorrow 09:00" or "next monday 09:00", a time only where a day is.',
   );

@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { SettingsFileRead } from '../../../src/shared/settings';
 import { expect, test } from '../support/harness';
 import { settingsFileWith } from '../support/fixture';
+import { openSettings } from '../support/settings';
 
 // Whether the app asks GitHub for PR status, in Settings: a checkbox, on unless chosen otherwise, saved into settings.json, as the other settings are.
 const file = (json: unknown): SettingsFileRead => settingsFileWith('settings.json', json);
@@ -13,9 +14,7 @@ interface PrStatusSetting {
 }
 
 const open = async (page: Page): Promise<PrStatusSetting> => {
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Settings' });
-  await expect(dialog).toBeVisible();
+  const dialog = await openSettings(page);
   return {
     dialog,
     box: dialog.getByRole('checkbox', { name: 'PR status from GitHub' }),
