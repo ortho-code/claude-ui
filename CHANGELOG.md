@@ -129,6 +129,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The sessions file says of each session whether it asks for you now, `asks`, by the rule its dot and the project switcher's count follow, so a panel can count what needs you as the switcher does.
 - The sessions file says of each session whether its claude is running in a tab, `running`, so a panel can list what runs, in any project.
 - Settings lists what can mark a session as needing you, each category and type with its id and its look, which are off and what `needsYou` changed, and the order the dots show states in.
+- Settings says the default under every setting `settings.json` gives other than it, with a Reset that writes the default back when you save, and Only what differs narrows every section to those settings.
 
 ### Changed
 

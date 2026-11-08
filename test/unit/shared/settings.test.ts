@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fileChanges, saveRefusal, settingProblem, settingsInForce, settingsView, type SettingsFileRead } from '../../../src/shared/settings';
+import { changedSettings, fileChanges, fileEdits, sameValue, saveRefusal, settingProblem, settingsInForce, settingsView, type SettingsFileRead } from '../../../src/shared/settings';
 import { bundledNeedsYou } from '../../renderer/support/needsyou';
 
 const missing: SettingsFileRead = { name: 'settings.json', status: 'missing', error: null, json: null };
@@ -249,5 +249,64 @@ describe('needsYou', () => {
     const view = settingsView(holding({ needsYou: { 'finish-up': { enabled: false } }, strength: ['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'idle', 'closed'] }), 0, bundled);
     expect(view.strength.problem).toBeNull();
     expect(view.needsYouRegistry?.categories.find((category) => category.id === 'finish-up')?.enabled).toBe(false);
+  });
+});
+
+describe('sameValue', () => {
+  it('compares a list item by item and an object key by key, in any order, so a save of an object setting as it stands writes nothing', () => {
+    expect(sameValue({ 'acme/app': 2, 'acme/web': 1 }, { 'acme/web': 1, 'acme/app': 2 })).toBe(true);
+    expect(sameValue({ 'pr.merged': { enabled: false } }, { 'pr.merged': { enabled: true } })).toBe(false);
+    expect(sameValue({ a: 1 }, { a: 1, b: 2 })).toBe(false);
+    expect(sameValue(['in 2h', 'whenever'], ['whenever', 'in 2h'])).toBe(false);
+    const view = settingsView(holding({ approvals: { 'acme/app': 2 }, looks: { idle: { colour: 'teal' } } }));
+    expect(fileChanges(view, { approvals: { 'acme/app': 2 }, looks: { idle: { colour: 'teal' } } })).toEqual([]);
+    expect(fileChanges(view, { approvals: {} })).toEqual([{ key: 'approvals', value: {} }]);
+  });
+});
+
+describe('changedSettings', () => {
+  it('lists nothing without the file, nor for a file the starter wrote with every default', () => {
+    expect(changedSettings(settingsView(missing))).toEqual([]);
+    expect(changedSettings(settingsView(holding({ launchFlags: '', setAside: ['tomorrow', 'in 1w', 'whenever'], looks: {}, approvals: {} })))).toEqual([]);
+  });
+
+  it('lists each setting that differs from the default with that default, a value read as the default not among them', () => {
+    expect(changedSettings(settingsView(holding({ locale: 'nl-NL', leaveButton: 'none', runningSessionsAtLaunch: 'pause', approvals: { 'acme/app': 2 } })))).toEqual([
+      { key: 'leaveButton', id: null, value: 'none', fallback: 'stop-close', problem: null },
+      { key: 'locale', id: null, value: 'nl-NL', fallback: '', problem: null },
+      { key: 'approvals', id: null, value: { 'acme/app': 2 }, fallback: {}, problem: null },
+    ]);
+  });
+
+  it('lists a value the file gives that is not used, with why, the default in force', () => {
+    expect(changedSettings(settingsView(holding({ leaveButton: 'sideways' })))).toEqual([{ key: 'leaveButton', id: null, value: 'stop-close', fallback: 'stop-close', problem: 'It has to be one of "stop-close", "stop-finish", "close", "finish", "none".' }]);
+  });
+
+  it('lists needsYou once per id it changes', () => {
+    expect(changedSettings(settingsView(holding({ needsYou: { 'pr.merged': { enabled: false }, 'pr.approved': { roles: ['own', 'reviewing'] } } }), 0, bundledNeedsYou()))).toEqual([
+      { key: 'needsYou', id: 'pr.merged', value: { enabled: false }, fallback: null, problem: null },
+      { key: 'needsYou', id: 'pr.approved', value: { roles: ['own', 'reviewing'] }, fallback: null, problem: null },
+    ]);
+  });
+
+  it('leaves out an id needsYou names to no effect, and an entry Reset emptied', () => {
+    const view = settingsView(holding({ needsYou: { 'pr.merged': {}, 'pr.closed': { enabled: true }, 'pr.approved': { roles: ['own'], label: 'Approved' } } }), 0, bundledNeedsYou());
+    expect(view.needsYouChanges).toEqual({ 'pr.approved': ['label'] });
+    expect(changedSettings(view).map((row) => row.id)).toEqual(['pr.approved']);
+  });
+});
+
+describe('fileEdits', () => {
+  it('edits an object setting entry by entry, so the entries left alone keep their text, and any other setting whole', () => {
+    const view = settingsView(holding({ needsYou: { 'pr.merged': { enabled: false }, 'pr.closed': { enabled: false } }, locale: 'nl-NL' }), 0, bundledNeedsYou());
+    expect(fileEdits(view, { needsYou: { 'pr.merged': {}, 'pr.closed': { enabled: false } }, locale: 'en-GB' })).toEqual([
+      { path: ['locale'], value: 'en-GB' },
+      { path: ['needsYou', 'pr.merged'], value: {} },
+    ]);
+  });
+
+  it('writes a setting whole when the file’s value is not used, since there are no entries of it to keep', () => {
+    const view = settingsView(holding({ approvals: { acme: 2 } }));
+    expect(fileEdits(view, { approvals: {} })).toEqual([{ path: ['approvals'], value: {} }]);
   });
 });

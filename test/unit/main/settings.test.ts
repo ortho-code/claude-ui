@@ -116,6 +116,14 @@ describe('saving from Settings', () => {
     expect(await text(settingsFile)).toBe('{\n  // mine\n  "launchFlags": "--allowedTools Grep",\n  "prStatus": true\n}\n');
   });
 
+  it('edits one entry of needsYou alone, keeping the comments around the others', async () => {
+    writeFileSync(settingsFile, '{\n  "needsYou": {\n    // keep me\n    "pr.closed": { "enabled": false },\n    // and me\n    "pr.merged": { "enabled": false }\n  }\n}\n');
+    const settings = await fresh();
+    const saved = await settings.saveSettings({ needsYou: { 'pr.closed': { enabled: false }, 'pr.merged': {} } });
+    expect(saved.refused).toBeNull();
+    expect(await text(settingsFile)).toBe('{\n  "needsYou": {\n    // keep me\n    "pr.closed": { "enabled": false },\n    // and me\n    "pr.merged": {}\n  }\n}\n');
+  });
+
   it('makes settings.json when there is none, holding only what differs from the default', async () => {
     const settings = await fresh();
     await settings.saveSettings({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: false });

@@ -144,8 +144,9 @@ button {
    Borderless buttons (row actions, menu items, closes) have no border to show, so they fall through to their own hover fills.
    Not an icon button's: those take their own, by kind (below), and this would otherwise fill and outline a borderless one, and outline one with a resting fill, such as the rail's panel on show.
    Except the header actions (`.icon-btn.large`), which wear the ordinary button's skin beside "+ New" and so take its hover too, so that the four hover alike; their selector carries the icon buttons' four classes' weight (below), or `.icon-btn.large`'s resting fill would win over this one.
-   The same look while a menu the button opened is up (`.menu-open`, stamped by openMenu), as every icon button's below, so a worded button that opens one, such as the bar of selecting several's Move to group, keeps it with the pointer gone onto the menu. */
-button:where(:not(.icon-btn)):is(:hover, .menu-open),
+   The same look while a menu the button opened is up (`.menu-open`, stamped by openMenu), as every icon button's below, so a worded button that opens one, such as the bar of selecting several's Move to group, keeps it with the pointer gone onto the menu.
+   A disabled one takes none, since a hover says a press will do something; inside :where(), so the rule keeps its weight. */
+button:where(:not(.icon-btn, :disabled)):is(:hover, .menu-open),
 .icon-btn:where(.large):not(:disabled):not(.unavailable):is(:hover, .menu-open) {
   background: var(--surface-hover);
   border-color: var(--accent);
@@ -174,9 +175,9 @@ button:where(:not(.icon-btn)):is(:hover, .menu-open),
 /* A control that cannot act says so before it is pressed: no pointer, no hover, dimmed.
    `.unavailable` goes with `aria-disabled` rather than the `disabled` property, because a natively disabled button takes no focus, so its tooltip — the only thing that says WHY — never reaches the keyboard.
    See setUnavailable().
-   The native `:disabled` is covered too, for the pin while its toggle is saved, which has no reason to give, and for a dialog's button that waits on the dialog itself, such as Save with nothing to write or Set aside with no time picked. */
+   The native `:disabled` is covered too, for the pin while its toggle is saved, which has no reason to give, and for a dialog's button that waits on the dialog itself, such as Save with nothing to write, Set aside with no time picked or a Reset already made. */
 .icon-btn:disabled,
-.dialog-actions button:disabled,
+.dialog button:disabled,
 .unavailable {
   cursor: default;
   opacity: 0.4;

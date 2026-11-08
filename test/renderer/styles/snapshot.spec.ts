@@ -139,19 +139,23 @@ test("the window's own title bar and resize edges, where the app draws its chrom
   await snapshot(page, DIR!, 'chrome');
 });
 
-// One state per section of Settings, each with a mistake in the file so the list's mark and the notes under the title are drawn too.
-for (const [section, name] of [
-  ['General', 'settings-general'],
-  ['Sessions', 'settings-sessions'],
-  ['Needs you', 'settings-needs-you'],
-  ['Appearance', 'settings-appearance'],
-  ['Version control', 'settings-version-control'],
-  ['Logs', 'settings-logs'],
+// One state per section of Settings, each with a mistake in the file so the list's mark and the notes under the title are drawn too, and settings that differ from the defaults, so their Default lines are; one more with Only what differs on.
+const SETTINGS_ON_DISK = { looks: { nothing: { colour: 'peach' } }, lanchFlags: '', locale: 'nl-NL', leaveButton: 'none', approvals: { 'acme/app': 2 }, needsYou: { 'pr.merged': { enabled: false } } };
+for (const [section, name, onlyWhatDiffers] of [
+  ['General', 'settings-general', false],
+  ['Sessions', 'settings-sessions', false],
+  ['Needs you', 'settings-needs-you', false],
+  ['Appearance', 'settings-appearance', false],
+  ['Version control', 'settings-version-control', false],
+  ['Logs', 'settings-logs', false],
+  ['General', 'settings-only-what-differs', true],
 ] as const) {
-  test(`Settings open on ${section}`, async ({ app, page }) => {
-    await app.boot({ settings: settingsFileWith('settings.json', { looks: { nothing: { colour: 'peach' } }, lanchFlags: '' }) });
+  test(`Settings open on ${section}${onlyWhatDiffers ? ', only what differs' : ''}`, async ({ app, page }) => {
+    await app.boot({ settings: settingsFileWith('settings.json', SETTINGS_ON_DISK) });
     await page.locator('#settings-toggle').click();
-    await page.getByRole('dialog', { name: 'Settings' }).getByRole('tab', { name: section, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Settings' });
+    if (onlyWhatDiffers) await dialog.getByRole('switch', { name: 'Only what differs' }).check();
+    await dialog.getByRole('tab', { name: section, exact: true }).click();
     await expect(page.getByRole('tabpanel', { name: section, exact: true })).toBeVisible();
     await snapshot(page, DIR!, name);
   });

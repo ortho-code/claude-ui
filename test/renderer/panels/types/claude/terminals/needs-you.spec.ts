@@ -96,7 +96,7 @@ test('a strength order with a mistake is not used, and Settings says why', async
   await app.boot({ ...fixture, statuses: { [one.id]: 'busy' }, settings: settingsFileWith('settings.json', { strength: ['waiting', 'reminder', 'busy', 'background', 'needs-you', 'idle', 'closed'] }) });
   for (const dot of dots(page)) await expect(dot).toHaveClass(/\bbusy\b/);
   const dialog = await openSettings(page, 'Appearance');
-  await expect(dialog.locator('#settings-dots-problems')).toHaveText(
+  await expect(dialog.locator('#settings-strength-problems')).toHaveText(
     'The order in settings.json is not used: "reminder" is neither a status, "needs-you" nor a needs-you category.',
   );
 });

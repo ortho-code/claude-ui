@@ -9,7 +9,7 @@ import { getMoved, getSettings as getMetaSettings, markMoved } from './meta';
 import { settingsFile, settingsLocalFile } from './paths';
 import { defaultSettings } from '../shared/defaults';
 import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../shared/needsyou';
-import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsInForce, settingsView, valuesOf, type SettingKey, type SettingsChange, type SettingsFileRead, type SettingsSaved, type SettingsView } from '../shared/settings';
+import { fileEdits, saveRefusal, SETTING_KEYS, settingProblem, settingsInForce, settingsView, valuesOf, type SettingKey, type SettingsChange, type SettingsFileRead, type SettingsSaved, type SettingsView } from '../shared/settings';
 import type { Settings } from '../shared/types';
 
 /**
@@ -71,9 +71,9 @@ export async function settingsNow(): Promise<Settings> {
   return settingsInForce(await readSettings());
 }
 
-/** Write `change` into the file by the rules of `fileChanges`, against `view`. */
+/** Write `change` into the file by the rules of `fileChanges`, as `fileEdits` edits its text, against `view`. */
 async function writeChange(view: SettingsView, change: SettingsChange): Promise<void> {
-  const edits = fileChanges(view, change).map(({ key, value }) => ({ path: [key], value }));
+  const edits = fileEdits(view, change);
   if (edits.length > 0) await editAppFile(settingsFile, edits);
 }
 

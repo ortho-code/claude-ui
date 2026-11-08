@@ -81,6 +81,8 @@ export type SettingsView = SettingViews & {
   file: Omit<SettingsFileRead, 'json' | 'duplicates'> & { duplicates: string[] };
   /** The needs-you categories and types in force: the ones the app ships, with `needsYou` applied where it can be used; null for a view made without them. */
   needsYouRegistry: NeedsYouRegistry | null;
+  /** By id, the fields `needsYou` in force gives a value other than what the app ships, an id it names to no effect, such as `{ "enabled": true }` on a type that is on, left out; every field it names, for a view made without what the app ships. */
+  needsYouChanges: Record<string, string[]>;
 };
 
 /** A save from Settings: the value of each setting it asks for. */
@@ -203,6 +205,20 @@ export function settingsView(file: SettingsFileRead, read = 0, bundled: NeedsYou
   }
   const defaults = defaultSettings();
   const viewOf = <K extends SettingKey>(key: K): SettingView<Settings[K]> => ({ value: values[key] ?? defaults[key], problem: problems.get(key) ?? null });
+  // What the app ships of an id, field by field; none without what it ships, so every field named counts as a change.
+  const shipped = (id: string): Map<string, unknown> | undefined => {
+    const found = bundled?.categories.find((category) => category.id === id) ?? bundled?.types.find((type) => type.id === id);
+    return found === undefined ? undefined : new Map(Object.entries(found));
+  };
+  const needsYouChanges = Object.fromEntries(
+    Object.entries(values.needsYou ?? {}).flatMap(([id, change]) => {
+      const before = shipped(id);
+      const fields = Object.entries(change)
+        .filter(([field, value]) => before === undefined || !sameValue(value, before.get(field)))
+        .map(([field]) => field);
+      return fields.length === 0 ? [] : [[id, fields]];
+    }),
+  );
   return {
     launchFlags: viewOf('launchFlags'),
     runningSessionsAtLaunch: viewOf('runningSessionsAtLaunch'),
@@ -219,6 +235,7 @@ export function settingsView(file: SettingsFileRead, read = 0, bundled: NeedsYou
     notes,
     file: { name: file.name, status: file.status, error: file.error, duplicates: file.duplicates ?? [] },
     needsYouRegistry: registry,
+    needsYouChanges,
   };
 }
 
@@ -238,10 +255,50 @@ export function fileChanges(view: SettingsView, change: SettingsChange): { key: 
   });
 }
 
-/** Whether two values of a setting are the same: a list item by item, since the one a save sends is never the one in force. */
-function sameValue(a: unknown, b: unknown): boolean {
-  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((item, at) => item === b[at]);
+/**
+ * The edits of the file's text that write `fileChanges`: a setting whose value is an object, such as `needsYou`, entry by entry where the file's value is used, so the entries it leaves alone keep the comments around them; any other setting, or one whose value in the file is not used, whole.
+ * An entry taken out is a key removed, which takes the comment before it along; every other edit keeps the text around it.
+ */
+export function fileEdits(view: SettingsView, change: SettingsChange): { path: string[]; value: unknown }[] {
+  return fileChanges(view, change).flatMap(({ key, value }): { path: string[]; value: unknown }[] => {
+    const before = view[key].value;
+    if (view[key].problem !== null || !isObject(value) || !isObject(before)) return [{ path: [key], value }];
+    const ids = new Set([...Object.keys(before), ...Object.keys(value)]);
+    return [...ids].filter((id) => !sameValue(value[id], before[id])).map((id) => ({ path: [key, id], value: value[id] }));
+  });
+}
+
+/** Whether two values of a setting are the same: a list item by item and an object key by key, in any order, since the one a save sends is never the one in force. */
+export function sameValue(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((item, at) => sameValue(item, b[at]));
+  if (isObject(a) && isObject(b)) {
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && sameValue(a[key], b[key]));
+  }
   return a === b;
+}
+
+/**
+ * A setting whose value in force differs from the app's default, or whose value in the file is not used.
+ * `needsYou` is one per id it changes, `id` naming it, so each can be reset alone; `value` is what is in force for that one.
+ */
+export interface ChangedSetting {
+  key: SettingKey;
+  id: string | null;
+  value: unknown;
+  fallback: unknown;
+  problem: string | null;
+}
+
+/** Every setting that differs from the app's default in `view`, or whose value in the file is not used, in the order Settings shows them. */
+export function changedSettings(view: SettingsView): ChangedSetting[] {
+  const defaults = defaultSettings();
+  return SETTING_KEYS.flatMap((key): ChangedSetting[] => {
+    const { value, problem } = view[key];
+    if (problem !== null) return [{ key, id: null, value, fallback: defaults[key], problem }];
+    if (key === 'needsYou') return Object.keys(view.needsYouChanges).map((id) => ({ key, id, value: view.needsYou.value[id], fallback: null, problem: null }));
+    return sameValue(value, defaults[key]) ? [] : [{ key, id: null, value, fallback: defaults[key], problem: null }];
+  });
 }
 
 /**
