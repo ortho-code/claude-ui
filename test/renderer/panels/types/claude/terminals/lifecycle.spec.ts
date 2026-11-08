@@ -4,7 +4,7 @@ import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { exitAtOnce, exitLater } from '../../../../support/clock';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, stripRow, switcherEntry, tab, tabs } from '../../../../support/window';
+import { row, stripRow, switcherRollUp, tab, tabs } from '../../../../support/window';
 
 // A tab's life (docs/architecture.md § Tab lifecycle): selecting it starts it, it boots until claude prints, its button stops the session and keeps the tab cold, a second press closes it; claude ending by itself closes the tab, unless it ended so soon that the start failed.
 const one = session();
@@ -145,7 +145,7 @@ test('a session forced out without reporting its end keeps no status: its dot an
   await startLive(page, app);
   expect(await app.emit('onSessionStatus', one.id, 'waiting', '', 'Notification')).toBe(1);
   await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bwaiting\b/);
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bwaiting\b/);
+  await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bwaiting\b/);
 
   const close = tab(page, one.title).locator('.tab-close');
   await close.click();
@@ -156,7 +156,7 @@ test('a session forced out without reporting its end keeps no status: its dot an
   await app.emit('onTerminalExit', FIRST, 137);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
   await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bwaiting\b/);
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).not.toHaveClass(/\bwaiting\b/);
+  await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bwaiting\b/);
   expect(await app.calls('clearStatus')).toEqual([[one.id]]);
 });
 

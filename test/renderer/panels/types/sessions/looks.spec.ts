@@ -4,7 +4,7 @@ import { session, settingsFileWith } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { pixels } from '../../../support/looks';
 import { LAYOUT, here, railItem, withLayout } from '../../layout/layout';
-import { row, stripRow, switcherEntry, tab } from '../../../support/window';
+import { row, stripRow, switcherRollUp, tab } from '../../../support/window';
 
 // How each status, category and type is drawn is `looks` in settings.json, field by field over what it looks like and what it belongs to, the defaults being the dots as they were (decided 2026-11-06).
 const one = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'Marked session' });
@@ -12,13 +12,17 @@ const two = session({ id: '00000000-0000-4000-8000-0000000000f2', title: 'Other 
 const mark = { type: 'app.was-running' as const, at: 1, how: 'quit' as const };
 const fixture = { sessions: [one, two], openSessions: [one.id, two.id], needsYou: { [one.id]: [mark] }, history: { [one.id]: [], [two.id]: [] } };
 
-/** The marked session's dot on each surface that draws one for it, then the roll-ups that carry it. */
-const dots = (page: Page): Locator[] => [row(page, one.title).locator('.nudge'), tab(page, one.title).locator('.nudge'), stripRow(page, one.title).locator('.nudge'), switcherEntry(page, 'demo').locator('.nudge'), page.locator('#strip-badge')];
+/** The marked session's dot on each surface that draws one for it, then the roll-ups that carry it as a dot. */
+const dots = (page: Page): Locator[] => [row(page, one.title).locator('.nudge'), tab(page, one.title).locator('.nudge'), stripRow(page, one.title).locator('.nudge'), page.locator('#strip-badge')];
+
+/** The switcher's count for the marked session's project, which takes only the look's colour, as its text. */
+const pill = (page: Page): Locator => switcherRollUp(page, 'demo');
 
 /** A colour as the page computes it. */
 const rgb = (hex: string): string => `rgb(${[1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16)).join(', ')})`;
 
 const fill = (dot: Locator): Promise<string> => dot.evaluate((el) => getComputedStyle(el).backgroundColor);
+const ink = (dot: Locator): Promise<string> => dot.evaluate((el) => getComputedStyle(el).color);
 
 test('with no looks set, a reason draws as the needs-you mauve, pulsing, on every surface', async ({ app, page }) => {
   await app.boot(fixture);
@@ -27,6 +31,8 @@ test('with no looks set, a reason draws as the needs-you mauve, pulsing, on ever
     expect(await fill(dot)).toBe(rgb(PALETTE.mauve));
     expect(await dot.evaluate((el) => getComputedStyle(el).animationName)).toBe('pulse');
   }
+  await expect(pill(page)).toHaveClass(/\blook-app\.was-running\b/);
+  expect(await ink(pill(page))).toBe(rgb(PALETTE.mauve));
 });
 
 test('a reason of a type the needs-you files do not define draws in your needs-you look', async ({ app, page }) => {
@@ -36,6 +42,8 @@ test('a reason of a type the needs-you files do not define draws in your needs-y
     await expect(dot).toHaveClass(/\bneeds\b/);
     expect(await fill(dot)).toBe(rgb(PALETTE.teal));
   }
+  await expect(pill(page)).toHaveClass(/\bneeds\b/);
+  expect(await ink(pill(page))).toBe(rgb(PALETTE.teal));
 });
 
 test("a colour set for a reason's category draws on its dot and every roll-up, and its type follows the category", async ({ app, page }) => {
@@ -45,6 +53,7 @@ test("a colour set for a reason's category draws on its dot and every roll-up, a
     // Pulse is left to needs-you's look, which pulses.
     expect(await dot.evaluate((el) => getComputedStyle(el).animationName)).toBe('pulse');
   }
+  expect(await ink(pill(page))).toBe(rgb(PALETTE.peach));
 });
 
 test("a type that looks like idle draws as a still green dot, and its menu header's dot alike", async ({ app, page }) => {
@@ -53,6 +62,7 @@ test("a type that looks like idle draws as a still green dot, and its menu heade
     expect(await fill(dot)).toBe(rgb(PALETTE.green));
     expect(await dot.evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
   }
+  expect(await ink(pill(page))).toBe(rgb(PALETTE.green));
   await row(page, one.title).locator('.session-kebab').click();
   expect(await fill(page.locator('.kebab-menu .menu-header .menu-header-line.dotted .nudge').first())).toBe(rgb(PALETTE.green));
 });
@@ -68,6 +78,9 @@ test("an icon look draws the icon in the dot's place, its colour as a mask's fil
     expect(await dot.evaluate((el) => getComputedStyle(el, '::before').maskImage)).toContain('data:image/svg+xml');
     expect(await fill(dot)).toBe('rgba(0, 0, 0, 0)');
   }
+  // The count takes the look's colour and never its icon.
+  expect(await ink(pill(page))).toBe(rgb(PALETTE.teal));
+  expect(await pill(page).evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none');
   for (const dot of [row(page, one.title).locator('.nudge'), tab(page, one.title).locator('.nudge')]) {
     expect(await dot.evaluate((el) => [el.getBoundingClientRect().width, el.getBoundingClientRect().height])).toEqual([9, 9]);
   }

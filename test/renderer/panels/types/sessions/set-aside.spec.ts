@@ -3,7 +3,7 @@ import { session, settingsFileWith } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
 import { switchedOff } from '../../../support/needsyou';
-import { row, stripRow, switcherEntry, tab, tabLabels, toastButton } from '../../../support/window';
+import { row, stripRow, switcherRollUp, tab, tabLabels, toastButton } from '../../../support/window';
 
 // A session set aside carries a bookmark on its row, its tab and its strip row by one rule, until a prompt there, Clear set aside, a finish or its day coming takes it off (decided 2026-10-29).
 // Its day coming makes it need you; a needs-you mark it came after is muted until then, and one that comes after it is not.
@@ -316,7 +316,7 @@ test('a needs-you mark from before the set-aside mark is muted, read-looking and
   await expect(dot).toHaveClass(/\bneeds\b.*\backed\b|\backed\b.*\bneeds\b/);
   await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit (read)');
   await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\backed\b/);
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).not.toHaveClass(/\bneeds\b/);
+  await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bneeds\b/);
   // A cold tab set aside is not work in hand, so the strip, which lists only what runs or needs you, has nothing.
   await expect(stripRow(page, one.title)).toHaveCount(0);
 });
@@ -327,11 +327,11 @@ test('a muted session that runs and is idle rolls up as read, and one whose clau
   await startLive(page, app);
   await app.emit('onSessionStatus', one.id, 'idle', '', 'Stop');
   await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b.*\backed\b|\backed\b.*\bneeds\b/);
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).not.toHaveClass(/\bidle\b|\bneeds\b/);
+  await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bidle\b|\bneeds\b/);
   await expect(page.locator('#strip-label')).toHaveText('1 live');
 
   await app.emit('onSessionStatus', one.id, 'waiting', '', 'PermissionRequest');
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bwaiting\b/);
+  await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bwaiting\b/);
   await expect(page.locator('#strip-label')).toHaveText('1 of 1 need you');
 });
 
@@ -350,7 +350,7 @@ test('a needs-you mark after the set-aside mark is news, shown and counted in fu
   const dot = row(page, one.title).locator('.nudge');
   await expect(dot).toHaveClass(/\bneeds\b/);
   await expect(dot).not.toHaveClass(/\backed\b/);
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bneeds\b/);
+  await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bneeds\b/);
   await expect(stripRow(page, one.title)).toHaveCount(1);
   await expect(stripRow(page, one.title).locator('.set-aside-mark')).toBeVisible();
   await expect(page.locator('#strip-label')).toHaveText('1 of 1 need you');

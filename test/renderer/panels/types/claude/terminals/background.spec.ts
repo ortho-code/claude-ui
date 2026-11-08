@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { lookOf, token } from '../../../../support/looks';
-import { row, stripRow, switcherEntry, tab } from '../../../../support/window';
+import { row, stripRow, switcherRollUp, tab } from '../../../../support/window';
 
 // A turn that ends with work still running behind it, such as a shell or a subagent it sent off, reports `background` in idle's place (docs/architecture.md § Status cues).
 // Every dot standing for the session says so alike, naming what runs; nothing calls it finished until that work has ended and a turn of its own has.
@@ -39,7 +39,7 @@ test('a turn ending with work behind it shows background on every dot of the ses
     expect(await dot.evaluate((el) => getComputedStyle(el).animationName)).toBe('spin');
   }
   // Working, as far as the project's roll-up goes: not finished, and nothing to toast on a tab not on show.
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bbusy\b/);
+  await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bbusy\b/);
   await expect(toasts(page)).toHaveCount(0);
 
   // Its end starts a turn of its own, and only that turn's end is the session finishing.
