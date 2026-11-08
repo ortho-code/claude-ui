@@ -69,7 +69,7 @@ export function statusLines(id: string, view: View<'statuses' | 'backgroundTasks
 /**
  * Make a status dot mute its session when clicked, wherever that dot is drawn.
  *
- * The gesture is "click the status dot", and it has to mean the same thing on all three surfaces that draw one — the sidebar row, the tab, and the live strip — so it is one helper rather than three copies of the same four lines.
+ * The gesture is "click the status dot", and it has to mean the same thing on every surface that draws one — the sidebar row, the tab, the live strip and a list panel's row naming a session — so it is one helper rather than copies of the same four lines.
  * `stopPropagation` is the load-bearing part: every one of those dots sits inside something clickable that does something else (select the row, switch to the tab, jump to the session), and muting must not also do that.
  * The id arrives as a thunk because the sidebar's rows are REUSED across renders: the row knows its key, and which session that key holds is only true at the moment of the click.
  */

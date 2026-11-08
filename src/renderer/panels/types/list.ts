@@ -7,7 +7,7 @@ import { routeLinks } from '../../external-links';
 import { Keyed, placeChildren } from '../../keyed';
 import { language, onLanguageChange } from '../../locale';
 import { kebabButton, type MenuItem } from '../../menu';
-import { sessionDotClass } from '../../statusdot';
+import { ackOnClick, sessionDotClass } from '../../statusdot';
 import { setTooltip } from '../../tooltip';
 import type { PanelSlot } from '../layout';
 import { intervalOf, optionsOf } from '../options';
@@ -551,12 +551,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     const count = element('span', 'list-session-count');
     const namedDot = element('span');
     // A press marks it read or unread where it can be marked, as on every session dot; on a dot with nothing to mark it is the row's.
-    namedDot.addEventListener('click', (event) => {
-      if (!namedDot.classList.contains('clickable')) return;
-      event.stopPropagation();
-      const id = this.items.get(key)?.session;
-      if (id) this.host.toggleRead(id);
-    });
+    ackOnClick(namedDot, () => this.items.get(key)?.session ?? null);
     const namedDotBox = element('span', 'list-dot');
     namedDotBox.append(namedDot);
     // The chevron of a row holding rows: the section heading's own caret, in a button of its own so it folds from the keyboard too.
