@@ -136,6 +136,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Opening a session from anywhere but the terminal area brings the layout back too; full screen is off again at the next launch.
 - Show in list and a project's or group's name in the tab bar bring the session list into view when its group is folded, it is behind another panel, or another panel fills the window.
   Switching tabs leaves the sidebar folded, and the tab's session is in view in the list once you unfold it.
+- A click on the tab on show while you are typing in it shows its session in the list, as Show in list does; its tooltip says so, unless its folder is gone.
 
 ### Changed
 

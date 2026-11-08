@@ -379,7 +379,7 @@ function copyIdItem(session: SessionSummary): MenuItem {
 // All rather than the session's project: choosing a project moves the tab bar and the tab on show with it, which would take you out of the tab you are in, while All holds every tab, so the one on show stays.
 // The list can still leave the session out, and the toast says why where the store says it, rather than the press seeming to do nothing: under a filter, or not, such as one being deleted.
 // Never for being finished: a finished session's menu has no Show in list on any surface (its own branch in `sessionMenuItems`).
-function showInList(session: SessionSummary): void {
+export function showInList(session: SessionSummary): void {
   const { activeProject } = store.get();
   const host = hostOf('sessions');
   host.bringIntoView();

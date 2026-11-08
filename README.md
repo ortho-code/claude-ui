@@ -69,7 +69,7 @@ Done:
   Panels so far run a command or a script and show its output, again on an interval, when the script says, or when the git working tree of their folder changes, or give you plain shells, as tabs per project that come back at the next launch, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
   A panel follows its tab's session into the worktree claude is changing files in, by path, after a `cd` or by claude's own worktree tools, and names the folder it looks in beside its title.
   Any panel, the sidebar and the terminal included, fills the window from a button in its header, and the same button puts the layout back as it was.
-  Show in list and a project's or group's name in the tab bar bring the session list into view when it is folded, behind another panel or under another panel's full screen.
+  Show in list, a project's or group's name in the tab bar, and a click on the tab on show while you are typing in it bring the session list into view when it is folded, behind another panel or under another panel's full screen.
   See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag.
   See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.

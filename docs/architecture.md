@@ -557,10 +557,11 @@ Whether a project is a git repository is a fact about its folder, so every sessi
 The completeness check covers every button on the two headings, in the state its fixture sets up: the "+", its caret and the project's jump button; a press on a heading, which folds it, has no item.
 
 **A press that asks to see the list brings it into view; following a session keeps it in step** (decided 2026-11-08).
-Show in list, the tab bar's project and group names and a terminal panel's project names first bring the list into view (`PanelHost.bringIntoView`, § Full screen): its group unfolded, the list shown in its group, another panel's full screen left; then they land where they point.
+Show in list, a click on the tab on show while the keyboard is in its terminal (the `showInList` ask), the tab bar's project and group names and a terminal panel's project names first bring the list into view (`PanelHost.bringIntoView`, § Full screen): its group unfolded, the list shown in its group, another panel's full screen left; then they land where they point.
 Following a session (the `followSession` ask: a tab's click, opening a session from a panel, a toast or a sibling, and a tab's claude moving to a session another tab runs) unfolds only inside the list and never touches the layout, so a folded sidebar stays folded while you switch tabs.
 A follow made while the list is out of sight, where nothing can be scrolled, lands on its row once the list takes up room again (`following` in `sessions/reveal.ts`).
-Turned down: every jump into the list bringing it into view, which unfolded the sidebar, or left a full-screen terminal area, on every tab switch.
+The tab's click counts only with the keyboard already in that tab's terminal, read at the press since the press takes the focus away, and never as the second press of a double-click: any other click on a tab gives its terminal the keyboard once it runs, which is a click's job too, and the tab on show's tooltip says "Click again to show it in the session list", where a tab whose folder is gone says why instead.
+Turned down: every jump into the list bringing it into view, which unfolded the sidebar, or left a full-screen terminal area, on every tab switch; any click on the tab on show, which would unfold the sidebar on every click back into the terminal.
 
 ### A session whose folder is gone
 

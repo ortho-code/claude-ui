@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import type { NodeState } from '../../../../src/shared/panels';
 import { type BridgeFixture, session } from '../../support/fixture';
-import { expect, test } from '../../support/harness';
+import { type App, expect, test } from '../../support/harness';
 import { groupHeading, projectHeading, row, tab, tabBarGroup, tabBarProject, tabLabel } from '../../support/window';
 import { here, keptChanges, LAYOUT, OTHER, railItem, there, withLayout } from './layout';
 
@@ -12,7 +12,7 @@ const unfoldSidebar = (page: Page): Locator => page.getByRole('button', { name: 
 const item = (page: Page, label: string): Locator => page.locator('.kebab-menu button.menu-row').filter({ hasText: new RegExp(`^${label}$`) });
 
 // Enough rows above the other project that its heading starts out of sight once the list is on show, so a press that does not scroll is caught.
-const filler = Array.from({ length: 40 }, (_, i) => session({ id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, title: `Filler ${i}` }));
+const filler = Array.from({ length: 40 }, (_, i) => session({ id: `00000000-0000-4000-8000-${String(1000 + i).padStart(12, '0')}`, title: `Filler ${i}` }));
 
 const booted = (layout: unknown, nodes: Record<string, NodeState>): Partial<BridgeFixture> => ({
   ...withLayout(layout, nodes),
@@ -90,6 +90,60 @@ test("a tab's click with the sidebar folded has its row in view once the sidebar
 
   await unfoldSidebar(page).click();
   await expect(row(page, there.title)).toBeInViewport();
+});
+
+// A second tab in `here`'s project, so both share the tab bar's row while it is folded to the one on show.
+const second = session({ id: '00000000-0000-4000-8000-0000000000d2', title: 'Second here' });
+const twoTabs = (nodes: Record<string, NodeState>): Partial<BridgeFixture> => ({
+  ...booted(LAYOUT, nodes),
+  sessions: [...filler, here, second, there],
+  openSessions: [here.id, second.id],
+  history: { [here.id]: [], [second.id]: [] },
+});
+
+/** Start both tabs, then leave `here` on show with the keyboard in its terminal. */
+async function bothRunning(app: App, page: Page): Promise<void> {
+  await tabLabel(page, second.title).click();
+  await tabLabel(page, here.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  const typing = page.locator('.term.active .xterm-helper-textarea');
+  await typing.focus();
+  await expect(typing).toBeFocused();
+}
+
+test('a click on the tab on show while typing in its terminal unfolds a folded sidebar and lands on its row', async ({ app, page }) => {
+  await app.boot(twoTabs({ sidebar: { folded: true } }));
+  await bothRunning(app, page);
+  await expect(sidebar(page)).toBeHidden();
+
+  await tabLabel(page, here.title).click();
+  await expect(sidebar(page)).toBeVisible();
+  await expect(row(page, here.title)).toBeInViewport();
+});
+
+test('a click on the tab on show with the keyboard elsewhere leaves a folded sidebar folded', async ({ app, page }) => {
+  await app.boot(twoTabs({ sidebar: { folded: true } }));
+  await bothRunning(app, page);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+
+  await tabLabel(page, here.title).click();
+  await expect(tab(page, here.title)).toHaveClass(/\bactive\b/);
+  await expect(sidebar(page)).toBeHidden();
+});
+
+test('a double-click on a tab not on show leaves a folded sidebar folded', async ({ app, page }) => {
+  await app.boot(twoTabs({ sidebar: { folded: true } }));
+  await bothRunning(app, page);
+
+  await tabLabel(page, second.title).dblclick();
+  await expect(tab(page, second.title)).toHaveClass(/\bactive\b/);
+  await expect(sidebar(page)).toBeHidden();
+});
+
+test('the tab on show says on hover that a click on it shows its session in the list, and a tab not on show does not', async ({ app, page }) => {
+  await app.boot(twoTabs({}));
+  await expect(tabLabel(page, here.title)).toHaveAttribute('data-tooltip', /\nClick again to show it in the session list$/);
+  await expect(tabLabel(page, second.title)).not.toHaveAttribute('data-tooltip', /Click again/);
 });
 
 test("in Recent, a project's tab-bar label unfolds a folded sidebar and lands on the project's newest row", async ({ app, page }) => {

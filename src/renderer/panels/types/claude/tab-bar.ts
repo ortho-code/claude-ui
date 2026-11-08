@@ -14,7 +14,7 @@ import { layersIcon, SIBLING_ICON, WORKTREE_ICON } from '../../../svg';
 import { buildTab, drawTab, dropSortable, sortableTabs, type TabEls } from '../../../tab';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
-import { activateTab, persistOpenTabs, pressTabButton, tabOf } from './terminals';
+import { activateTab, persistOpenTabs, pressTabButton, tabOf, terminalOf } from './terminals';
 import './tab-bar.css';
 
 /**
@@ -241,11 +241,17 @@ function buildGroupRow(cluster: string): GroupRow {
 
 /** A session's tab, built once: what it does acts on the tab by its token when pressed, since a `/clear` can hand the tab another session; what it shows each draw writes (`drawSessionTab`). */
 function buildSessionTab(token: string): SessionTabEls {
+  // A click on the tab on show while the keyboard is in its terminal asks to see the session in the list; any other click selects the tab, which gives its terminal the keyboard once it runs, and the list follows.
+  // Read at the press, since the press takes the focus out of the terminal before the click; the second press of a double-click is never one, or a double-click on a tab not on show would select it and then show the list.
+  let typingHere = false;
   const tab = buildTab({
     select: () => {
+      const asked = typingHere;
       activateTab(token);
       const shown = tabOf(token);
-      if (shown) hostOf('claude').followSession(shown.session.id);
+      if (!shown) return;
+      if (asked) hostOf('claude').showInList(shown.session.id);
+      else hostOf('claude').followSession(shown.session.id);
     },
     // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind, or mark its session finished; or one, or no button at all, as the settings say.
     // See pressTabButton.
@@ -258,6 +264,9 @@ function buildSessionTab(token: string): SessionTabEls {
       return held ? hostOf('claude').sessionMenu(held.session.id, 'tab') : null;
     },
     kebabLabel: 'Session options',
+  });
+  tab.el.addEventListener('mousedown', (event) => {
+    typingHere = event.button === 0 && event.detail === 1 && store.get().activeTab === token && terminalOf(token).el.contains(document.activeElement);
   });
   const dot = document.createElement('span');
   // Toggle "read" from the tab too, rather than only from the sidebar row; the session as it is at the click, since `/clear` can hand the tab to another.
@@ -298,15 +307,17 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
   const setAsideShown = showSetAside(setAside, view.setAside.get(entityKey(tab.session)));
 
   const text = sessionLabel(tab.session);
+  const active = tab.token === view.activeTab;
   const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(worktree ? [worktreeMark] : []), ...(scheduled ? [clock] : []), ...(setAsideShown ? [setAside] : [])];
   placeChildren(markGroup, marks);
   drawTab(els, {
-    active: tab.token === view.activeTab,
+    active,
     // Restored but never started: unfilled rather than marked, since it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
     cold: tab.terminalId === null,
     classes: unstartable ? ['unstartable'] : [],
     text,
-    tooltip: unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}`,
+    // "Again", since the first click on the tab on show gives its running terminal the keyboard when it has not got it already (`buildSessionTab`); a tab whose folder is gone says why instead.
+    tooltip: unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}${active ? '\nClick again to show it in the session list' : ''}`,
     // Stopping, the force of what claude is leaving for, and closing or finishing, or no button, as the settings say — see tabButton.
     button: tabButtonOf(tab, view),
     // The mark cluster is placed only when there ARE marks — an empty wrapper would still consume a gap and shift the label.

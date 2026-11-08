@@ -131,6 +131,8 @@ export interface Asks {
   selectProject(repoRoot: string | null): void;
   /** Keep the list in step with a session gone to elsewhere, such as by a tab's click: its row unfolded and scrolled to, wherever the list itself stands. */
   followSession(id: string): void;
+  /** Bring the list into view (`PanelHost.bringIntoView`) and a session's row in it, saying why in a toast when the list leaves it out: for a press that asks to see the session in the list, as Show in list does; nothing for an id the app has no session for. */
+  showInList(id: string): void;
   /** Bring the list into view (`PanelHost.bringIntoView`) and a project's heading in it, unfolding it: for a press that asks to see the project in the list. */
   revealProject(repoRoot: string): void;
   /** Bring the list into view (`PanelHost.bringIntoView`) and a group's heading in it, or the project's rows in no group for null, and flash it: for a press that asks to see the group in the list. */
