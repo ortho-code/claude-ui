@@ -1,6 +1,6 @@
 # Architecture
 
-How claude-ui is built, by area; what it holds to is in [the principles](../principles.md).
+How claude-ui is built, by area; what it holds to is in [the principles](../principles.md), and why each part is as it is in [the decisions](../decisions/README.md).
 
 - [Platforms](platforms.md): Environment.
 - [Processes and the store](processes.md): Processes, The store.

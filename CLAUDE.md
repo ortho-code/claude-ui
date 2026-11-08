@@ -60,6 +60,7 @@ Check a change against `docs/principles.md`, and where it would go against a pri
   This file may point at them and at code.
   Nor do they tell Claude how to work: how a session should work here goes in this file or `.claude/`, even where a doc covers the same ground for people.
   A decision they or a code comment record says when and why, never who asked for it: "(decided 2026-10-20)" with the reason in plain words, not "(user, 2026-10-20)" or a quote from a chat.
+  A new decision goes into `docs/decisions/` as the next number, with its line in that folder's index, and the architecture notes state what the app does and link to it rather than carry the reasoning.
   `test/text/claude-config.test.ts` holds them to both of the patterns it can see.
 - Local-only content stays out of git: plans in `.plan/`, personal notes in `CLAUDE.local.md` (both gitignored globally).
 - UI conventions (menu/popover active state, the folder/project/group vocabulary, etc.) live in `docs/architecture/ui-conventions.md` § UI conventions.

@@ -49,12 +49,10 @@ The **sidebar's** view — search text, the filter toggles, the date filter, fol
 The tab bar's fold is written in the same object, as the terminal area's part of it beside the sidebar's, each type saying what its part is (`claude/stored-view.ts`, `sessions/stored-view.ts`) and `view-saving.ts` putting them together.
 Rolling date presets are recomputed from the current moment, so "last 7 days" still means the last 7 days; only a custom range is restored literally.
 The filter panel comes back exactly as it was left, an active filter included — closing it over a filter you meant to keep is a choice to reclaim the space, and the filter icon carries an accent whenever anything is on.
-The toggle is a funnel rather than a magnifier, because a magnifier promises a search box, which clears when it closes.
-Clearing on close was the fix first asked for, and it would have made closing the panel disagree with quitting the app, which restores the filter on purpose.
+The toggle is a funnel rather than a magnifier ([decided 2026-09-23](../decisions/0011-closing-the-filter-panel-keeps-the-filter.md)).
 Closing the panel never hides the filter, though.
-Closed over a filter that is on, the panel folds down to one row of chips, one per thing that is on — the search text, each pill, the date range — each with its own ×, and a press on the row opens the panel again; the count and Clear sit on the line below, where they also sit under the open panel.
+Closed over a filter that is on, the panel folds down to one row of chips, one per thing that is on — the search text, each pill, the date range — each with its own ×, and a press on the row opens the panel again; the count and Clear sit on the line below, where they also sit under the open panel ([decided 2026-09-23](../decisions/0010-a-closed-filter-panel-folds-to-chips.md)).
 With nothing on, closing hides it all.
-The count and Clear used to sit inside the panel, and a list filtered behind a closed panel read as every session there was, with a dot on a 14px icon left to say otherwise; moving just the count out was tried first and was still not enough, because a count says that something is on and not what.
 The count's total is the set the matches were taken from: the same project scope and the same view before the other filters, so the count only ever compares a set with part of itself.
 The finished pill picks that set rather than narrowing it, since the finished view holds only finished sessions and the normal view none, so in the finished view the total is the finished sessions and the count says "finished"; in the normal view it is the number the switcher shows.
 One rule, `inView` in `logic.ts`, decides which set a session is in for the list, the switcher's counts and the total alike.
@@ -78,18 +76,15 @@ A session started from a group's "+" is filed by the ordinary membership write, 
 
 ## The language
 
-The app formats times and dates in the language the `locale` setting names, a BCP 47 tag such as `en-GB`, or in the system's while it is `""`, the default (decided 2026-10-29).
-It exists because Chromium reads a machine whose `LANG` is `C.UTF-8`, as a WSL distribution starts, as en-US, so a time field showed AM/PM with no way to change it from the app.
+The app formats times and dates in the language the `locale` setting names, a BCP 47 tag such as `en-GB`, or in the system's while it is `""`, the default ([decided 2026-10-29](../decisions/0137-a-language-setting-for-times-and-dates.md)).
 A tag is checked with `Intl.getCanonicalLocales` and kept in its usual case, so `C`, or `en_GB` as a `LANG` spells it, is refused as no tag.
 There is no time zone setting: the app keeps to the machine's zone, as everything else running on it does.
 The app's own words stay English whatever the language, the set-aside mark's "Mon 3 Nov" included.
 
-**A time field follows it from the next launch, everything else at once.**
+**A time field follows it from the next launch, everything else at once** ([decided 2026-10-29](../decisions/0142-a-time-field-follows-the-language-from-the-next-launch.md)).
 Chromium fixes a time field's format per renderer process, from the language the process starts with, so main starts the window's renderer with `--lang=<tag>` (`rendererArguments`, through `additionalArguments`), read afresh for each window, so one opened again on macOS follows a change too.
 Measured on Electron 43.2.0 in a minimal app (2026-10-29): a window made with `--lang=en-GB` in its `additionalArguments` showed `14:15` in its time field, one with `en-US` AM/PM, each window by its own renderer, while `navigator.language` and a bare `toLocaleString` stayed the system's.
 None of these changed the field at runtime: `lang` on the field or the page, the DevTools locale override (which changed `toLocaleString` only), the switch added then a reload, a new window or a fresh renderer, and `LANG` set together with the switch in main, then a new window or a fresh renderer.
 So everything the app formats itself names the language rather than taking the window's default (`src/renderer/locale.ts`): a moment's tooltip in full, which `moments.ts` draws again as soon as the language changes, and a list panel's line under a failed run, which the panel draws again too.
-The calendars take their first weekday from it (`Intl.Locale(tag).getWeekInfo()`, which Chromium has and the renderer's ES2022 lib does not type yet), Monday for en-GB and nl-NL and Sunday for en-US, and an open one turns to the new first day; this replaced a Monday fixed for every language earlier the same day, so with the system's language read as en-US the calendars start on Sunday.
+The calendars take their first weekday from it (`Intl.Locale(tag).getWeekInfo()`, which Chromium has and the renderer's ES2022 lib does not type yet), Monday for en-GB and nl-NL and Sunday for en-US, and an open one turns to the new first day; with the system's language read as en-US the calendars start on Sunday.
 `localeCompare` is left without a language: in the window it orders ISO times, and in main folder names, neither of which the setting is about.
-
-Rejected: replacing the window when the setting changes, which would give its renderer the new language, since each session's terminal talks only to the window that started it and closing the last window ends every session on macOS and quits elsewhere, so it is no better than a restart; the time field drawn in a small page of its own, made afresh in the current language, the only way found with neither a restart nor a field of the app's own, at the cost of a second page with its own bridge and its layering over the dialog, unproven under WSLg; a time field of the app's own, as text or as hour and minute lists, which would follow at once but loses the native picker; everything waiting for the next launch, which would show nothing of a change until then; and fixing the machine's `LANG` alone, which helps one machine, while WSL starts in `C`.

@@ -5,15 +5,13 @@
 An installed build is started from a launcher, so it has no stdout: the log is where what a launch did can be read afterwards, on somebody else's machine.
 The main process writes it (`src/main/log.ts`), and the window's own lines reach it through the preload bridge, checked on arrival: a known level, an area that is one short lowercase word so no area can forge a line, text only, cut at 4,000 characters.
 
-**One file per launch per date**, in `app.getPath('logs')` — `~/.config/claude-ui/logs` on Linux, `~/Library/Logs/Claude UI` on macOS — named by the local moment it started, `claude-ui-20260928143012.log`.
+**One file per launch per date**, in `app.getPath('logs')` — `~/.config/claude-ui/logs` on Linux, `~/Library/Logs/Claude UI` on macOS — named by the local moment it started, `claude-ui-20260928143012.log` ([decided 2026-09-28](../decisions/0023-one-log-file-per-launch-per-date.md)).
 Each opens with a header: its own path, the version, how the app was installed, the OS, the Electron and Chromium versions and, on Linux, the display variables.
 A run that crosses midnight starts a new file on its first write of the new date — a write rather than a timer, which cannot be trusted across sleep — and that file repeats the header and names the one it continues, so every file stands on its own.
-One shared file per date was rejected: a crash in the morning and a clean launch in the afternoon would share it, and a file can only be kept whole.
 The folder is read in `paths.ts` below the `userData` pin and nowhere else, because the call creates it as a side effect, and on Linux, made before the pin, it resolves under the product name and leaves a stray `~/.config/Claude UI/logs` behind.
 
 **There is no size cap.**
-The date roll keeps a file readable and loses nothing within a run.
-Rejected: cutting the middle out at 2 MB, rolling to part files, trimming the oldest lines as the audit log does (which loses the header, the lines that say what build this was), stopping at the cap (which loses the end, where a crash is), and a hard ceiling as a backstop.
+The date roll keeps a file readable and loses nothing within a run ([decided 2026-09-28](../decisions/0026-the-log-has-no-size-cap.md)).
 What bounds the likeliest runaway, an error thrown on every frame, is that identical lines in a row collapse into one line and a count, and the count is written within five seconds, so a crash in the middle of a flood still leaves it.
 A failure met on every pass of something that repeats — a transcript that cannot be read, at every listing — is written once per file instead, since other lines come between the repeats.
 
@@ -39,7 +37,7 @@ The one exception is a failed start's last five lines, which for a resume that d
 
 ## The usage record
 
-`usage.log` in `app.getPath('userData')`, beside `meta.json`, is how the app's use is counted over weeks: how many sessions were decided, how often the review was used, and how noisy needs-you is (decided 2026-11-08, so the session model's next stages are checked against real use before they are built).
+`usage.log` in `app.getPath('userData')`, beside `meta.json`, is how the app's use is counted over weeks: how many sessions were decided, how often the review was used, and how noisy needs-you is ([decided 2026-11-08](../decisions/0200-the-apps-use-is-recorded-in-a-usage-log.md)).
 `src/main/usage.ts` owns it; each line is a moment as the log writes one (`appendStamped`) and a JSON event:
 - `decide`: one per write of `finish`, `unfinish`, `markSetAside`, `clearSetAside`, `keep` or `unkeep`, named after the write, with the ids it changed (`setAside` and `keep` every id given, since each restamps its moment); `finish`, `unfinish`, `clearSetAside` and `unkeep` that changed nothing give no line.
   The act is the write's, not what you meant: an Undo writes whatever puts things back, so it can show as `finish`, `setAside` or `keep`.

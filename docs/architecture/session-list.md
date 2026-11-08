@@ -16,9 +16,8 @@ Each act is the write a session's own menu makes, given every key at once, so th
 - **Finished** is `finishSessions`, which a session's menu calls with one key: sessions no claude of the app's runs are marked finished in one write of `meta.json`, with one toast whose Undo makes them all unfinished and puts back each one's set-aside and needs-you marks and its tabs; one whose claude runs is asked to leave and marked finished at its exit, with its own toast, as alone; one with a tab starting is left out, as its menu's Finished is unavailable then.
 - **Keep** takes every ticked session out of the review (§ The review) in one write, with one toast whose Undo puts each one's stamp back as it was, or none; it is offered outside the review too, to hold a session out before it would come up.
 - **Set aside…** opens the menu's own dialog (`askSetAside`, [§ Status cues](status-cues.md#status-cues)) for every ticked session, marks them in one write, and raises a toast whose Undo puts each back as it was, its old mark or none.
-  With several ticked the dialog has no line of where they stand and says their notes stay as they are, since one text over many sessions would write over notes that each say something else (decided 2026-11-05); with one ticked it is that session's dialog, its note included, and the Undo puts the note back too.
-  Taking Set aside… out of the bar, or offering it only with one ticked, was weighed and turned down: Keep already holds a session out of the review without a day, the line is optional for one session too, and the review needs an act that sets aside to be emptied.
-  A session's menu raises no toast for Set aside… (decided 2026-11-04): its row stays where it was and its bookmark says what was done, where a batch's rows can be in folded groups or, in the review, leave the list.
+  With several ticked the dialog has no line of where they stand and says their notes stay as they are ([decided 2026-11-05](../decisions/0170-set-aside-for-several-leaves-their-notes.md)); with one ticked it is that session's dialog, its note included, and the Undo puts the note back too.
+  A session's menu raises no toast for Set aside… ([decided 2026-11-04](../decisions/0156-a-sessions-menu-raises-no-toast-for-set-aside.md)).
 - **Move to group** is the menu's list (`moveToGroupItems`) for every ticked session, in one write, or two for New group…, which makes the group with the first and moves the rest; unavailable when they are in more than one project, since a group belongs to one.
 - **Stop** presses each ticked session's Stop session where its menu offers it as a stop, never as a force: a tab already stopping is left to its own force, one starting is skipped, as its menu refuses it, and one leaving for a close or a finish is turned back into a stop, as its menu's Stop session turns it.
 - **Close tab** closes each ticked session's tab by its menu's Close tab, never forcing one already closing: cold tabs at once, with one toast whose Undo puts them all back, and running ones once claude has gone, each with its own Undo then, as alone.
@@ -44,12 +43,12 @@ The count is worked out again whenever what it reads in the store changes, and a
 - **Untouched 30+ days**: last active more than 30 days ago.
 A session in both shows once, under Ready to finish; each row says why it is there in place of its time and model — in Ready to finish how its PRs settled and how long ago it was active, in Untouched how many days, with the start of its note — led by its project in All and its group where it has one, and the line is worked out again on the row's minute clock.
 
-The conditions both sets share hold for every act that decides a row (decided 2026-11-04): a kept or set-aside session left in Ready to finish would have made Keep and Set aside… do nothing for a ready row, and a review its acts do not empty never ends.
+The conditions both sets share hold for every act that decides a row ([decided 2026-11-04](../decisions/0165-the-reviews-shared-conditions-hold-for-every-act.md)).
 A session with a tab is work in hand, which its tab decides, so the review leaves it out whatever its PRs say.
 
 **The terms are named for the query language** the session-model design brings later: `is:unfinished`, `is:set-aside`, `kept:<30d`, `untouched:>30d`, `is:ready-to-finish`, each one function, so the review and a query typed by hand cannot disagree.
 The review is a definition, data rather than code in the list (`REVIEW`): its sets, each with a name, its term and its why line, and the terms they share; that is the shape a view in review mode takes once views are files, so the review then becomes a bundled view without a second implementation.
-Its two numbers of days are written there and nowhere else, what Keep says of its days read from there too, and are fixed until views can be overridden, rather than a setting that would be a second place for what the view's query says (decided 2026-11-04).
+Its two numbers of days are written there and nowhere else, what Keep says of its days read from there too, and are fixed until views can be overridden ([decided 2026-11-04](../decisions/0164-the-reviews-days-are-fixed-in-its-definition.md)).
 
 **Keep's stamp** is when a session was kept, in `meta.json` (`kept`), never an expiry: how long it holds is the review's own term, so it is worked out when read, nothing sweeps it, and a stamp past its days does nothing until its session is kept again or deleted, which takes it with the session's other marks.
 Finishing leaves it, since a finished session is out of the review anyway.
@@ -65,10 +64,9 @@ The order catches up with what was worked on as Grouped's does ([§ UI conventio
 **One flat renderer**: Recent and the review draw through the same code, sections of flat rows (`renderSections`, `FlatSection`), the review two under headings and Recent one without; what differs is data, which sessions, in what order, and whether a row's line says why it is there or its time.
 The list's other groupings in the session-model design, such as by activity, are more producers of sections for it; project › group stays the tree it is.
 
-**It is the panel's view**: Grouped and Recent are the sessions panel's two views, `grouped` and `recent`, kept as any panel's pick is, in the app's file beside the layout, with the layout entry's `view` where it starts ([§ Panel state](panels.md#panel-state)); the store's `arrangement` follows the pick.
+**It is the panel's view**: Grouped and Recent are the sessions panel's two views, `grouped` and `recent`, kept as any panel's pick is, in the app's file beside the layout, with the layout entry's `view` where it starts ([§ Panel state](panels.md#panel-state)); the store's `arrangement` follows the pick ([decided 2026-11-04](../decisions/0157-grouped-and-recent-are-the-sessions-panels-views.md)).
 The panel is bare, so the tree draws it no header and no switch: it draws its own, from the same builder as a list panel's (`viewButton`, `panels/view-switch.ts`), in words where a list's header has icons, and keeps a pick through its host (`PanelHost.pickView`).
 Having no run, it is told when its pick changes without a mount (`viewChanged`), by an edit of its entry's `view` or by the app's file being read after it mounted, which a list shows from its next run instead; a pick kept on this machine wins over the entry's `view`, as any panel's does.
-Kept in `meta.json` beside the filter was the other way weighed, and turned down (decided 2026-11-04): it would have been a field to move once views are files, and the layout could not have started the list on Recent.
 
 **It is not the review**: the arrangement is kept; the review is a moment over whichever is picked, not kept, and Done returns to it, so the two are apart in the store (`arrangement`, `reviewing`) rather than one slice of three values that would have to remember what Done goes back to.
 While the review is open the switch is unavailable, saying the review keeps its own order.
@@ -77,7 +75,7 @@ While the review is open the switch is unavailable, saying the review keeps its 
 There is no heading in Recent, so a run is ticked from a row's Select… and a Shift+press, and collapse-all is unavailable, saying Recent has nothing to fold; neither it nor a press on a tab unfolds anything in Recent, so the folds stay as they were for Grouped.
 Where every session in scope is finished and no filter is on, Recent says so in place of its rows, as Grouped says it under each such project's heading.
 
-**Pins are not floated in Recent** (decided 2026-11-04): a pin says where a session belongs among its project's sections, Recent has none, and floating pins would break the one order it is for; the tab bar does not float them either ([§ Traps worth knowing](ui-conventions.md#traps-worth-knowing)).
+**Pins are not floated in Recent** ([decided 2026-11-04](../decisions/0159-pins-are-not-floated-in-recent.md)), as the tab bar does not float them either ([§ Traps worth knowing](ui-conventions.md#traps-worth-knowing)).
 The pin stays on the row, and the pinned filter finds them.
 
-**The tab bar's names** land, in Recent, on the newest row drawn of that project, or of that group, and flash it (decided 2026-11-04), since there is no heading to land on; switching the list to Grouped instead was weighed and turned down, as a press on a tab-bar name would then change an arrangement chosen in the list.
+**The tab bar's names** land, in Recent, on the newest row drawn of that project, or of that group, and flash it ([decided 2026-11-04](../decisions/0163-tab-bar-names-land-on-the-newest-row-in-recent.md)).

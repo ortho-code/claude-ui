@@ -73,7 +73,7 @@ The comparison sorts each state's lines, and takes a map of the classes a change
 ## Which checks a change needs
 
 What a commit runs follows from what it changed, since most of the time goes on the window's checks, and most changes cannot reach them.
-The table is the widest each folder can need; a small change runs only the checks that can reach it, such as the window checks that find the label or class name it touches, and the whole of a suite only when its reach cannot be listed that way (decided 2026-10-29, since a change to one menu ran the whole window suite, over six hundred checks, to settle a handful).
+The table is the widest each folder can need; a small change runs only the checks that can reach it, such as the window checks that find the label or class name it touches, and the whole of a suite only when its reach cannot be listed that way ([decided 2026-10-29](../decisions/0136-a-commit-runs-only-the-checks-that-can-reach-it.md)).
 
 | What changed | The widest it needs |
 |---|---|

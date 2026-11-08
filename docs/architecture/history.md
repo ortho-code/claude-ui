@@ -9,43 +9,32 @@ The code is in `src/main/transcript.ts` (reading) and `src/renderer/panels/types
 
 ### Opening it, and getting out
 
-**The history opens only on purpose**: from the bar beside the terminal (a press, or the loupe), the arrow at the bar's foot, or Ctrl+Shift+↑ for your last request — every way in goes through one function, `openHistory`.
+**The history opens only on purpose**: from the bar beside the terminal (a press, or the loupe), the arrow at the bar's foot, or Ctrl+Shift+↑ for your last request — every way in goes through one function, `openHistory` ([decided 2026-09-29](../decisions/0036-history-opens-only-on-purpose.md)).
 The wheel over a running claude stays claude's, and scrolls claude's own view.
 Inside, Ctrl+Shift+↑ and Ctrl+Shift+↓ step to the previous and next request, and ↓ past the last one goes back to live; previous and next measure from the request line, which is where a jump puts the view.
 Both are caught on the window in the capture phase, before xterm, which would otherwise send them to claude; app shortcuts take Ctrl+Shift because a bare Ctrl+letter belongs to the terminal.
 
-**It is a drawer from the bar**: it slides in from the right edge, beside the bar it was opened from, over about two-thirds of the pane — never narrower than 560px, and the whole pane when the pane is narrower than that.
+**It is a drawer from the bar**: it slides in from the right edge, beside the bar it was opened from, over about two-thirds of the pane — never narrower than 560px, and the whole pane when the pane is narrower than that ([decided 2026-09-29](../decisions/0035-history-is-a-drawer.md)).
 Claude stays in view on the left, live and at its real size under a scrim that dims it; the terminal is never resized for it, so claude never redraws, and a click on the dimmed claude is the way back.
 The scrim takes that click rather than passing it to claude, as a drawer's does.
 **Getting out is otherwise one labelled control**, "Back to live", in the history's head and always in view, with Esc as its key; the focus goes back to the terminal.
-The first versions covered the whole pane, and "how do I get back?" was the question they left.
-The next took the upper two-thirds and left the lower third to claude, where a click went back and reached claude as well; in use it read as a split panel rather than something laid over claude, so it was replaced by the drawer.
-
-That is the second version, and the first is worth knowing because it was tried and reversed after use.
-It took the wheel: xterm asks `attachCustomWheelEventHandler` before it sends a mouse report or turns the wheel into arrow keys, so answering false keeps the wheel from claude, and a wheel up over the alternate screen handed the pane to the history, scrolling on past its end handing it back.
-It read well as "scrollback that remembers everything", but in use a scroll that turned into another mode was a surprise, claude's own wheel scrolling was gone, and the point of the app is to work in a session, not to read it.
-The exit was a floating pill at the foot and End, and was not found.
 
 The history is ONE view, for the active tab, rebuilt when the tab changes.
-**Each tab keeps its own state**: leaving a tab with its history open remembers where — the request at the top and how far past it, or the end, where it keeps following what claude adds — and coming back reopens it there once it has been read again; a tab left live comes back live.
+**Each tab keeps its own state**: leaving a tab with its history open remembers where — the request at the top and how far past it, or the end, where it keeps following what claude adds — and coming back reopens it there once it has been read again; a tab left live comes back live ([decided 2026-09-29](../decisions/0032-each-tab-keeps-its-history-place.md)).
 Coming back shows the tab live until that read is done, since there is nothing to draw before it.
 The memory lasts as long as the tab and the run, not across a restart, and it is kept per session, so a `/clear`, which starts a new session in the same tab, closes the history.
-Switching tabs always closed the history at first, which lost your place in it whenever you looked at another tab.
 It is kept laid out beneath the live terminal — hidden by visibility, never display — because the bar beside it places its marks from the history's measured heights, and a node with `display: none` measures as nothing.
 Its width is the drawer's over a live tab and the whole pane's on a cold one, so it re-measures the marks whenever its own size changes, since every width rewraps the replies.
 
-**It is drawn in slices**, with the window free between them, since it is drawn on every switch to a tab, open or not.
-Drawn at once, the longest session here (761 requests) held the window for 1–2 s on each switch, and a profile put most of that on the browser laying out the whole new list in one go, not on the app's code; `content-visibility: auto` on each exchange did not cut it, and broke jumps, since positions were then measured against placeholder heights.
+**It is drawn in slices**, with the window free between them, since it is drawn on every switch to a tab, open or not ([decided 2026-09-29](../decisions/0033-history-drawn-in-slices.md)).
 First the newest exchanges, up to 12 ms of work, which is where the history opens and what Ctrl+Shift+↑ goes to; then the rest from the oldest up, a slice at a time, each put in just above that newest part, so each one lays out only itself and what sits below it.
-Drawn newest first all the way down, every slice went in above everything already drawn and the browser laid all of that out again: twice the work in total, in slices that grew to 300 ms.
-Now no slice holds the window much past 90 ms, and the longest session is whole after about 2 s; the bar measures at most every 250 ms meanwhile, since it measures the whole list each time.
+No slice holds the window much past 90 ms, and the longest session is whole after about 2 s; the bar measures at most every 250 ms meanwhile, since it measures the whole list each time.
 Coming back to a tab left open further back than the newest slice reopens it once its slice is in.
 
 **A tab with no claude behind it** that is on screen, the one restored at launch or one refused a start, shows the pane's sentence — "“…” isn't running." — with a Resume button, which starts it as a click on its tab does, and a Show history button.
 The history then stands under the same sentence, one function for both, with Resume and Close; there is no "Back to live", since there is no live view.
 With the folder gone, Resume is unavailable with the reason, and Show history still works, since reading a session whose folder has gone is exactly when you want it.
-Showing the history there by itself, at launch, was tried and reversed: it was not clear what had happened or why it was shown.
-The bar is out of sight on that sentence, and while a tab is starting, and comes with Show history, since until then there is nothing for it to scroll; it was there at first.
+The bar is out of sight on that sentence, and while a tab is starting, and comes with Show history, since until then there is nothing for it to scroll ([decided 2026-09-29](../decisions/0031-cold-tab-history-on-request.md)).
 It is hidden by visibility, keeping its column, so the terminal's width does not change when the tab starts and claude is not redrawn.
 A stopped tab still drops you to the empty screen; reopening it resumes claude, and the history is then on the bar.
 
@@ -57,15 +46,13 @@ A subagent's hand-back is queued too, marked meta on its attachment and wrapped 
 Its report is drawn in the reply instead, where it came back (§ What it looks like).
 The rule was taken from a scan of 312 transcripts, and the numbers below are from them.
 
-**A command claude runs itself counts at once; one sent to the model, once claude answers it.**
+**A command claude runs itself counts at once; one sent to the model, once claude answers it** ([decided 2026-10-22](../decisions/0106-slash-commands-in-the-history.md)).
 A command claude runs itself, such as `/model`, `/compact`, `/clear` or `/rename`, is something you did, though nothing answers it, so it stands with no reply under it.
 Claude writes it with the command's name first ([§ Reading sessions](sessions.md#reading-sessions)), as a user record or, for some, as a `local_command` system record: 164 and 135 on one machine (2026-10-22), most of the second `/rename`.
 Where Claude wrote the line as typed text just before, as it does `/compact` before compacting (37 of 74 there), the command is that same request and is not shown twice.
 Claude's reply goes on under the request it is answering, so a `/rename` or a `/login` run in the middle of a turn takes none of it; a command claude ran itself takes only Claude Code's own `<synthetic>` line, such as the one saying no response was requested.
 A reply that goes on under a request before the last sends that request to the window again, as a rewind does (`changedFrom`), since a read otherwise sends again only the last one.
 A command sent to the model, such as `/review` or `/learn`, waits for an assistant record, across reads of a file claude is still writing, and is dropped if the user sends something else first.
-Waiting for an answer was at first how `/model` and `/clear` were told from `/review`, since the command line cannot tell them apart, and it hid them; it let one through whenever any assistant record followed it, about a dozen on that machine, a few of them a second copy of a typed `/compact`, and hid some 250, until they were all shown (2026-10-22).
-Leaving slash commands out altogether was the first rule, and it left a session that was one `/review` doing all the work with an empty history.
 
 **A transcript is a tree, and it keeps abandoned attempts.**
 Stopping claude and sending again, or editing and resending, leaves the first attempt in the file beside the second, both hanging off the same parent record.
@@ -94,21 +81,17 @@ The reader folds each uuid once and keeps the first copy.
 ### What it looks like
 
 **Like claude's own view of the session**, because the history is a look back at that same view: the terminal's background, face and text colour — one token, `--terminal-fg`, which xterm reads back as well — and its tight line height; your request as claude echoes it, `> …` on a tinted band, with its number, time and marks at the band's end; and each of claude's messages, and each tool call, behind the dot claude marks them with.
-**A step smaller than the terminal**, 12px against 13px, on purpose: the browser draws the same face heavier than xterm's character grid does, and at the terminal's own size the history read louder than claude beside it.
-The app's own face for claude's prose was tried beside it headless and not taken: the history is to read as claude's view.
+**A step smaller than the terminal**, 12px against 13px, on purpose: the browser draws the same face heavier than xterm's character grid does, and at the terminal's own size the history read louder than claude beside it ([decided 2026-09-29](../decisions/0034-history-in-claudes-face.md)).
 The `>` stands in the same gutter as claude's dots, centred where they are, so a request's text starts where a message's does, and its later lines start under its first line's text, as claude indents them.
-So the reader keeps a reply as `parts`, in the order claude wrote them: every message its own part, every tool call a one-line part where it came.
-The first version joined the text into one reply and folded the tools to a count, which made consecutive messages one block and put every tool call in the wrong place.
-A tool call is drawn as claude draws one, a green dot, the tool's name in bold and what it acted on in grey; drawn like a message, with the same dot and ink, the two were too much alike to tell apart.
+So the reader keeps a reply as `parts`, in the order claude wrote them: every message its own part, every tool call a one-line part where it came ([decided 2026-09-29](../decisions/0041-reply-kept-as-parts.md)).
+A tool call is drawn as claude draws one, a green dot, the tool's name in bold and what it acted on in grey.
 **A run of tool calls between two of claude's messages is folded to one line**, as claude folds them — "Ran 4 shell commands, read 1 file", with a chevron — which opens into the calls; it stays open or closed while claude's reply grows.
-That is a fold in place, where the first version's count was one for the whole reply.
+That is a fold in place.
 A lone call stays its own line, since its line says more than a count of one.
-An edit (Edit, Write, MultiEdit, NotebookEdit) folds with the rest, where claude shows each apart but for its own memory and scratch files, and the line counts the files changed, so a change still shows without a line each, and which files once the run is opened.
-Edits first kept a line each and ended a run, and those lines were a third of the history: across 506 transcripts of 10,586 requests, 34,946 of the 103,569 lines drawn, and folding them takes it to 68,854.
+An edit (Edit, Write, MultiEdit, NotebookEdit) folds with the rest, where claude shows each apart but for its own memory and scratch files, and the line counts the files changed, so a change still shows without a line each, and which files once the run is opened ([decided 2026-10-21](../decisions/0097-edits-fold-with-tool-calls.md)).
 The line uses claude's words where they are known ("ran N shell commands", "read N files") and plain ones otherwise ("changed N files").
 A phrase about files counts each file once, told apart by what the call acted on as its line shows it, since in half the runs with an edit (5,400 of 10,925) a file is changed more than once; a shell command run twice still counts twice.
 That line is cut at 120 characters, so two longer paths alike up to the cut count as one file.
-Not taken: folding a lone call too, which saves no line and hides what it acted on; a message no longer ending a run, which would fold the tool calls from either side of a sentence into one line, out of the order claude wrote them; and counting edits by call ("made N edits"), which does not say how many files.
 **A subagent's report is folded to one line too**, "claim-checker reported", where it came back in the reply, and it ends a run as a message does; it opens into the report as markdown, drawn by the same rules as claude's messages.
 Where it came back is not always beside the Agent call that started it: of the 151 reports on the machine this was written on, 57 follow their call, 42 follow another report, from agents started side by side, 50 follow some other tool call claude made meanwhile, and 2 open a reply; a few came back after a new request, and sit in that request's reply.
 Folded, since a report runs to several kilobytes (0.5 to 21 KB as drawn, about 5 KB in the middle) and open it would outweigh claude's own reply.
@@ -121,17 +104,16 @@ The dot is drawn in CSS rather than claude's `⏺` glyph, since the app draws no
 CommonMark's default joins the lines of a paragraph, which suits prose wrapped at a fixed width and ran a reply written a sentence to a line into one block, so the markdown is rendered with `breaks: true`: a line break inside a paragraph, a list item or a quote becomes a `<br>`, and `#` headings, code blocks and tables come out as they did.
 A `<br>` in the markup rather than `white-space: pre-line` on the message, since a stylesheet cannot tell a line break in the text from the newlines markdown-it writes between tags, which `pre-line` turns into blank lines.
 Code is told apart by colour and by place: inline in the accent, a block on a panel of its own, a step lighter than the history and scrolled sideways rather than wrapped.
-A block had a rule down its side at first, which is how a quote is drawn, and a block read as a quote; a quote keeps the rule, in the accent's muted tint, with its words in italics.
+A quote keeps a rule down its side, in the accent's muted tint, with its words in italics, and a block has none ([decided 2026-09-29](../decisions/0030-code-block-without-a-rule.md)).
 The history has no scrollbar of its own: the bar beside it is its scrollbar.
 
 ### Pins
 
 A request and each of claude's messages can be pinned.
 Each star stands in the gutter, in place of the mark there: the request's where its `>` is, a message's where claude's dot is.
-Both show on hover and always once pinned, and what is pinned has an accent line in the margin beside it, as its mark on the bar is in the accent.
-A pinned request had an accent edge inside its band at first, which the star now stands on.
+Both show on hover and always once pinned, and what is pinned has an accent line in the margin beside it, as its mark on the bar is in the accent ([decided 2026-09-29](../decisions/0039-pin-star-in-the-gutter.md)).
 On the bar a pinned reply is in the accent as a pinned request is, and in the loupe it carries the star.
-What is shown is a labelled switch in the head, `All 54 · Pinned 3`, in the filters' pill: an unlabelled star did not say it was a filter; the count is of pins, and Pinned shows every exchange holding one.
+What is shown is a labelled switch in the head, `All 54 · Pinned 3`, in the filters' pill ([decided 2026-09-29](../decisions/0040-pinned-filter-is-a-labelled-switch.md)); the count is of pins, and Pinned shows every exchange holding one.
 
 A request is pinned by its record's uuid, and a message by its assistant record's uuid and its place among that record's messages; a fork copies uuids, so a pin shows in both siblings.
 Each pin keeps its kind, the session it was made in, the opening of the text and its time, so a list of every pin can be drawn from `meta.json` alone.
@@ -140,31 +122,25 @@ Deleting a session leaves its pins: a sibling may still carry the request, and t
 
 ### A reply is untrusted text
 
-Claude quotes web pages, files and tool output, so a reply is rendered with raw HTML off (`markdown-it`, `html: false`): markup in it is shown as text.
+Claude quotes web pages, files and tool output, so a reply is rendered with raw HTML off (`markdown-it`, `html: false`): markup in it is shown as text ([decided 2026-09-29](../decisions/0038-markdown-it-with-html-off.md)).
 Its link check refuses `javascript:`, `vbscript:`, `file:` and `data:` links, bare URLs included, and images are not rendered, since the CSP would refuse a remote one and leave a broken icon.
 Every link click, middle-click included, goes to `shell:openExternal`, and main refuses any navigation of the window besides (see Processes); the CSP is the last layer.
-`marked` was the alternative, and passes raw HTML through, so it would have needed a sanitizer beside it.
 
 ### The bar and the loupe
 
-The bar at the terminal area's edge is the history's scrollbar, there while claude is live or its history is open: a tick across it per request, a thin bar down its middle per reply — a shape apart, not only a shade — pins in the accent, a request sent again dimmer, the last request in white, and, while the history is open, a band for where you are in it, with the marks inside it lit as the loupe's entry is, a step dimmer so that one stays the brightest.
-The band alone, a faint wash on a 14px bar, was not seen.
+The bar at the terminal area's edge is the history's scrollbar, there while claude is live or its history is open: a tick across it per request, a thin bar down its middle per reply — a shape apart, not only a shade — pins in the accent, a request sent again dimmer, the last request in white, and, while the history is open, a band for where you are in it, with the marks inside it lit as the loupe's entry is, a step dimmer so that one stays the brightest ([decided 2026-09-29](../decisions/0028-bar-lights-marks-in-band.md)).
 There is no band while live: the wheel scrolls claude's own view there, and where claude is scrolled is not something the app can know, so any band would be a guess.
 It is a column of its own rather than an overlay, so it never covers claude's text; the terminal is that much narrower, and the fit hands the pty the new width.
 **Pointed at, it is drawn wider**, 24px against the column's 14, so it is easier to stay on; it stays wide while the loupe is open or a press is held.
 The extra width lies over the terminal's edge, as the loupe does, and the column itself never changes: a wider column on hover would narrow the terminal and make claude redraw every time.
 **A request is a target of about 9px** around its tick — 4px above, 5px below — where it was about 5 and hard to hit, and its tick is drawn a pixel taller; its reply has the rest, down to the next request, and two requests closer than that split the room between them.
 
-**Pressing on it is a scrollbar's**: the view goes to that point at once, opening the history if it is closed, and follows the pointer until the button is let go; pressed on the band, it holds the band where it was taken instead of jumping, as a thumb.
+**Pressing on it is a scrollbar's**: the view goes to that point at once, opening the history if it is closed, and follows the pointer until the button is let go; pressed on the band, it holds the band where it was taken instead of jumping, as a thumb ([decided 2026-09-29](../decisions/0029-bar-press-is-a-scrollbar.md)).
 It follows the pointer anywhere on the window until the button is let go, since a hand's drag drifts sideways off a 14px bar, and from any pointer, since WSLg sends a held button's moves as another one (see Traps).
 It is the rough way to a place, and the loupe the exact one: the loupe hides while the button is down and is back when you let go, and a click on its row, or Enter, opens that entry.
-The first version started a drag only after 4px of travel and took a press that did not move as a click on the loupe's entry; in the user's words, what was wanted is "press the mouse on a point in the sidebar, then the view should already go there".
-Neither the bar nor the loupe takes the focus, so the terminal or the history keeps the keys: a click on either used to leave the focus nowhere, and Esc and the step keys with it.
+Neither the bar nor the loupe takes the focus, so the terminal or the history keeps the keys ([decided 2026-09-29](../decisions/0027-bar-and-loupe-take-no-focus.md)).
 
 Hovering it opens the loupe, the entries around the pointer in words, and the wheel steps it one entry per notch, a trackpad one per 30px.
-That is the answer to the hard requirement, that one exact request or reply be reachable in a session of hundreds: at 821 requests the bar has under a pixel per entry, so the pointer alone picks roughly.
-A fisheye on the bar itself was tried in a mock and rejected — it spreads the entries under the pointer, but the pointer still moves through them too fast to stop on one.
+That is the answer to the hard requirement, that one exact request or reply be reachable in a session of hundreds: at 821 requests the bar has under a pixel per entry, so the pointer alone picks roughly ([decided 2026-09-29](../decisions/0037-loupe-for-exact-entries.md)).
 The loupe stays on an entry once the wheel has stepped until the pointer really moves, and keeps it when the pointer crosses into the loupe, so reaching for it does not undo the choice.
 It takes the arrows, Enter and Esc only while the pointer is inside it or the history has the pane: with the pointer merely resting on the bar, the live terminal has the focus, and a prompt typed with the pointer parked there must still reach claude.
-
-Rejected from the same mock: a popover from the tab bar (no scrollbar), a panel (a layout-file entry today), typing claude's own transcript-mode keys into the pty to move claude's view (it lands wrong when claude is in another state, and nothing says so), and xterm's own overview ruler (only on claude's default renderer, and its marks go with the process).
