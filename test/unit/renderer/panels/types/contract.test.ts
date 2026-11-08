@@ -70,7 +70,6 @@ describe('docs/panel-types.md', () => {
     expect(sorted(tableFields('### A `copy`'))).toEqual(sorted(LIST_FIELDS.copy));
     expect(sorted(tableFields('### A view'))).toEqual(sorted(LIST_FIELDS.view));
     expect(sorted(tableFields('### A live value'))).toEqual(sorted(LIST_FIELDS.live));
-    expect(sorted(tableFields('### A `dot`'))).toEqual(sorted(LIST_FIELDS.dot));
     expect(sorted(listed("A live value's `field` is one of:"))).toEqual(sorted(LIVE_FIELDS));
     expect(sorted(listed('`tone` is one of:'))).toEqual(sorted(TONES));
     expect(sorted(listed('`cut` is one of:'))).toEqual(sorted(CUTS));

@@ -25,14 +25,13 @@ export const LIST_FIELDS = {
   document: ['version', 'badge', 'views', 'compact', 'separator', 'buttons', 'sections', 'notes'],
   view: ['id', 'label', 'icon'],
   section: ['title', 'shut', 'tooltip', 'empty', 'items'],
-  item: ['key', 'dot', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'separator', 'press', 'tone', 'actions', 'children', 'shut'],
+  item: ['key', 'session', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'separator', 'press', 'tone', 'actions', 'children', 'shut'],
   part: ['text', 'press', 'tooltip', 'tone'],
   action: ['label'],
   verb: ['session', 'open-session', 'open-url', 'copy'],
   session: ['prompt', 'name', 'pr'],
   copy: ['text', 'confirm'],
   live: ['session', 'field', 'else'],
-  dot: ['session'],
 } as const;
 
 /** What of a session a live value can name: its name, as every surface calls it; another joins when a type asks for one. */
@@ -104,8 +103,8 @@ export interface DetailPart {
 export interface ListItem {
   /** Unique across the document: what a session started from the row is remembered by. */
   key: string;
-  /** The session whose status dot the row shows, by its full id, in place of the mark for the sessions it started; null for none. */
-  dot: string | null;
+  /** The session the row is, by its full id: its status dot shows in place of the mark for the sessions the row started; null for none. */
+  session: string | null;
   /** A short mark before the text, in a column of its own, such as a letter for a kind. */
   lead: RowText | null;
   /** The lead's colour, in the words a row's tone uses. */
@@ -226,16 +225,6 @@ class Reader {
       return null;
     }
     return session !== null && which !== null ? { session, field: which, else: otherwise } : null;
-  }
-
-  /** A row's `dot`: the full id of the session whose dot it shows, null when absent. */
-  dot(raw: unknown, at: string): string | null {
-    if (raw === undefined) return null;
-    if (!isObject(raw)) {
-      this.problems.push(`${at} is not an object.`);
-      return null;
-    }
-    return this.text(fieldsOf(raw, LIST_FIELDS.dot)('session'), `${at}.session`, true);
   }
 
   /** One of a field's words, such as a tone or a cut: the first of them when absent, and when it is not one of them, which is a problem too. */
@@ -415,7 +404,7 @@ class Reader {
       if (this.keys.has(key)) this.problems.push(`${at}.key "${key}" is already used by another item.`);
       this.keys.add(key);
     }
-    const dot = this.dot(field('dot'), `${at}.dot`);
+    const session = field('session') === undefined ? null : this.text(field('session'), `${at}.session`, true);
     const lead = this.shown(field('lead'), `${at}.lead`);
     const leadTone = this.choice(field('leadTone'), `${at}.leadTone`, TONES);
     const text = this.shown(field('text'), `${at}.text`, true);
@@ -435,7 +424,7 @@ class Reader {
       .filter((child) => child !== null);
     const shut = this.flag(field('shut'), `${at}.shut`);
     if (shut && children.length === 0) this.problems.push(`${at}.shut needs children, which are what it folds.`);
-    return key !== null && text !== null ? { key, dot, lead, leadTone, text, cut, trail, tooltip, detail, separator, press, tone, actions, children, shut } : null;
+    return key !== null && text !== null ? { key, session, lead, leadTone, text, cut, trail, tooltip, detail, separator, press, tone, actions, children, shut } : null;
   }
 
   /** One of the list's views: an id a layout entry can name and a script can be given, a label and an icon from the app's set; an id used before is a problem, as an item's key is. */

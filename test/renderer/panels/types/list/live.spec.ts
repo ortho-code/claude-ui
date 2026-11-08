@@ -3,7 +3,7 @@ import { expect, test } from '../../../support/harness';
 import { runs } from '../../layout/layout';
 import { bootList, row, type PrintedList } from './list';
 
-// A row's text may hold live values, which the app fills in from a session it has and keeps current between runs, and its `dot` shows a session's status dot in place of the mark for the sessions it started (docs/panel-types.md § A text, § A `dot`).
+// A row's text may hold live values, which the app fills in from a session it has and keeps current between runs, and the session it names (`session`) shows its status dot in place of the mark for the sessions it started (docs/panel-types.md § A text, § A row's session).
 const named = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'Fix the login redirect' });
 const started = session({ id: '00000000-0000-4000-8000-0000000000a2', title: 'Review #2' });
 const GONE = '00000000-0000-4000-8000-0000000000ff';
@@ -15,8 +15,8 @@ const LIST: PrintedList = {
   sections: [
     {
       items: [
-        { key: 'named', dot: { session: named.id }, text: ['Review: ', title(named.id)], detail: [[{ text: [title(named.id)], tooltip: ['About ', title(named.id)] }]] },
-        { key: 'gone', dot: { session: GONE }, text: ['Review: ', title(GONE, 'PR #36515')] },
+        { key: 'named', session: named.id, text: ['Review: ', title(named.id)], detail: [[{ text: [title(named.id)], tooltip: ['About ', title(named.id)] }]] },
+        { key: 'gone', session: GONE, text: ['Review: ', title(GONE, 'PR #36515')] },
         { key: 'unnamed', text: [title(GONE)] },
       ],
     },
@@ -41,7 +41,7 @@ test("a live title of a session the app does not have says the type's words, els
   await expect(page.locator('.list-row .list-text')).toHaveText(['Review: Fix the login redirect', 'Review: PR #36515', 'Unavailable']);
 });
 
-test("a row's dot is its session's status dot, and follows its status", async ({ app, page }) => {
+test("a row naming a session shows its status dot, which follows its status", async ({ app, page }) => {
   await bootList(app, page, LIST, { more: { ...more, statuses: { [named.id]: 'waiting' } } });
   const dot = row(page, 'Review: Fix the login redirect').locator('.list-dot');
   await expect(dot.locator('.nudge')).toHaveClass(/\bwaiting\b/);
@@ -50,12 +50,12 @@ test("a row's dot is its session's status dot, and follows its status", async ({
   await expect(dot.locator('.nudge')).toHaveClass(/\bidle\b/);
 });
 
-test('a row whose dot names a session the app does not have shows none', async ({ app, page }) => {
+test('a row naming a session the app does not have shows no dot', async ({ app, page }) => {
   await bootList(app, page, LIST, { more });
   await expect(row(page, 'PR #36515').locator('.list-dot, .list-session')).toHaveCount(0);
 });
 
-test("a row's dot takes the place of the mark for the session it started", async ({ app, page }) => {
+test("the named session's dot takes the place of the mark for the session the row started", async ({ app, page }) => {
   const link = { key: 'named', label: 'named', href: null, startedAt: '2026-10-31T09:00:00.000Z' };
   await bootList(app, page, LIST, { more: { ...more, panelData: { changes: { sessions: { [started.id]: link }, lastGroup: {} } } } });
   const first = row(page, 'Review: Fix the login redirect');

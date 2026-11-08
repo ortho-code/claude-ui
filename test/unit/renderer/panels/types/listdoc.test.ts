@@ -66,7 +66,7 @@ describe('readListDocument', () => {
             items: [
               {
                 key: 'org/repo#1',
-                dot: null,
+                session: null,
                 lead: 'PR',
                 leadTone: 'positive',
                 text: 'Fix the login redirect',
@@ -97,7 +97,7 @@ describe('readListDocument', () => {
       views: [],
       compact: false,
       buttons: 1,
-      sections: [{ title: null, shut: false, tooltip: null, empty: null, items: [{ ...item, dot: null, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: [], separator: ' · ', press: null, tone: 'normal', actions: [], children: [], shut: false }] }],
+      sections: [{ title: null, shut: false, tooltip: null, empty: null, items: [{ ...item, session: null, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: [], separator: ' · ', press: null, tone: 'normal', actions: [], children: [], shut: false }] }],
       notes: [],
     });
   });
@@ -163,11 +163,11 @@ describe('readListDocument', () => {
     ]);
   });
 
-  it("reads a row's texts as a string or as pieces, each a string or a live value, and its dot by a session's id", () => {
+  it("reads a row's texts as a string or as pieces, each a string or a live value, and the session it is by its id", () => {
     const id = 'b03e5cdc-8f1e-4a2b-9c3d-5e6f7a8b9c0d';
     const title = { session: id, field: 'title' };
     const read = firstItem({
-      dot: { session: id },
+      session: id,
       lead: [title],
       text: ['Review: ', { ...title, else: 'PR #1' }],
       trail: [title],
@@ -175,7 +175,7 @@ describe('readListDocument', () => {
       detail: [[{ text: [title], tooltip: [title] }]],
     });
     const live = { session: id, field: 'title', else: null };
-    expect(read?.dot).toBe(id);
+    expect(read?.session).toBe(id);
     expect(read?.text).toEqual(['Review: ', { ...live, else: 'PR #1' }]);
     expect([read?.lead, read?.trail, read?.tooltip, read?.detail[0]?.[0]?.text, read?.detail[0]?.[0]?.tooltip]).toEqual([[live], [live], [live], [live], [live]]);
   });
@@ -289,8 +289,8 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ ...item, text: [{ session: 'x', field: 'status' }] }] }] }, 'sections[0].items[0].text[0].field "status" is not one of title.'],
     [{ sections: [{ items: [{ ...item, text: [{ session: 'x', field: 'title', else: ' ' }] }] }] }, 'sections[0].items[0].text[0].else is empty.'],
     [{ sections: [{ items: [{ ...item, detail: [[{ text: [{ session: 'x' }] }]] }] }] }, 'sections[0].items[0].detail[0][0].text[0].field is missing.'],
-    [{ sections: [{ items: [{ ...item, dot: 'x' }] }] }, 'sections[0].items[0].dot is not an object.'],
-    [{ sections: [{ items: [{ ...item, dot: {} }] }] }, 'sections[0].items[0].dot.session is missing.'],
+    [{ sections: [{ items: [{ ...item, session: { session: 'x' } }] }] }, 'sections[0].items[0].session is not a string.'],
+    [{ sections: [{ items: [{ ...item, session: ' ' }] }] }, 'sections[0].items[0].session is empty.'],
   ])('refuses %j: %s', (over, problem) => {
     const read = readListDocument(doc(over));
     expect(read.problems).toContain(problem);

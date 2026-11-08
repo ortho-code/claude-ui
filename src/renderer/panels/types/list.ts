@@ -315,21 +315,21 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   }
 
   /**
-   * What a row shows of a session, at its end, as one of two in the same place: the type's `dot`, or else the mark for the sessions the row started (decided 2026-10-31: the type chose what the place shows).
-   * The type's `dot` is the session's status dot and nothing to press, the row's press being the type's to say, naming the session and its state on hover; nothing for a session the app does not have.
+   * What a row shows of a session, at its end, as one of two in the same place: the dot of the session the row names (`session`), or else the mark for the sessions the row started (decided 2026-10-31: the type chose what the place shows).
+   * The named session's dot is its status dot and nothing to press, the row's press being the type's to say, naming the session and its state on hover; nothing for a session the app does not have.
    * The mark, hidden without one: the latest's status dot, and a press goes to it; with several, their count beside the dot, and a press offers them all.
    * Only sessions the app still has: a link whose session is gone shows nothing.
    * Either dot shows the status as the session list's does, and says it in its words.
    */
-  private paintSessions(item: ListItem, { mark, dot, count, typeDot, typeDotBox }: ListRow): HTMLElement | null {
-    if (item.dot !== null) {
-      const named = this.host.session(item.dot);
+  private paintSessions(item: ListItem, { mark, dot, count, namedDot, namedDotBox }: ListRow): HTMLElement | null {
+    if (item.session !== null) {
+      const named = this.host.session(item.session);
       if (!named) return null;
-      typeDot.className = sessionDotClass(named.status, named.acked);
+      namedDot.className = sessionDotClass(named.status, named.acked);
       const label = `${named.title} · ${stateOf(named)}`;
-      typeDotBox.setAttribute('aria-label', label);
-      setTooltip(typeDotBox, label);
-      return typeDotBox;
+      namedDotBox.setAttribute('aria-label', label);
+      setTooltip(namedDotBox, label);
+      return namedDotBox;
     }
     const sessions = this.host.linkedSessions(item.key);
     const latest = sessions[0];
@@ -536,9 +536,9 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     });
     const dot = element('span');
     const count = element('span', 'list-session-count');
-    const typeDot = element('span');
-    const typeDotBox = element('span', 'list-dot');
-    typeDotBox.append(typeDot);
+    const namedDot = element('span');
+    const namedDotBox = element('span', 'list-dot');
+    namedDotBox.append(namedDot);
     // The chevron of a row holding rows: the section heading's own caret, in a button of its own so it folds from the keyboard too.
     const fold = element('button', 'icon-btn compact list-fold');
     fold.type = 'button';
@@ -557,7 +557,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     });
     // What the row offers beyond its buttons, behind the app's own kebab, last on the row as a session row's is; built once, so a press on it survives a redraw.
     const kebab = kebabButton('list-kebab pair-end', 'More actions', () => this.moreActions(key));
-    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, typeDot, typeDotBox, actions: new Keyed<HTMLButtonElement>((button) => button), kebab };
+    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, namedDot, namedDotBox, actions: new Keyed<HTMLButtonElement>((button) => button), kebab };
   }
 
   /** The button for one of a row's actions, which does its verb for the row as the last draw left it; a session's shows its prompt on hover, and the other verbs nothing, until a type asks for words of its own. */
@@ -596,9 +596,9 @@ interface ListRow {
   mark: HTMLButtonElement;
   dot: HTMLElement;
   count: HTMLElement;
-  /** The dot of the session the type names (`dot`), in the mark's place, and the box around it that holds that place. */
-  typeDot: HTMLElement;
-  typeDotBox: HTMLElement;
+  /** The dot of the session the row names (`session`), in the mark's place, and the box around it that holds that place. */
+  namedDot: HTMLElement;
+  namedDotBox: HTMLElement;
   /** Its action buttons, each kept by all its action says. */
   actions: Keyed<HTMLButtonElement>;
   /** The kebab holding its actions beyond its buttons, on the row only while it has some. */
