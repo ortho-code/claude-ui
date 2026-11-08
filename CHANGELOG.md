@@ -185,7 +185,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The sessions that were running when the app closed come back marked as needing you, a mauve dot that says why, instead of paused, and stay marked until you act on the session, such as typing a prompt there, closing the tab, leaving claude yourself, archiving it or choosing Clear needs you.
   Whether they are marked is a needs-you type you can switch off, `app.was-running`, and a `"mark"`, `"pause"` or `"leave"` already in your `settings.json` reads as `"cold"`.
 - The top of a session's options lists every state it is in on a line of its own, each with its dot, such as idle and needing you at once, where the status used to end the line with its project.
-- A session's dot no longer turns to waiting for claude's notices of something finished, such as a login that succeeded or an agent that finished.
+- A session's dot no longer turns to waiting for claude's notices of something finished, such as a login that succeeded, an agent that finished, or a form an MCP server asked you to fill in that has its answer.
 - The date filter's calendar starts its weeks on the first day of the language for times and dates, Monday for en-GB and nl-NL, as Pick a date…'s does.
 - Set aside… takes over from pausing a tab: Pause and Force pause are gone from a session's options, and the paused filter is a filter for the sessions set aside.
   A tab you had paused comes back as an ordinary stopped tab, its session set aside, whenever.

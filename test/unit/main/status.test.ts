@@ -454,9 +454,9 @@ describe('the hook script', () => {
     });
   });
 
-  /** Notices claude sends of something finished (claude 2.1.310's binary: "Claude Code login successful", "<agent> finished", "Claude is done using your computer"), which ask nothing. */
+  /** Notices claude sends of something finished (claude 2.1.310's binary: "Claude Code login successful", "<agent> finished", "Claude is done using your computer"; 2.1.316's: an MCP server's form confirmed complete, and the answer it was given), which ask nothing. */
   describe('a notice of something finished', () => {
-    it.each(['auth_success', 'agent_completed', 'computer_use_exit'])('writes nothing for %s, over idle or busy', async (type) => {
+    it.each(['auth_success', 'agent_completed', 'computer_use_exit', 'elicitation_complete', 'elicitation_response'])('writes nothing for %s, over idle or busy', async (type) => {
       runHook('idle', { session_id: SID, hook_event_name: 'Stop' });
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: type });
       expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'Stop' });
