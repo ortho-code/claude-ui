@@ -117,6 +117,45 @@
   font-weight: 650;
 }
 
+/* The read-only lists, Needs you's categories and types and Appearance's order: a row each, its dot in its look, its name, its id and short lines after it. */
+.settings-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: var(--text-body);
+}
+
+.settings-row-id,
+.settings-tag {
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+
+/* What `needsYou` changed, in the accent a changed setting carries. */
+.settings-tag.changed {
+  color: var(--accent);
+}
+
+.settings-category + .settings-category {
+  margin-top: 10px;
+}
+
+.settings-category-row {
+  font-weight: 600;
+}
+
+/* A category's types under it, indented as a group's rows are under its heading. */
+.settings-type-row {
+  padding-left: 17px;
+}
+
 /* A save main refused, over the buttons whatever section is on show. */
 #settings-save-error {
   margin: 0 0 8px;

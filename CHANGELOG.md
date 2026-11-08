@@ -128,6 +128,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A panel row that names a session has that session's menu behind its ⋮, so a session in another project can be stopped, set aside or marked read from the panel; the row's own actions beyond its buttons come first in that menu.
 - The sessions file says of each session whether it asks for you now, `asks`, by the rule its dot and the project switcher's count follow, so a panel can count what needs you as the switcher does.
 - The sessions file says of each session whether its claude is running in a tab, `running`, so a panel can list what runs, in any project.
+- Settings lists what can mark a session as needing you, each category and type with its id and its look, which are off and what `needsYou` changed, and the order the dots show states in.
 
 ### Changed
 

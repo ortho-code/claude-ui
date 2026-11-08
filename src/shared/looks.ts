@@ -16,6 +16,9 @@ export const NEEDS_YOU = 'needs-you';
 /** The category whose two types, claude asking and claude finishing a turn, are the statuses `waiting` and `idle` themselves, never stored reasons, so it has no place of its own in the order. */
 export const YOUR_TURN = 'your-turn';
 
+/** The status each of Your turn's types is, and so the look it is drawn in. */
+export const YOUR_TURN_STATUS: Readonly<Record<string, Status>> = { 'claude.asks': 'waiting', 'claude.finished': 'idle' };
+
 /** The order before anyone has chosen otherwise: claude's own status over a needs-you mark while it waits or works, the mark over a finished turn, as the dot has shown them since the mark came (decided 2026-11-06). */
 export const DEFAULT_STRENGTH: readonly string[] = ['waiting', 'busy', 'background', NEEDS_YOU, 'idle', 'closed'];
 

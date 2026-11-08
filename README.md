@@ -365,6 +365,7 @@ Failing checks, a conflict, changes requested and approved fire for `["own"]`, s
 New commits since your review mark once per review: a second push before you review again marks nothing more.
 To be marked when a PR you review is ready to merge, `"pr.approved": { "roles": ["own", "reviewing"] }` in `needsYou` adds that role.
 Every field you leave out stays as the app ships it, so a later version's change to it still reaches you; a `needsYou` with a mistake in any entry is not used at all, every category and type then as the app ships it, and Settings names the mistake in its Needs you section.
+That section lists every category and type as they stand, each with its id and its look, which are off, which PRs a PR's type fires for, and what `needsYou` changed; Settings' Appearance section lists the strength order in force the same way.
 Claude asking and claude finishing a turn are shown by its dot whatever these say: their types are for the Now view to come.
 
 ## Install a build

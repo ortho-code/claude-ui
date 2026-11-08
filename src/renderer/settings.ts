@@ -4,8 +4,14 @@ import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { presetsProblem } from '../shared/setaside';
 import { timeOfDay } from '../shared/time';
 import { fileChanges, languageTag, LEAVE_BUTTON, RUNNING_AT_LAUNCH, type LeaveButton, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView } from '../shared/settings';
-import type { Settings } from '../shared/types';
+import { expandedStrength, NEEDS_YOU, YOUR_TURN_STATUS } from '../shared/looks';
+import type { NeedsYouChange, NeedsYouRegistry } from '../shared/needsyou';
+import { PR_ROLES } from '../shared/prs';
+import type { PrRole, Settings } from '../shared/types';
+import { element } from './dom';
+import { statusLabel } from './logic';
 import { listen, runModal } from './modal';
+import { stateClass } from './statusdot';
 import { store, type View } from './state/app';
 import { hideToast, showToast } from './toast';
 // The section list's entries are menu rows.
@@ -104,7 +110,8 @@ const SECTIONS: Section[] = [
         <p class="dialog-detail">Which reasons mark a session as needing you, and in which section of Now each shows, is <code>needsYou</code> in settings.json, set there by hand: by a type's or a category's id, the fields it changes, such as <code>"needsYou": { "pr.merged": { "enabled": false } }</code> to be marked no more when a PR is merged.</p>
         ${OPEN_CONFIG}
         <div id="settings-needs-you-problems"></div>
-      </div>`,
+      </div>
+      <div id="settings-needs-you-list" class="settings-list"></div>`,
   },
   {
     id: 'appearance',
@@ -116,6 +123,11 @@ const SECTIONS: Section[] = [
         <p class="dialog-detail">Which state a session's dot shows when several hold, such as busy and needing you, is <code>strength</code> in settings.json, and how each status, category and type is drawn is <code>looks</code>, both set there by hand.</p>
         ${OPEN_CONFIG}
         <div id="settings-dots-problems"></div>
+      </div>
+      <div class="dialog-group">
+        <span class="dialog-label">The order, first wins</span>
+        <p class="dialog-detail">A dot shows the first of these that holds, each drawn in its look; a type's own look is beside it under Needs you.</p>
+        <ol id="settings-strength-list" class="settings-list"></ol>
       </div>`,
   },
   {
@@ -197,6 +209,74 @@ const settingsNotesList = document.getElementById('settings-notes-list')!;
 const settingsDotsProblems = document.getElementById('settings-dots-problems')!;
 const settingsApprovalsProblems = document.getElementById('settings-approvals-problems')!;
 const settingsNeedsYouProblems = document.getElementById('settings-needs-you-problems')!;
+const settingsNeedsYouList = document.getElementById('settings-needs-you-list')!;
+const settingsStrengthList = document.getElementById('settings-strength-list')!;
+
+/** The words for the roles a PR's type fires for. */
+const ROLE_WORDS: Record<PrRole, string> = { own: 'your own PRs', reviewing: 'PRs you review', other: "anyone else's" };
+
+/** A dot drawn as a session's dot showing `state` is, in its look (`stateClass`). */
+const dotFor = (state: string): HTMLElement => element('span', `nudge single ${stateClass(state)}`);
+
+/** A row of the read-only lists: a dot, a name, its id where it has one, and short lines after it, such as "off". */
+function listRow(className: string, state: string, name: string, id: string | null, tags: string[]): HTMLElement {
+  const row = element('div', `settings-row ${className}`);
+  const label = element('span', 'settings-row-name');
+  label.textContent = name;
+  row.append(dotFor(state), label);
+  if (id !== null) {
+    const code = element('code', 'settings-row-id');
+    code.textContent = id;
+    row.append(code);
+  }
+  for (const tag of tags) {
+    const line = element('span', `settings-tag${tag.startsWith('changed') ? ' changed' : ''}`);
+    line.textContent = tag;
+    row.append(line);
+  }
+  return row;
+}
+
+/** What `needsYou` changes of one id, as a line: "changed: enabled, roles"; none for an id it leaves alone. */
+const changedLine = (changes: Readonly<Record<string, NeedsYouChange>>, id: string): string[] => {
+  const fields = Object.keys(changes[id] ?? {});
+  return fields.length === 0 ? [] : [`changed: ${fields.join(', ')}`];
+};
+
+/**
+ * The needs-you categories in force, in Now's order, each with its types: what can mark a session, which are off, and what `needsYou` changed.
+ * Your turn's types are drawn as the statuses they are, since claude's status shows them.
+ */
+function renderNeedsYouList(registry: NeedsYouRegistry, changes: Readonly<Record<string, NeedsYouChange>>): void {
+  settingsNeedsYouList.replaceChildren(
+    ...registry.categories.map((category) => {
+      const block = element('div', 'settings-category');
+      block.append(listRow('settings-category-row', `needs:${category.id}`, category.label, category.id, [...(category.enabled ? [] : ['off']), ...changedLine(changes, category.id)]));
+      for (const type of registry.types.filter((t) => t.category === category.id)) {
+        const status = YOUR_TURN_STATUS[type.id];
+        const roles = type.roles === null || type.roles.length === PR_ROLES.length ? [] : [`for ${type.roles.map((role) => ROLE_WORDS[role]).join(', ')}`];
+        const drawn = status === undefined ? [] : ["claude's status"];
+        block.append(listRow('settings-type-row', status ?? `needs:${type.id}`, type.label, type.id, [...(type.enabled ? [] : ['off']), ...roles, ...drawn, ...changedLine(changes, type.id)]));
+      }
+      return block;
+    }),
+  );
+}
+
+/** The strength order in force, top to bottom, `needs-you` opened into the categories it stands for, each in its look. */
+function renderStrengthList(order: readonly string[], registry: NeedsYouRegistry): void {
+  const categories = new Map(registry.categories.map((category) => [category.id, category.label]));
+  settingsStrengthList.replaceChildren(
+    ...expandedStrength(order, registry).map((entry) => {
+      const item = element('li');
+      const category = categories.get(entry);
+      if (entry === NEEDS_YOU) item.append(listRow('settings-strength-row', 'needs', 'Needs you, any other reason', null, []));
+      else if (category !== undefined) item.append(listRow('settings-strength-row', `needs:${entry}`, category, entry, []));
+      else item.append(listRow('settings-strength-row', entry, statusLabel(entry), entry, []));
+      return item;
+    }),
+  );
+}
 
 /**
  * The app's own folders, as Settings lists them: what each holds, where it is, and a button to open it.
@@ -503,6 +583,10 @@ function render(view: SettingsView): void {
   ]);
   lines(settingsApprovalsProblems, 'dialog-error', view.approvals.problem === null ? [] : [`The approvals in ${view.file.name} are not used: ${view.approvals.problem}`]);
   lines(settingsNeedsYouProblems, 'dialog-error', view.needsYou.problem === null ? [] : [`What needsYou in ${view.file.name} changes is not used, so every category and type is as the app ships it: ${view.needsYou.problem}`]);
+  // Main's read applies `needsYou` to what the app ships; the window's own copy stands in for a view made without it.
+  const registry = view.needsYouRegistry ?? store.get().needsYouTypes;
+  renderNeedsYouList(registry, view.needsYou.value);
+  renderStrengthList(view.strength.value, registry);
   lines(settingsNotesList, 'dialog-error', view.notes);
   settingsNotes.hidden = view.notes.length === 0;
   showPending(view);
