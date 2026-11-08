@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
-import { expect, test } from '../../../../support/harness';
+import { expect, test, type App } from '../../../../support/harness';
 import { group, groupHeading, projectHeading, row } from '../../../../support/window';
 
 // A project's heading jumps to one of its groups, or to where its loose rows start, from a menu (docs/architecture.md § UI conventions); the jump's flash is the tab bar's group jump's too, and is checked there (tab-bar/jumps.spec.ts).
@@ -120,4 +120,37 @@ test("a jump from below a group lands at the group's top", async ({ app, page })
 
   await jumpTo(page, 'Beta');
   await expectAtBetasTop(page);
+});
+
+/** Boots with Alpha's session running out of sight, since the session on show lights no dot of its group's. */
+async function bootWithAlphaRunning(app: App, page: Page): Promise<void> {
+  await app.boot({ ...fixture, history: { [inAlpha.id]: [], [loose.id]: [] } });
+  for (const [i, s] of [inAlpha, loose].entries()) {
+    await row(page, s.title).click();
+    await expect.poll(() => app.calls('startTerminal')).toHaveLength(i + 1);
+  }
+}
+
+/** Alpha's dot in the open jump menu. */
+const alphasDot = (page: Page): Locator => page.locator('.kebab-menu button', { hasText: 'Alpha' }).locator('.nudge');
+
+// A status change repaints the rows' dots without drawing the list again.
+test("a jump menu opened after a status change shows that status's dot", async ({ app, page }) => {
+  await bootWithAlphaRunning(app, page);
+  await jumpButton(page, 'demo').click();
+  await expect(alphasDot(page)).not.toHaveClass(/\bwaiting\b/);
+  await jumpButton(page, 'demo').click();
+
+  expect(await app.emit('onSessionStatus', inAlpha.id, 'waiting', '', 'Notification')).toBe(1);
+  await jumpButton(page, 'demo').click();
+  await expect(alphasDot(page)).toHaveClass(/\bwaiting\b/);
+});
+
+test("an open jump menu's dots follow a status that changes while it is up", async ({ app, page }) => {
+  await bootWithAlphaRunning(app, page);
+  await jumpButton(page, 'demo').click();
+  await expect(alphasDot(page)).not.toHaveClass(/\bwaiting\b/);
+
+  expect(await app.emit('onSessionStatus', inAlpha.id, 'waiting', '', 'Notification')).toBe(1);
+  await expect(alphasDot(page)).toHaveClass(/\bwaiting\b/);
 });

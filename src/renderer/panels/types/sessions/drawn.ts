@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup } from '../../../dom';
 import { Keyed } from '../../../keyed';
-import type { GroupJumpTarget } from '../../../logic';
+import type { ProjectTree } from '../../../logic';
 import './drawn.css';
 
 /**
@@ -45,8 +45,8 @@ export interface ProjectSectionEls {
   /** The line under the heading of a project whose sessions are all finished, saying so; placed only for such a project. */
   allFinishedLine: HTMLElement;
 }
-// What each project's group menu offers, refreshed on every render so the menu can't name a group that has since been deleted or renamed.
-export const jumpTargets = new Map<string, GroupJumpTarget[]>();
+// Each project as last drawn, for its jump menu, refreshed on every render so the menu can't name a group that has since been deleted or renamed.
+export const jumpTrees = new Map<string, ProjectTree>();
 /** What a project's folder allows, by repo root, refreshed for each project a render draws, for the menus that start a session there (`newSessionItems`): whether it is a git repository, and why nothing can start in it, null while something can. */
 export const projectFacts = new Map<string, { isRepo: boolean; goneReason: string | null }>();
 // Project sections by repo root, kept across renders as the rows are.

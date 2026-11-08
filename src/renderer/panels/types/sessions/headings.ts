@@ -1,15 +1,17 @@
 // Its headings are the section heading a list panel draws too.
 import { sectionHeading } from '../../../card';
 import { kebabButton, openMenu, type MenuItem } from '../../../menu';
+import { groupJumpTargets, type GroupJumpTarget } from '../../../logic';
 import { store } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
+import { mutedNeedsYou, strengthNow } from '../../../state/views';
 import { pressHeadingBox, rowsUnder, tickBox } from './bulk';
 import { folderIcon, layersIcon } from '../../../svg';
 import { copyText } from '../../../toast';
 import { setTooltip } from '../../../tooltip';
 import { deleteGroupById, groupMoveItems, projectMoveItems, promptNewGroup, renameGroupById, renameProject, withMoves } from './actions';
 import { newSessionInGroupItem, newSessionItems, newSessionSplit } from './controls';
-import { container, jumpTargets, type GroupSectionEls, type ProjectSectionEls, type FlatSectionEls } from './drawn';
+import { container, jumpTrees, type GroupSectionEls, type ProjectSectionEls, type FlatSectionEls } from './drawn';
 import { toggleFold } from './folding';
 import { revealGroup } from './reveal';
 import './headings.css';
@@ -19,10 +21,18 @@ import './headings.css';
  * What they show — names, counts, folds, the rows — the draw writes into them on every render (list.ts).
  */
 
-// The places a project's jump goes, as drawn (`jumpTargets`): its groups, then a rule and where its loose rows start, the one list for the heading's jump button and its menu's Jump to group.
+/** The places a project's jump goes, in the project as drawn, each dot from the statuses as they stand now: a status change repaints the rows' dots and does not draw the list again. */
+function jumpTargetsNow(repoRoot: string): GroupJumpTarget[] {
+  const tree = jumpTrees.get(repoRoot);
+  if (!tree) return [];
+  const view = store.get();
+  return groupJumpTargets(tree, view.statuses, view.acked, view.needsYou, mutedNeedsYou(view), strengthNow(view));
+}
+
+// Its groups, then a rule and where its loose rows start, the one list for the heading's jump button and its menu's Jump to group.
 function jumpItems(repoRoot: string): MenuItem[] {
   const items: MenuItem[] = [];
-  for (const t of jumpTargets.get(repoRoot) ?? []) {
+  for (const t of jumpTargetsNow(repoRoot)) {
     // A rule before the ungrouped entry: it is a different KIND of target, not another group.
     if (t.groupId === null && items.length > 0) items.push({ label: '', separator: true });
     items.push({
@@ -94,7 +104,8 @@ export function createProjectSection(name: string): ProjectSectionEls {
   setTooltip(groupsBtn, 'Jump to a group');
   groupsBtn.addEventListener('click', (event) => {
     event.stopPropagation(); // don't collapse the project
-    openMenu(groupsBtn, jumpItems(name));
+    // Followed while open, so its dots keep up with the list, and closed once the project has nowhere else to jump, as the button is hidden then.
+    openMenu(groupsBtn, jumpItems(name), () => (jumpTargetsNow(name).length < 2 ? null : jumpItems(name)));
   });
   heading.append(groupsBtn);
   const { split, add, addCaret } = newSessionSplit({
@@ -117,7 +128,7 @@ export function createProjectSection(name: string): ProjectSectionEls {
       { label: 'Rename…', onSelect: () => void renameProject(name) },
       { label: 'Copy path', onSelect: () => void copyText(name, 'Path copied.') },
       { label: '', separator: true },
-      (jumpTargets.get(name) ?? []).length < 2 ? { label: 'Jump to group', disabled: 'Nowhere else to jump to in this project' } : { label: 'Jump to group', submenu: jumpItems(name) },
+      jumpTargetsNow(name).length < 2 ? { label: 'Jump to group', disabled: 'Nowhere else to jump to in this project' } : { label: 'Jump to group', submenu: jumpItems(name) },
     ]),
   );
   heading.append(kebab);

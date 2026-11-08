@@ -11,7 +11,7 @@ import { setUnavailable } from '../../../unavailable';
 import { recentOrder } from '../../../recent';
 import { reviewCount, type ReviewSection } from '../../../review';
 import { endBulk } from '../../../state/bulk';
-import { container, currentByKey, drawnKeys, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
+import { container, currentByKey, drawnKeys, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
@@ -308,7 +308,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
     // Under a filter it offers the places the filter left drawn, and a pick unfolds the filter's own folds on the way.
     const targets = groupJumpTargets(project, view.statuses, view.acked, view.needsYou, mutedNeedsYou(view), strengthNow(view));
-    jumpTargets.set(project.repoRoot, targets);
+    jumpTrees.set(project.repoRoot, project);
     els.groupsBtn.hidden = targets.length < 2;
     // Nothing can be started in a folder that is not there.
     // Disabled rather than hidden: the project still has sessions to read, and a control that vanishes explains nothing — the tooltip does.
