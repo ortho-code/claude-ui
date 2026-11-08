@@ -5,7 +5,7 @@ import { expect, test, type App } from '../../../../support/harness';
 import { keptChanges, withLayout } from '../../../layout/layout';
 import { chooseProject, row, rows, tabBarGroup, tabBarProject } from '../../../../support/window';
 
-// Recent (docs/architecture.md § Recent): every session in the switcher's scope, flat, last worked on first, pins not floated, each row led by its group and in All its project; the choice is the sessions panel's view, kept on this machine.
+// Recent (docs/architecture/session-list.md § Recent): every session in the switcher's scope, flat, last worked on first, pins not floated, each row led by its group and in All its project; the choice is the sessions panel's view, kept on this machine.
 const OTHER = `${HOME}/projects/other`;
 const MINUTE = 60_000;
 const NOW = Date.parse('2026-09-30T09:00:00.000Z');

@@ -2,7 +2,7 @@ import { tickedRun } from '../ticks';
 import { store } from './app';
 
 /**
- * The writes to the session list's bulk mode (docs/architecture.md § Selecting several): entering it with rows ticked, ticking, and leaving it.
+ * The writes to the session list's bulk mode (docs/architecture/session-list.md § Selecting several): entering it with rows ticked, ticking, and leaving it.
  * Which rows are drawn is the list's; a caller hands their keys in the order drawn where a write needs them.
  */
 
@@ -16,7 +16,7 @@ export function endBulk(): void {
   store.set({ bulk: null, reviewing: false });
 }
 
-/** Open the review (docs/architecture.md § The review): the list shows its sets, in bulk mode, nothing ticked. */
+/** Open the review (docs/architecture/session-list.md § The review): the list shows its sets, in bulk mode, nothing ticked. */
 export function startReview(): void {
   store.set({ reviewing: true, bulk: { ticked: new Set(), anchor: null } });
 }

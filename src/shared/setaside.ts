@@ -1,7 +1,7 @@
 import { dayStart, onDayAt, timeOfDay } from './time';
 
 /**
- * THE SET-ASIDE CHOICES: the presets in `settings.json` (`setAside`), read, checked and worked out into moments, pure and shared, so the settings' check in main and the choices the window offers read one grammar (docs/architecture.md § Status cues).
+ * THE SET-ASIDE CHOICES: the presets in `settings.json` (`setAside`), read, checked and worked out into moments, pure and shared, so the settings' check in main and the choices the window offers read one grammar (docs/architecture/status-cues.md § Status cues).
  * English words whatever the language setting, as the app's other words are; every moment local time, worked out when asked.
  */
 

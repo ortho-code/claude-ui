@@ -4,7 +4,7 @@ import { DEFAULT_LAYOUT, pxOf, type ResolvedNode } from './layout';
 import { roundShare } from './sizes';
 
 /**
- * THE LAYOUT'S APP FILE AS THE WINDOW READS IT: this machine's sizes, folds and picks, by node id, each over the field of that name in your layout file (docs/architecture.md § Panel state).
+ * THE LAYOUT'S APP FILE AS THE WINDOW READS IT: this machine's sizes, folds and picks, by node id, each over the field of that name in your layout file (docs/architecture/panels.md § Panel state).
  * Pure: the tree reads and writes it, this decides.
  */
 

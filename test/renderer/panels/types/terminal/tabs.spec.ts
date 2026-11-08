@@ -5,7 +5,7 @@ import { expect, test, type App } from '../../../support/harness';
 import { chooseProject, newTerminal, panelTab, panelTabAdd, panelTabLabels, panelTabRows, panelTabs, tab, tabLabel } from '../../../support/window';
 import { here, railItem, withLayout } from '../../layout/layout';
 
-// A terminal panel holds shells as tabs in its header, by project (docs/architecture.md § The `terminal` type): only you make one, a switch never ends one, and a project with none shows a line instead.
+// A terminal panel holds shells as tabs in its header, by project (docs/architecture/panels.md § The `terminal` type): only you make one, a switch never ends one, and a project with none shows a line instead.
 const NOTES = `${HOME}/notes`;
 
 /** The shell first in a railed group, so it is on show and its icon is on screen, with `options` on its entry. */

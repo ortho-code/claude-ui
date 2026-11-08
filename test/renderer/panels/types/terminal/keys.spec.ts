@@ -4,7 +4,7 @@ import { type App, expect, test } from '../../../support/harness';
 import { newTerminal, panelTabLabels } from '../../../support/window';
 import { withLayout } from '../../layout/layout';
 
-// A panel's shell takes Ctrl+V as a session's tab does, since both are the one xterm (docs/architecture.md § The `terminal` type).
+// A panel's shell takes Ctrl+V as a session's tab does, since both are the one xterm (docs/architecture/panels.md § The `terminal` type).
 const layout = withLayout({
   version: 2,
   root: {

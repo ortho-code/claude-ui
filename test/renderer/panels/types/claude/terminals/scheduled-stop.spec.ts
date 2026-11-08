@@ -4,7 +4,7 @@ import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab } from '../../../../support/window';
 
-// A stop, a close or a finish of a session with a task scheduled sends the third Ctrl-C a `/loop` wakeup takes, so the stop lands, and asks nothing first: claude asks its own question for a cron, and the clock's tooltip says beforehand what becomes of each (docs/architecture.md, its section on stopping a session).
+// A stop, a close or a finish of a session with a task scheduled sends the third Ctrl-C a `/loop` wakeup takes, so the stop lands, and asks nothing first: claude asks its own question for a cron, and the clock's tooltip says beforehand what becomes of each (docs/architecture/terminal.md § Stopping a session is a request).
 const one = session();
 // A tab on show has its history read; what it holds is not what is checked here.
 const fixture = { sessions: [one], history: { [one.id]: [] } };

@@ -4,7 +4,7 @@ import { contrast, pixels, type Rgb } from '../../../support/looks';
 import { newTerminal, panelTabLabels } from '../../../support/window';
 import { withLayout } from '../../layout/layout';
 
-// A shell's scrollbar is the app's own thin one (base.css), drawn in the gutter xterm's viewport keeps at its right edge, which the terminal is fitted to stay clear of (docs/architecture.md § Traps worth knowing).
+// A shell's scrollbar is the app's own thin one (base.css), drawn in the gutter xterm's viewport keeps at its right edge, which the terminal is fitted to stay clear of (docs/architecture/ui-conventions.md § Traps worth knowing).
 // Chromium draws scrollbars in these checks only, since a headless run otherwise hides them and leaves no gutter at all.
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } });
 

@@ -17,7 +17,7 @@ import { container, currentByKey, drawnKeys } from './drawn';
 import './bulk.css';
 
 /**
- * SELECTING SEVERAL (docs/architecture.md § Selecting several): the list's bulk mode, drawn — a box on every row and heading, the line under the header that says how many are ticked, with Done, and the bar at the list's foot whose acts take every ticked row on show.
+ * SELECTING SEVERAL (docs/architecture/session-list.md § Selecting several): the list's bulk mode, drawn — a box on every row and heading, the line under the header that says how many are ticked, with Done, and the bar at the list's foot whose acts take every ticked row on show.
  * The mode itself is the store's (`bulk`, state/bulk.ts); this draws it and answers its presses, and each act goes through the same write a session's menu makes, given every ticked key.
  */
 
@@ -127,7 +127,7 @@ export function showBulk(view: View<'bulk' | 'tabs' | 'reviewing' | 'activeProje
   setUnavailable(act('close'), none ?? (keys.some((key) => closable(key, view)) ? null : close), 'Close the tab of every ticked session');
 }
 
-/** Whether a session's tab offers a leave item as itself, not as a force, nor unavailable: what the bar presses, so it never forces one already leaving for it (docs/architecture.md § Selecting several). */
+/** Whether a session's tab offers a leave item as itself, not as a force, nor unavailable: what the bar presses, so it never forces one already leaving for it (docs/architecture/session-list.md § Selecting several). */
 function offers(key: string, action: 'stop' | 'close', view: View<'tabs'>): boolean {
   return view.tabs.some((tab) => tab.session.id === key && ((item) => !item.disabled && item.mark === action)(leaveAction(leaveTab(tab, view), action)));
 }
@@ -155,7 +155,7 @@ async function setAside(keys: readonly string[]): Promise<void> {
 }
 
 /**
- * Keep from the bar: every ticked session kept out of the review for its days, in one write, and one toast whose Undo puts each stamp back as it was, or none (docs/architecture.md § The review).
+ * Keep from the bar: every ticked session kept out of the review for its days, in one write, and one toast whose Undo puts each stamp back as it was, or none (docs/architecture/session-list.md § The review).
  * Offered outside the review too, to hold a session out of it before it would come up.
  */
 function keep(keys: readonly string[]): void {

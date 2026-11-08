@@ -35,7 +35,7 @@ test('moving a project moves it in the list, the switcher and the tab bar togeth
   expect(await app.calls('moveProject')).toEqual([[OTHER, 'up', [PROJECT, OTHER]]]);
 });
 
-// The order keeps the place of a project whose sessions were all deleted, and a new project is put in front at a full read, so its neighbour in the order can be one no surface shows (docs/architecture.md § App-side metadata and session groups).
+// The order keeps the place of a project whose sessions were all deleted, and a new project is put in front at a full read, so its neighbour in the order can be one no surface shows (docs/architecture/sessions.md § App-side metadata and session groups).
 // Here `new` is seeded in front of `gone`, and `old` sits after `demo`; neither of those two has a session to show.
 const NEW = `${HOME}/projects/new`;
 const inNew = session({ id: '00000000-0000-4000-8000-0000000000d3', title: 'In new', cwd: NEW, repoRoot: NEW });

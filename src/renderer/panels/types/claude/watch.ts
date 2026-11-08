@@ -10,7 +10,7 @@ import { renderTabBar, tabBarFollowsStatuses } from './tab-bar';
 import { adoptReplacement, promptSubmitted, reconcileOpenTabs, scheduledReported } from './terminals';
 
 /**
- * What the terminal area follows, in the store and from main, registered by renderer.ts beside the sidebar's (docs/architecture.md § The store): its rules, which set state as they are told, before any repaint, then its repaints; and its part of what main sends, which renderer.ts's one handler per event calls ahead of the app's own.
+ * What the terminal area follows, in the store and from main, registered by renderer.ts beside the sidebar's (docs/architecture/processes.md § The store): its rules, which set state as they are told, before any repaint, then its repaints; and its part of what main sends, which renderer.ts's one handler per event calls ahead of the app's own.
  * Inside each block the order is the type's own; no order across the two types matters (measured in 08a6ac4).
  */
 /** A tab's claude went on in session `id`: the tab takes it over, or, where another tab already runs it, that tab comes on show, saying why. */

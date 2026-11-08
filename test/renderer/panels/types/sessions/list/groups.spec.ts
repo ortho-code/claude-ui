@@ -53,7 +53,7 @@ test('a group made from a row takes the row, and its tab moves into the group\'s
   expect(await app.calls('createGroup')).toEqual([['Gamma', PROJECT, loose.id]]);
 });
 
-// A new group lands at the top of its project, which can be far from the row or heading it was made from, so the list goes to it (docs/architecture.md § App-side metadata and session groups).
+// A new group lands at the top of its project, which can be far from the row or heading it was made from, so the list goes to it (docs/architecture/sessions.md § App-side metadata and session groups).
 test('a group made from a row far down its project takes the list up to it', async ({ app, page }) => {
   // Enough rows above the one it is made from that the project's top is out of sight once that row is.
   const filler = Array.from({ length: 40 }, (_, i) => session({ id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, title: `Filler ${i}` }));

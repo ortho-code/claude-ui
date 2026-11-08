@@ -345,7 +345,7 @@ function carriesToolResult(record: Record<string, unknown>): boolean {
  * Fold one transcript record into the history.
  * A request is what the user sent: a typed prompt (with or without a pasted image), one sent while a tool ran, one queued while claude worked (a `queued_command` attachment, which is not a user record at all), a slash command claude answered, and a command claude ran itself, such as `/model` or `/compact`.
  * Not a request: tool results, meta records (a skill's expanded body, a message from another session, a subagent's hand-back, whose report is a part of the reply instead), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing.
- * The rule and the counts behind it are in docs/architecture.md, In-session history.
+ * The rule and the counts behind it are in docs/architecture/history.md § In-session history.
  */
 export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): void {
   // A record written again is the one already folded, with its bookkeeping (git branch, version) brought up to date: the first copy stands.

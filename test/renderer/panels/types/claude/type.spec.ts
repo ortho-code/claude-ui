@@ -3,7 +3,7 @@ import { expect, test } from '../../../support/harness';
 import { tab, tabLabel } from '../../../support/window';
 import { LAYOUT, here, withLayout } from '../../layout/layout';
 
-// The terminal area is one instance for the run (docs/architecture.md § Panels): a layout change that remounts its entry — a new id, an option — puts back the very same pane, so a running session and its terminal go on as they were.
+// The terminal area is one instance for the run (docs/architecture/panels.md § Panels): a layout change that remounts its entry — a new id, an option — puts back the very same pane, so a running session and its terminal go on as they were.
 // The layout's drawer makes no shell until asked, so the claude is the first terminal.
 const CLAUDE = 1;
 

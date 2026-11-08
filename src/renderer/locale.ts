@@ -2,7 +2,7 @@ import { store } from './state/app';
 
 /**
  * THE LANGUAGE THE APP FORMATS TIMES AND DATES IN: the language setting's (`Settings.locale`), or the window's own while the setting says the system's.
- * Named wherever the app formats a moment or lays out a calendar, rather than left to the window's default, which is the language its renderer started in and does not follow a change of the setting (docs/architecture.md § The language).
+ * Named wherever the app formats a moment or lays out a calendar, rather than left to the window's default, which is the language its renderer started in and does not follow a change of the setting (docs/architecture/window.md § The language).
  * The app's own words stay English whatever it is.
  */
 

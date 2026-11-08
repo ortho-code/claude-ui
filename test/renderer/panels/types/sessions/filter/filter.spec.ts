@@ -4,7 +4,7 @@ import { expect, test } from '../../../../support/harness';
 import { pixels, token } from '../../../../support/looks';
 import { titles } from '../../../../support/window';
 
-// A filter that is on is never out of sight (docs/architecture.md § Reopening the way you left it): the count and Clear sit under the panel, and a panel shut over a filter folds to a row of chips, one per thing that is on, each with its own ×.
+// A filter that is on is never out of sight (docs/architecture/window.md § Reopening the way you left it): the count and Clear sit under the panel, and a panel shut over a filter folds to a row of chips, one per thing that is on, each with its own ×.
 // The count compares a set with part of itself: the matches out of what the same scope holds before any filter.
 const parser = session({ id: '00000000-0000-4000-8000-0000000000b1', title: 'Fix the parser' });
 const docs = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'Write the docs' });

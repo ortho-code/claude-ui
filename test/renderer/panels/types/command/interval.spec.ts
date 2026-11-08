@@ -3,7 +3,7 @@ import type { PanelRunEvent } from '../../../../../src/shared/panels';
 import { type App, expect, test } from '../../../support/harness';
 import { railItem, runs, withLayout } from '../../layout/layout';
 
-// A command panel with an interval runs on it as well as on show (docs/architecture.md § The `command` type): from when the window goes live, shown or not, and a tick after each run ends, out of sight too.
+// A command panel with an interval runs on it as well as on show (docs/architecture/panels.md § The `command` type): from when the window goes live, shown or not, and a tick after each run ends, out of sight too.
 // A run on the interval holds what is on show until it ends, then swaps in what it printed, failed or not; a press still starts the body afresh.
 const MINUTE = 60_000;
 const LINES = Array.from({ length: 200 }, (_, at) => `line ${at}`);

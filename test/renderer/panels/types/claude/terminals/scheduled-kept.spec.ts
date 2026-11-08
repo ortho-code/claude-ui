@@ -4,7 +4,7 @@ import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab } from '../../../../support/window';
 
-// A tab whose claude went while a task was scheduled keeps its clock, muted, saying what was scheduled then, since claude's own word on it can be missed; kept for the next launch, and through a start of its claude until that claude reports what it has itself (docs/architecture.md § Status cues).
+// A tab whose claude went while a task was scheduled keeps its clock, muted, saying what was scheduled then, since claude's own word on it can be missed; kept for the next launch, and through a start of its claude until that claude reports what it has itself (docs/architecture/status-cues.md § Status cues).
 const one = session();
 // A tab on show has its history read; what it holds is not what is checked here.
 const fixture = { sessions: [one], history: { [one.id]: [] } };

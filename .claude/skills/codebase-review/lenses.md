@@ -21,11 +21,11 @@ Unit tests and the window's checks, and what has none; how faithful the checks' 
 ## Stylesheets, docs and conventions
 
 What the code says about itself, now against BASE.
-CSS kept in step by comments rather than shared; values that should be tokens; a rule or a stylesheet that works only by load order; comments that no longer say what the code does; every identifier and path `README.md` and `docs/` name, and whether it exists; the conventions in `CLAUDE.md` and `docs/architecture.md` § UI conventions, read now rather than remembered.
+CSS kept in step by comments rather than shared; values that should be tokens; a rule or a stylesheet that works only by load order; comments that no longer say what the code does; every identifier and path `README.md` and `docs/` name, and whether it exists; the conventions in `CLAUDE.md` and `docs/architecture/ui-conventions.md` § UI conventions, read now rather than remembered.
 
 ## The shared brief, for each of the four
 
-- Read `CLAUDE.md`, `README.md` and `docs/architecture.md` first.
+- Read `CLAUDE.md`, `README.md` and `docs/architecture/README.md` first, with the architecture files the area touches.
   Then compare BASE with HEAD: `git log --oneline BASE..HEAD`, `git diff --stat BASE HEAD`, then the files themselves.
 - Read only: change nothing, run nothing that writes, and never start the app.
 - Report every finding as: a one-line title; GOT WORSE (introduced since BASE, with where BASE had it right, as `BASE:path:line`) or TO IMPROVE (present at BASE too, or new and not yet a regression); a severity, HIGH, MEDIUM or LOW; `path:line` at HEAD for each claim; what a person would see, as a scenario where it is behaviour; and a fix in one or two sentences.

@@ -23,7 +23,7 @@ describe('local-only content', () => {
   it('what counts as pointing at it, and what does not', () => {
     expect(pointsLocal('a.ts', '// Why is in .plan/plan_window-chrome.md.')).toHaveLength(1);
     expect(pointsLocal('a.css', '/* See the wsl skill for the cursor. */')).toHaveLength(1);
-    expect(pointsLocal('a.ts', "// Why is in docs/architecture.md § The window's own chrome.")).toEqual([]);
+    expect(pointsLocal('a.ts', "// Why is in docs/architecture/window.md § The window's own chrome.")).toEqual([]);
     expect(pointsLocal('a.ts', "// A skill's expanded body is not a request.")).toEqual([]);
   });
 });

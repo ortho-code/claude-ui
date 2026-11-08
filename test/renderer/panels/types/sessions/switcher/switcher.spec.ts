@@ -4,7 +4,7 @@ import { expect, test } from '../../../../support/harness';
 import { clickAcross } from '../../../../support/press';
 import { chooseProject, headings, switcherEntries, switcherEntry, switcherNames, switcherRollUp, tab, tabLabels } from '../../../../support/window';
 
-// Selecting a project is a statement about what you are looking at, so every surface honours it (docs/architecture.md § UI conventions): the list, the tab bar, and the tab on show, which is the one you were last in there, selected and not started (§ Tab lifecycle).
+// Selecting a project is a statement about what you are looking at, so every surface honours it (docs/architecture/ui-conventions.md § UI conventions): the list, the tab bar, and the tab on show, which is the one you were last in there, selected and not started (§ Tab lifecycle).
 const OTHER = `${HOME}/projects/other`;
 const here = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Over here' });
 const there = session({ id: '00000000-0000-4000-8000-0000000000c2', title: 'Over there', cwd: OTHER, repoRoot: OTHER });

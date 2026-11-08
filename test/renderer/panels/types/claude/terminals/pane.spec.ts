@@ -6,7 +6,7 @@ import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { chooseProject, row, tab, tabs } from '../../../../support/window';
 
-// The empty terminal pane names the next action, and there are four (docs/architecture.md § UI conventions): no sessions at all, no tabs on show in this project, tabs but none selected, and a selected tab that is not running, which the lifecycle's checks cover.
+// The empty terminal pane names the next action, and there are four (docs/architecture/ui-conventions.md § UI conventions): no sessions at all, no tabs on show in this project, tabs but none selected, and a selected tab that is not running, which the lifecycle's checks cover.
 // It counts the tabs ON SHOW (`visibleTabs`), not every open tab: "pick a tab above" beside an empty bar was the bug that rule fixed.
 const OTHER = `${HOME}/projects/other`;
 const here = session();

@@ -244,7 +244,7 @@ export function folderName(repoRoot: string): string {
 }
 
 // The one place a session's display label is composed: the name Claude gave it, else its first prompt, else what a session with nothing in it is called, after the folder it runs in.
-// Every surface shows the same name this way (docs/architecture.md § Reading sessions).
+// Every surface shows the same name this way (docs/architecture/sessions.md § Reading sessions).
 export function sessionLabel(session: SessionSummary): string {
   return session.title || session.firstMessage || `New: ${folderName(session.cwd)}`;
 }

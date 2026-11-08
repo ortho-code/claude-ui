@@ -8,7 +8,7 @@ import { reviewButton } from './review';
 import './arrangement.css';
 
 /**
- * THE LIST'S ARRANGEMENT (docs/architecture.md § Recent): Grouped, by project and group, or Recent, flat and last worked on first, as the sessions panel's two views, switched on the row under the sidebar's header, which holds the Review button, the filter's toggle and collapse-all at its other end.
+ * THE LIST'S ARRANGEMENT (docs/architecture/session-list.md § Recent): Grouped, by project and group, or Recent, flat and last worked on first, as the sessions panel's two views, switched on the row under the sidebar's header, which holds the Review button, the filter's toggle and collapse-all at its other end.
  * The pick is the panel's, kept as any panel's picked view is (`PanelHost.pickView`), with its layout entry's `view` where it starts; the store's `arrangement` follows it, for the list to draw from.
  */
 

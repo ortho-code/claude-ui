@@ -1,5 +1,5 @@
 /**
- * The window's shared state, and who is told when it changes (docs/architecture.md § The store).
+ * The window's shared state, and who is told when it changes (docs/architecture/processes.md § The store).
  *
  * State is a set of named slices.
  * A setter replaces slices and tells every watcher of a slice that changed, SYNCHRONOUSLY, so a flow that renders and then measures — reveal a row, then scroll to it — reads the DOM it just changed.

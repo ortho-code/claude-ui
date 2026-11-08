@@ -22,7 +22,7 @@ The review changes nothing: it reads, and every fix it finds is a later change o
 
 ## 2. The scope
 
-Read `CLAUDE.md`, `README.md` and `docs/architecture.md` first, as for any change.
+Read `CLAUDE.md`, `README.md` and `docs/architecture/README.md` first, with the architecture files the area under review touches, as for any change.
 Then gather what the report's § Scope and method needs: the commits between the two ends and what they did, and the size of `src/` and of the tests at both ends (`git ls-tree -r` and `git show <commit>:<path>` read BASE without checking it out).
 
 ## 3. The four reviews, in parallel

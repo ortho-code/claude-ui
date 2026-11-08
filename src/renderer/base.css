@@ -207,7 +207,7 @@ button:where(:not(.icon-btn, :disabled)):is(:hover, .menu-open),
 }
 
 /* Two halves acting as one button need to look like one object before you touch them, so they carry a resting border where a lone icon does not.
-   See "Composite controls" in docs/architecture.md. */
+   See "Composite controls" in docs/architecture/ui-conventions.md. */
 .icon-btn.composite {
   border-color: var(--border);
 }

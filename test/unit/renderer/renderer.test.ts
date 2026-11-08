@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 
 /**
- * The stylesheets in the order the bundle carries them, which is the order their modules are first imported, starting from `renderer.ts` (docs/architecture.md § UI conventions).
+ * The stylesheets in the order the bundle carries them, which is the order their modules are first imported, starting from `renderer.ts` (docs/architecture/ui-conventions.md § UI conventions).
  * Two rules of equal specificity in different files are decided by it, so an import that moves can change what something looks like with nothing in the CSS's own diff to show it.
- * When this list has to change, the style capture comes first: two captures of the build before the change, since one alone is no baseline, and one after, compared with `npm run styles:compare` (docs/architecture.md § The window's checks).
+ * When this list has to change, the style capture comes first: two captures of the build before the change, since one alone is no baseline, and one after, compared with `npm run styles:compare` (docs/architecture/build-and-checks.md § The window's checks).
  */
 const ORDER = [
   'src/renderer/base.css',

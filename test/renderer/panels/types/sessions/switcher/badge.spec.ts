@@ -2,7 +2,7 @@ import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { chooseProject, switcherRollUp } from '../../../../support/window';
 
-// The switcher's title counts what asks for you outside the project on show, and every project in All; each entry counts its own project (docs/architecture.md § Status cues).
+// The switcher's title counts what asks for you outside the project on show, and every project in All; each entry counts its own project (docs/architecture/status-cues.md § Status cues).
 const OTHER = `${HOME}/projects/other`;
 const THIRD = `${HOME}/projects/third`;
 const here = session({ id: '00000000-0000-4000-8000-0000000000d1', title: 'Waiting here' });

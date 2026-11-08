@@ -5,7 +5,7 @@ import { overrun, token } from '../../../../support/looks';
 import { clickAcross } from '../../../../support/press';
 import { project, projectHeading, row, tabLabel, tabs } from '../../../../support/window';
 
-// A row says what its session's tab is doing (docs/architecture.md § Tab lifecycle): `open` while it has a tab, `cold` while that tab has no claude behind it, and `active-session` for the tab on show.
+// A row says what its session's tab is doing (docs/architecture/terminal.md § Tab lifecycle): `open` while it has a tab, `cold` while that tab has no claude behind it, and `active-session` for the tab on show.
 // Accent means a live session, nowhere else, so the cold bar is muted where the live one is accent.
 const one = session();
 const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Another session' });
@@ -61,7 +61,7 @@ test("a row's dot follows its session's status, and a click on it marks it read 
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
-// A session that left its worktree still did its work there (docs/architecture.md § Reading sessions), so its badge stays, muted, while a resume runs where it is now.
+// A session that left its worktree still did its work there (docs/architecture/sessions.md § Reading sessions), so its badge stays, muted, while a resume runs where it is now.
 test("a row's worktree badge is accent while its session is in the worktree, and muted once the session has left it", async ({ app, page }) => {
   const inside = session({ id: '00000000-0000-4000-8000-000000000003', title: 'In its worktree', cwd: `${PROJECT}/.claude/worktrees/feature-x`, worktree: 'feature-x' });
   const left = session({ id: '00000000-0000-4000-8000-000000000004', title: 'Left its worktree', leftWorktree: 'feature-y' });

@@ -104,7 +104,7 @@ export function spelledSize(size: NodeSize): number | `${number}px` {
 }
 
 /**
- * What the app keeps for one node of a layout, in the layout's own field names, in the app's file beside it (`layouts/default.local.json`): this machine's sizes, folds, the panel picked in a group and the view picked in a panel, each winning over the field of that name in your layout file (docs/architecture.md § Panel state).
+ * What the app keeps for one node of a layout, in the layout's own field names, in the app's file beside it (`layouts/default.local.json`): this machine's sizes, folds, the panel picked in a group and the view picked in a panel, each winning over the field of that name in your layout file (docs/architecture/panels.md § Panel state).
  * Every field is one your layout file can carry too, so keeping one for good is moving it there.
  */
 export interface NodeState {

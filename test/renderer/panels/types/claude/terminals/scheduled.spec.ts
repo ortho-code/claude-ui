@@ -4,7 +4,7 @@ import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab } from '../../../../support/window';
 
-// A task claude has scheduled for a session, a `/loop` wakeup or a cron, as its last Stop listed it (docs/architecture.md § Status cues): a clock beside the session wherever it runs, its tab and its row, naming each task, so a stop that ends the task is no surprise.
+// A task claude has scheduled for a session, a `/loop` wakeup or a cron, as its last Stop listed it (docs/architecture/status-cues.md § Status cues): a clock beside the session wherever it runs, its tab and its row, naming each task, so a stop that ends the task is no surprise.
 const one = session();
 // A tab on show has its history read; what it holds is not what is checked here.
 const fixture = { sessions: [one], history: { [one.id]: [] } };

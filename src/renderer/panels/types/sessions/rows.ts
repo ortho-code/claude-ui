@@ -251,7 +251,7 @@ export function showTabMarks(marks: RowTabMarks, id: string, view: View<'schedul
 /**
  * What a row drawn flat says ahead of the rest of its line, and in place of what.
  * `lead`: where it sits, where no heading above it says so.
- * `why`: for a row of the review (docs/architecture.md § The review), the line saying why it is there, in place of what the row says otherwise; null for a row that says it: its time and model, or in the finished view when it was finished.
+ * `why`: for a row of the review (docs/architecture/session-list.md § The review), the line saying why it is there, in place of what the row says otherwise; null for a row that says it: its time and model, or in the finished view when it was finished.
  * Both worked out again on the minute clock like the time they lead or replace, of the session as the newest listing has it.
  */
 export interface FlatLine {

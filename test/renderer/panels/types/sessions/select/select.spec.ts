@@ -3,7 +3,7 @@ import { PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { groupHeading, projectHeading, row, toastButton } from '../../../../support/window';
 
-// Selecting several (docs/architecture.md § Selecting several): Select sessions… in a heading's menu, or Select… in a row's, puts the list in bulk mode with those rows ticked; a press on a row then ticks it rather than opening it, a Shift+press ticks a run, a heading's box ticks every row under it, and Done or Esc in the list ends it.
+// Selecting several (docs/architecture/session-list.md § Selecting several): Select sessions… in a heading's menu, or Select… in a row's, puts the list in bulk mode with those rows ticked; a press on a row then ticks it rather than opening it, a Shift+press ticks a run, a heading's box ticks every row under it, and Done or Esc in the list ends it.
 const a = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'Alpha', lastActivity: '2026-09-30T10:00:00.000Z' });
 const b = session({ id: '00000000-0000-4000-8000-0000000000a2', title: 'Bravo', lastActivity: '2026-09-30T09:00:00.000Z' });
 const c = session({ id: '00000000-0000-4000-8000-0000000000a3', title: 'Charlie', lastActivity: '2026-09-30T08:00:00.000Z' });

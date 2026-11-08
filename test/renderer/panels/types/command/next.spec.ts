@@ -3,7 +3,7 @@ import { type App, expect, test } from '../../../support/harness';
 import { chooseProject } from '../../../support/window';
 import { runs, withLayout } from '../../layout/layout';
 
-// A run may say in its control file when it runs next (docs/architecture.md § The `command` type): that delay, for that one run, in place of the interval or without one, or `off` for none; what it gets wrong is a note under the group.
+// A run may say in its control file when it runs next (docs/architecture/panels.md § The `command` type): that delay, for that one run, in place of the interval or without one, or `off` for none; what it gets wrong is a note under the group.
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 

@@ -57,7 +57,7 @@ test("the folded sidebar's waiting dot outlasts a layout change that remounts it
   await expect(sessions.locator('.nudge.waiting')).toBeVisible();
 });
 
-// A rail's icons take a live tab's hover fill, and their glyph never turns blue: hovered, one not on show fills `--surface-hover` and its glyph turns `--text`, with no outline; the panel on show keeps its `--active`, its blue edge and its glyph under the pointer (docs/architecture.md § UI conventions).
+// A rail's icons take a live tab's hover fill, and their glyph never turns blue: hovered, one not on show fills `--surface-hover` and its glyph turns `--text`, with no outline; the panel on show keeps its `--active`, its blue edge and its glyph under the pointer (docs/architecture/ui-conventions.md § UI conventions).
 test('a rail icon fills and turns white on hover, never blue, and the panel on show keeps its look under the pointer', async ({ app, page }) => {
   await app.boot(withLayout(LAYOUT));
   const shown = railItem(page, /^Status/);

@@ -46,7 +46,7 @@ So whatever asks for your attention also says what settles it, and goes once it 
 ## One implementation, one behaviour
 
 Anything that exists on more than one surface is one piece of code with parameters for the real differences, never copies kept in step by hand.
-Where the same question is answered on more than one surface, such as what order things are in or what a control does, the answer is the same everywhere, unless a difference was decided and is written down beside the code ([UI conventions](architecture.md#ui-conventions)).
+Where the same question is answered on more than one surface, such as what order things are in or what a control does, the answer is the same everywhere, unless a difference was decided and is written down beside the code ([UI conventions](architecture/ui-conventions.md#ui-conventions)).
 
 ## No workflow is imposed
 

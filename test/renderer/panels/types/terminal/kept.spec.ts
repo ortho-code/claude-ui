@@ -5,7 +5,7 @@ import { expect, test, type App } from '../../../support/harness';
 import { panelTab, panelTabAdd, panelTabLabels } from '../../../support/window';
 import { OTHER, railItem, withLayout } from '../../layout/layout';
 
-// A terminal panel's shells are kept for the next launch, in the panel's own data, and come back as tabs with no shell, each starting where it was (docs/architecture.md § The `terminal` type).
+// A terminal panel's shells are kept for the next launch, in the panel's own data, and come back as tabs with no shell, each starting where it was (docs/architecture/panels.md § The `terminal` type).
 const API = `${PROJECT}/api`;
 
 /** The layout, with `options` for the shell panel where given. */

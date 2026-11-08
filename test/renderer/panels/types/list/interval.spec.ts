@@ -2,7 +2,7 @@ import { type BridgeFixture, CONFIG_ROOT } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { railItem, runs, withLayout } from '../../layout/layout';
 
-// A list panel with an interval runs on it as well as on show (docs/architecture.md § Types from the config folder, When it runs): from when the window goes live, shown or not, and a tick after each run ends, out of sight too.
+// A list panel with an interval runs on it as well as on show (docs/architecture/panels.md § Types from the config folder, When it runs): from when the window goes live, shown or not, and a tick after each run ends, out of sight too.
 const QUEUE_DIR = `${CONFIG_ROOT}/panel-types/reviews`;
 const SCRIPT = `${QUEUE_DIR}/list.sh`;
 const MINUTE = 60_000;

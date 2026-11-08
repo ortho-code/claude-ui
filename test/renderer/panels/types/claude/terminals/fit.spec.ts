@@ -4,7 +4,7 @@ import { row } from '../../../../support/window';
 import { here, railItem, withLayout } from '../../../layout/layout';
 
 // The tab on show fills the terminal area, and claude is told its size in columns and rows, whenever the area changes size: the window, a divider, the layout rebuilt.
-// An area with no size is out of sight — behind another panel of its group, or folded — and is left alone until it has one, since a fit then would size claude to nothing it can draw in (docs/architecture.md, the hidden-pane trap).
+// An area with no size is out of sight — behind another panel of its group, or folded — and is left alone until it has one, since a fit then would size claude to nothing it can draw in (docs/architecture/ui-conventions.md § Traps worth knowing, the hidden-pane trap).
 const fixture = { history: { [here.id]: [] } };
 // The terminal area sharing a group with a command, so that showing the command puts it out of sight.
 const shared = {

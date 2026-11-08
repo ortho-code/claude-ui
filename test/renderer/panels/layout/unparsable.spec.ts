@@ -2,7 +2,7 @@ import { expect, test } from '../../support/harness';
 import { CONFIG_ROOT, localLayoutWith, noLocalLayout } from '../../support/fixture';
 import { keptChanges, LAYOUT, withLayout } from './layout';
 
-// A layout file that does not parse (docs/architecture.md § The layout file): a toast names the file and what main said is wrong and where, until a read succeeds, and the window keeps what it last had.
+// A layout file that does not parse (docs/architecture/panels.md § The layout file): a toast names the file and what main said is wrong and where, until a read succeeds, and the window keeps what it last had.
 const broken = { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, status: 'unparsable' as const, error: 'expected a comma at line 3, column 3', json: null, types: [], local: noLocalLayout() };
 
 test('a layout file that does not parse at start-up is toasted with where it goes wrong, over the default layout', async ({ app, page }) => {

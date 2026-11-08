@@ -10,7 +10,7 @@ import './pill.css';
 import './setasidedialog.css';
 
 /**
- * SET ASIDE…: the one dialog that sets sessions aside, from a session's menu and from the bar of selecting several (docs/architecture.md § Status cues).
+ * SET ASIDE…: the one dialog that sets sessions aside, from a session's menu and from the bar of selecting several (docs/architecture/status-cues.md § Status cues).
  * When to come back, from the settings' choices (`setAside`, shared/setaside.ts) in the order they would come, then Pick a date… and Whenever; and where it stands, which is the session's note (decided 2026-11-05), so the line is there to read when the session comes back, after its mark has gone.
  */
 

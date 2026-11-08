@@ -11,10 +11,10 @@ Same-folder sessions by design, never a worktree per session.
 ## Read before working
 
 - `README.md` — what the app does, in short, and how to install it; `docs/guide/` — how to use it, by area; `CONTRIBUTING.md` — running it from source and the project's layout.
-- `docs/architecture.md` — environment, process model, build, planned terminal and cues.
+- `docs/architecture/` — how the app is built, a file per area; its `README.md` lists them.
 - `docs/principles.md` — what the app holds to: Claude Code as the source of truth, the core against extensions, shaping by the user, observing rather than deciding, no imposed workflow.
 
-Read all three at the start of any change.
+Read all three at the start of any change, and of `docs/architecture/` the files for the areas the change touches.
 Check a change against `docs/principles.md`, and where it would go against a principle, say so and ask, rather than bend the principle or the change quietly.
 `docs/guide/` describes the app as it is, and `README.md` § What it does sums it up; keep both current as features land.
 
@@ -30,13 +30,13 @@ Check a change against `docs/principles.md`, and where it would go against a pri
   A check goes under the panel type it checks (`test/renderer/panels/types/<type>/`), or `panels/layout/` for the layout tree.
   Nothing goes on screen and the running app is not touched, so it is the way to check a renderer change before anyone relaunches.
   A check that reaches a bridge call the stand-in does not model fails naming it; model the call there.
-  See `docs/architecture.md` § The window's checks.
+  See `docs/architecture/build-and-checks.md` § The window's checks.
 - `typescript` in `package.json` is the TypeScript 6 API package on purpose, because typescript-eslint needs a JS API that TypeScript 7 lacks; `tsc` is TypeScript 7, installed as `@typescript/native`.
-  Keep them as two entries (see `docs/architecture.md` § Build).
+  Keep them as two entries (see `docs/architecture/build-and-checks.md` § Build).
 - `npm run lint` is ESLint with type-aware rules, and CI runs it.
   Why each rule is off or tuned is written beside it in `eslint.config.mjs`.
 - Before a commit, run the checks that can reach what changed, one after the other, and all pass; choose them from the change itself, not from the folder it sits in.
-  The widest each folder can need is in docs/architecture.md § Which checks a change needs; a small change runs less.
+  The widest each folder can need is in docs/architecture/build-and-checks.md § Which checks a change needs; a small change runs less.
   Code always gets `npm run build` and `npm run lint`; a change to comments alone in a script starts with `npm run comments:prove`, and one the proof fails is a change to code.
   Unit tests: the ones of the modules that changed (their mirror under `test/unit/`); `test/unit/imports.test.ts` when an import changes; `test/unit/renderer/renderer.test.ts` when a stylesheet import moves; `npx tsc --noEmit -p tsconfig.test.json` when anything under `test/`, or a type a test uses, changes, since `npm run build` does not type-check the tests.
   A doc, changelog or comment change runs `npm run test:text`, plus the unit tests that read that file, found by grepping `test/unit` for its name; `npx vitest related` finds neither, since they read the file rather than import it.
@@ -62,17 +62,17 @@ Check a change against `docs/principles.md`, and where it would go against a pri
   A decision they or a code comment record says when and why, never who asked for it: "(decided 2026-10-20)" with the reason in plain words, not "(user, 2026-10-20)" or a quote from a chat.
   `test/text/claude-config.test.ts` holds them to both of the patterns it can see.
 - Local-only content stays out of git: plans in `.plan/`, personal notes in `CLAUDE.local.md` (both gitignored globally).
-- UI conventions (menu/popover active state, the folder/project/group vocabulary, etc.) live in `docs/architecture.md` § UI conventions.
+- UI conventions (menu/popover active state, the folder/project/group vocabulary, etc.) live in `docs/architecture/ui-conventions.md` § UI conventions.
 - A module's stylesheet sits beside it and is imported by it; a rule several modules draw goes in a stylesheet of its own beside what owns it, or in `base.css` when nothing does, and is never copied into each.
   Moving a rule between files is checked with the style capture.
-  See `docs/architecture.md` § UI conventions.
+  See `docs/architecture/ui-conventions.md` § UI conventions.
 - **`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com); `UPGRADING.md` holds anything the reader must DO.**
   Entries go under `### Added`, `### Changed` or `### Fixed` — never a `chore` or `refactor` heading, which are commit categories and have no audience here.
   **Versions run newest-first** (the standard's own rule, and what puts `## Unreleased` where it is edited), but **entries inside a version run OLDEST-first**, in the order the work happened — the standard says nothing about that, and a release reads as what was done to it rather than as a ranking.
   An internal change with no visible effect gets no entry at all; if it fixed something visible on the way, the entry is that visible thing.
   **One bullet per entry, one sentence per line**: a second sentence goes on the next line, indented under the bullet, and the release notes show it on a line of its own too, since GitHub renders a line break in them.
   Say what changed, and add a clause of why only where it changes what the reader should do.
-  The reasoning belongs in `docs/architecture.md`, which is where someone goes to understand the code — a changelog is read while deciding whether to update.
+  The reasoning belongs in `docs/architecture/`, which is where someone goes to understand the code — a changelog is read while deciding whether to update.
   A version's section is what `release.yml` publishes as its release notes, extracted by matching `^## <version>`, so the `###` subsections pass through untouched.
   An empty section fails the release rather than publishing one that says nothing.
   `UPGRADING.md` lists ONLY versions that need an action, newest first, so its headings are the answer to "which releases need something from me" — a version absent from it installs straight over the last.

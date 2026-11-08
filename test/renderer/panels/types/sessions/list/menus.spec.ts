@@ -2,7 +2,7 @@ import { PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { hoveredAndOpen, lookOf, token } from '../../../../support/looks';
 
-// Every control in the list that opens a menu keeps the look it shows on hover for as long as its menu is up, the pointer gone onto the menu (docs/architecture.md § UI conventions).
+// Every control in the list that opens a menu keeps the look it shows on hover for as long as its menu is up, the pointer gone onto the menu (docs/architecture/ui-conventions.md § UI conventions).
 const grouped = session({ title: 'In a group' });
 const fixture = {
   sessions: [grouped],

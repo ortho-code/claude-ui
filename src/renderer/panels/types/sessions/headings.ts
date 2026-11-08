@@ -57,7 +57,7 @@ function headingBox(section: HTMLElement): HTMLElement {
 }
 
 /**
- * Select sessions… in a heading's menu: bulk mode, with every row under the heading ticked, so a project's or a group's sessions are stopped, closed or finished in one go, or in the finished view made unfinished or deleted (docs/architecture.md § Selecting several).
+ * Select sessions… in a heading's menu: bulk mode, with every row under the heading ticked, so a project's or a group's sessions are stopped, closed or finished in one go, or in the finished view made unfinished or deleted (docs/architecture/session-list.md § Selecting several).
  */
 function selectItem(section: HTMLElement): MenuItem {
   const label = 'Select sessions…';
@@ -66,7 +66,7 @@ function selectItem(section: HTMLElement): MenuItem {
 }
 
 /**
- * Build a flat section once (list.ts), such as a set of the review (docs/architecture.md § The review): the well its rows sit in, under a heading with its box, its name and its count, and a line under that for why it cannot answer, where `headed`; it folds nothing, so its heading has no caret to turn.
+ * Build a flat section once (list.ts), such as a set of the review (docs/architecture/session-list.md § The review): the well its rows sit in, under a heading with its box, its name and its count, and a line under that for why it cannot answer, where `headed`; it folds nothing, so its heading has no caret to turn.
  */
 export function createFlatSection(headed: boolean): FlatSectionEls {
   const section = document.createElement('section');

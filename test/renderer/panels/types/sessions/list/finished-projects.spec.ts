@@ -4,7 +4,7 @@ import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { headings, project, projectHeading, row, switcherEntry } from '../../../../support/window';
 
-// A project stays while it has a session that is not being deleted, finished ones included: one whose sessions are all finished stays in the list and the switcher, empty and saying so, until its sessions are deleted (docs/architecture.md § App-side metadata and session groups).
+// A project stays while it has a session that is not being deleted, finished ones included: one whose sessions are all finished stays in the list and the switcher, empty and saying so, until its sessions are deleted (docs/architecture/sessions.md § App-side metadata and session groups).
 const OTHER = `${HOME}/projects/other`;
 const here = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'Over here' });
 const alsoHere = session({ id: '00000000-0000-4000-8000-0000000000f3', title: 'Also here' });

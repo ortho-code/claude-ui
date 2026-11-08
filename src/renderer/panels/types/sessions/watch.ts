@@ -8,7 +8,7 @@ import { watchArrangement } from './arrangement';
 import { watchPrStatus } from './pr-status';
 
 /**
- * What the sidebar follows in the store, registered by renderer.ts beside the terminal area's (docs/architecture.md § The store): its rules, which set state as they are told, before any repaint, then its repaints.
+ * What the sidebar follows in the store, registered by renderer.ts beside the terminal area's (docs/architecture/processes.md § The store): its rules, which set state as they are told, before any repaint, then its repaints.
  * Inside each block the order is the type's own; no order across the two types matters (measured in 08a6ac4).
  */
 export const sessionsWatch = {

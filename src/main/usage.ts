@@ -8,7 +8,7 @@ import { inTurn } from './queue';
 import { appendStamped } from './stamp';
 
 /**
- * THE USAGE RECORD (docs/architecture.md § The usage record): a line per decision, per opening and ending of the review, and per needs-you reason marked, settled or put back, so how the app is used can be counted over weeks.
+ * THE USAGE RECORD (docs/architecture/logs.md § The usage record): a line per decision, per opening and ending of the review, and per needs-you reason marked, settled or put back, so how the app is used can be counted over weeks.
  * A line holds moments, session ids, types and counts, never a title, a prompt or a note, and stays on this machine.
  */
 

@@ -3,7 +3,7 @@ import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { row, tabLabel, titles } from '../../../../support/window';
 
-// A session's marks are main's to keep (docs/architecture.md § App-side metadata and session groups): a pin floats its row in its own section, a note rides the row's meta, and finishing puts the session away, closing its tab, until the finished view gives it back.
+// A session's marks are main's to keep (docs/architecture/sessions.md § App-side metadata and session groups): a pin floats its row in its own section, a note rides the row's meta, and finishing puts the session away, closing its tab, until the finished view gives it back.
 const newer = session({ id: '00000000-0000-4000-8000-0000000000b1', title: 'Newer session' });
 const older = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'Older session' });
 const fixture = { sessions: [newer, older], history: { [newer.id]: [], [older.id]: [] } };

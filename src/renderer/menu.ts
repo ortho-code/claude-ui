@@ -324,7 +324,7 @@ export function kebabButton(className: string, tooltip: string, items: () => Men
   kebab.className = `icon-btn kebab ${className}`;
   kebab.innerHTML = kebabIcon(14);
   setTooltip(kebab, tooltip);
-  // Its name for a screen reader too, since its dots say nothing: an icon-only control carries both (docs/architecture.md § UI conventions).
+  // Its name for a screen reader too, since its dots say nothing: an icon-only control carries both (docs/architecture/ui-conventions.md § UI conventions).
   kebab.setAttribute('aria-label', tooltip);
   kebab.addEventListener('click', (event) => {
     event.stopPropagation();

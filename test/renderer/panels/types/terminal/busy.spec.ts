@@ -5,7 +5,7 @@ import { expect, test, type App } from '../../../support/harness';
 import { newTerminal, panelTab, panelTabAdd, panelTabLabels, panelTabs, row } from '../../../support/window';
 import { withLayout } from '../../layout/layout';
 
-// Ending a shell with a command running in it asks first, naming the command, which main reads off its terminal at the press (docs/architecture.md § The `terminal` type).
+// Ending a shell with a command running in it asks first, naming the command, which main reads off its terminal at the press (docs/architecture/panels.md § The `terminal` type).
 const layout = withLayout({
   version: 2,
   root: {

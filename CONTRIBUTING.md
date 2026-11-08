@@ -1,7 +1,7 @@
 # Contributing
 
 How to run claude-ui from source, and where things are.
-What the app holds to, and what a change is checked against, is in [docs/principles.md](docs/principles.md); how it is built is in [docs/architecture.md](docs/architecture.md).
+What the app holds to, and what a change is checked against, is in [docs/principles.md](docs/principles.md); how it is built is in [docs/architecture](docs/architecture/README.md), a file per area.
 
 ## Run from source
 
@@ -21,7 +21,7 @@ npm start
 It runs with `--no-sandbox`, which WSL requires.
 
 `npm test` runs the unit tests, and `npm run test:renderer` checks the window itself in a headless browser, which `npx playwright install --only-shell chromium` fetches the first time.
-Which of them a change needs is in [the architecture notes](docs/architecture.md#which-checks-a-change-needs).
+Which of them a change needs is in [the architecture notes](docs/architecture/build-and-checks.md#which-checks-a-change-needs).
 
 To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a Mac.
 Artifacts land in `release/`.

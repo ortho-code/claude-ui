@@ -116,7 +116,7 @@ const appTitle = `Claude UI ${app.getVersion()}${app.isPackaged ? '' : ' — dev
  * CURRENTLY OFF, on the window it was built for.
  * It works — a title bar of our own, our own maximize, a handle on every edge — but dragging the window is visibly steppy and cannot be made smooth: the gesture is ours, every move is a round trip to the compositor, and handing the drag back to the compositor brings a double-click-to-maximize that misdraws and cannot be suppressed.
  * That trade was not worth it in daily use.
- * Why, and why each piece is hand-built, is in docs/architecture.md § The window's own chrome.
+ * Why, and why each piece is hand-built, is in docs/architecture/window.md § The window's own chrome.
  *
  * TO TURN IT BACK ON: `process.platform !== 'darwin'`.
  * Everything hangs off this one flag — the frame, the shadow, whether the native maximize is allowed, our maximize, the title bar the renderer draws, the resize handles, and the frame-offset correction that only a DECORATED window needs.
@@ -135,7 +135,7 @@ const OWN_CHROME = false as boolean;
 // The app stays on X11 (Xwayland) under WSLg.
 // Do NOT add --ozone-platform=wayland: it paints this window solid white, with or without app.disableHardwareAcceleration().
 // Both were tried and reverted.
-// See docs/architecture.md, including the note on an all-arrow cursor, which looks like an X11 limitation but is WSLg's pointer state stuck.
+// See docs/architecture/platforms.md, including the note on an all-arrow cursor, which looks like an X11 limitation but is WSLg's pointer state stuck.
 
 // Only one claude-ui instance at a time; a second launch focuses the existing window.
 // This may change if we add pop-out / multi-window sessions later.
@@ -298,7 +298,7 @@ function correctFramePlacement(win: BrowserWindow, wanted: { x: number; y: numbe
  * `maximize()` and `setFullScreen()` both MISDRAW a frameless window under WSLg: the invisible resize margin a frameless window still carries is applied to the pixels but not to the input region, so a control is painted in one place and clicked in another, and anything near the right edge is pushed off-screen while remaining clickable at the true edge.
  * `setBounds` to the work area has neither problem — bounds and content agree, and it lands where it says.
  * So the window never enters the native maximized state at all, and the flag is ours.
- * Why is in docs/architecture.md § The window's own chrome; this is not a preference and should not be "simplified" back to `maximize()`.
+ * Why is in docs/architecture/window.md § The window's own chrome; this is not a preference and should not be "simplified" back to `maximize()`.
  *
  * The frame offset this file used to cancel by polling (the window manager adding its title bar to every position it was given) went with the frame: it was a property of the decoration, and a frameless window lands exactly where it asks.
  */
@@ -579,7 +579,7 @@ ipcMain.handle('window:chrome', () => ({
   version: app.getVersion(),
   dev: !app.isPackaged,
 }));
-// Decided once: what the window's terminals do with Ctrl+V depends on it (docs/architecture.md § The `terminal` type).
+// Decided once: what the window's terminals do with Ctrl+V depends on it (docs/architecture/panels.md § The `terminal` type).
 const WSL = runsOnWsl(process.platform, process.env, readProcVersion);
 ipcMain.handle('app:wsl', () => WSL);
 // Only under WSL is a copied file on Windows' side alone (src/main/clipboard.ts).

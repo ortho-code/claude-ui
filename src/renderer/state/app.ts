@@ -8,7 +8,7 @@ import { NO_PR_STATUS } from '../prstatus';
 import { createStore } from './store';
 
 /**
- * The window's shared state (docs/architecture.md § The store): what more than one surface draws, or what a surface draws and another changes.
+ * The window's shared state (docs/architecture/processes.md § The store): what more than one surface draws, or what a surface draws and another changes.
  * A slice holds a value that is replaced, never changed in place, since a change in place tells nobody.
  */
 export interface AppState {
@@ -59,12 +59,12 @@ export interface AppState {
   /** Entity key -> when it was last kept out of the review (epoch ms): what main keeps in `meta.json`, kept here by the same rules (`keptFrom`, `unkept`), each change sent to main as it is made (state/keep.ts). */
   kept: ReadonlyMap<string, number>;
   /**
-   * Whether the session list shows the review (docs/architecture.md § The review) in place of its projects, in bulk mode; in memory only, so a launch opens the list without it.
+   * Whether the session list shows the review (docs/architecture/session-list.md § The review) in place of its projects, in bulk mode; in memory only, so a launch opens the list without it.
    * Stage 3 of the session-model design widens it into the list's view, of which the review is one.
    */
   reviewing: boolean;
   /**
-   * How the session list lays its sessions out (docs/architecture.md § Recent): `grouped` by project and group, or `recent`, flat, last worked on first.
+   * How the session list lays its sessions out (docs/architecture/session-list.md § Recent): `grouped` by project and group, or `recent`, flat, last worked on first.
    * The sessions panel's view, kept as a panel's picked view is, in the app's file beside the layout, and set here from it at each mount and each pick (sessions/arrangement.ts); the review is a moment over it, apart from it.
    */
   arrangement: Arrangement;
@@ -110,7 +110,7 @@ export interface AppState {
   /** Whether the tab bar shows every row of tabs or only one, the row of the tab on show where there is one, kept for the next launch. */
   tabBarExpanded: boolean;
   /**
-   * The session list's bulk mode (docs/architecture.md § Selecting several): the sessions ticked, by key, and the row a Shift+press ticks a run from; null outside it.
+   * The session list's bulk mode (docs/architecture/session-list.md § Selecting several): the sessions ticked, by key, and the row a Shift+press ticks a run from; null outside it.
    * In memory only: a launch opens the list without it.
    */
   bulk: BulkState | null;

@@ -10,7 +10,7 @@ import type { FlatSection } from './drawn';
 import './review.css';
 
 /**
- * THE REVIEW, drawn (docs/architecture.md § The review): the Review button with its count on the row under the sidebar's header, and what the list needs to draw the review's sets flat in place of its projects (list.ts) — the sets in scope, and each row's line saying why it is there.
+ * THE REVIEW, drawn (docs/architecture/session-list.md § The review): the Review button with its count on the row under the sidebar's header, and what the list needs to draw the review's sets flat in place of its projects (list.ts) — the sets in scope, and each row's line saying why it is there.
  * Which sessions it offers and why is the pure module's (`review.ts`); this reads the store for it.
  */
 

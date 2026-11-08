@@ -7,7 +7,7 @@ import { type App, expect, test } from '../support/harness';
 import { row, rows, tabLabel } from '../support/window';
 import { snapshot } from './capture';
 
-// NOT A CHECK: a tool, for moving CSS without changing what anything looks like (docs/architecture.md § The window's checks).
+// NOT A CHECK: a tool, for moving CSS without changing what anything looks like (docs/architecture/build-and-checks.md § The window's checks).
 // Skipped unless STYLE_SNAPSHOT names a folder; then each test below puts the window in one state and writes its computed styles there, one file per state.
 // Capture before a change and after it, and compare the two folders, with a map of the classes the change renames if it renames any (compare.ts):
 //   STYLE_SNAPSHOT=/tmp/styles-before npm run test:renderer -- styles

@@ -1,5 +1,5 @@
 /**
- * The rules of ticking rows in the session list's bulk mode (docs/architecture.md § Selecting several), pure so they are unit-tested: which rows a Shift+press ticks, and what a heading's box shows of the rows under it.
+ * The rules of ticking rows in the session list's bulk mode (docs/architecture/session-list.md § Selecting several), pure so they are unit-tested: which rows a Shift+press ticks, and what a heading's box shows of the rows under it.
  */
 
 /**

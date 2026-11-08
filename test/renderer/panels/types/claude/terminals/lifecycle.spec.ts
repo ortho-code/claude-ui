@@ -6,7 +6,7 @@ import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, switcherRollUp, tab, tabs } from '../../../../support/window';
 
-// A tab's life (docs/architecture.md § Tab lifecycle): selecting it starts it, it boots until claude prints, its button stops the session and keeps the tab cold, a second press closes it; claude ending by itself closes the tab, unless it ended so soon that the start failed.
+// A tab's life (docs/architecture/terminal.md § Tab lifecycle): selecting it starts it, it boots until claude prints, its button stops the session and keeps the tab cold, a second press closes it; claude ending by itself closes the tab, unless it ended so soon that the start failed.
 const one = session();
 // A tab on show has its history read; what it holds is not what is checked here.
 const fixture = { history: { [one.id]: [] } };

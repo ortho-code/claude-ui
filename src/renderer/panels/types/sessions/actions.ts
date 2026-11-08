@@ -236,7 +236,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface, 
       { label: '', separator: true },
       { label: 'Unfinished', onSelect: () => void unfinishFor(entityKey(session)) },
       { label: 'Delete session…', onSelect: () => void confirmAndDelete([entityKey(session)]) },
-      // Selecting several starts in the list, so only its row offers it (docs/architecture.md § Selecting several).
+      // Selecting several starts in the list, so only its row offers it (docs/architecture/session-list.md § Selecting several).
       ...(from === 'row' ? [{ label: 'Select…', onSelect: () => startBulk([entityKey(session)]) }] : []),
     ];
   }
@@ -276,7 +276,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface, 
   items.push(noteItem(session));
   items.push({ label: 'Move to group', submenu: moveToGroupItems([session]) });
   items.push(copyIdItem(session));
-  // Selecting several starts in the list, so only its row offers it, with that row ticked (docs/architecture.md § Selecting several).
+  // Selecting several starts in the list, so only its row offers it, with that row ticked (docs/architecture/session-list.md § Selecting several).
   if (from === 'row') items.push({ label: 'Select…', onSelect: () => startBulk([entityKey(session)]) });
   // The state changes sit below a rule, away from the navigate/copy items.
   items.push({ label: '', separator: true });

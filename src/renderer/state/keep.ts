@@ -2,7 +2,7 @@ import { keptFrom, unkept } from '../../shared/sessionmarks';
 import { store } from './app';
 
 /**
- * The writes to the keep stamps, which take sessions out of the review (docs/architecture.md § The review): the bar's Keep and its Undo.
+ * The writes to the keep stamps, which take sessions out of the review (docs/architecture/session-list.md § The review): the bar's Keep and its Undo.
  * Each is made in the store by main's own rule and sent to main, which keeps them in `meta.json`, as the set-aside marks are (state/setaside.ts).
  */
 

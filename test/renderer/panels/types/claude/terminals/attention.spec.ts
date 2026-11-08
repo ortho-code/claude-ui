@@ -4,7 +4,7 @@ import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { group, row, switcherRollUp, tab } from '../../../../support/window';
 
-// A tab you are not looking at that turns waiting or finished says so in a toast, naming it and its project; a click on the toast takes you there (docs/architecture.md § Status cues).
+// A tab you are not looking at that turns waiting or finished says so in a toast, naming it and its project; a click on the toast takes you there (docs/architecture/status-cues.md § Status cues).
 // Never for busy, a repeat of the same state, or the tab on show.
 const OTHER = `${HOME}/projects/other`;
 const here = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'Over here' });

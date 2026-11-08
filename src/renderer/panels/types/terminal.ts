@@ -13,7 +13,7 @@ import type { MountedPanel, PanelHost, PanelTab, PanelType, Where } from '../con
 import { NO_CONTEXT, prepare, resolveContext, runContext } from '../run';
 
 /**
- * The `terminal` panel type: plain shells beside the terminal, each in a pty and an xterm of its own, as tabs in the panel's header (docs/architecture.md § The `terminal` type).
+ * The `terminal` panel type: plain shells beside the terminal, each in a pty and an xterm of its own, as tabs in the panel's header (docs/architecture/panels.md § The `terminal` type).
  *
  * A SHELL STAYS PUT.
  * It starts in the folder it is made in — the context directory, or its `cwd` under it, or a fixed `cwd` — and stays there through tab and project switches; a shell has state, and a switch must never kill a command running in it.

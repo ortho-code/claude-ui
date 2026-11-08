@@ -4,7 +4,7 @@ import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test, type App } from '../../../../support/harness';
 import { group, groupHeading, projectHeading, row } from '../../../../support/window';
 
-// A project's heading jumps to one of its groups, or to where its loose rows start, from a menu (docs/architecture.md § UI conventions); the jump's flash is the tab bar's group jump's too, and is checked there (tab-bar/jumps.spec.ts).
+// A project's heading jumps to one of its groups, or to where its loose rows start, from a menu (docs/architecture/ui-conventions.md § UI conventions); the jump's flash is the tab bar's group jump's too, and is checked there (tab-bar/jumps.spec.ts).
 const OTHER = `${HOME}/projects/other`;
 const THIRD = `${HOME}/projects/third`;
 // Enough rows in the first group that what follows it starts out of sight.

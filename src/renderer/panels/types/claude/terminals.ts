@@ -704,7 +704,7 @@ async function setAsideClosed(keys: readonly string[], removed: readonly Removed
 }
 
 /**
- * Close the tabs of several sessions at once, as Close tab in the session list's bar does (docs/architecture.md § Selecting several): each tab by the rule its menu's Close tab follows (`leaveAction`), never forcing one already closing, and a tab starting left as it is.
+ * Close the tabs of several sessions at once, as Close tab in the session list's bar does (docs/architecture/session-list.md § Selecting several): each tab by the rule its menu's Close tab follows (`leaveAction`), never forcing one already closing, and a tab starting left as it is.
  * The cold ones go at once and raise one toast, whose Undo puts them all back; a running one goes once its claude has gone, with its own Undo then, as a single close does.
  */
 export function closeTabs(keys: readonly string[]): void {

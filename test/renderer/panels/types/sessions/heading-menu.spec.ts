@@ -4,7 +4,7 @@ import { PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { groupHeading, projectHeading } from '../../../support/window';
 
-// A heading's menu holds the ways to start a session there, as its "+" and caret do, and the project's reaches every one of its groups, a filter's hidden ones too (docs/architecture.md § A session's menu holds everything about it).
+// A heading's menu holds the ways to start a session there, as its "+" and caret do, and the project's reaches every one of its groups, a filter's hidden ones too (docs/architecture/terminal.md § A session's menu holds everything about it).
 // The creating items come first, together: New session, New worktree session…, then on a project New session in group ▸ and New group…; then the heading's own; then on a project Jump to group, the heading's jump button as an item; the moves last of all.
 // An item that cannot be taken is there, unavailable and saying why: the worktree one outside a git repository, both where the project's folder is gone.
 const one = session({ title: 'In the repo' });

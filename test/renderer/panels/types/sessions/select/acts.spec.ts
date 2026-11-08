@@ -4,7 +4,7 @@ import { type App, expect, test } from '../../../../support/harness';
 import { hoveredAndOpen } from '../../../../support/looks';
 import { groupHeading, projectHeading, row, tab, tabs, toastButton } from '../../../../support/window';
 
-// The bar of selecting several acts on every ticked row on show, each act through the write a session's menu makes, given every key at once (docs/architecture.md § Selecting several).
+// The bar of selecting several acts on every ticked row on show, each act through the write a session's menu makes, given every key at once (docs/architecture/session-list.md § Selecting several).
 // Finished, Set aside… and Close tab each raise one toast for the batch, whose Undo puts every one back as it was.
 const a = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Alpha', lastActivity: '2026-09-30T10:00:00.000Z' });
 const b = session({ id: '00000000-0000-4000-8000-0000000000c2', title: 'Bravo', lastActivity: '2026-09-30T09:00:00.000Z' });
@@ -137,7 +137,7 @@ test('Close tab closes every ticked tab, and one Undo brings the cold ones back'
   await expect(tabs(page)).toHaveCount(3);
 });
 
-// Any control that opens a menu keeps its hover look while the menu is up (docs/architecture.md § UI conventions).
+// Any control that opens a menu keeps its hover look while the menu is up (docs/architecture/ui-conventions.md § UI conventions).
 test('Move to group keeps its hover look while the menu it opened is up', async ({ app, page }) => {
   await app.boot(fixture);
   await selectGroup(page, 'Work');

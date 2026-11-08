@@ -5,7 +5,7 @@ import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { chooseProject, group, groupHeading, groupHeadings, headings, project, projectHeading, row, titles } from '../../../../support/window';
 
-// The list is projects in the order you set, each holding its groups in registry order and then its loose rows, with pins floated inside their own section (docs/architecture.md § App-side metadata and session groups).
+// The list is projects in the order you set, each holding its groups in registry order and then its loose rows, with pins floated inside their own section (docs/architecture/sessions.md § App-side metadata and session groups).
 // Folds are kept, and come in two kinds (§ Reopening the way you left it): the ones you made, stored, and the ones made while a filter is on, which last until you change the filter or end it.
 const OTHER = `${HOME}/projects/other`;
 const newer = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'Loose newer' });

@@ -4,7 +4,7 @@ import { HOME, PROJECT, session, settingsFileWith } from '../../../../support/fi
 import { expect, test } from '../../../../support/harness';
 import { row, toastButton } from '../../../../support/window';
 
-// The review (docs/architecture.md § The review): the Review button opens the list in bulk mode on two sets, Ready to finish (every linked PR merged or closed) and Untouched 30+ days, of the sessions without a tab, not finished, not set aside and not kept, each row saying why it is there.
+// The review (docs/architecture/session-list.md § The review): the Review button opens the list in bulk mode on two sets, Ready to finish (every linked PR merged or closed) and Untouched 30+ days, of the sessions without a tab, not finished, not set aside and not kept, each row saying why it is there.
 const DAY = 86_400_000;
 // Wednesday 4 November 2026, noon, in the window's own time zone.
 const NOW = new Date(2026, 10, 4, 12, 0);

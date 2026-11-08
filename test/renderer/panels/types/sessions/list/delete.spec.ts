@@ -4,7 +4,7 @@ import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab, titles } from '../../../../support/window';
 
-// Deleting is the finished view's, confirmed first (docs/architecture.md § App-side metadata and session groups).
+// Deleting is the finished view's, confirmed first (docs/architecture/sessions.md § App-side metadata and session groups).
 // The row goes the moment the delete is confirmed and never comes back: it stays hidden while its files are being moved to the trash, and stops being hidden in the same change as the listing that no longer has it.
 const kept = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Kept session' });
 const gone = session({ id: '00000000-0000-4000-8000-0000000000c2', title: 'Deleted session' });

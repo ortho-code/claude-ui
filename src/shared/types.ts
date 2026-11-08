@@ -587,7 +587,7 @@ export interface ClaudeUiApi {
   /**
    * Begin a window gesture: an edge or corner ('n', 'se', …) to resize, or 'move' to drag the window.
    * Moving is ours rather than a drag region because a drag region brings Chromium's own double-click-to-maximize, which cannot be suppressed.
-   * See docs/architecture.md § The window's own chrome.
+   * See docs/architecture/window.md § The window's own chrome.
    */
   startWindowResize(edge: string, pointer?: { x: number; y: number }): void;
   /** Offset of the gesture from where it started — total, not incremental. */

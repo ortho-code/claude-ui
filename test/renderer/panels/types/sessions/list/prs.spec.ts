@@ -3,7 +3,7 @@ import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { row, tab } from '../../../../support/window';
 
-// A session's PRs come from its transcript (docs/architecture.md § Reading sessions): its row carries a mark counting them, the mark lists them, and picking one opens its page.
+// A session's PRs come from its transcript (docs/architecture/sessions.md § Reading sessions): its row carries a mark counting them, the mark lists them, and picking one opens its page.
 const pr = (number: number): SessionPr => ({ repository: 'ScientaNL/demo', number, url: `https://github.com/ScientaNL/demo/pull/${number}` });
 const two = session({ id: '00000000-0000-4000-8000-0000000000d1', title: 'Linked two PRs', prs: [pr(12), pr(7)] });
 const one = session({ id: '00000000-0000-4000-8000-0000000000d2', title: 'Linked one PR', prs: [pr(3)] });

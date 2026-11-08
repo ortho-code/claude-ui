@@ -1,7 +1,7 @@
 import { expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
 
-// The sidebar's header buttons, and the filter and collapse-all on the row under them, stand as peers, so they hover alike, to `--surface-hover`, and the ones that open something show it in `--active`, a stronger step than their hover: the ladder a live tab and the switcher's title climb too (docs/architecture.md § UI conventions).
+// The sidebar's header buttons, and the filter and collapse-all on the row under them, stand as peers, so they hover alike, to `--surface-hover`, and the ones that open something show it in `--active`, a stronger step than their hover: the ladder a live tab and the switcher's title climb too (docs/architecture/ui-conventions.md § UI conventions).
 
 test('every header button, and the filter and collapse-all under them, hovers to the same fill and outline', async ({ app, page }) => {
   // All, so collapse has a project to fold and is not disabled.

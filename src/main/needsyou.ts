@@ -6,7 +6,7 @@ import { readJsoncFile } from './jsonc';
 import { log } from './log';
 
 /**
- * The needs-you categories and types the app ships, one JSONC object per file in `bundled/needs-you/` beside `assets/` (docs/architecture.md § Status cues).
+ * The needs-you categories and types the app ships, one JSONC object per file in `bundled/needs-you/` beside `assets/` (docs/architecture/status-cues.md § Status cues).
  * Inside the packaged app's asar, which Node's fs lists and reads there (measured on Electron 43.2.0, 2026-11-06).
  */
 export const bundledNeedsYouDir = path.join(app.getAppPath(), 'bundled', 'needs-you');

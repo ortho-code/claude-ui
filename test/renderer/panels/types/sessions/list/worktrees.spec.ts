@@ -5,7 +5,7 @@ import { expect, test } from '../../../../support/harness';
 import { token } from '../../../../support/looks';
 import { row, tab } from '../../../../support/window';
 
-// The checkouts a session worked in come from its transcript (docs/architecture.md § Reading sessions): its worktree mark counts them, in the accent while its panels follow it into a worktree, and lists them.
+// The checkouts a session worked in come from its transcript (docs/architecture/sessions.md § Reading sessions): its worktree mark counts them, in the accent while its panels follow it into a worktree, and lists them.
 const worktree = (name: string): string => `${PROJECT}/.claude/worktrees/${name}`;
 const checkout = (root: string, at: string, over: Partial<SessionCheckout> = {}): SessionCheckout => ({ root, at, gone: false, own: false, ...over });
 // d90f859a's shape: in the main checkout, its changes in worktrees it reached by path or with a `cd`, one of them removed since, as two of its five are.

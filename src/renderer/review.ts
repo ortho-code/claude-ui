@@ -3,7 +3,7 @@ import { entityKey, relativeTime } from './logic';
 import { settledState } from './prstatus';
 
 /**
- * THE REVIEW, pure (docs/architecture.md § The review): which sessions it offers, in which of its two sets, and the line that says why each is there.
+ * THE REVIEW, pure (docs/architecture/session-list.md § The review): which sessions it offers, in which of its two sets, and the line that says why each is there.
  * One function per term the review is made of, each named for the query term it becomes when the session-model design's stage 3 brings the query language, so the review, a query typed by hand and a needs-you type can never disagree about them: `is:unfinished`, `is:set-aside`, `kept:<Nd`, `untouched:>Nd`, `is:ready-to-finish`.
  * The review itself is a definition, data rather than code, which stage 3 moves into the bundled `views/review.json` as a view in review mode; its two numbers of days are written there and nowhere else (decided 2026-11-04).
  */

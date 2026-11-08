@@ -3,7 +3,7 @@ import { session } from '../../../../support/fixture';
 import { expect, test, type App } from '../../../../support/harness';
 import { row, rows } from '../../../../support/window';
 
-// The list's order follows the sessions' last activity, which on its own draws the list again nowhere (`AFFECTS_ROW`), so it catches up once a minute, and never while the pointer is over the list, the focus is in it or a menu from it is up (docs/architecture.md § UI conventions).
+// The list's order follows the sessions' last activity, which on its own draws the list again nowhere (`AFFECTS_ROW`), so it catches up once a minute, and never while the pointer is over the list, the focus is in it or a menu from it is up (docs/architecture/ui-conventions.md § UI conventions).
 const MINUTE = 60_000;
 const START = Date.parse('2026-09-30T09:00:00.000Z');
 const at = (ms: number): string => new Date(ms).toISOString();

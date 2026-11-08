@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 import { errorText, log } from './log';
 
 /**
- * The files copied in Windows, for a paste under WSL that brought no text (docs/architecture.md § The `terminal` type).
+ * The files copied in Windows, for a paste under WSL that brought no text (docs/architecture/panels.md § The `terminal` type).
  *
  * A file copied in Explorer reaches neither side of Linux's clipboard: Windows holds it as a file list, wl-paste lists nothing and X11 offers an empty text (probed 2026-10-21), so only powershell.exe can read it.
  * From Linux a screenshot looks the same, an empty paste, so wl-paste is asked first: an image it lists is left to claude, which reads a png, jpeg, gif, webp or bmp one from Linux without asking Windows, and asking Windows then would only put a powershell.exe call in front of it.

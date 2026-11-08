@@ -3,7 +3,7 @@ import { expect, test } from '../../../support/harness';
 import { chooseProject, newTerminal } from '../../../support/window';
 import { OTHER, railItem, withLayout } from '../../layout/layout';
 
-// A shell panel starts in the folder you are working in (docs/architecture.md § The `terminal` type), and main refuses one whose folder is not there: the panel says so in its header, and its icon fails, so a shut group says it too.
+// A shell panel starts in the folder you are working in (docs/architecture/panels.md § The `terminal` type), and main refuses one whose folder is not there: the panel says so in its header, and its icon fails, so a shut group says it too.
 /** The layout, with `options` for the shell panel where given. */
 const layoutWith = (options?: Record<string, unknown>): ReturnType<typeof withLayout> =>
   withLayout({

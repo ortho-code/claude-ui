@@ -1,5 +1,5 @@
 /**
- * THE STRENGTH ORDER AND THE LOOKS: which state a session's dot shows when several hold, one list of the statuses and the needs-you categories, the first that holds winning; and how each status, category and type is drawn (docs/architecture.md § Status cues).
+ * THE STRENGTH ORDER AND THE LOOKS: which state a session's dot shows when several hold, one list of the statuses and the needs-you categories, the first that holds winning; and how each status, category and type is drawn (docs/architecture/status-cues.md § Status cues).
  * Pure and shared: main checks `settings.json`'s `strength` and `looks` by it, and the window ranks and draws by it.
  */
 

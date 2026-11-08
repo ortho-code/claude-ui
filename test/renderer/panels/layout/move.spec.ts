@@ -2,7 +2,7 @@ import { expect, test } from '../../support/harness';
 import { localLayoutWith, noLocalLayout } from '../../support/fixture';
 import { LAYOUT, withLayout, withLegacyState } from './layout';
 
-// The tree's state as `meta.json` kept it before the config folder moves into the app's file beside the layout on the first read, once, worked out against the tree (docs/architecture.md § Panel state).
+// The tree's state as `meta.json` kept it before the config folder moves into the app's file beside the layout on the first read, once, worked out against the tree (docs/architecture/panels.md § Panel state).
 const notMoved = { ...noLocalLayout(), stateMoved: false };
 
 test('the sizes, folds and picks meta.json kept move into the app’s file on the first read, and the window looks as it did', async ({ app, page }) => {

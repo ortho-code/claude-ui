@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 /**
  * Whether claude, started by the app, counts itself as running under WSL: on Linux, with WSL's variables set or a kernel that names Microsoft or WSL.
- * Claude's own rule, read from its platform check (claude 2.1.302), and not a looser one, because what the window does with the answer leans on claude's: Ctrl+V pastes only where claude takes an empty paste as an image paste, which on Linux is under WSL alone (docs/architecture.md § The `terminal` type).
+ * Claude's own rule, read from its platform check (claude 2.1.302), and not a looser one, because what the window does with the answer leans on claude's: Ctrl+V pastes only where claude takes an empty paste as an image paste, which on Linux is under WSL alone (docs/architecture/panels.md § The `terminal` type).
  * A session inherits the app's environment, so the two look at the same variables.
  */
 export function runsOnWsl(platform: NodeJS.Platform, env: NodeJS.ProcessEnv, procVersion: () => string | undefined): boolean {

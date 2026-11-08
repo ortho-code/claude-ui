@@ -35,7 +35,7 @@ export const overrun = (line: Locator): Promise<number> =>
   });
 
 /**
- * A menu's trigger as it looks hovered with its menu shut, and as it looks with its menu up and the pointer on the menu, which the UI conventions hold to be the same look (docs/architecture.md § UI conventions).
+ * A menu's trigger as it looks hovered with its menu shut, and as it looks with its menu up and the pointer on the menu, which the UI conventions hold to be the same look (docs/architecture/ui-conventions.md § UI conventions).
  * The menu is shut again after, by the trigger, as a second press does.
  */
 export async function hoveredAndOpen(page: Page, trigger: Locator): Promise<{ hovered: Look; open: Look }> {

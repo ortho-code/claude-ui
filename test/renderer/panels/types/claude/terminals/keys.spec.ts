@@ -4,7 +4,7 @@ import { copyImage, copyText } from '../../../../support/clipboard';
 import { type App, expect, test } from '../../../../support/harness';
 import { row } from '../../../../support/window';
 
-// The keys a tab's terminal takes for itself rather than sending on to claude (docs/architecture.md § The `terminal` type).
+// The keys a tab's terminal takes for itself rather than sending on to claude (docs/architecture/panels.md § The `terminal` type).
 const one = session();
 const fixture = { history: { [one.id]: [] } };
 // The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the first claude is 1.

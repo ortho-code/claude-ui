@@ -4,7 +4,7 @@ import { type App, expect, test } from '../../../../support/harness';
 import { lookOf, token } from '../../../../support/looks';
 import { row, switcherRollUp, tab } from '../../../../support/window';
 
-// A turn that ends with work still running behind it, such as a shell or a subagent it sent off, reports `background` in ready's place (docs/architecture.md § Status cues).
+// A turn that ends with work still running behind it, such as a shell or a subagent it sent off, reports `background` in ready's place (docs/architecture/status-cues.md § Status cues).
 // Every dot standing for the session says so alike, naming what runs; nothing calls it finished until that work has ended and a turn of its own has.
 const one = session();
 const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Second session' });

@@ -133,7 +133,7 @@ type ListShape =
   | ({ all: SessionSummary[]; matches: number; total: number } & ({ tree: ProjectTree[] } | { recent: SessionSummary[]; finished: string | null }));
 
 function listShape(view: ListView): ListShape {
-  // The review in place of the projects (docs/architecture.md § The review): its sets in the switcher's scope, the filter set aside meanwhile.
+  // The review in place of the projects (docs/architecture/session-list.md § The review): its sets in the switcher's scope, the filter set aside meanwhile.
   if (view.reviewing) return { review: reviewInScope(view) };
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions(view);
@@ -176,7 +176,7 @@ function allFinishedLine(count: number): string {
 }
 
 /**
- * At each minute's tick, the list drawn again where the order it would draw now differs from the one drawn (docs/architecture.md § UI conventions): a session's last activity moves its place with nothing in the store telling the list (`AFFECTS_ROW`, logic.ts), and the review gains or loses a session as it crosses its days.
+ * At each minute's tick, the list drawn again where the order it would draw now differs from the one drawn (docs/architecture/ui-conventions.md § UI conventions): a session's last activity moves its place with nothing in the store telling the list (`AFFECTS_ROW`, logic.ts), and the review gains or loses a session as it crosses its days.
  * Held while the pointer is over the list, the focus is in it, or a menu opened from it is up, since a row must not move from under a press; the next tick tries again, so nothing waits on the pointer leaving.
  * A menu sits on the page's body, out of `:focus-within`'s reach, so it is found by the mark its trigger in the list wears while it is up (`.menu-open`).
  */

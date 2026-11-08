@@ -5,7 +5,7 @@ import { expect, test, type App } from '../../../support/harness';
 import { chooseProject, newTerminal, panelTabLabels, panelTabRows } from '../../../support/window';
 import { OTHER, withLayout } from '../../layout/layout';
 
-// In All a terminal panel's tabs stand in a row per project, and fold to one, the row of the tab on show, from the tab bar's fold chevron on the header's bottom line (docs/architecture.md § The `terminal` type).
+// In All a terminal panel's tabs stand in a row per project, and fold to one, the row of the tab on show, from the tab bar's fold chevron on the header's bottom line (docs/architecture/panels.md § The `terminal` type).
 const layout = withLayout({
   version: 2,
   root: {

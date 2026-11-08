@@ -31,7 +31,7 @@
 }
 
 /* A COMPACT LIST, one its script marks `compact`: a row sits on the panel's own background, with no gap between rows, and its text keeps to one line, for a list scanned many rows at a time, such as changed files; a `detail`'s lines still go under it.
-   Its own row shape, not the card and not the menu row, which it resembles but which is a choice in a menu, where this is an item in a list (docs/architecture.md § UI conventions).
+   Its own row shape, not the card and not the menu row, which it resembles but which is a choice in a menu, where this is an item in a list (docs/architecture/ui-conventions.md § UI conventions).
    The text keeps to one line, cut short, so a script puts the rest in the row's tooltip; a link still lights the row under the pointer, through the card's own hover.
    14px on the right, the section heading's own, so a trail ends under the heading's count. */
 .list-body.compact .list-row {

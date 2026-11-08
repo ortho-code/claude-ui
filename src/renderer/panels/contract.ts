@@ -100,7 +100,7 @@ export interface LinkedSession {
 export type SessionSurface = 'row' | 'tab' | 'panel';
 
 /**
- * What one surface asks another for, through the host every panel is given (docs/architecture.md § The app's own surfaces are panels): each ask is answered by the built-in that owns it, so no surface reaches into another's code.
+ * What one surface asks another for, through the host every panel is given (docs/architecture/panels.md § The app's own surfaces are panels): each ask is answered by the built-in that owns it, so no surface reaches into another's code.
  * By session id or project folder, never a tab's token, which is the terminal area's own.
  */
 export interface Asks {

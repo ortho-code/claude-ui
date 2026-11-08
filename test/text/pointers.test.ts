@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { tracked } from './tracked';
 
 /**
- * A pointer into a document, `docs/architecture.md § A heading`, names a heading that document has.
+ * A pointer into a document, `docs/architecture/status-cues.md § Status cues`, names a heading that document has.
  * It may leave out the heading's subtitle, after a colon or a dash (`§ Tab lifecycle` for "Tab lifecycle: a tab can exist without a process"), and its code spans' backticks.
  * A heading renamed without its pointers leaves them pointing at nothing, and nothing else notices: one pointed at a heading the docs never had.
  */
