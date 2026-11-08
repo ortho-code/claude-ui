@@ -3,7 +3,7 @@ import type { ClosedHow, TerminalLaunch } from '../../../../../../src/shared/typ
 import { type BridgeFixture, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { switchedOff } from '../../../../support/needsyou';
-import { stripNames, tab } from '../../../../support/window';
+import { tab } from '../../../../support/window';
 
 // At launch every open tab comes back, and the sessions that were running when the app closed come back as the setting says, cold by default or started again, and marked as needing you unless a file of yours switches that type off.
 const one = session();
@@ -28,7 +28,7 @@ const choosing = (choice: RunningAtLaunch): Partial<BridgeFixture> => ({
 type Size = [id: number, cols: number, rows: number];
 const sizes = async (app: App): Promise<Size[]> => (await app.calls('resizeTerminal')) as Size[];
 
-test('by default the sessions that were running come back marked as needing you, not paused, in the live strip, and nothing starts', async ({ app, page }) => {
+test('by default the sessions that were running come back marked as needing you, not paused, and nothing starts', async ({ app, page }) => {
   await app.boot(fixture);
   await expect(tab(page, one.title)).toHaveClass(/\bactive\b/);
   // The restore's last write, after which a start would already have been asked for.
@@ -39,8 +39,6 @@ test('by default the sessions that were running come back marked as needing you,
   expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], [{ type: 'app.was-running', at: expect.any(Number), how: 'quit' }]]]);
   for (const s of [one, two, gone]) await expect(tab(page, s.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(tab(page, three.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
-  await expect(stripNames(page)).toHaveText([one.title, two.title, gone.title]);
-  await expect(page.locator('#strip-label')).toHaveText('3 of 3 need you');
 });
 
 // The reason is how the app closed while they ran, as main's log says.
@@ -96,7 +94,7 @@ test('chosen to start, the sessions that were running start again, the one on sh
   await expect(tab(page, one.title)).toHaveClass(/\bactive\b/);
   await expect(tab(page, two.title)).not.toHaveClass(/\bcold\b/);
   await expect(tab(page, three.title)).toHaveClass(/\bcold\b/);
-  // A folder gone is not tried, and says nothing until its tab is selected; it is marked all the same, so the strip still holds what was in hand.
+  // A folder gone is not tried, and says nothing until its tab is selected; it is marked all the same.
   await expect(tab(page, gone.title)).toHaveClass(/\bcold\b/);
   await expect(tab(page, gone.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(page.locator('#toast')).toBeHidden();
@@ -121,7 +119,6 @@ test('with the type that marks them switched off, the sessions that were running
   expect(await app.calls('startTerminal')).toEqual([]);
   expect((await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), []]);
   expect(await app.calls('markNeedsYou')).toEqual([]);
-  await expect(page.locator('#live-strip')).toBeHidden();
 });
 
 // The choices from while the setting also said whether they were marked, `pause` the oldest, which a settings.json written then holds.

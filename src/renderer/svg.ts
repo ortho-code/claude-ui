@@ -1,4 +1,3 @@
-import { EYE_PATH } from '../shared/icons';
 import type { TabButtonMark } from './logic';
 
 /**
@@ -99,8 +98,6 @@ export const PIN_ICON = strokeIcon(14, `<path d="${STAR_PATH}" />`);
 export const PINNED_ICON = strokeIcon(14, `<path d="${STAR_PATH}" fill="currentColor" />`);
 // The filled star at a badge's size, beside the marks above: a panel's folder picked for its session rather than followed, held in place as a pinned session is.
 export const PINNED_BADGE_ICON = strokeIcon(11, `<path d="${STAR_PATH}" fill="currentColor" />`);
-
-export const eyeIcon = (size: number): string => strokeIcon(size, EYE_PATH);
 
 // A note's mark: a page with a line of writing on it.
 export const NOTE_ICON = strokeIcon(13, '<path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.5M6.25 8.75h3.5" />');

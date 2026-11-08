@@ -78,7 +78,7 @@ export interface AppState {
   /** Repo root -> the name you gave the project; a project without one is called after its folder. */
   projectNames: ReadonlyMap<string, string>;
   /**
-   * Every project ever seen, in the order you set: the list, the switcher, the strip and the tab bar all place projects by it.
+   * Every project ever seen, in the order you set: the list, the switcher and the tab bar all place projects by it.
    * Seeded from the recency order the list already had, so switching it on changed nothing on screen; from then on it only moves when you move it.
    */
   projectOrder: readonly string[];
@@ -87,7 +87,7 @@ export interface AppState {
    * Written through to main by whoever changes it.
    */
   activeProject: string | null;
-  /** The open tabs, in the bar's order, which is yours: the tab bar, the rows' marks, the strip, the open and live filters and the pane all draw them. */
+  /** The open tabs, in the bar's order, which is yours: the tab bar, the rows' marks, the open and live filters and the pane all draw them. */
   tabs: readonly TabState[];
   /** The tab on show, by its token, or null for none: the tab bar, the rows, the pane, the history and the panels' context all follow it. */
   activeTab: string | null;
@@ -107,10 +107,6 @@ export interface AppState {
   folds: Folds;
   /** Whether the filter panel is open, kept for the next launch: shut over a filter, it leaves a row of chips naming what is on. */
   filterPanelOpen: boolean;
-  /** Whether the live strip shows its rows or only its line, kept for the next launch. */
-  stripExpanded: boolean;
-  /** The projects hidden from the live strip, by repo root, kept for the next launch: counted on its Hidden line rather than listed (state/strip.ts). */
-  stripHidden: ReadonlySet<string>;
   /** Whether the tab bar shows every row of tabs or only one, the row of the tab on show where there is one, kept for the next launch. */
   tabBarExpanded: boolean;
   /**
@@ -168,7 +164,7 @@ export function noFilter(): FilterState {
 }
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
-export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'stripExpanded' | 'stripHidden' | 'tabBarExpanded'>;
+export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'tabBarExpanded'>;
 
 /** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
 export interface TabState {
@@ -350,8 +346,6 @@ export const store = createStore<AppState>(
     filter: noFilter(),
     folds: { projects: new Set(), groups: new Set(), filterProjects: new Set(), filterGroups: new Set() },
     filterPanelOpen: defaultUi().filterPanelOpen,
-    stripExpanded: defaultUi().stripExpanded,
-    stripHidden: new Set(),
     tabBarExpanded: defaultUi().tabBarExpanded,
     bulk: null,
     prStatus: NO_PR_STATUS,
@@ -376,7 +370,6 @@ export const store = createStore<AppState>(
     panelData: sameEntries,
     filter: sameData,
     folds: sameFolds,
-    stripHidden: sameMembers,
     bulk: sameBulk,
     prStatus: sameData,
     settings: sameData,

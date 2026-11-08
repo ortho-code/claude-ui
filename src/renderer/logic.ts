@@ -179,7 +179,7 @@ export interface ClockShown {
 }
 
 /**
- * What a session's clock shows, ONE rule for its tab, its row and its strip row: what its claude last reported scheduled (`live`), or else, muted, what its tab kept from when its claude went (`TabState.scheduledWhenStopped`); null for neither.
+ * What a session's clock shows, ONE rule for its tab and its row: what its claude last reported scheduled (`live`), or else, muted, what its tab kept from when its claude went (`TabState.scheduledWhenStopped`); null for neither.
  * A tab keeps those through a start of its claude until that claude reports, since a start says nothing of what it brought back, and a `/loop` wakeup among them may not come back.
  */
 export function clockOf(live: readonly ScheduledTask[] | undefined, tab: { scheduledWhenStopped: readonly ScheduledTask[] | null } | undefined): ClockShown | null {
@@ -708,15 +708,8 @@ export function buildProjectTree(
 /**
  * THE TAB BAR'S ORDER, as clusters: per project, the ungrouped items first and then one run per group in registry order, with each run left exactly as it was handed over.
  *
- * ONE implementation for the tab bar and the live strip, called identically by both — they draw the same tabs, and a second copy of "project, then group in registry order" is the kind of thing that drifts between the times anyone looks.
- * Projects come from the explicit project order, so the bar, the strip and the sidebar all agree about where a project sits.
+ * Projects come from the explicit project order, so the bar and the sidebar agree about where a project sits.
  * The bar used to order them by whichever it met first, which nobody chose and which moved on its own.
- *
- * WHY TAB ORDER AT ALL, for the strip.
- * A list you read while working needs to stay where you last saw it more than it needs to be sorted well, and two earlier answers failed that.
- * Sorting attention-first reshuffled both levels on every status change.
- * Ordering as the SESSION LIST does was closer and still wrong, because the sidebar's within-project order is RECENCY — and most sessions in the strip are running, so those timestamps are all moving and two rows swap whenever the lower one writes a message.
- * The tabs array cannot move on its own: it changes when you open, close, drag, or regroup a tab.
  *
  * Pins are deliberately NOT floated, unlike the sidebar.
  * A pin says where a session belongs in the LIST; the tab bar has never honoured it, and floating one here would be a second thing able to move a row you were reading.
@@ -943,16 +936,6 @@ export function showsRead(status: string | null | undefined, acked: boolean): bo
 }
 
 /**
- * The live strip's line: how many of its rows want you, among those running or marked as needing you (`among`), else how many run and how many are marked but seen.
- * Counting ATTENTION rather than rows: a plain count of running sessions would report five wanting you when four are working away happily.
- * A marked row wants you whether or not it runs, so a launch that marked three cold tabs reads "3 of 3 need you"; once seen (marked read), a cold one is counted as marked, since it does not run.
- */
-export function stripLine({ live, needing, among }: { live: number; needing: number; among: number }): string {
-  const inHand = needing > 0 ? [`${needing} of ${among} need you`] : [live > 0 ? `${live} live` : '', among > live ? `${among - live} marked` : ''];
-  return inHand.filter(Boolean).join(' · ');
-}
-
-/**
  * Enough of a tab to know what its button should say: whether it has a process, four of the flags a tab's data carries (`TabState`, in state/app.ts), and nothing of its terminal.
  * The flags are optional, so a caller can name only the one it is about: absent means "not in that transition", which is the same thing as false and is why every check on them is a truthiness test.
  */
@@ -1041,9 +1024,8 @@ export function leaveAction(tab: TabButtonTab, action: LeaveAction): TabButton {
 }
 
 /**
- * What a tab's button shows, wherever it is drawn: on the tab, and on the live strip's row for its session; null for no button, which `choice` `none` asks for.
+ * What a tab's button shows; null for no button, which `choice` `none` asks for.
  * A shortcut to one of its menu's leave items, so it says and does what that item would (`leaveAction`): on a running tab Stop session, or with `close` or `finish` that leave in one press, and on a cold one the leave `choice` ends in; while claude is on its way out, the force of what it is leaving for, so the button stays the press that ends claude, and changing what the exit does is the menu's.
- * ONE RULE RATHER THAN TWO, and it is here rather than in the renderer because the two surfaces did come to different conclusions about the same tab the day the strip grew its own copy.
  */
 export function tabButton(tab: TabButtonTab, choice: LeaveButton = 'stop-close'): TabButton | null {
   if (choice === 'none') return null;
@@ -1056,7 +1038,7 @@ export function tabButton(tab: TabButtonTab, choice: LeaveButton = 'stop-close')
 }
 
 /**
- * The words beside a session's name, on its tab, its list row and its strip row, for a stop claude has not answered by leaving a while after the ask; null otherwise.
+ * The words beside a session's name, on its tab and its list row, for a stop claude has not answered by leaving a while after the ask; null otherwise.
  * The button's own words say the same, but only on a hover, and the question claude may be asking is out of sight on a tab not on show.
  */
 export function notLeftWords(tab: TabButtonTab): string | null {

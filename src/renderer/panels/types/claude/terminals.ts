@@ -171,7 +171,7 @@ export async function restoreOpenTabs(): Promise<void> {
         // What it said was scheduled when its claude went, which it goes on saying until a claude started on it reports.
         const token = buildTab(session, scheduledByKey[key] ?? null);
         if (key === activeKey) toActivate = token;
-        // One that was running comes back marked as needing you, unless a file of yours switches that type off (`app.was-running`): what was in hand is in the live strip at launch, and stays marked until your next prompt there, started or not.
+        // One that was running comes back marked as needing you, unless a file of yours switches that type off (`app.was-running`): what was in hand needs you at launch, and stays marked until your next prompt there, started or not.
         if (wasRunning && marks('app.was-running')) marked.push(key);
         if (wasRunning && atLaunch === 'start') resume.push(token);
       }
@@ -315,7 +315,7 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
     setTab(token, { terminalId: null, booting: false, failure });
     showToast(failure);
   } finally {
-    // However the start ended, the button is handed back, and the strip's with it: its stop button drew the flag, and a repaint by hand made a moment too early once left every freshly started session with a dead one.
+    // However the start ended, the button is handed back: it drew the flag, and a repaint by hand made a moment too early once left every freshly started session with a dead one.
     setTab(token, { starting: false });
   }
 }
@@ -466,7 +466,7 @@ function clearStopTimers(token: string): void {
 function askToLeave(token: string, terminalId: number, onExit: TabState['onExit']): void {
   const tab = tabOf(token);
   if (!tab) return;
-  // At once, so the button shows the leave under way for as long as the exit takes rather than after it — on both buttons, the tab's and the strip's, which follow the same flag.
+  // At once, so the button shows the leave under way for as long as the exit takes rather than after it.
   setTab(token, { stopping: true, onExit, forceable: false, notLeft: false });
   const { statuses, scheduledTasks } = store.get();
   const status = statuses.get(tab.session.id);
@@ -525,7 +525,7 @@ function stopSession(token: string): void {
 }
 
 /**
- * A leave item pressed, from the session's menu, the tab's button or the strip's (`leaveAction`): Stop session, Close tab, Finished, or the force of what claude is leaving for.
+ * A leave item pressed, from the session's menu or the tab's button (`leaveAction`): Stop session, Close tab, Finished, or the force of what claude is leaving for.
  * It acts only while the item would still do the same, and, given the mark it was drawn with, still draws it, since a press can land on an item drawn before the tab moved on — a Force stop pressed once claude has gone would otherwise close the tab (decided 2026-10-21).
  */
 export function pressLeave(token: string, action: LeaveAction, mark?: TabButtonMark): void {
@@ -607,7 +607,7 @@ function coolTab(token: string): void {
   // Its claude has gone, so its last report is forgotten, as closing a tab forgets it: a claude forced out may never report that it ended, and its busy or waiting would go on nudging from every roll-up.
   // A SessionEnd that does arrive writes `closed`, which draws the same hollow dot as no status.
   clearNudge(id);
-  // One change, which also drops it from the live strip now rather than when its SessionEnd lands.
+  // One change, which also stops it counting as running now rather than when its SessionEnd lands.
   store.batch(() => {
     // A stopped tab is not a slow one: the loader must not outlive the process.
     setTab(token, { terminalId: null, stopping: false, onExit: 'cool', forceable: false, forced: false, notLeft: false, booting: false, scheduledWhenStopped });
@@ -623,13 +623,13 @@ function coolTab(token: string): void {
  * A running session and a tab are separate things — a cold tab costs nothing but a line in the bar, and it is restored on the next launch — so one press should not decide both.
  * The first press stops (claude gets its normal exit path and flushes), the tab stays and goes cold; the second removes it, unless the settings make it one press, or no button, for which a press does nothing.
  * While a session is arriving, or in the first moment of leaving, the button does nothing at all, and a session that is slow to leave is forced: see tabButton.
- * Checked here too, since a middle click reaches this without going through the button, and with `mark`, the one the strip's button was drawn with, only while the button still draws it.
+ * Checked here too, since a middle click reaches this without going through the button.
  */
-export function pressTabButton(token: string, mark?: TabButtonMark): void {
+export function pressTabButton(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
   const button = tabButtonOf(tab);
-  if (button && !button.disabled && (mark === undefined || button.mark === mark)) pressLeave(token, button.action, button.mark);
+  if (button && !button.disabled) pressLeave(token, button.action, button.mark);
 }
 
 /** A tab you removed, as it was, so Undo can put it back: its session, where it stood among the tabs, and what it kept of its session's crons. */
@@ -1006,7 +1006,7 @@ function onTabExit(token: string, exitCode: number, signal = 0): void {
       );
     });
     term.writeln(`\r\n[claude exited immediately (code ${exitCode}) — the session did not start]`);
-    // Cold, since its process has gone: the button closes it at once, the strip drops it, and selecting it starts it again.
+    // Cold, since its process has gone: the button closes it at once, and selecting it starts it again.
     // Uncovered all the same: this line IS the explanation of the failure, and it is exactly what the loader or the cold pane would otherwise hide.
     setTab(token, { terminalId: null, booting: false, startFailed: true });
     persistOpenTabs();

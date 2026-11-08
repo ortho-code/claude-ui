@@ -1,17 +1,15 @@
 import type { Locator, Page } from '@playwright/test';
 import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, stripRow, tab, tabLabel } from '../../../../support/window';
+import { row, tab, tabLabel } from '../../../../support/window';
 
 // What a tab's button does is a setting, `leaveButton`: stop a running session and then close the tab, as it did before there was a setting, or mark its session finished (decided 2026-10-28); close or finish in one press, claude asked to leave first; or no button, leaving it all to the tab's menu (decided 2026-11-03).
-// The tab's button, its middle-click and its strip row button, which a needs-you mark lists it by, are one press, so all three follow it.
+// The tab's button and its middle-click are one press, so both follow it.
 const one = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Set aside' });
 const choosing = (leaveButton: string): ReturnType<typeof settingsFileWith> => settingsFileWith('settings.json', { leaveButton });
 const fixture = { sessions: [one], openSessions: [one.id], history: { [one.id]: [] } };
-const quit = { needsYou: { [one.id]: [{ type: 'app.was-running' as const, at: 1, how: 'quit' as const }] } };
 
 const button = (page: Page): Locator => tab(page, one.title).locator('.tab-close');
-const stripButton = (page: Page): Locator => stripRow(page, one.title).locator('.strip-item-stop');
 
 /** The tab and the row gone, and the session finished once. */
 async function finished(app: App, page: Page): Promise<void> {
@@ -50,13 +48,6 @@ test("with leaveButton stop-finish, a middle-click on a stopped tab finishes its
   await finished(app, page);
 });
 
-test("with leaveButton stop-finish, a stopped tab's strip row button finishes its session", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: choosing('stop-finish'), ...quit });
-  await expect(stripButton(page)).toHaveAttribute('data-mark', 'finish');
-  await stripButton(page).click();
-  await finished(app, page);
-});
-
 test("with leaveButton stop-finish, a running tab's button still stops it, and keeps the tab", async ({ app, page }) => {
   await app.boot({ ...fixture, settings: choosing('stop-finish') });
   await started(app, page);
@@ -89,24 +80,21 @@ test("with leaveButton finish, a middle-click on a running tab finishes its sess
   await finished(app, page);
 });
 
-test("with leaveButton finish, a running tab's strip row button finishes it in one press", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: choosing('finish'), ...quit });
+test("with leaveButton finish, a running tab's button finishes it in one press", async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: choosing('finish') });
   await started(app, page);
-  await expect(stripButton(page)).toHaveAttribute('data-mark', 'finish');
-  await stripButton(page).click();
+  await expect(button(page)).toHaveAttribute('data-mark', 'finish');
+  await button(page).click();
   await expect.poll(() => app.calls('closeTerminal')).toHaveLength(1);
   expect(await app.emit('onTerminalExit', 1, 0)).toBe(1);
   await finished(app, page);
 });
 
-test('with leaveButton none, a tab and its strip row have no button, its kebab ends them, and a middle-click does nothing', async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: choosing('none'), ...quit });
+test('with leaveButton none, a tab has no button, its kebab ends it, and a middle-click does nothing', async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: choosing('none') });
   await expect(tab(page, one.title).locator('.tab-kebab')).toBeVisible();
   await expect(button(page)).toHaveCount(0);
   await expect(tab(page, one.title).locator('.tab-kebab')).not.toHaveClass(/\babuts\b/);
-  await expect(stripRow(page, one.title).locator('.strip-item-kebab')).toBeVisible();
-  await expect(stripButton(page)).toBeHidden();
-  await expect(stripRow(page, one.title).locator('.strip-item-kebab')).not.toHaveClass(/\babuts\b/);
   await started(app, page);
   await tabLabel(page, one.title).click({ button: 'middle' });
   await expect(tab(page, one.title)).toHaveCount(1);

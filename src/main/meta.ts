@@ -165,7 +165,7 @@ const KNOWN_KEYS = new Set([
   'activeFolder', // the pre-rename spelling of activeProject; read, never written
   'projectNames',
   'projectOrder',
-  'footerExpanded', // moved into `ui`; still listed so an old file's copy is consumed rather than preserved through `extra`
+  'footerExpanded', // a key of the live strip, which is gone; still listed so an old file's copy is consumed rather than preserved through `extra`
   'windowBounds',
   'ui',
   'settings',
@@ -236,10 +236,8 @@ const FILTERS_BEFORE: Partial<Record<keyof UiState['filters'], string>> = { live
  * On read it means a meta.json from before this existed, or one a newer build wrote with fields this one has never heard of, still produces a usable sidebar.
  * On write it means the renderer cannot put something in the file that the next launch would choke on — this is the one structure the UI hands over wholesale rather than a value at a time.
  */
-function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
+function normalizeUi(raw: unknown): UiState {
   const base = defaultUi();
-  // Even with no `ui` at all: an older file's live-strip setting is the one value in here worth carrying across.
-  if (typeof legacyFooterExpanded === 'boolean') base.stripExpanded = legacyFooterExpanded;
   if (!raw || typeof raw !== 'object') return base;
   const ui = raw as Record<string, unknown>;
   const bool = (value: unknown, fallback: boolean): boolean => (typeof value === 'boolean' ? value : fallback);
@@ -263,9 +261,6 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
     dateFrom: ms(ui.dateFrom),
     dateTo: ms(ui.dateTo),
     filterPanelOpen: bool(ui.filterPanelOpen, base.filterPanelOpen),
-    // `stripExpanded` was stored as `footerExpanded` before the strip had one name; read the old key as its fallback so an existing file keeps the strip open or shut.
-    stripExpanded: bool(ui.stripExpanded, bool(ui.footerExpanded, base.stripExpanded)),
-    stripHiddenProjects: strings(ui.stripHiddenProjects),
     tabBarExpanded: bool(ui.tabBarExpanded, base.tabBarExpanded),
     collapsedProjects: strings(ui.collapsedProjects),
     collapsedGroups: strings(ui.collapsedGroups),
@@ -377,8 +372,7 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // Absent (an older meta.json) means the preference was never expressed, so take the new default rather than the old hard-coded "closed".
     // Absent for anything written before the window remembered itself, which simply means "open at the default size".
     windowBounds: parseBounds(parsed.windowBounds),
-    // The strip's open state used to be a key of its own, so an existing file's value is handed in as the fallback: read once from there, written from here on.
-    ui: normalizeUi(parsed.ui, parsed.footerExpanded),
+    ui: normalizeUi(parsed.ui),
     // Same reasoning as projectOrder: a new defaulted field is not a reinterpretation of what is stored, so no version bump.
     // Absent means nothing was ever chosen.
     settings: normalizeSettings(parsed.settings),

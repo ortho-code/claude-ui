@@ -4,7 +4,7 @@ import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { exitAtOnce, exitLater } from '../../../../support/clock';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, stripRow, switcherRollUp, tab, tabs } from '../../../../support/window';
+import { row, switcherRollUp, tab, tabs } from '../../../../support/window';
 
 // A tab's life (docs/architecture.md § Tab lifecycle): selecting it starts it, it boots until claude prints, its button stops the session and keeps the tab cold, a second press closes it; claude ending by itself closes the tab, unless it ended so soon that the start failed.
 const one = session();
@@ -104,7 +104,7 @@ test("a session asked to stop says it is stopping in its dots until claude has g
   await app.boot(fixture);
   await startLive(page, app);
   await tab(page, one.title).locator('.tab-close').click();
-  const dots = [tab(page, one.title).locator('.nudge'), row(page, one.title).locator('.nudge'), stripRow(page, one.title).locator('.nudge')];
+  const dots = [tab(page, one.title).locator('.nudge'), row(page, one.title).locator('.nudge')];
   for (const dot of dots) await expect(dot).toHaveClass(/\bstopping\b/);
   await expect(tab(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Stopping — waiting for claude to leave');
 
@@ -323,8 +323,8 @@ test('claude ending within moments of its start keeps the tab, uncovered, and lo
     .toBe(true);
 });
 
-// The process of a failed start has gone, so the tab is cold for everything that asks: its button closes it in one press, the strip does not list it, and selecting it starts it again; only its terminal stays on show, since what claude printed is the explanation.
-test('a tab whose start failed is cold: its button closes it at once, nothing lists it as running, and selecting it tries again', async ({ app, page }) => {
+// The process of a failed start has gone, so the tab is cold for everything that asks: its button closes it in one press, and selecting it starts it again; only its terminal stays on show, since what claude printed is the explanation.
+test('a tab whose start failed is cold: its button closes it at once, and selecting it tries again', async ({ app, page }) => {
   await app.boot(fixture);
   await exitAtOnce(page);
   await row(page, one.title).click();
@@ -335,7 +335,6 @@ test('a tab whose start failed is cold: its button closes it at once, nothing li
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
   await expect(pane(page)).toBeHidden();
   await expect(page.locator('.term.active')).toBeVisible();
-  await expect(page.locator('#live-strip')).toBeHidden();
   // What the terminal holds is drawn on a canvas rather than into the page, so it is read from the log line, which quotes the last few lines it held.
   const failures = async (): Promise<string[]> =>
     (await app.calls('log')).flatMap(([level, area, message]) => (level === 'warn' && area === 'tab' && String(message).includes('did not start') ? [String(message)] : []));

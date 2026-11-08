@@ -4,7 +4,7 @@ import { session, settingsFileWith } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { withOverrides } from '../../../../../src/shared/needsyou';
 import { bundledNeedsYou, switchedOff } from '../../../support/needsyou';
-import { row, stripRow, tab, tabLabels } from '../../../support/window';
+import { row, tab, tabLabels } from '../../../support/window';
 
 // A linked PR changing in a way that needs you marks every session that links it as needing you, with that change as its reason, running or not, finished ones left out (decided 2026-10-29).
 // What was last seen of each PR is kept in meta, so a change while the app was closed marks at the next launch; the first run marks only the sessions set aside to wait.
@@ -54,7 +54,7 @@ test('a linked PR merging marks every session that links it, with a tab or witho
 
   await gitHubSays(page, { 'acme/app#7': { state: 'merged', role: 'own' }, 'acme/app#8': open() });
   await nextAsk(page);
-  for (const dot of [row(page, closed.title).locator('.nudge'), row(page, cold.title).locator('.nudge'), tab(page, cold.title).locator('.nudge'), stripRow(page, cold.title).locator('.nudge')]) {
+  for (const dot of [row(page, closed.title).locator('.nudge'), row(page, cold.title).locator('.nudge'), tab(page, cold.title).locator('.nudge')]) {
     await needs(dot);
     await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merged');
   }

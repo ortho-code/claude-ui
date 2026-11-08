@@ -1,7 +1,6 @@
 import { store } from '../../../state/app';
 import { railStatusFollowsSessions } from './index';
 import { fallBackIfEmptied, refreshSwitcher } from './switcher';
-import { refreshStrip } from './live-strip';
 import { applyDatePickerMinDate, filterPanelFollows } from './filter';
 import { watchList } from './list';
 import { watchReviewButton } from './review';
@@ -38,7 +37,5 @@ export const sessionsWatch = {
     store.watch(['sessions', 'statuses', 'acked', 'needsYou', 'setAside', 'finished', 'pendingDeletes', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'settings', 'needsYouTypes'], refreshSwitcher);
     // The sidebar's rail icon waits while any session anywhere waits for you: the switcher's roll-up, from the same sessions.
     store.watch(['sessions', 'statuses', 'acked', 'needsYou', 'setAside', 'finished', 'pendingDeletes', 'tabs', 'settings', 'needsYouTypes'], railStatusFollowsSessions, { reads: ['projectNames', 'projectOrder'] });
-    // The strip lists what runs and what is marked as needing you, in the bar's order, each row with its tab's button in the tab's state and the one on show marked, under a line badged with the switcher's roll-up; it shows those rows or folds to its line as you left it, and counts the projects you hid on its Hidden line rather than listing them.
-    store.watch(['sessions', 'statuses', 'backgroundTasks', 'scheduledTasks', 'acked', 'needsYou', 'setAside', 'finished', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'activeTab', 'stripExpanded','stripHidden', 'settings', 'needsYouTypes'], refreshStrip);
   },
 };

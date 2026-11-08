@@ -3,9 +3,9 @@ import { session, settingsFileWith } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
 import { switchedOff } from '../../../support/needsyou';
-import { row, stripRow, switcherRollUp, tab, tabLabels, toastButton } from '../../../support/window';
+import { row, switcherRollUp, tab, tabLabels, toastButton } from '../../../support/window';
 
-// A session set aside carries a bookmark on its row, its tab and its strip row by one rule, until a prompt there, Clear set aside, a finish or its day coming takes it off (decided 2026-10-29).
+// A session set aside carries a bookmark on its row and its tab by one rule, until a prompt there, Clear set aside, a finish or its day coming takes it off (decided 2026-10-29).
 // Its day coming makes it need you; a needs-you mark it came after is muted until then, and one that comes after it is not.
 // Set aside… asks when to come back and where it stands, which is the session's note, in one dialog (decided 2026-11-05).
 const one = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'Set aside' });
@@ -14,7 +14,7 @@ const fixture = { sessions: [one, two], openSessions: [one.id, two.id], history:
 // Thursday 29 October 2026, mid-afternoon, in the window's own time zone.
 const THURSDAY = new Date(2026, 9, 29, 15, 30);
 
-/** The session's bookmark on each surface that draws one: its row, its tab, and its strip row while the strip lists it. */
+/** The session's bookmark on each surface that draws one: its row and its tab. */
 const marks = (page: Page, title = one.title): Locator[] => [row(page, title).locator('.set-aside-mark'), tab(page, title).locator('.set-aside-mark')];
 
 const dialog = (page: Page): Locator => page.locator('#set-aside-overlay');
@@ -281,7 +281,6 @@ test('a day that came while the app was closed makes the session need you at lau
   await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(row(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — reminder for Wed 28 Oct, 09:00');
   for (const mark of marks(page)) await expect(mark).toBeHidden();
-  await expect(stripRow(page, one.title)).toHaveCount(1);
   expect(await app.calls('setAsideCameDue')).toHaveLength(1);
 });
 
@@ -317,8 +316,6 @@ test('a needs-you mark from before the set-aside mark is muted, read-looking and
   await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit (read)');
   await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\backed\b/);
   await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bneeds\b/);
-  // A cold tab set aside is not work in hand, so the strip, which lists only what runs or needs you, has nothing.
-  await expect(stripRow(page, one.title)).toHaveCount(0);
 });
 
 // The dot shows the mark over idle, read-looking; the roll-ups follow the dot, so an idle session so set aside nudges nowhere, while claude asking still does.
@@ -328,11 +325,9 @@ test('a muted session that runs and is idle rolls up as read, and one whose clau
   await app.emit('onSessionStatus', one.id, 'idle', '', 'Stop');
   await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b.*\backed\b|\backed\b.*\bneeds\b/);
   await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bidle\b|\bneeds\b/);
-  await expect(page.locator('#strip-label')).toHaveText('1 live');
 
   await app.emit('onSessionStatus', one.id, 'waiting', '', 'PermissionRequest');
   await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bwaiting\b/);
-  await expect(page.locator('#strip-label')).toHaveText('1 of 1 need you');
 });
 
 test('a day coming on a session that already needs you keeps its reason, and lights it up again', async ({ app, page }) => {
@@ -342,18 +337,14 @@ test('a day coming on a session that already needs you keeps its reason, and lig
   await expect(dot).toHaveClass(/\bneeds\b/);
   await expect(dot).not.toHaveClass(/\backed\b/);
   await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit');
-  await expect(stripRow(page, one.title)).toHaveCount(1);
 });
 
-test('a needs-you mark after the set-aside mark is news, shown and counted in full, with the bookmark on its strip row too', async ({ app, page }) => {
+test('a needs-you mark after the set-aside mark is news, shown and counted in full', async ({ app, page }) => {
   await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.was-running', at: 20, how: 'quit' }] }, setAside: { [one.id]: { due: null, at: 10 } } });
   const dot = row(page, one.title).locator('.nudge');
   await expect(dot).toHaveClass(/\bneeds\b/);
   await expect(dot).not.toHaveClass(/\backed\b/);
   await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bneeds\b/);
-  await expect(stripRow(page, one.title)).toHaveCount(1);
-  await expect(stripRow(page, one.title).locator('.set-aside-mark')).toBeVisible();
-  await expect(page.locator('#strip-label')).toHaveText('1 of 1 need you');
 });
 
 test('a prompt there settles both marks', async ({ app, page }) => {

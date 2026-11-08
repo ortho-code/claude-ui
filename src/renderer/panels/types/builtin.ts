@@ -5,7 +5,7 @@ import { isNeeds, type NudgeStatus } from '../../logic';
 import { lookOf } from '../../looks';
 
 /**
- * The app's own surfaces as panels: `sessions` is the whole sidebar (switcher, actions, filter, list, live strip, in types/sessions/) and `claude` is the terminal area (tab bar and terminals, in types/claude/).
+ * The app's own surfaces as panels: `sessions` is the whole sidebar (switcher, actions, filter, list, in types/sessions/) and `claude` is the terminal area (tab bar and terminals, in types/claude/).
  *
  * Each is ONE element for the run, which its type builds, moved into the group that places it and parked in a hidden holder when the layout lets go of it — never rebuilt and never disposed, so a re-render on a layout change keeps every running session and its xterm exactly as they were.
  * Both are `singleton` (the layout must place each exactly once, which the validator enforces) and `bare` (each carries its own top bar, so a group holding only it draws no header).

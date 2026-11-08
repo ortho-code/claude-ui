@@ -19,7 +19,7 @@ async function clipboard(page: Page): Promise<string> {
   return page.evaluate(() => navigator.clipboard.readText());
 }
 
-test("a row whose press is open-session goes to that session, as the live strip's jump does: its tab opens, resumed, on show", async ({ app, page }) => {
+test("a row whose press is open-session goes to that session: its tab opens, resumed, on show", async ({ app, page }) => {
   await bootList(app, page, one({ press: { 'open-session': waiting.id } }), { more: { sessions: [waiting], history: { [waiting.id]: [] } } });
   await row(page, 'The row').click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);

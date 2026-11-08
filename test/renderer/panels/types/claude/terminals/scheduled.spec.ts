@@ -2,17 +2,17 @@ import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, stripRow, tab } from '../../../../support/window';
+import { row, tab } from '../../../../support/window';
 
-// A task claude has scheduled for a session, a `/loop` wakeup or a cron, as its last Stop listed it (docs/architecture.md § Status cues): a clock beside the session wherever it runs, its tab, its row and its strip row, naming each task, so a stop that ends the task is no surprise.
+// A task claude has scheduled for a session, a `/loop` wakeup or a cron, as its last Stop listed it (docs/architecture.md § Status cues): a clock beside the session wherever it runs, its tab and its row, naming each task, so a stop that ends the task is no surprise.
 const one = session();
 // A tab on show has its history read; what it holds is not what is checked here.
 const fixture = { sessions: [one], history: { [one.id]: [] } };
 // The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the first claude is 1.
 const FIRST = 1;
 
-/** The session's clocks: its tab's, its row's and its strip row's. */
-const clocks = (page: Page): Locator[] => [tab(page, one.title), row(page, one.title), stripRow(page, one.title)].map((at) => at.locator('.scheduled-mark'));
+/** The session's clocks: its tab's and its row's. */
+const clocks = (page: Page): Locator[] => [tab(page, one.title), row(page, one.title)].map((at) => at.locator('.scheduled-mark'));
 
 /** Start the session from its row and let its claude print, so it runs. */
 async function start(page: Page, app: App): Promise<void> {
@@ -21,7 +21,7 @@ async function start(page: Page, app: App): Promise<void> {
   expect(await app.emit('onTerminalData', FIRST, 'claude is here')).toBe(1);
 }
 
-test('a session with a task scheduled shows a clock on its tab, its row and its strip row, naming each task', async ({ app, page }) => {
+test('a session with a task scheduled shows a clock on its tab and its row, naming each task', async ({ app, page }) => {
   await app.boot(fixture);
   await start(page, app);
   for (const clock of clocks(page)) await expect(clock).toBeHidden();
@@ -62,10 +62,10 @@ for (const source of ['clear', 'resume']) {
 }
 
 // The clock opens nothing, so its menu's item lists its tasks as its tooltip names them, as lines to read rather than items to press.
-test("a session's options hold its clock as Scheduled, its tasks in the clock's own words, on its row, its tab and its strip row", async ({ app, page }) => {
+test("a session's options hold its clock as Scheduled, its tasks in the clock's own words, on its row and its tab", async ({ app, page }) => {
   await app.boot(fixture);
   await start(page, app);
-  const kebabs = [row(page, one.title).locator('.session-kebab'), tab(page, one.title).locator('.tab-kebab'), stripRow(page, one.title).locator('.strip-item-kebab')];
+  const kebabs = [row(page, one.title).locator('.session-kebab'), tab(page, one.title).locator('.tab-kebab')];
   const scheduled = page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Scheduled/ });
   await kebabs[0].click();
   await expect(scheduled).toHaveCount(0);

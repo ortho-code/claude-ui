@@ -920,54 +920,20 @@ describe('projectOrder', () => {
   });
 });
 
-describe('stripExpanded', () => {
-  it('starts expanded, because the strip is meant to be read', async () => {
-    expect((await getUiState()).stripExpanded).toBe(true);
-  });
-
-  it('remembers being closed, and being opened again', async () => {
+describe('the live strip\'s stored keys', () => {
+  it('are not read, and leave the file at the next write', async () => {
+    await writeMetaFile({ footerExpanded: false, ui: { footerExpanded: false, stripExpanded: false, stripHiddenProjects: ['/a'] }, version: 3 });
+    const before = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    expect(before.ui.stripHiddenProjects).toEqual(['/a']);
     const ui = await getUiState();
-    await setUiState({ ...ui, stripExpanded: false });
-    expect((await getUiState()).stripExpanded).toBe(false);
-    await setUiState({ ...ui, stripExpanded: true });
-    expect((await getUiState()).stripExpanded).toBe(true);
-  });
-
-  it('takes the default when an older meta.json never mentioned it', async () => {
-    await writeMetaFile({ pinned: ['s1'], version: 3 });
-    expect((await getUiState()).stripExpanded).toBe(true);
-  });
-
-  // It used to be a key of its own, so an existing install's setting has to survive the move into `ui`.
-  it('adopts the value from the key this used to live under', async () => {
-    await writeMetaFile({ footerExpanded: false, version: 3 });
-    expect((await getUiState()).stripExpanded).toBe(false);
-  });
-
-  // And it was `footerExpanded` inside `ui` too, before the strip had one name.
-  it('adopts the value from the name it had inside `ui`', async () => {
-    await writeMetaFile({ ui: { footerExpanded: false }, version: 3 });
-    expect((await getUiState()).stripExpanded).toBe(false);
-  });
-
-  it('prefers what `ui` says over the old key, once both exist', async () => {
-    await writeMetaFile({ footerExpanded: false, ui: { stripExpanded: true }, version: 3 });
-    expect((await getUiState()).stripExpanded).toBe(true);
-  });
-
-  it('prefers the name it has now over the one it had inside `ui`', async () => {
-    await writeMetaFile({ ui: { footerExpanded: false, stripExpanded: true }, version: 3 });
-    expect((await getUiState()).stripExpanded).toBe(true);
-  });
-
-  // The old keys are consumed rather than carried along, so they do not linger in the file for ever.
-  it('stops writing the old keys back out', async () => {
-    await writeMetaFile({ footerExpanded: false, ui: { footerExpanded: false }, version: 3 });
-    await setUiState({ ...(await getUiState()), stripExpanded: true });
+    expect(Object.keys(ui)).not.toContain('stripExpanded');
+    expect(Object.keys(ui)).not.toContain('stripHiddenProjects');
+    await setUiState(ui);
     const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
     expect(raw.footerExpanded).toBeUndefined();
     expect(raw.ui.footerExpanded).toBeUndefined();
-    expect(raw.ui.stripExpanded).toBe(true);
+    expect(raw.ui.stripExpanded).toBeUndefined();
+    expect(raw.ui.stripHiddenProjects).toBeUndefined();
   });
 });
 
@@ -985,26 +951,10 @@ describe('tabBarExpanded', () => {
   });
 
   it('takes the default when an older meta.json never mentioned it, or holds something else', async () => {
-    await writeMetaFile({ ui: { stripExpanded: false }, version: 3 });
+    await writeMetaFile({ ui: { filterPanelOpen: true }, version: 3 });
     expect((await getUiState()).tabBarExpanded).toBe(true);
     await writeMetaFile({ ui: { tabBarExpanded: 'no' }, version: 3 });
     expect((await getUiState()).tabBarExpanded).toBe(true);
-  });
-});
-
-describe('stripHiddenProjects', () => {
-  it('hides nothing on a first run', async () => {
-    expect((await getUiState()).stripHiddenProjects).toEqual([]);
-  });
-
-  it('remembers the projects hidden from the strip', async () => {
-    await setUiState({ ...(await getUiState()), stripHiddenProjects: ['/a', '/b'] });
-    expect((await getUiState()).stripHiddenProjects).toEqual(['/a', '/b']);
-  });
-
-  it('keeps only the roots it can read', async () => {
-    await writeMetaFile({ ui: { stripHiddenProjects: ['/a', 3, null, '/b'] }, version: 3 });
-    expect((await getUiState()).stripHiddenProjects).toEqual(['/a', '/b']);
   });
 });
 
@@ -1048,8 +998,6 @@ describe('ui state', () => {
     dateFrom: 1_700_000_000_000,
     dateTo: 1_700_500_000_000,
     filterPanelOpen: true,
-    stripExpanded: false,
-    stripHiddenProjects: ['/home/me/side'],
     tabBarExpanded: false,
     collapsedProjects: ['/home/me/work'],
     collapsedGroups: ['g1'],
@@ -1072,8 +1020,6 @@ describe('ui state', () => {
       dateFrom: null,
       dateTo: null,
       filterPanelOpen: false,
-      stripExpanded: true,
-      stripHiddenProjects: [],
       tabBarExpanded: true,
       collapsedProjects: [],
       collapsedGroups: [],

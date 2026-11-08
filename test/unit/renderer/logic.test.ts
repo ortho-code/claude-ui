@@ -7,7 +7,6 @@ import {
   projectFor,
   hasVisibleOutput,
   statusLabel,
-  stripLine,
   dayLabel,
   momentLabel,
   setAsideLabel,
@@ -1003,8 +1002,7 @@ describe('orderAsTabs', () => {
     expect(out.map((c) => c.repoRoot)).toEqual(['/early', '/late']);
   });
 
-  // The tab bar passes no project order and gets the order it met them in; the strip passes yours.
-  // Same function, one parameter apart.
+  // Without a project order, projects come in the order they are met.
   it('falls back to the order projects first appear', () => {
     const out = orderAsTabs([at('a', '/second'), at('b', '/first')], groups({}));
     expect(out.map((c) => c.repoRoot)).toEqual(['/second', '/first']);
@@ -1012,7 +1010,6 @@ describe('orderAsTabs', () => {
 
   /**
    * The shape the tab bar draws: a project's ungrouped tabs first, then one run per group in REGISTRY order — not the order the tabs happen to sit in.
-   * The strip flattens these back into one run per project, which is how it ends up matching the bar.
    */
   it('puts ungrouped items first, then each group in registry order', () => {
     const out = orderAsTabs(
@@ -1030,7 +1027,7 @@ describe('orderAsTabs', () => {
     expect(flat(out)).toEqual(['c', 'a', 'b']);
   });
 
-  // Moving a session into a group moves it in the bar, which is why the strip has to be built from this and not from the tabs array directly.
+  // Moving a session into a group moves it in the bar.
   it('moves an item when its group changes, without anything else moving', () => {
     const entries = [at('a', '/repo'), at('b', '/repo'), at('c', '/repo')];
     expect(flat(orderAsTabs(entries, groups({ '/repo': ['g1'] })))).toEqual(['a', 'b', 'c']);
@@ -1220,25 +1217,6 @@ describe('the days a set-aside mark names', () => {
     expect(setAsideLabel({ due: new Date(2026, 10, 5, 9).getTime(), at: thursday })).toBe('Set aside until Thu 5 Nov, 09:00');
     expect(setAsideLabel({ due: null, at: thursday })).toBe('Set aside, whenever');
     expect(setAsideUntil(null)).toBe(', whenever');
-  });
-});
-
-describe('stripLine', () => {
-  it('counts what runs, and of those what wants you', () => {
-    expect(stripLine({ live: 3, needing: 0, among: 3 })).toBe('3 live');
-    expect(stripLine({ live: 3, needing: 2, among: 3 })).toBe('2 of 3 need you');
-  });
-
-  // A tab marked as needing you is in hand whether or not it runs, as after a launch that marked what ran.
-  it('counts a marked tab that does not run among those that want you', () => {
-    expect(stripLine({ live: 0, needing: 3, among: 3 })).toBe('3 of 3 need you');
-    expect(stripLine({ live: 1, needing: 2, among: 3 })).toBe('2 of 3 need you');
-  });
-
-  // Marked read, a cold marked row wants nothing more of the line, but is still listed, so the line still counts it.
-  it('counts marked rows seen and not running apart, so the line is never empty while rows are listed', () => {
-    expect(stripLine({ live: 0, needing: 0, among: 1 })).toBe('1 marked');
-    expect(stripLine({ live: 1, needing: 0, among: 3 })).toBe('1 live · 2 marked');
   });
 });
 

@@ -59,28 +59,6 @@ export async function chooseProject(page: Page, name: string): Promise<void> {
   await switcherEntry(page, name).click();
 }
 
-/** The live strip's list of what runs, under its line. */
-export const strip = (page: Page): Locator => page.locator('#strip-list');
-
-/** The name of every session in the strip, in its order. */
-export const stripNames = (page: Page): Locator => strip(page).locator(':scope > .strip-item .strip-item-name');
-
-/** The strip as it reads, top to bottom: each project's name over the names of its sessions. */
-export const stripLines = (page: Page): Locator => strip(page).locator(':scope > .strip-project').or(stripNames(page));
-
-/** The strip's row of the session named `title`, both its halves. */
-export const stripRow = (page: Page, title: string): Locator => strip(page).locator(':scope > .strip-item', { has: page.locator('.strip-item-name', { hasText: title }) });
-
-/** The strip row's half that holds `title` and takes you to its session. */
-export const stripJump = (page: Page, title: string): Locator => stripRow(page, title).locator('.strip-item-jump');
-
-/** The strip's Hidden line, at its list's foot, whose press opens a menu of the projects hidden from the strip. */
-export const stripHidden = (page: Page): Locator => page.locator('#strip-hidden');
-
-/** The heading of the project named exactly `name` in the strip. */
-export const stripHeading = (page: Page, name: string): Locator =>
-  page.locator('#strip-list .strip-project', { has: page.locator(':scope > span:first-child', { hasText: new RegExp(`^${name}$`) }) });
-
 /** Every tab in the tab bar. */
 export const tabs = (page: Page): Locator => page.locator('#tabbar .tab');
 

@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { lookOf, token } from '../../../../support/looks';
-import { row, stripRow, switcherRollUp, tab } from '../../../../support/window';
+import { row, switcherRollUp, tab } from '../../../../support/window';
 
 // A turn that ends with work still running behind it, such as a shell or a subagent it sent off, reports `background` in idle's place (docs/architecture.md § Status cues).
 // Every dot standing for the session says so alike, naming what runs; nothing calls it finished until that work has ended and a turn of its own has.
@@ -11,8 +11,8 @@ const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Second
 // A tab on show has its history read; what it holds is not what is checked here.
 const fixture = { sessions: [one, two], history: { [one.id]: [], [two.id]: [] } };
 
-/** The session's own dots: its tab's, its row's and its strip row's. */
-const dots = (page: Page, title: string): Locator[] => [tab(page, title), row(page, title), stripRow(page, title)].map((at) => at.locator('.nudge'));
+/** The session's own dots: its tab's and its row's. */
+const dots = (page: Page, title: string): Locator[] => [tab(page, title), row(page, title)].map((at) => at.locator('.nudge'));
 const toasts = (page: Page): Locator => page.locator('#notifications .notif');
 
 /** Start each session from its row and let its claude print, so it runs; the last one started is on show. */

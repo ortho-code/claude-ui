@@ -366,13 +366,13 @@ export interface Settings {
    */
   launchFlags: string;
   /**
-   * What the next launch does with the sessions that were running when the app closed: start them again in their tabs, or bring their tabs back without starting them, both marked as needing you until your next prompt there, so the live strip lists them, or leave their tabs with the other cold ones, unmarked.
+   * What the next launch does with the sessions that were running when the app closed: start them again in their tabs, or bring their tabs back without starting them, both marked as needing you until your next prompt there, or leave their tabs with the other cold ones, unmarked.
    * The other tabs come back without starting whichever it is.
    */
   runningSessionsAtLaunch: RunningAtLaunch;
   /** Whether the app asks GitHub, with `gh`, what it says of the PRs the sessions link, which colours their marks and marks a session as needing you when one changes; off, it asks nothing, every mark keeps the accent and nothing is marked. */
   prStatus: boolean;
-  /** What a tab's button does, on the tab and its live strip row while the strip lists it: stop a running session and then close the tab or mark its session finished, close or finish in one press, claude asked to leave first, or no button at all, leaving it to the tab's menu. */
+  /** What a tab's button does: stop a running session and then close the tab or mark its session finished, close or finish in one press, claude asked to leave first, or no button at all, leaving it to the tab's menu. */
   leaveButton: LeaveButton;
   /** The choices for setting a session aside, as written (shared/setaside.ts), offered in the order they would come with Whenever last. */
   setAside: string[];
@@ -424,13 +424,6 @@ export interface UiState {
    * Closing it over a filter left deliberately on is a choice to keep the results and take the space back, so a shut panel folds down to a row of chips naming what is on, above the count, and the filter icon carries its accent.
    */
   filterPanelOpen: boolean;
-  /**
-   * Whether the live strip at the foot of the sidebar is expanded.
-   * Open by default — it is meant to be read.
-   */
-  stripExpanded: boolean;
-  /** The projects hidden from the live strip, by repo root: kept until you unhide one, or open or start a session in it. */
-  stripHiddenProjects: string[];
   /**
    * Whether the tab bar shows every row of tabs, or only one, the row of the tab on show where there is one.
    * Open by default, every tab in sight; the terminal area's part of the stored view, where the rest is the sidebar's.

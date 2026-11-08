@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { tab } from '../../../support/window';
+import { row as sessionRow, tab } from '../../../support/window';
 import { bootList, row, type PrintedList } from './list';
 
 // A row naming a session carries that session's menu behind its ⋮, the row's own actions beyond its buttons under the menu's header (docs/panel-types.md § An item, docs/architecture.md § A session's menu holds everything about it).
@@ -22,7 +22,7 @@ const one = (over: Record<string, unknown>): PrintedList => ({ version: 1, secti
 const kebab = (page: Page): Locator => row(page, 'The row').locator('.list-kebab');
 const menuItems = (page: Page): Locator => page.locator('.kebab-menu:not(.submenu) button.menu-row');
 
-test("a row naming a session has the session's menu behind its ⋮, which goes to the session as the live strip's does", async ({ app, page }) => {
+test("a row naming a session has the session's menu behind its ⋮, whose Open goes to the session in its own project", async ({ app, page }) => {
   await bootList(app, page, one({ session: named.id }), { more });
   await expect(kebab(page)).toHaveAttribute('aria-label', 'Session options');
   await kebab(page).click();
@@ -35,6 +35,16 @@ test("a row naming a session has the session's menu behind its ⋮, which goes t
   expect(launch.resumeSessionId).toBe(named.id);
   await expect(page.locator('#switcher-name')).toHaveText('other');
   await expect(tab(page, named.title)).toHaveClass(/\bactive\b/);
+});
+
+test("Show in list in a row's session menu widens the list to All when the session is in another project, leaving the project's tabs as they are", async ({ app, page }) => {
+  await bootList(app, page, one({ session: named.id }), { more });
+  await expect(page.locator('#switcher-name')).toHaveText('demo');
+  await kebab(page).click();
+  await menuItems(page).filter({ hasText: /^Show in list$/ }).click();
+  await expect(page.locator('#switcher-name')).toHaveText('All');
+  await expect(sessionRow(page, named.title)).toBeVisible();
+  expect(await app.calls('startTerminal')).toHaveLength(0);
 });
 
 test("a row naming a session puts its actions beyond its buttons in the session's menu, before the session's own items", async ({ app, page }) => {

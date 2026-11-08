@@ -140,15 +140,15 @@ function createSessionRow(key: string): HTMLElement {
   noteSep.className = 'meta-sep';
   noteSep.textContent = '·';
   noteSep.hidden = true;
-  // A stop claude has not left, as its tab and its strip row say it (notleft.ts), in place of the time and model while it does.
+  // A stop claude has not left, as its tab says it (notleft.ts), in place of the time and model while it does.
   const notLeft = notLeftMark('meta-not-left');
   meta.append(notLeft, metaText, noteSep, noteBadge);
 
   const subline = document.createElement('div');
   subline.className = 'session-subline';
-  // A task claude has scheduled for the session, as its tab and its strip row show it (scheduledmark.ts); shown in updateRow.
+  // A task claude has scheduled for the session, as its tab shows it (scheduledmark.ts); shown in updateRow.
   const clock = scheduledMark('scheduled-badge', true);
-  // Set aside, as its tab and its strip row show it (setasidemark.ts); shown in updateRow.
+  // Set aside, as its tab shows it (setasidemark.ts); shown in updateRow.
   const setAside = setAsideMark('set-aside-badge', true);
   subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge);
   content.append(subline);

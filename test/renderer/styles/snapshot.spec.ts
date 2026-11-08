@@ -69,7 +69,7 @@ test('first run', async ({ app, page }) => {
   await snapshot(page, DIR!, 'first-run');
 });
 
-test('a busy window: groups, marks, tabs in every state, the strip and both toasts', async ({ app, page }) => {
+test('a busy window: groups, marks, tabs in every state and both toasts', async ({ app, page }) => {
   await app.boot({ ...busy, ...ui({ collapsedGroups: ['g-beta'] }) });
   await start(app, page, live.title, 1);
   await start(app, page, there.title, 2);

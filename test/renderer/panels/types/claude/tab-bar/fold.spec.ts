@@ -167,7 +167,7 @@ test('folded, the chevron turns into the dot of a tab out of sight that asks for
   await expect(fold).toHaveAttribute('aria-label', 'Fold the tab bar to one row');
 });
 
-// A bar of one row has nothing to fold, so the chevron is there only while the open bar has more; the line stays while there is a tab to sit on it, and goes with the bar's last tab, as the strip goes when it has nothing.
+// A bar of one row has nothing to fold, so the chevron is there only while the open bar has more; the line stays while there is a tab to sit on it, and goes with the bar's last tab.
 test('the chevron is there only while the open bar has more than one row, and the line goes with the last tab', async ({ app, page }) => {
   const shown = { activeSession: looseOne.id, activeSessionByProject: { [PROJECT]: looseOne.id } };
   await app.boot({ ...fixture, ...shown, openSessions: [looseOne.id, reviewOne.id] });

@@ -2,9 +2,9 @@ import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../src/shared/defaults';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
-import { chooseProject, row, stripRow, tab, tabLabel } from '../../../support/window';
+import { row, tab, tabLabel } from '../../../support/window';
 
-// A session's menu opens with what the session is, on every surface that has its kebab, so a tab and the strip, which say less than its row, still show its title, place, status, activity, worktree and note.
+// A session's menu opens with what the session is, on every surface that has its kebab, so a tab, which says less than its row, still shows its title, place, status, activity, worktree and note.
 const full = session({ title: 'Fix the tab drag', worktree: 'feat-drag' });
 const fixture = {
   sessions: [full],
@@ -20,11 +20,10 @@ const lines = (page: Page): Locator => header(page).locator('.menu-header-line')
 for (const [surface, kebab] of [
   ['row', (page: Page) => row(page, full.title).locator('.session-kebab')],
   ['tab', (page: Page) => tab(page, full.title).locator('.tab-kebab')],
-  ['strip item', (page: Page) => stripRow(page, full.title).locator('.strip-item-kebab')],
 ] as const) {
   test(`a session's menu on its ${surface} opens with its title, where it is filed, its status, its activity, its worktree and its note`, async ({ app, page }) => {
     await app.boot(fixture);
-    // Started, since running (or a needs-you mark) is what puts a session in the strip, and then waiting for you.
+    // Started, and then waiting for you.
     await tabLabel(page, full.title).click();
     await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
     expect(await app.emit('onSessionStatus', full.id, 'waiting', '', '')).toBe(1);
@@ -69,8 +68,6 @@ test("a session's menu header cuts a long name and wraps the lines under it", as
 
 // Everything a press on a surface does is in the session's menu there too; what would be the surface itself is not.
 const item = (page: Page, label: string): Locator => page.locator('.kebab-menu button.menu-row').filter({ hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) });
-const OTHER = `${HOME}/projects/other`;
-const elsewhere = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'In other', cwd: OTHER, repoRoot: OTHER });
 
 test("Open in a row's menu opens its tab, as a press on the row does", async ({ app, page }) => {
   await app.boot({ sessions: [full], history: { [full.id]: [] } });
@@ -78,17 +75,6 @@ test("Open in a row's menu opens its tab, as a press on the row does", async ({ 
   await item(page, 'Open').click();
   await expect(tab(page, full.title)).toHaveClass(/\bactive\b/);
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-});
-
-test("Open in a strip row's menu takes you to its session in another project, as a press on the strip row does", async ({ app, page }) => {
-  await app.boot({ sessions: [full, elsewhere], projectOrder: [PROJECT, OTHER], activeProject: null, openSessions: [full.id, elsewhere.id], history: { [full.id]: [], [elsewhere.id]: [] } });
-  await tabLabel(page, elsewhere.title).click();
-  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  await chooseProject(page, 'demo');
-  await stripRow(page, elsewhere.title).locator('.strip-item-kebab').click();
-  await item(page, 'Open').click();
-  await expect(page.locator('#switcher-name')).toHaveText('other');
-  await expect(tab(page, elsewhere.title)).toHaveClass(/\bactive\b/);
 });
 
 test("a running tab's menu has no Open, since the tab is the session", async ({ app, page }) => {
@@ -111,31 +97,6 @@ for (const [state, setAsideMarks] of [['cold', {}], ['set-aside cold', setAside]
     await expect(tab(page, full.title)).toHaveClass(/\bactive\b/);
   });
 }
-
-test("Show in list in a strip row's menu widens the list to All and unfolds its group, leaving the tab on show where it is", async ({ app, page }) => {
-  await app.boot({
-    ...fixture,
-    sessions: [full, elsewhere],
-    projectOrder: [PROJECT, OTHER],
-    activeProject: null,
-    openSessions: [full.id, elsewhere.id],
-    history: { [full.id]: [], [elsewhere.id]: [] },
-    uiState: { ...defaultUi(), collapsedGroups: ['g-bugs'] },
-  });
-  await tabLabel(page, full.title).click();
-  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  await tabLabel(page, elsewhere.title).click();
-  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
-  await chooseProject(page, 'other');
-  await expect(row(page, full.title)).toHaveCount(0);
-
-  await stripRow(page, full.title).locator('.strip-item-kebab').click();
-  await item(page, 'Show in list').click();
-  await expect(page.locator('#switcher-name')).toHaveText('All');
-  await expect(row(page, full.title)).toBeVisible();
-  // The tab you were in stays on show: All holds every tab.
-  await expect(tab(page, elsewhere.title)).toHaveClass(/\bactive\b/);
-});
 
 test('Show in list says so when a filter leaves the session out', async ({ app, page }) => {
   await app.boot(fixture);
@@ -179,15 +140,15 @@ test("Pin in list in a tab's menu pins its row, as the row's pin does, and the m
   expect(await app.calls('togglePin')).toEqual([[full.id], [full.id]]);
 });
 
-test("Mark as read in a strip row's menu marks the session read, as a click on its dot does, and the menu then offers Mark as unread", async ({ app, page }) => {
+test("Mark as read in a tab's menu marks the session read, as a click on its dot does, and the menu then offers Mark as unread", async ({ app, page }) => {
   await app.boot(fixture);
   await tabLabel(page, full.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   expect(await app.emit('onSessionStatus', full.id, 'waiting', '', '')).toBe(1);
-  await stripRow(page, full.title).locator('.strip-item-kebab').click();
+  await tab(page, full.title).locator('.tab-kebab').click();
   await item(page, 'Mark as read').click();
   await expect(row(page, full.title).locator('.nudge')).toHaveClass(/\backed\b/);
-  await stripRow(page, full.title).locator('.strip-item-kebab').click();
+  await tab(page, full.title).locator('.tab-kebab').click();
   await item(page, 'Mark as unread').click();
   await expect(row(page, full.title).locator('.nudge')).not.toHaveClass(/\backed\b/);
 });
@@ -278,14 +239,13 @@ test("a cold tab's menu has nothing to stop, and closes and finishes it", async 
   await expect(item(page, 'Finished')).not.toHaveClass(/\bunavailable\b/);
 });
 
-// The item of what was asked becomes its force, named for it, and the tab's and the strip's button are that force too, so the button stays the press that ends claude.
-test("a close claude has not left is forced by Force close, which the tab's and the strip's button are too", async ({ app, page }) => {
+// The item of what was asked becomes its force, named for it, and the tab's button is that force too, so the button stays the press that ends claude.
+test("a close claude has not left is forced by Force close, which the tab's button is too", async ({ app, page }) => {
   await runningMenu(app, page);
   await item(page, 'Close tab').click();
   const button = tab(page, full.title).locator('.tab-close');
   await expect(button).toHaveAttribute('data-mark', 'force-close');
   await expect(button).toHaveAttribute('data-tooltip', /^Force close: claude has not left yet/);
-  await expect(stripRow(page, full.title).locator('.strip-item-stop')).toHaveAttribute('data-mark', 'force-close');
   await row(page, full.title).locator('.session-kebab').click();
   await expect(item(page, 'Close tab')).toHaveCount(0);
   await item(page, 'Force close').click();

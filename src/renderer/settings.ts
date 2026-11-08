@@ -42,7 +42,7 @@ document.body.insertAdjacentHTML(
       </div>
       <div class="dialog-section">
         <label class="dialog-label" for="settings-running">Sessions running when the app closed</label>
-        <p class="dialog-detail">What the next launch does with them. A marked one is listed in the live strip and stays marked until your next prompt there. The other tabs come back waiting for a click.</p>
+        <p class="dialog-detail">What the next launch does with them. A marked one stays marked until your next prompt there. The other tabs come back waiting for a click.</p>
         <select id="settings-running" class="dialog-field">
           ${RUNNING_AT_LAUNCH.map((choice) => `<option value="${choice}">${RUNNING_LABELS[choice]}</option>`).join('')}
         </select>
@@ -56,7 +56,7 @@ document.body.insertAdjacentHTML(
       </div>
       <div class="dialog-section">
         <label class="dialog-label" for="settings-leave-button">Leave button</label>
-        <p class="dialog-detail">The button beside a session's menu, on its tab and on its row in the live strip, which a middle-click on the tab presses too. A running session is asked to leave first, whichever it is. Without the button, the session's menu holds it all.</p>
+        <p class="dialog-detail">The button beside a session's menu on its tab, which a middle-click on the tab presses too. A running session is asked to leave first, whichever it is. Without the button, the session's menu holds it all.</p>
         <select id="settings-leave-button" class="dialog-field">
           ${LEAVE_BUTTON.map((choice) => `<option value="${choice}">${LEAVE_BUTTON_LABELS[choice]}</option>`).join('')}
         </select>

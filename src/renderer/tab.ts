@@ -149,7 +149,7 @@ export function drawTab({ el, label, kebab, button }: TabEls, look: TabLook): vo
   if (look.button) {
     setUnavailable(button, look.button.disabled ? look.button.tooltip : null, look.button.tooltip);
     setMarkup(button, tabButtonIcon(look.button.mark, 14));
-    // What it was drawn as, as the strip's button says it, so the two can be told by more than their ink.
+    // What it was drawn as, so the marks can be told by more than their ink.
     button.dataset.mark = look.button.mark;
   }
   // With no button the kebab ends the tab, so it keeps the gap it would have given the button.

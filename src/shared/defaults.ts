@@ -21,8 +21,6 @@ export function defaultUi(): UiState {
     dateFrom: null,
     dateTo: null,
     filterPanelOpen: false,
-    stripExpanded: true,
-    stripHiddenProjects: [],
     tabBarExpanded: true,
     collapsedProjects: [],
     collapsedGroups: [],

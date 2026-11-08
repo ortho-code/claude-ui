@@ -6,7 +6,7 @@ import { container, currentByKey, groupSections, projectSections, sessionRows } 
 import { unfold } from './folding';
 
 /**
- * BRINGING SOMETHING IN THE SESSION LIST INTO VIEW: a session's row, a project's heading or a group's, unfolding on the way — the sidebar's answers to the asks (asks.ts), which the tab bar, the strip and the panels make, and what a heading's jump menu and a new group do.
+ * BRINGING SOMETHING IN THE SESSION LIST INTO VIEW: a session's row, a project's heading or a group's, unfolding on the way — the sidebar's answers to the asks (asks.ts), which the tab bar and the panels make, and what a heading's jump menu and a new group do.
  * The sticky headings' height is measured here at each draw (`syncStickyOffset`), since a reveal lands its target clear of them.
  */
 

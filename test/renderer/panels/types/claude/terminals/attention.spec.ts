@@ -62,7 +62,7 @@ test('a tab not on show that turns waiting or finished is toasted once, and the 
   await expect(toasts(page).first().locator('.notif-title')).toHaveText(here.title);
 });
 
-// A toast is a jump like the strip's: the project and the tab are not enough to see the session, when its row is folded away inside a group.
+// A toast's click goes to the session: its project, its tab and its row, since the project and the tab are not enough to see the session when its row is folded away inside a group.
 test("the toast takes you to the session's row too, unfolding the group it is filed in", async ({ app, page }) => {
   const filed = { groupState: { groups: [{ id: 'g-later', name: 'Later', repoRoot: OTHER }], groupOf: { [there.id]: 'g-later' } } };
   await app.boot({ ...fixture, ...filed, uiState: { ...defaultUi(), collapsedGroups: ['g-later'] } });

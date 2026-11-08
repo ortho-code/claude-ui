@@ -213,8 +213,8 @@ export async function confirmAndDelete(keys: readonly string[]): Promise<void> {
   await fullRead({ showLoading: false, revealed: keys });
 }
 
-// The per-session action list — one builder, shared by the kebab on the session's row, its tab, its strip row and a panel's row naming it, and opened from `from`.
-// Every press on the session's row or strip row is here too, and the tab's button, dot and middle-click, and its select while that starts it, so a button is a shortcut to an item; the row and the tab leave out the item that would be themselves.
+// The per-session action list — one builder, shared by the kebab on the session's row, its tab and a panel's row naming it, and opened from `from`.
+// Every press on the session's row or a panel's row naming it is here too, and the tab's button, dot and middle-click, and its select while that starts it, so a button is a shortcut to an item; the row and the tab leave out the item that would be themselves.
 // `own` is what the surface itself offers beyond its buttons, such as a panel row's actions: under the header, before the session's items, behind a rule of their own.
 export function sessionMenuItems(session: SessionSummary, from: SessionSurface, own: readonly MenuItem[] = []): MenuItem[] {
   // Opening can start claude in the session's folder, and forking always does, so both need that folder to be there — but the items stay in the list, dimmed and carrying the reason, rather than vanishing.
@@ -240,11 +240,11 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface, 
       ...(from === 'row' ? [{ label: 'Select…', onSelect: () => startBulk([entityKey(session)]) }] : []),
     ];
   }
-  // What a press on the row, the strip row or a panel's row does: the row opens the tab where you are, the strip row and a panel's row take you to it, project and row too.
+  // What a press on the row or a panel's row does: the row opens the tab where you are, a panel's row takes you to it, project and row too.
   // On the tab only while nothing runs behind it and nothing is starting, cold, where selecting it is what starts it; a running tab is already the session, a press away.
   const tab = tabWith(session.id);
   if (from !== 'tab' || (tab?.terminalId === null && !tab.starting)) {
-    const open = from === 'strip' || from === 'panel' ? () => hostOf('sessions').openSession(session.id) : () => hostOf('sessions').openTab(session.id);
+    const open = from === 'panel' ?() => hostOf('sessions').openSession(session.id) : () => hostOf('sessions').openTab(session.id);
     items.push(cannotRun ? { label: 'Open', disabled: cannotRun } : { label: 'Open', onSelect: open });
   }
   // Not on the row, which is what it shows.
@@ -255,7 +255,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface, 
       : { label: 'Fork this session', onSelect: () => { void hostOf('sessions').forkSession(session.id); } },
   );
   items.push(...linkedItems(session));
-  // "in list" on every surface, the row's too: a pin says where a session sits in the list, which neither the tab bar nor the strip honours.
+  // "in list" on every surface, the row's too: a pin says where a session sits in the list, which the tab bar does not honour.
   const pinned = store.get().pinned.has(entityKey(session));
   items.push({ label: pinned ? 'Unpin' : 'Pin in list', onSelect: () => void togglePinFor(entityKey(session)) });
   // What a click on its dot does, by the same rule (`canMarkRead`), and unavailable where the click would do nothing.
@@ -300,7 +300,7 @@ function leaveItem(session: SessionSummary, tab: TabState | undefined, action: L
 }
 
 // A session's siblings, PRs, the checkouts it worked in and what its clock says, each a submenu where it has any; the session's menu has them in both views.
-// Here as well as on the row's marks: this list is every kebab's, the tab's and the live strip's too, where the row's marks are not.
+// Here as well as on the row's marks: this list is every kebab's, the tab's and a panel row's too, where the row's marks are not.
 function linkedItems(session: SessionSummary): MenuItem[] {
   const items: MenuItem[] = [];
   const siblings = siblingsOf(session);
@@ -437,7 +437,7 @@ export function projectMoveItems(repoRoot: string): MenuItem[] {
   return orderMoveItems(shown.indexOf(repoRoot), shown.length, (move) => moveProjectBy(repoRoot, move, shown));
 }
 
-// The list, the strip and the tab bar place projects by the order, so all three follow the store together rather than the bar at the next unrelated redraw.
+// The list and the tab bar place projects by the order, so both follow the store together rather than the bar at the next unrelated redraw.
 async function moveProjectBy(repoRoot: string, move: OrderMove, shown: string[]): Promise<void> {
   store.set({ projectOrder: await window.claudeUi.moveProject(repoRoot, move, shown) });
 }

@@ -50,7 +50,6 @@ const ORDER = [
   'src/renderer/setasidedialog.css',
   'src/renderer/tone.css',
   'src/renderer/prstatus.css',
-  'src/renderer/panels/types/sessions/live-strip.css',
   'src/renderer/panels/types/sessions/bulk.css',
   'src/renderer/panels/types/sessions/review.css',
   'src/renderer/panels/types/sessions/arrangement.css',

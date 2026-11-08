@@ -49,7 +49,7 @@ export function toastNotLeft(view: View<'tabs' | 'activeTab' | 'scheduledTasks' 
   }
 }
 
-// Jump to a tab from a toast as the strip jumps to a session: its project, its tab, and its row in the list.
+// Jump to a tab from a toast: its project, its tab, and its row in the list.
 function jumpToTab(token: string): void {
   const tab = tabOf(token);
   // Closed since the toast went up: there is nothing left to go to.

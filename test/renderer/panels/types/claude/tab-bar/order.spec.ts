@@ -9,7 +9,7 @@ const inFirst = session({ id: '00000000-0000-4000-8000-0000000000a2', title: 'In
 const inSecond = session({ id: '00000000-0000-4000-8000-0000000000a3', title: 'In Second' });
 const elsewhere = session({ id: '00000000-0000-4000-8000-0000000000b1', title: 'In other', cwd: OTHER, repoRoot: OTHER });
 
-// The bar used to order projects by whichever it met first; it takes the order the user set, the same one the sidebar and the live strip use (the one-behaviour rule in CLAUDE.md).
+// The bar used to order projects by whichever it met first; it takes the order the user set, the same one the sidebar uses (the one-behaviour rule in CLAUDE.md).
 test('the tab bar sits projects in the order you set and groups in their registry order, whatever order the tabs were opened in', async ({ app, page }) => {
   await app.boot({
     sessions: [loose, inFirst, inSecond, elsewhere],

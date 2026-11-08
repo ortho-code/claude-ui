@@ -5,19 +5,18 @@ import { newSession } from '../../../newsession';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
 import { setProjectOnShow } from '../../../state/project';
-import { showInStrip } from '../../../state/strip';
 import { projName, sessionById, tabWith, unopenableReason } from '../../../state/views';
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
-import { activateTab, finishSessions, closeTabs, createTab, pressLeave, pressTabButton, startTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';
+import { activateTab, finishSessions, closeTabs, createTab, pressLeave, startTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';
 
 /**
  * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, finish one with its tabs, and follow the project chosen.
  * renderer.ts hands them to the tree with the sidebar's (sessions/asks.ts), and every panel's host carries them as they are.
  */
 
-// Jump to a specific session from outside the list — the live strip, a panel's row, an attention toast: scope to its project if needed, then open/focus its tab.
+// Jump to a specific session from outside the list — a panel's row, an attention toast: scope to its project if needed, then open/focus its tab.
 export function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const { activeProject } = store.get();
   const host = hostOf('claude');
@@ -33,8 +32,6 @@ export function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, '
  * A first prompt is for a session that is NOT running, which starts with it — a resumed one included; one that is running is only brought into view, since typing into a live session is never the app's to do.
  */
 async function openSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): Promise<void> {
-  // An open from anywhere — a row in the list or in a panel, a sibling, a toast — puts its project back in the strip.
-  showInStrip(session.repoRoot);
   const existing = tabWith(session.id);
   if (existing) {
     if (existing.terminalId === null && launch.prompt) {
@@ -56,14 +53,13 @@ function ensureProjectVisible(repoRoot: string): void {
 }
 
 /**
- * What every new session does once it is made — a fresh one, a worktree one and a fork alike: filed in its group, when it has one; the scope widened so its tab will be on show; its project back in the strip, as an open puts it; and its tab, which brings its row.
+ * What every new session does once it is made — a fresh one, a worktree one and a fork alike: filed in its group, when it has one; the scope widened so its tab will be on show; and its tab, which brings its row.
  * Filed BEFORE the tab exists, so the row's first paint is already inside the group.
  * An ordinary membership write: the id is the session's real one, so there is nothing to correct afterwards.
  */
 async function startNew(session: SessionSummary, groupId: string | undefined, launch: TabLaunch): Promise<void> {
   if (groupId) await moveSessionToGroup(session, groupId);
   ensureProjectVisible(session.repoRoot);
-  showInStrip(session.repoRoot);
   await createTab(session, launch);
 }
 
@@ -74,7 +70,7 @@ async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<Ta
   await startNew(session, joinGroupId, { name: launch.name || undefined, prompt: launch.prompt || undefined });
 }
 
-/** Go to a session by its id, as a jump from the live strip does; one that cannot be opened, finished or its folder gone, says why instead, and so does an id the app has no session for, which a panel's row may name. */
+/** Go to a session by its id, switching to its project when another is on show; one that cannot be opened, finished or its folder gone, says why instead, and so does an id the app has no session for, which a panel's row may name. */
 function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const session = sessionById(id);
   if (!session) {
@@ -156,7 +152,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
 }
 
 /** The asks the terminal area answers. */
-export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressTabButton' | 'pressLeave' | 'finishSessions' | 'closeTabs' | 'showProject'> = {
+export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressLeave' | 'finishSessions' | 'closeTabs' | 'showProject'> = {
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
@@ -167,10 +163,6 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
   forkSession: async (id) => {
     const session = sessionById(id);
     if (session) await forkSession(session);
-  },
-  pressTabButton: (id, mark) => {
-    const tab = tabWith(id);
-    if (tab) pressTabButton(tab.token, mark);
   },
   pressLeave: (id, action, mark) => {
     const tab = tabWith(id);

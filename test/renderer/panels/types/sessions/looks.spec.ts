@@ -4,7 +4,7 @@ import { session, settingsFileWith } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { pixels } from '../../../support/looks';
 import { LAYOUT, here, railItem, withLayout } from '../../layout/layout';
-import { row, stripRow, switcherRollUp, tab } from '../../../support/window';
+import { row, switcherRollUp, tab } from '../../../support/window';
 
 // How each status, category and type is drawn is `looks` in settings.json, field by field over what it looks like and what it belongs to, the defaults being the dots as they were (decided 2026-11-06).
 const one = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'Marked session' });
@@ -12,8 +12,8 @@ const two = session({ id: '00000000-0000-4000-8000-0000000000f2', title: 'Other 
 const mark = { type: 'app.was-running' as const, at: 1, how: 'quit' as const };
 const fixture = { sessions: [one, two], openSessions: [one.id, two.id], needsYou: { [one.id]: [mark] }, history: { [one.id]: [], [two.id]: [] } };
 
-/** The marked session's dot on each surface that draws one for it, then the roll-ups that carry it as a dot. */
-const dots = (page: Page): Locator[] => [row(page, one.title).locator('.nudge'), tab(page, one.title).locator('.nudge'), stripRow(page, one.title).locator('.nudge'), page.locator('#strip-badge')];
+/** The marked session's dot on each surface that draws one for it. */
+const dots = (page: Page): Locator[] => [row(page, one.title).locator('.nudge'), tab(page, one.title).locator('.nudge')];
 
 /** The switcher's count for the marked session's project, which takes only the look's colour, as its text. */
 const pill = (page: Page): Locator => switcherRollUp(page, 'demo');
@@ -85,7 +85,7 @@ test("an icon look draws the icon in the dot's place, its colour as a mask's fil
     expect(await dot.evaluate((el) => [el.getBoundingClientRect().width, el.getBoundingClientRect().height])).toEqual([9, 9]);
   }
   // Teal is far greener than red, the dark background nearly even, so a pixel well greener than red is the icon's ink, at any point of the pulse.
-  for (const dot of [row(page, one.title).locator('.nudge'), tab(page, one.title).locator('.nudge'), stripRow(page, one.title).locator('.nudge')]) {
+  for (const dot of [row(page, one.title).locator('.nudge'), tab(page, one.title).locator('.nudge')]) {
     const box = (await dot.boundingBox())!;
     const ink = (await pixels(page, { x: box.x - 1, y: box.y - 1, width: box.width + 2, height: box.height + 2 })).flat().map(([r, g]) => g - r);
     expect(Math.max(...ink)).toBeGreaterThan(20);

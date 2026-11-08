@@ -1,14 +1,12 @@
-/* MENU ROW — the one shape for a clickable row inside a popover, menu or strip: the project switcher's entries, every kebab-menu item, and the live strip's sessions, each of which carries `.menu-row` and imports this stylesheet itself.
+/* MENU ROW — the one shape for a clickable row inside a popover or menu: the project switcher's entries and every kebab-menu item, each of which carries `.menu-row` and imports this stylesheet itself.
    They had three paddings (7px 9px, 6px 9px, 5px 8px), two radii and three font sizes between them for what is the same component.
    Anything specific to one of them stays in its own module's rules.
    Distinct from a LIST ROW (.card), which is a card in the list body: roomier padding and the surface radius, because it carries two lines and its own controls.
-   One class for all three, so one specificity: base.css's `button:hover` outranks it, as it already outranked the switcher's entries, and the hover below outranks that. */
+   One class for both, so one specificity: base.css's `button:hover` outranks it, as it already outranked the switcher's entries, and the hover below outranks that. */
 .menu-row {
   display: flex;
   align-items: center;
-  /* Named, as a card's is, so the live strip row's kebab sits right against the button after it by the one rule for that (`.abuts`). */
-  --row-gap: 8px;
-  gap: var(--row-gap);
+  gap: 8px;
   width: 100%;
   padding: 6px 9px;
   background: none;
@@ -20,10 +18,10 @@
   cursor: pointer;
 }
 
-/* One hover for every menu row, and the same look on a submenu's parent (.menu-open) while its list is up, so moving the pointer into the submenu does not drop it back, and on a row holding a kebab whose menu is up, the live strip's, as a list row keeps its look.
+/* One hover for every menu row, and the same look on a submenu's parent (.menu-open) while its list is up, so moving the pointer into the submenu does not drop it back.
    An unavailable row takes none, since a fill says it will do something.
    :where() keeps it at two classes' weight, so a state of equal weight after it, such as .active below, still wins over it. */
-.menu-row:where(:not(.unavailable)):is(:hover, .menu-open, :has(.menu-open)) {
+.menu-row:where(:not(.unavailable)):is(:hover, .menu-open) {
   background: var(--surface-hover);
 }
 

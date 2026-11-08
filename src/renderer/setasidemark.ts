@@ -4,7 +4,7 @@ import { setAsideLabel } from './logic';
 import { SET_ASIDE_ICON } from './svg';
 
 /**
- * The bookmark beside a session you set aside (`AppState.setAside`): on its tab, its row in the list and its row in the strip, by one rule (decided 2026-10-29), as the scheduled clock is.
+ * The bookmark beside a session you set aside (`AppState.setAside`): on its tab and its row in the list, by one rule (decided 2026-10-29), as the scheduled clock is.
  * Its tooltip says the day and time it comes back, if it has one; the session's menu says the same in its header.
  */
 export function setAsideMark(className: string, pill = false): HTMLElement {

@@ -49,7 +49,7 @@ export function sessionStarting(key: string, view: View<'tabs'> = store.get()): 
   return view.tabs.some((t) => entityKey(t.session) === key && t.starting);
 }
 
-/** A tab's button, on the tab and its strip row alike (`tabButton`), as the settings say (`Settings.leaveButton`), stop then close until they are read; null for none. */
+/** A tab's button (`tabButton`), as the settings say (`Settings.leaveButton`), stop then close until they are read; null for none. */
 export function tabButtonOf(tab: TabState, view: View<'settings' | 'tabs'> = store.get()): TabButton | null {
   return tabButton(leaveTab(tab, view), view.settings?.leaveButton.value ?? 'stop-close');
 }
@@ -132,7 +132,7 @@ export function listedProjects(view: View<'sessions' | 'tabs' | 'finished' | 'pe
 }
 
 /**
- * Every project in the switcher's pool, counted and rolled up in the list's order, with those whose sessions are all finished counted at none, and all of them together: the one roll-up the switcher, the strip's line, the sidebar's rail icon and a panel's session dialog read.
+ * Every project in the switcher's pool, counted and rolled up in the list's order, with those whose sessions are all finished counted at none, and all of them together: the one roll-up the switcher, the sidebar's rail icon and a panel's session dialog read.
  * Worked out for each reader rather than kept, since it costs well under a millisecond (0.07 ms at 382 sessions, measured).
  */
 export function switcherModel(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'projectNames' | 'projectOrder' | 'settings' | 'needsYouTypes'>): SwitcherModel {
@@ -216,7 +216,7 @@ export function shownRead(id: string, shown: string | undefined, view: View<'ack
 let muted: { needsYou: ReadonlyMap<string, readonly NeedsYou[]>; setAside: ReadonlyMap<string, SetAside>; ids: ReadonlySet<string> } | null = null;
 
 /**
- * The sessions whose needs-you mark their set-aside mark mutes (`mutedBySetAside`): what every dot and roll-up reads as read, and what does not widen the strip's membership.
+ * The sessions whose needs-you mark their set-aside mark mutes (`mutedBySetAside`): what every dot and roll-up reads as read.
  * Kept for the two maps it was made from, since every roll-up of a repaint asks for it.
  */
 export function mutedNeedsYou(view: View<'needsYou' | 'setAside'>): ReadonlySet<string> {

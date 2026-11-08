@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import type { ScheduledTask } from '../../../../../../src/shared/types';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, stripRow, tab } from '../../../../support/window';
+import { row, tab } from '../../../../support/window';
 
 // A stop, a close or a finish of a session with a task scheduled sends the third Ctrl-C a `/loop` wakeup takes, so the stop lands, and asks nothing first: claude asks its own question for a cron, and the clock's tooltip says beforehand what becomes of each (docs/architecture.md, its section on stopping a session).
 const one = session();
@@ -26,11 +26,10 @@ async function fromMenu(page: Page, item: 'Close tab' | 'Stop session'): Promise
   await page.locator('.kebab-menu button.menu-row', { hasText: new RegExp(`^${item}$`) }).click();
 }
 
-// Every route that asks claude to leave: the tab's button and a middle click on the tab, the strip's button, and Stop session and Close tab in the menu.
+// Every route that asks claude to leave: the tab's button and a middle click on the tab, and Stop session and Close tab in the menu.
 for (const [route, press, dot] of [
   ['the tab button', (page: Page) => tab(page, one.title).locator('.tab-close').click(), 'stopping'],
   ['a middle click on the tab', (page: Page) => tab(page, one.title).click({ button: 'middle' }), 'stopping'],
-  ["the strip's button", (page: Page) => stripRow(page, one.title).locator('.strip-item-stop').click(), 'stopping'],
   ['Stop session in the menu', (page: Page) => fromMenu(page, 'Stop session'), 'stopping'],
   ['Close tab in the menu', (page: Page) => fromMenu(page, 'Close tab'), 'stopping'],
 ] as const) {

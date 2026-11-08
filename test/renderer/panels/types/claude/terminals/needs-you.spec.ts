@@ -4,10 +4,10 @@ import { exitLater } from '../../../../support/clock';
 import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { switchedOff } from '../../../../support/needsyou';
-import { row, stripRow, switcherRollUp, tab, tabLabels, toastButton } from '../../../../support/window';
+import { row, switcherRollUp, tab, tabLabels, toastButton } from '../../../../support/window';
 
 // A session marked as needing you, as a launch marks the ones that were running when the app closed (resume.spec.ts), keeps the mark until you act on it: a prompt there, Clear needs you, closing its tab, leaving claude yourself, or finishing it.
-// Its dot shows it where claude says nothing more pressing, on its row, its tab and its strip row alike, and a click there only marks it seen (decided 2026-10-28).
+// Its dot shows it where claude says nothing more pressing, on its row and its tab alike, and a click there only marks it seen (decided 2026-10-28).
 const one = session({ id: '00000000-0000-4000-8000-0000000000e1', title: 'Marked session' });
 const two = session({ id: '00000000-0000-4000-8000-0000000000e2', title: 'Other session' });
 const mark = { type: 'app.was-running' as const, at: 1, how: 'quit' as const };
@@ -16,7 +16,7 @@ const fixture = { sessions: [one, two], openSessions: [one.id, two.id], needsYou
 const FIRST = 1;
 
 /** The marked session's dot on each surface that draws one for it. */
-const dots = (page: Page, title = one.title): Locator[] => [row(page, title).locator('.nudge'), tab(page, title).locator('.nudge'), stripRow(page, title).locator('.nudge')];
+const dots = (page: Page, title = one.title): Locator[] => [row(page, title).locator('.nudge'), tab(page, title).locator('.nudge')];
 
 async function expectMarked(page: Page, marked: boolean): Promise<void> {
   for (const dot of dots(page)) {
@@ -45,15 +45,11 @@ async function startLive(page: Page, app: App): Promise<string> {
   return launch.tabToken ?? '';
 }
 
-test('the mark shows on its row, its tab and its strip row by one class, with its reason, and the roll-ups carry it', async ({ app, page }) => {
+test('the mark shows on its row and its tab by one class, with its reason, and the roll-ups carry it', async ({ app, page }) => {
   await app.boot(fixture);
   await expectMarked(page, true);
   for (const dot of dots(page)) await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit');
   await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bneeds\b/);
-  await expect(page.locator('#strip-badge')).toHaveClass(/\bneeds\b/);
-  // A marked tab is in hand, so the strip lists it though it does not run; the other cold tab is not listed.
-  await expect(stripRow(page, two.title)).toHaveCount(0);
-  await expect(page.locator('#strip-label')).toHaveText('1 of 1 need you');
 });
 
 // The dot shows the strongest state; the menu's header lists each, with its dot, under where the session is filed, in the strength order, the dot's first (decided 2026-10-28, ordered 2026-11-06).
@@ -169,17 +165,14 @@ test('a click on its dot marks it seen, dimmed, and keeps the mark', async ({ ap
   for (const dot of dots(page)) await expect(dot).toHaveClass(/\bneeds\b.*\backed\b|\backed\b.*\bneeds\b/);
   await expect(row(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit (read)');
   expect(await app.calls('clearNeedsYou')).toEqual([]);
-  // Seen is not settled: nothing nudges from the roll-ups, and the strip still lists it.
+  // Seen is not settled: nothing nudges from the roll-ups.
   await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bneeds\b/);
-  await expect(stripRow(page, one.title)).toHaveCount(1);
 });
 
 test('Clear needs you in its menu takes it off without opening it', async ({ app, page }) => {
   await app.boot(fixture);
   await (await menuItem(page, one.title, 'Clear needs you')).click();
   for (const dot of [row(page, one.title).locator('.nudge'), tab(page, one.title).locator('.nudge')]) await expect(dot).not.toHaveClass(/\bneeds\b/);
-  // A cold tab with nothing in hand any more leaves the strip.
-  await expect(stripRow(page, one.title)).toHaveCount(0);
   expect(await app.calls('clearNeedsYou')).toEqual([[one.id, 'cleared']]);
   await expectSettled(page, 'cleared');
   expect(await app.calls('startTerminal')).toEqual([]);

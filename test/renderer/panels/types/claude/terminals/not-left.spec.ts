@@ -2,9 +2,9 @@ import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, stripRow, tab } from '../../../../support/window';
+import { row, tab } from '../../../../support/window';
 
-// A stop claude has not answered by leaving 3 s after the ask says so where it shows without a hover: beside the name on the tab, the list row and the strip row, and in an attention toast that stays until claude leaves, the stop is called off, or it is dismissed (docs/architecture.md § Stopping a session is a request).
+// A stop claude has not answered by leaving 3 s after the ask says so where it shows without a hover: beside the name on the tab and the list row, and in an attention toast that stays until claude leaves, the stop is called off, or it is dismissed (docs/architecture.md § Stopping a session is a request).
 const stuck = session({ id: '00000000-0000-4000-8000-000000000001', title: 'Fix the login bug' });
 const other = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Write the release notes' });
 const fixture = { sessions: [stuck, other], history: { [stuck.id]: [], [other.id]: [] } };
@@ -12,8 +12,8 @@ const fixture = { sessions: [stuck, other], history: { [stuck.id]: [], [other.id
 const STUCK = 1;
 const OTHER = 2;
 
-/** The words beside the session's name on its tab, its list row and its strip row. */
-const words = (page: Page): Locator[] => [tab(page, stuck.title), row(page, stuck.title), stripRow(page, stuck.title)].map((at) => at.locator('.not-left'));
+/** The words beside the session's name on its tab and its list row. */
+const words = (page: Page): Locator[] => [tab(page, stuck.title), row(page, stuck.title)].map((at) => at.locator('.not-left'));
 const toasts = (page: Page): Locator => page.locator('#notifications .notif');
 
 /** Start the stuck session with a cron scheduled, and the other on show, and answer the stuck one's tab token. */
@@ -31,7 +31,7 @@ async function startBoth(page: Page, app: App): Promise<string> {
   return launch.tabToken!;
 }
 
-/** Ask the stuck session to stop from its row's menu, out of sight, as the strip and the menu let you, with the window's clock held from then on, so only the check moves it. */
+/** Ask the stuck session to stop from its row's menu, out of sight, as the menu lets you, with the window's clock held from then on, so only the check moves it. */
 async function askToStop(page: Page, app: App): Promise<void> {
   // A second on, so the time is still ahead when the call lands; nothing waits on the clock before the ask.
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
@@ -94,7 +94,8 @@ test('forcing the stop takes the words and the toast away', async ({ app, page }
   await askToStop(page, app);
   await page.clock.runFor(3000);
   await expectSaid(page);
-  await stripRow(page, stuck.title).locator('.strip-item-stop').click();
+  await expect(tab(page, stuck.title).locator('.tab-close')).toHaveAttribute('data-mark', 'force-stop');
+  await tab(page, stuck.title).locator('.tab-close').click();
   expect(await app.calls('killTerminal')).toEqual([[STUCK]]);
   await expectUnsaid(page);
 });

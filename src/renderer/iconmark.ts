@@ -1,7 +1,7 @@
 import { setTooltip } from './tooltip';
 
 /**
- * A wordless mark beside a session, its words in its tooltip: on its tab, its row in the list and its row in the strip, built here once so each kind of mark is the same element on all three.
+ * A wordless mark beside a session, its words in its tooltip: on its tab and its row in the list, built here once so each kind of mark is the same element on both.
  * Each surface places it and gives it its look, `className`; a row's marks are pills, so there the icon sits in the pill's icon box (`pill`), as the row's worktree mark's does.
  */
 export function iconMark(className: string, icon: string, pill = false): HTMLElement {

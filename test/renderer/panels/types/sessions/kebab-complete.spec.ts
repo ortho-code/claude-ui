@@ -2,10 +2,10 @@ import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../src/shared/defaults';
 import { PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
-import { groupHeading, projectHeading, row, stripRow, tab, tabLabel } from '../../../support/window';
+import { groupHeading, projectHeading, row, tab, tabLabel } from '../../../support/window';
 import { bootList, row as listRow } from '../list/list';
 
-// THE KEBAB IS COMPLETE; A BUTTON IS A SHORTCUT: every button, dot that is a control and mark that opens something on a session's row, its tab, its strip row and a panel's row naming it, its dot included, has an item in that surface's menu, and so does a press on the row, on the strip row, on a panel's row and on a stopped tab.
+// THE KEBAB IS COMPLETE; A BUTTON IS A SHORTCUT: every button, dot that is a control and mark that opens something on a session's row, its tab and a panel's row naming it, its dot included, has an item in that surface's menu, and so does a press on the row, on a panel's row and on a stopped tab.
 // Outside the rule, by decision: a running tab's own press, which only brings it on show; its drag to reorder, which places it rather than acting on the session; its right-click, which is its menu; and its middle-click, which is its button's press.
 // Each visible button, dot that is a control, `.menu-badge` and `.note-badge` on a surface is found in the page rather than listed, in the state the fixture sets up, and must be in the table below, so one added without its item fails here, naming it; a click handler on any other element, or one on the surface itself, is not found.
 // The kebab itself is the menu, so it is in no table.
@@ -42,7 +42,6 @@ const FINISHED_ROW: Shortcuts = [
   ['worktree-badge', /^Worktrees \(\d+\)$/],
 ];
 const TAB: Shortcuts = [['tab-close', TAB_BUTTON], DOT];
-const STRIP: Shortcuts = [['strip-item-jump', /^Open$/], ['strip-item-stop', TAB_BUTTON], DOT];
 // A heading's "+" and the caret beside it, whose dropdown holds the same two items the heading's menu does.
 const PROJECT_HEADING: Shortcuts = [['project-groups', /^Jump to group$/], ['project-add', /^New session$/], ['project-add-caret', /^New worktree session…$/]];
 const GROUP_HEADING: Shortcuts = [['group-add', /^New session$/], ['group-add-caret', /^New worktree session…$/]];
@@ -88,7 +87,7 @@ async function eachControlHasItsItem(page: Page, surface: Locator, kebab: Locato
   await kebab.click();
 }
 
-/** Started, as running puts a session in the strip, and waiting, one of the two states in which its dot is a control. */
+/** Started and waiting, one of the two states in which its dot is a control. */
 async function running(app: App, page: Page): Promise<void> {
   await app.boot(fixture);
   await tabLabel(page, full.title).click();
@@ -115,12 +114,6 @@ test("a press on a cold tab, which starts it, is in its menu as Open", async ({ 
   const open = page.locator('.kebab-menu:not(.submenu) button.menu-row').filter({ hasText: /^Open$/ });
   await expect(open).toHaveCount(1);
   await expect(open).not.toHaveClass(/\bunavailable\b/);
-});
-
-test("every control on a session's strip row is a shortcut to an item in its menu", async ({ app, page }) => {
-  await running(app, page);
-  const surface = stripRow(page, full.title);
-  await eachControlHasItsItem(page, surface, surface.locator('.strip-item-kebab'), STRIP);
 });
 
 // A panel's row naming a session: its press, going to the session, and its dot while that is a control are what the menu must hold; the row's own action buttons are the type's, not the session's, and its actions beyond them are in the menu by the list's own rule.

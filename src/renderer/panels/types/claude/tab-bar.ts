@@ -6,7 +6,6 @@ import { asksForYou, clockOf, entityKey, isNeeds, orderAsTabs, reorderWithinGrou
 import { notLeftMark, showNotLeft } from '../../../notleft';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
-import { showInStrip } from '../../../state/strip';
 import { projName, projectGone, projectGroups, sessionNudge, statusChanges, strengthNow, tabButtonOf, visibleTabs } from '../../../state/views';
 import { setAsideMark, showSetAside } from '../../../setasidemark';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
@@ -62,7 +61,7 @@ export function renderTabBar(view: TabBarView): void {
   const { activeProject, tabBarExpanded } = view;
   const shown = visibleTabs(view);
   const { groupOf } = view.groupState;
-  // Your project order, the same one the sidebar and the strip use — so all three agree about where a project sits.
+  // Your project order, the same one the sidebar uses — so both agree about where a project sits.
   // The bar used to order projects by whichever it met first, which nobody chose and which moved on its own: closing a project's last tab and opening another sent that project to the end.
   const clustered = orderAsTabs(
     shown.map((tab) => ({ repoRoot: tab.session.repoRoot, groupId: groupOf[tab.session.id] ?? '', item: tab })),
@@ -105,7 +104,7 @@ export function renderTabBar(view: TabBarView): void {
     }
   }
   placeChildren(tabbar, children);
-  // The line goes with the last tab, as the live strip goes when it has nothing: an empty bar has nothing to sit on a line.
+  // The line goes with the last tab: an empty bar has nothing to sit on a line.
   tabbarEdge.hidden = shown.length === 0;
   offerRowFold(fold, openRows);
   if (shown.length > 0) drawFold(tabBarExpanded, kept ? shown.filter((tab) => !kept.items.includes(tab)) : [], view);
@@ -244,9 +243,6 @@ function buildGroupRow(cluster: string): GroupRow {
 function buildSessionTab(token: string): SessionTabEls {
   const tab = buildTab({
     select: () => {
-      const held = tabOf(token);
-      // Opening it, as from anywhere else, puts its project back in the strip (state/strip.ts).
-      if (held) showInStrip(held.session.repoRoot);
       activateTab(token);
       const shown = tabOf(token);
       if (shown) hostOf('claude').revealSession(shown.session.id);
@@ -296,9 +292,9 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
   worktreeMark.className = worktree?.muted ? 'tab-worktree worktree-mark muted' : 'tab-worktree worktree-mark';
   setTooltip(worktreeMark, worktree?.tooltip);
 
-  // A task claude has scheduled, as its row and its strip row show it (scheduledmark.ts).
+  // A task claude has scheduled, as its row shows it (scheduledmark.ts).
   const scheduled = showScheduled(clock, clockOf(view.scheduledTasks.get(tab.session.id), tab));
-  // Set aside, as its row and its strip row show it (setasidemark.ts).
+  // Set aside, as its row shows it (setasidemark.ts).
   const setAsideShown = showSetAside(setAside, view.setAside.get(entityKey(tab.session)));
 
   const text = sessionLabel(tab.session);
@@ -311,11 +307,11 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
     classes: unstartable ? ['unstartable'] : [],
     text,
     tooltip: unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}`,
-    // Stopping, the force of what claude is leaving for, and closing or finishing, or no button, as the settings say: the same rule the live strip's button follows — see tabButton.
+    // Stopping, the force of what claude is leaving for, and closing or finishing, or no button, as the settings say — see tabButton.
     button: tabButtonOf(tab, view),
     // The mark cluster is placed only when there ARE marks — an empty wrapper would still consume a gap and shift the label.
     lead: marks.length > 0 ? [dot, markGroup] : [dot],
-    // A stop claude has not left, as its row and its strip row say it (notleft.ts).
+    // A stop claude has not left, as its row says it (notleft.ts).
     trail: showNotLeft(notLeft, tab) ? [notLeft] : [],
   });
   els.el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
@@ -343,7 +339,7 @@ function sortableFor(container: HTMLElement): Sortable {
       const moved = tabs.find((t) => t.session.id === el.dataset.sid);
       // Index among the destination's tabs (ignores the project label), mapped onto the tabs array.
       const newIndex = [...evt.to.querySelectorAll<HTMLElement>('.tab')].indexOf(el);
-      // After the drop has finished: the new order redraws the bar and the strip, which reads its order from it too, and a draw held during the drag is owed now either way.
+      // After the drop has finished: the new order redraws the bar, and a draw held during the drag is owed now either way.
       queueMicrotask(() => {
         if (moved && newIndex >= 0) {
           store.set({ tabs: reorderWithinGroup(store.get().tabs, tabClusterKey, moved, newIndex) });

@@ -134,7 +134,7 @@ export async function prepare(options: Record<string, unknown>, decl: OptionsDec
 
 /**
  * The header's word on a run that has ended, or '' for one that ended well.
- * One place for the wording, so the panel's header and anything that later quotes it (a tooltip, a strip) agree.
+ * One place for the wording, so the panel's header and anything that later quotes it (a tooltip) agree.
  */
 export function endLabel(event: PanelRunEvent): string {
   switch (event.kind) {

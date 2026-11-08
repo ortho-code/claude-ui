@@ -2,7 +2,7 @@ import { notLeftWords, type TabButtonTab } from './logic';
 import './notleft.css';
 
 /**
- * The words beside a session's name for a stop claude has not answered by leaving (`notLeftWords`): on its tab, and on its row in the list and its row in the strip, which follow the session's first tab.
+ * The words beside a session's name for a stop claude has not answered by leaving (`notLeftWords`): on its tab, and on its row in the list, which follows the session's first tab.
  * ONE element for the three, built and written here, as the clock is (scheduledmark.ts); each surface places it, and names it with `className`.
  */
 export function notLeftMark(className: string): HTMLElement {

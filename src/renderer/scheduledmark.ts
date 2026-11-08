@@ -3,7 +3,7 @@ import { clockText, type ClockShown } from './logic';
 import { CLOCK_ICON } from './svg';
 
 /**
- * The clock beside a session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own: on its tab, its row in the list and its row in the strip, so the task is known before the session is stopped.
+ * The clock beside a session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own: on its tab and its row in the list, so the task is known before the session is stopped.
  * Muted for what a tab kept from when its claude went (`clockOf`), as a worktree mark can be muted.
  * The session's menu says the same, in the same words (`clockLines`), as Scheduled.
  * ONE mark for the three (`iconMark`), so they cannot come to say different things; each surface places it and gives it its look, `className`, as each does its worktree mark.

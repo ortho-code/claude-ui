@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { ScheduledTask, TerminalLaunch } from '../../../../../../src/shared/types';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, stripRow, tab } from '../../../../support/window';
+import { row, tab } from '../../../../support/window';
 
 // A tab whose claude went while a task was scheduled keeps its clock, muted, saying what was scheduled then, since claude's own word on it can be missed; kept for the next launch, and through a start of its claude until that claude reports what it has itself (docs/architecture.md § Status cues).
 const one = session();
@@ -16,7 +16,7 @@ const STOPPED = 'Scheduled when stopped:\nsay the word tock · Every 10 minutes 
 const LIVE = 'Scheduled:\nsay the word tock · Every 10 minutes · comes back when you open the session';
 
 const clockOn = (at: Locator): Locator => at.locator('.scheduled-mark');
-/** The session's clocks on its tab and its row, which every cold tab has, and its strip row's, which only a marked one has. */
+/** The session's clocks on its tab and its row. */
 const tabAndRow = (page: Page): Locator[] => [tab(page, one.title), row(page, one.title)].map(clockOn);
 /** What the window last kept of the tabs' scheduled tasks for the next launch. */
 const lastKept = async (app: App): Promise<unknown> => (await app.calls('setScheduledWhenStopped')).at(-1);
@@ -125,13 +125,11 @@ for (const source of ['clear', 'resume']) {
   });
 }
 
-// Stopped with no needs-you mark, a tab has no strip row.
 test('a stopped tab keeps its clock, muted, on its tab and its row, and kept for the next launch', async ({ app, page }) => {
   await app.boot(fixture);
   await start(page, app);
   await stop(page, app, FIRST);
   for (const clock of tabAndRow(page)) await expectStopped(clock);
-  await expect(stripRow(page, one.title)).toHaveCount(0);
   await expect.poll(() => lastKept(app)).toEqual([{ [one.id]: [tock] }]);
 });
 
@@ -144,11 +142,9 @@ test('a quit keeps the crons of a session still running, for the next launch', a
   await expect.poll(() => lastKept(app)).toEqual([{ [one.id]: [tock] }]);
 });
 
-// Marked as needing you, a cold tab has a strip row, which shows the clock too.
-test('a tab kept with a task scheduled shows its muted clock at the next launch, on its strip row too while it needs you', async ({ app, page }) => {
-  await app.boot({ ...fixture, openSessions: [one.id], needsYou: { [one.id]: [{ type: 'app.was-running', at: 1, how: 'quit' }] }, scheduledWhenStopped: { [one.id]: [tock] } });
-  await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
-  for (const clock of [...tabAndRow(page), clockOn(stripRow(page, one.title))]) await expectStopped(clock);
+test('a tab kept with a task scheduled shows its muted clock at the next launch', async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [one.id], scheduledWhenStopped: { [one.id]: [tock] } });
+  for (const clock of tabAndRow(page)) await expectStopped(clock);
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 

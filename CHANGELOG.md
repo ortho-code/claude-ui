@@ -47,9 +47,6 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A folder in no working tree says so in the panel's place, and when git cannot answer the panel's check it asks again three times, then waits until something looks again, such as Refresh.
 - Pausing a tab, from its session's menu, to set it aside without keeping it running: claude is asked to leave, as a stop asks it, and the tab stays, its dot showing two bars, until you open it again or choose Stop session, which leaves it an ordinary stopped tab.
   A paused tab comes back paused at the next launch and does not start.
-- The live strip lists paused tabs beside the running sessions, in their place in tab order, so it also comes up at launch when a paused tab comes back.
-  Its line counts them apart, such as `2 live · 1 paused`, and a paused row's button closes its tab.
-- Each row of the live strip has its session's menu, the one its row in the session list has, so a session in another project can be paused, or a paused one stopped, from where you are.
 - Each tab has its session's menu too, from a kebab beside its button or a right-click on the tab.
   Every tab is 12px wider to make room for the kebab, so a long title shows as much as before.
 - A row of a panel type of your own can show a tooltip on its first line, from a `tooltip` the script gives it, such as all of what that line shortens.
@@ -63,7 +60,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A list of a panel type of your own can offer several views, such as flat and as a tree, with `views`: the panel's header then switches between them, the script is told which with `CLAUDE_UI_VIEW`, and a panel entry's `view` in the layout says which it shows until you pick another.
   The view you pick is kept for the panel on this machine.
 - A section of a panel type of your own can show a tooltip on its heading, from a `tooltip` the script gives it, such as all of what its title shortens.
-- A session's PRs, as Claude Code links them in its transcript: a mark on the session's row counts them and lists them, the session's options list them too, on its row, its tab and the live strip, and each opens its page in the browser.
+- A session's PRs, as Claude Code links them in its transcript: a mark on the session's row counts them and lists them, the session's options list them too, on its row and its tab, and each opens its page in the browser.
   A filter shows only the sessions that link one, and searching for a PR's number finds the session that linked it.
 - A row of a panel type of your own can have several lines under its first, `detail`, each made of parts with a separator between them, ` · ` unless the list or the row names another.
   A part can be a link of its own, which opens in the browser instead of the row's, show a tooltip, and take a tone.
@@ -71,33 +68,31 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Its script gets the list as JSON.
 - A row of a panel type of your own shows its first action as a button and the rest in a menu behind a ⋮ at its end, and a list's `buttons` says how many show as buttons.
 - A filter for paused sessions, beside the live one.
-- Hiding a project from the live strip, from the eye on its heading: its sessions leave the strip, and a Hidden line at its foot counts the hidden projects and still shows what they are asking of you.
-  It stays hidden across a restart, and comes back when you pick it from that line's menu, or open or start a session in it.
 - Folding the tab bar to one row, from a chevron on the line under the tabs, as a group of panels folds from its divider, to give the terminal the room: the row of the tab on show stays, or the first row when no tab is on show, and while a tab folded away is waiting for you, or has finished and is not marked read, the chevron turns into its status dot.
   It stays folded across a restart.
-- A session's options, on its row, its tab and the live strip, open with what the session is: its title, project, group and status, when it was last active and on what model, when it was archived, its worktree, the start of its note, and why it can't run when its folder is gone.
-- A session's options now hold the actions you could only take from its row, tab or strip row, so a session can be dealt with from wherever it is listed: Open, Show in list, Pin in list, Mark as read, and the tab's Stop session, Force stop, Force pause or Close tab.
-  Show in list from a tab or the strip widens the list to All when it shows another project, so the tab you are in stays on show.
+- A session's options, on its row and its tab, open with what the session is: its title, project, group and status, when it was last active and on what model, when it was archived, its worktree, the start of its note, and why it can't run when its folder is gone.
+- A session's options now hold the actions you could only take from its row or tab, so a session can be dealt with from wherever it is listed: Open, Show in list, Pin in list, Mark as read, and the tab's Stop session, Force stop, Force pause or Close tab.
+  Show in list from a tab or a panel's row widens the list to All when it shows another project, so the tab you are in stays on show.
 - A session in the archived view has options too: what it is, its siblings, PRs and note, its id, Unarchive and Delete.
 - A project's and a group's options start a session there, New session and New worktree session…, and a project's has New session in group, which reaches a group the filter hides as well, and Jump to group, to the places its heading's jump button offers.
 - A session's dot shows when its claude has been asked to stop or pause and has not gone yet, as a pulsing square or the paused bars pulsing, for as long as that takes.
-  Meanwhile its buttons, on the tab and the strip, show the pause bars or the stop square, and its options offer Force pause or Force stop in place of Pause and Stop session, available from the first second until it is pressed.
+  Meanwhile its button on the tab shows the pause bars or the stop square, and its options offer Force pause or Force stop in place of Pause and Stop session, available from the first second until it is pressed.
 - On WSL, a paste of files copied in Explorer pastes their paths, in a session or a panel's shell, so claude attaches an image file; it needs `wl-clipboard`, and reading the files from Windows usually takes about a second.
 - A session's PR mark takes the colour of what GitHub says of its PRs: yellow for changes requested, red for failing checks or a merge conflict, green when approved and ready to merge, grey once all are merged or closed.
   Its tooltip says what set the colour, and its list and the session's options name the state of each PR GitHub has answered for.
   The app asks with `gh`, on your own login, so it needs `gh` installed and logged in; **PR status from GitHub** in Settings, `prStatus` in `settings.json`, turns it off.
 - Hovering a session's time in the session list shows the date and time in full, as a request's time in the history already did.
-- A clock beside a running session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own, on its tab, its row and its row in the live strip; hovering it names each task, a cron's schedule, and whether it ends with the session or comes back when you open it again.
+- A clock beside a running session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own, on its tab and its row; hovering it names each task, a cron's schedule, and whether it ends with the session or comes back when you open it again.
 - A tab you paused or stopped, or that was still running when the app quit, keeps its clock, muted, for the crons that come back when you open the session, also after a restart, until the session runs again and reports its own; a session that had only `/loop` wakeups keeps none.
-- A stop, pause or close claude has not left three seconds after the ask says "hasn't left" beside the session's name on its tab, its row and its row in the live strip, and, when its tab is not on show, in a toast that stays until claude leaves and names what the session has scheduled; clicking the toast brings the tab on show, where claude may be asking you something.
+- A stop, pause or close claude has not left three seconds after the ask says "hasn't left" beside the session's name on its tab and its row, and, when its tab is not on show, in a toast that stays until claude leaves and names what the session has scheduled; clicking the toast brings the tab on show, where claude may be asking you something.
 - A session's worktree badge counts and lists the checkouts it changed files in, with the worktree it runs in or left, from its row and as Worktrees in its options, when there are others besides that worktree, and a session that changed files in a worktree it reached by path or with a `cd` has the badge too.
 - Picking a checkout from that list points the panels there while that session is on show, with a star beside the folder their header names, until you pick Follow the session in the same list; while the checkout is gone, they follow the session.
 - A session's options hold its clock as Scheduled, listing its tasks as the clock's tooltip names them.
-- A choice in Settings, Leave button, for the button beside a session's menu on its tab and its row in the live strip: stop, then close the tab, as before, or stop, then mark its session finished; close or mark finished in one press, claude asked to leave first; or no button, leaving it to the session's menu.
+- A choice in Settings, Leave button, for the button beside a session's menu on its tab: stop, then close the tab, as before, or stop, then mark its session finished; close or mark finished in one press, claude asked to leave first; or no button, leaving it to the session's menu.
   It is `leaveButton` in `settings.json`, `"stop-close"`, `"stop-finish"`, `"close"`, `"finish"` or `"none"`, and a middle-click on the tab does what the button does, or nothing without one.
 - Undo in the message a closed tab or a finished session leaves, from any button, its options or a middle-click: it puts the tab back where it was, without starting it, and makes the session unfinished.
   Such a message stays 8 seconds, and while the pointer is on it.
-- Set aside… in a session's options, a dialog that asks when to come back, tomorrow, in a week, a day and time you pick or whenever, and where it stands, which is the session's note, shown as a bookmark on its row, its tab and its strip row and kept whether or not it has a tab.
+- Set aside… in a session's options, a dialog that asks when to come back, tomorrow, in a week, a day and time you pick or whenever, and where it stands, which is the session's note, shown as a bookmark on its row and its tab and kept whether or not it has a tab.
   Its choices are yours, `setAside` in `settings.json`, such as `"in 2h"`, `"in 3d"`, `"tomorrow 08:00"` or `"next monday"`, offered in the order they would come with Whenever last; a choice with a day and no time of its own comes due at 09:00, or the time `setAsideTime` gives.
   When its moment comes it needs you, saying it was a reminder for then, or why it needed you if it already did; typing a prompt there, Clear set aside and marking it finished take the mark off, and leave the note.
   A session that needed you before you set it aside shows that dimmed, counting for nothing while it stays set aside, and one that needs you afterwards shows it in full.
@@ -119,7 +114,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Finished, Set aside… and the new Keep, which holds a session out of the review for 30 days, take rows out, and the review ends once nothing is left; with PR status off, an open review's Ready to finish says it cannot tell.
 - Recent, switched beside Grouped under the sidebar's header: the sessions in one flat list, last worked on first, each row naming its group, and in All its project, with pins left where their time puts them.
   The choice is kept as the session list's view, so `"view": "recent"` on its entry in the layout starts it there.
-- Finished and Set aside… beside Undo in the message a close leaves, for the sessions it closed, whatever closed them: the tab's button, its menu, the live strip or the bar.
+- Finished and Set aside… beside Undo in the message a close leaves, for the sessions it closed, whatever closed them: the tab's button, its menu or the bar.
   The message either one leaves has an Undo that puts the tabs back too, and cancelling Set aside… brings the close's message back.
 - Each reason the app marks a session as needing you for, a PR's change, a reminder or running when the app closed, can be switched off, alone or with its whole category, by a `.json` file of yours under `needs-you/` in the config folder, such as `{ "id": "pr.approved", "enabled": false }`.
   Its marks already there go, a file with a mistake is named in a message and not used, and one that stops parsing stays as it last read; the reasons and their ids are in the README.
@@ -140,7 +135,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The filter button is a funnel instead of a magnifier: closing its panel keeps the filter on, which is not what a search box does.
 - Icons in the sidebar and tab bar share one line weight.
 - Closing the filter panel while a filter is on leaves a row showing what is on — the search text, each filter, the date range — each with its own ×, above the count and Clear; press the row to open the panel again.
-- Every scrollbar is the thin dark one the session list and the terminal already had, including the project switcher, the live strip and panels, instead of the system's light one.
+- Every scrollbar is the thin dark one the session list and the terminal already had, including the project switcher and panels, instead of the system's light one.
 - A project whose folder is gone is marked in the project switcher, on its heading and in the tab bar, with a crossed-out folder and a muted name, instead of only in its sessions' rows.
 - Project names in the tab bar are in full text colour, as their headings in the session list are.
 - A tab whose session's folder is gone is dimmed like its row, with the reason on hover, instead of looking like a tab you can resume.
@@ -150,7 +145,6 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The default launch flags are kept in the config folder, in `settings.json`, where Settings saves them, where you can edit them by hand, and where the ones you had set move by themselves.
 - Ctrl-C twice in a session's terminal goes to claude, as in any terminal: from its prompt claude exits, or first asks what it has to, and the tab closes when it has gone.
   The app used to close the tab itself on the second press.
-- The live strip marks the session whose tab you are looking at, as the tab bar and the session list already do.
 - Every kebab is narrower, its box hugging its three dots, so its dots sit closer to the control beside it; a session row's title, outside the archived view, gets 12px more room.
 - A borderless icon button, such as a kebab, the pin or a tab's close, turns accent blue on hover instead of filling with an outline; a bordered one, such as the + beside a project, fills as before.
 - A project whose sessions are all archived stays in the session list and the project switcher, saying so under its name, instead of disappearing, and archiving the last session of the project you are in keeps you there.
@@ -184,7 +178,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The top of a session's options lists every state it is in on a line of its own, each with its dot, such as idle and needing you at once, where the status used to end the line with its project.
 - A session's dot no longer turns to waiting for claude's notices of something finished, such as a login that succeeded or an agent that finished.
 - The date filter's calendar starts its weeks on the first day of the language for times and dates, Monday for en-GB and nl-NL, as Pick a date…'s does.
-- Set aside… takes over from pausing a tab: Pause and Force pause are gone from a session's options, the paused filter is a filter for the sessions set aside, and the live strip lists only what runs or needs you, so its line no longer counts paused tabs.
+- Set aside… takes over from pausing a tab: Pause and Force pause are gone from a session's options, and the paused filter is a filter for the sessions set aside.
   A tab you had paused comes back as an ordinary stopped tab, its session set aside, whenever.
 - A session that needs you for more than one reason, such as a reminder and running when the app quit, keeps them all, each on a line of its own in its dot's tooltip and at the top of its options, where the newest used to replace the others.
 - The note dialog names the session in its title, with a line under it saying where the note shows and that saving it empty removes it.
@@ -199,6 +193,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A new request for changes marks a session again while an earlier one still stands, whether from another reviewer or a new round from the same one.
 - The project switcher shows how many sessions in other projects need you, in place of a dot that rolled up every project, and each project in its list shows how many of its own do; in All it counts every project.
   With nothing needing you elsewhere and something working there, it shows the working dot.
+- The live strip at the foot of the sidebar is gone: the project switcher counts the sessions in other projects that need you, and All shows every project's sessions in the list and the tab bar.
+  A panel type of your own can list what needs you and what runs from the sessions file, with each session's dot and menu on its row.
 
 ### Fixed
 
@@ -208,11 +204,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Stopping a session now ends it.
   It was asked once, with a signal it was free to ignore, and the session could keep running while the app showed it as stopped — including the sessions left behind when you quit the app.
 - Switching model with `/model` updates the model shown in the session list straight away, instead of only once that model had answered something.
-- The live strip keeps still.
-  It follows your tabs now, so a row only moves when you drag, open, close or regroup a tab — rows used to swap places whenever one of them wrote a message.
   Pinned sessions no longer float to the top of it.
-- Closing a live session's tab takes it out of the live strip at once, instead of a moment later.
-- The tab bar puts projects in the order you set, like the session list and the live strip.
+- The tab bar puts projects in the order you set, like the session list.
   It used to order them by whichever project you happened to open a tab for first, which moved on its own as tabs came and went.
 - A session whose folder no longer exists says so instead of quietly starting in your home directory and moving itself there in the list.
   Such a session is dimmed and can't be opened or forked, and a project whose folder is gone can't start new sessions — with the reason on hover.
@@ -227,16 +220,16 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - When your last session is gone, the empty terminal area tells you to start one with + New, instead of pointing at a session list with nothing left to pick.
 - The project heading's new-session caret keeps its hover look while its menu is open, as every other menu button does, instead of changing colour as you move onto the menu.
 - In a project, once you have folded each of its groups by hand, the collapse-all button offers to expand them, instead of still offering to collapse them.
-- Clicking the notification for a session that is waiting for you or has finished also shows its row in the session list, unfolding its group, as a click in the live strip does.
+- Clicking the notification for a session that is waiting for you or has finished also shows its row in the session list, unfolding its group.
 - A session that has left its worktree keeps its worktree badge, which it used to lose as soon as it left.
   The badge is muted then, its tooltip says whether the session was closed in the worktree or moved out of it, and where it runs now, and the worktree filter still finds it.
 - Stopping a session or closing its tab leaves anything claude asks on its way out in its tab to answer, such as whether to keep a worktree with changes, instead of ending the session over the question.
   The tab stays until claude has gone, and for a session that has not gone a second later the stop button becomes a force stop.
 - Quitting the app, or forcing a stop, gives a session three seconds to finish leaving before it is killed, instead of just over one.
-- A tab whose session failed to start closes with one press of its button, and the live strip no longer lists it as running; selecting it tries the start again, as selecting a stopped tab does.
+- A tab whose session failed to start closes with one press of its button; selecting it tries the start again, as selecting a stopped tab does.
   Its button used to send a stop nothing answered, so it never closed the tab.
 - On macOS, closing the window ends its sessions as quitting does, instead of leaving them running out of any window's reach until the app quit.
-- A click in the session list, the live strip, the project switcher, the tab bar or a list panel counts when it changes at the same moment, unless the change moves what you clicked, and a button there you reached with the keyboard keeps the focus; both used to be lost.
+- A click in the session list, the project switcher, the tab bar or a list panel counts when it changes at the same moment, unless the change moves what you clicked, and a button there you reached with the keyboard keeps the focus; both used to be lost.
 - A tab dragged while the tab bar changes, such as an open tab's session changing status, still moves where you drop it, instead of staying where it was.
 - A session you had to force to stop no longer goes on showing busy or waiting, on its own dot and on its project's in the switcher.
 - A session title with a word too long for its row, such as a link, wraps as the rest of the title does instead of being cut off where the row's buttons begin.

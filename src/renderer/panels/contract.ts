@@ -96,8 +96,8 @@ export interface LinkedSession {
   canMarkRead: boolean;
 }
 
-/** Where a session's menu is opened: its row in the list or its tab, each of which leaves out the item that would be itself, its row in the live strip, or a panel's row naming it. */
-export type SessionSurface = 'row' | 'tab' | 'strip' | 'panel';
+/** Where a session's menu is opened: its row in the list or its tab, each of which leaves out the item that would be itself, or a panel's row naming it. */
+export type SessionSurface = 'row' | 'tab' | 'panel';
 
 /**
  * What one surface asks another for, through the host every panel is given (docs/architecture.md § The app's own surfaces are panels): each ask is answered by the built-in that owns it, so no surface reaches into another's code.
@@ -105,7 +105,7 @@ export type SessionSurface = 'row' | 'tab' | 'strip' | 'panel';
  */
 export interface Asks {
   // Answered by the terminal area.
-  /** Go to a session, as a jump from the live strip does: its project, its tab (resumed when it is not running, with `prompt` as its first when given), its row. */
+  /** Go to a session, wherever it is: its project, its tab (resumed when it is not running, with `prompt` as its first when given), its row. */
   openSession(id: string, prompt?: string): void;
   /** Open a session's tab, started when it is not running, and nothing else: what a click on its row does, which moves neither the list nor the project. */
   openTab(id: string): void;
@@ -116,11 +116,9 @@ export interface Asks {
   /** Fork a session, named as the dialog it opens is answered, into its parent's group. */
   forkSession(id: string): Promise<void>;
   /**
-   * Press a session's tab's button, as on the tab: stop a running session, force one that has not left once it may, or close a cold tab.
-   * `mark` is what the press was drawn as, and the press does that or nothing: one drawn before the tab moved on, such as a Force stop pressed after claude has gone, would otherwise do what the button does by then, closing the tab.
+   * Press one of a session's tab's leave items, Stop session, Close tab, Finished or a force, as its menu draws it (`leaveAction`).
+   * `mark` is what the item was drawn as, and the press does that or nothing: one drawn before the tab moved on, such as a Force stop pressed after claude has gone, would otherwise do what the tab does by then, closing it.
    */
-  pressTabButton(id: string, mark: TabButtonMark): void;
-  /** Press one of a session's tab's leave items, Stop session, Close tab, Finished or a force, as its menu draws it (`leaveAction`); `mark` as for the button. */
   pressLeave(id: string, action: LeaveAction, mark: TabButtonMark): void;
   /** Mark sessions finished and close every tab each is open in: a claude running in one is asked to leave first, and its session is finished once it has gone; the rest in one write, with one toast. */
   finishSessions(ids: readonly string[]): void;
