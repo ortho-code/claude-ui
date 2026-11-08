@@ -1,5 +1,6 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
+import { NO_NEEDS_YOU_TYPES } from '../../../src/shared/needsyou';
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { prKey, withPrLinks } from '../../../src/shared/prs';
@@ -73,7 +74,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
   let terminals = 0;
   /** How many reads of settings.json main has made, which numbers each, as main's `readSettings` does. */
   let settingsReads = 0;
-  const readSettings = (): SettingsView => settingsView(fixture.settings, ++settingsReads, fixture.needsYouTypes.registry);
+  const readSettings = (): SettingsView => settingsView(fixture.settings, ++settingsReads, fixture.bundledNeedsYou);
   /** A pty started, claude's or a shell's, or main's refusal of one in a folder that is not there (`refuseMissing`, src/main/terminal.ts), which it makes before anything is spawned. */
   const start = (cwd: string): Promise<number> => (onDisk(cwd) === 'missing' ? Promise.reject(new Error(`MISSING_CWD:${cwd}`)) : answer(++terminals));
   /** The generation of every fixture transcript's one read: main numbers each read from the start, and the window only ever compares it with the one it holds. */
@@ -130,7 +131,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     setOpenSessions: sent,
     getRunningSessions: () => answer(fixture.runningSessions),
     getNeedsYou: () => answer(fixture.needsYou),
-    getNeedsYouTypes: () => answer(fixture.needsYouTypes),
+    // Main's read of the settings, which applies `needsYou` to what the app ships.
+    getNeedsYouTypes: () => answer(readSettings().needsYouRegistry ?? NO_NEEDS_YOU_TYPES),
     onNeedsYouTypes: on('onNeedsYouTypes'),
     settleNeedsYouTypes: (types) => {
       Object.assign(fixture, settledTypes(fixture, types, Date.now()));

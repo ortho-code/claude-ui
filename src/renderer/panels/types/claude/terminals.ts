@@ -171,7 +171,7 @@ export async function restoreOpenTabs(): Promise<void> {
         // What it said was scheduled when its claude went, which it goes on saying until a claude started on it reports.
         const token = buildTab(session, scheduledByKey[key] ?? null);
         if (key === activeKey) toActivate = token;
-        // One that was running comes back marked as needing you, unless a file of yours switches that type off (`app.was-running`): what was in hand needs you at launch, and stays marked until your next prompt there, started or not.
+        // One that was running comes back marked as needing you, unless `needsYou` in settings.json switches that type off (`app.was-running`): what was in hand needs you at launch, and stays marked until your next prompt there, started or not.
         if (wasRunning && marks('app.was-running')) marked.push(key);
         if (wasRunning && atLaunch === 'start') resume.push(token);
       }

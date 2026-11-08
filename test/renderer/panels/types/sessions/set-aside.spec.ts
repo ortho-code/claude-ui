@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { session, settingsFileWith } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
-import { switchedOff } from '../../../support/needsyou';
+import { needsYouFile, switchedOff } from '../../../support/needsyou';
 import { row, switcherRollUp, tab, tabLabels, toastButton } from '../../../support/window';
 
 // A session set aside carries a bookmark on its row and its tab by one rule, until a prompt there, Clear set aside, a finish or its day coming takes it off (decided 2026-10-29).
@@ -288,7 +288,7 @@ test('a day that came while the app was closed makes the session need you at lau
 test('with the reminder switched off, a day that came takes the bookmark off and marks nothing', async ({ app, page }) => {
   await page.clock.setFixedTime(THURSDAY);
   const due = new Date(2026, 9, 28, 9, 0).getTime();
-  await app.boot({ ...fixture, setAside: { [one.id]: { due, at: 1 } }, needsYouTypes: switchedOff('app.reminder') });
+  await app.boot({ ...fixture, setAside: { [one.id]: { due, at: 1 } }, settings: needsYouFile(switchedOff('app.reminder')) });
   for (const mark of marks(page)) await expect(mark).toBeHidden();
   await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
   expect(await app.calls('setAsideCameDue')).toEqual([[expect.any(Number), false]]);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_LOOKS, DEFAULT_STRENGTH, PALETTE, expandedStrength, lookIds, looksProblem, resolvedLooks, strengthProblem, type Look } from '../../../src/shared/looks';
-import { withOverrides } from '../../../src/shared/needsyou';
+import { withChanges } from '../../../src/shared/needsyou';
 import { bundledNeedsYou } from '../../renderer/support/needsyou';
 
 const registry = bundledNeedsYou();
@@ -28,7 +28,7 @@ describe('expandedStrength', () => {
   });
 
   it('takes a category added later, or moved in Now, at needs-you, so a list written before it still places it', () => {
-    const moved = withOverrides(registry, [{ name: 'finish-up.json', json: { id: 'finish-up', order: 15 } }]).registry;
+    const moved = withChanges(registry, { 'finish-up': { order: 15 } }).registry;
     expect(expandedStrength(DEFAULT_STRENGTH, moved)).toEqual(ordered('finish-up', 'back-to-work', 'ready-to-merge', 'look-again', 'reminders', 'needs-you'));
   });
 });
@@ -49,7 +49,7 @@ describe('strengthProblem', () => {
 
   it('passes any other name without a registry, as for a save, and a category switched off with one', () => {
     expect(strengthProblem(['merged', ...DEFAULT_STRENGTH], null)).toBeNull();
-    const off = withOverrides(registry, [{ name: 'finish-up.json', json: { id: 'finish-up', enabled: false } }]).registry;
+    const off = withChanges(registry, { 'finish-up': { enabled: false } }).registry;
     expect(strengthProblem(['finish-up', ...DEFAULT_STRENGTH], off)).toBeNull();
   });
 });

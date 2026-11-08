@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { firesFor, needsYouRegistry, typeIsOn, withOverrides } from '../../../src/shared/needsyou';
+import { firesFor, needsYouRegistry, typeIsOn, withChanges } from '../../../src/shared/needsyou';
 
 const category = (id: string, order: number, more: object = {}) => ({ name: `${id}.jsonc`, json: { kind: 'category', id, label: id, order, ...more } });
 const type = (id: string, cat: string, more: object = {}) => ({ name: `${id}.jsonc`, json: { kind: 'type', id, label: id, category: cat, ...more } });
@@ -79,15 +79,15 @@ describe('the needs-you categories and types, checked', () => {
   });
 });
 
-describe('the needs-you categories and types with your files applied', () => {
+describe('the needs-you categories and types with needsYou applied', () => {
   const registry = needsYouRegistry([category('early', 10), category('late', 20), type('t.one', 'early'), type('t.two', 'late')]).registry;
 
   it('switches a type or a category off, changes a label, moves a type, and reorders the categories', () => {
-    const { registry: read, problems } = withOverrides(registry, [
-      { name: 'one.json', json: { id: 't.one', enabled: false, label: 'One' } },
-      { name: 'two.json', json: { id: 't.two', category: 'early' } },
-      { name: 'late.json', json: { id: 'late', order: 5 } },
-    ]);
+    const { registry: read, problems } = withChanges(registry, {
+      't.one': { enabled: false, label: 'One' },
+      't.two': { category: 'early' },
+      late: { order: 5 },
+    });
     expect(problems).toEqual([]);
     expect(read.categories.map((c) => c.id)).toEqual(['late', 'early']);
     expect(read.types).toEqual([
@@ -96,33 +96,41 @@ describe('the needs-you categories and types with your files applied', () => {
     ]);
   });
 
-  it('changes the roles a PR’s type fires for, and names a file giving roles to a type that is no PR’s', () => {
+  it('changes the roles a PR’s type fires for, and names an entry giving roles to a type that is no PR’s', () => {
     const prs = needsYouRegistry([category('early', 10), type('pr.conflict', 'early', { roles: ['own'] }), type('t.one', 'early')]).registry;
-    const { registry: read, problems } = withOverrides(prs, [
-      { name: 'conflict.json', json: { id: 'pr.conflict', roles: ['own', 'reviewing'] } },
-      { name: 'one.json', json: { id: 't.one', roles: ['own'] } },
-    ]);
-    expect(problems).toEqual(['one.json: "roles" belongs only to a PR’s type']);
+    const { registry: read, problems } = withChanges(prs, {
+      'pr.conflict': { roles: ['own', 'reviewing'] },
+      't.one': { roles: ['own'] },
+    });
+    expect(problems).toEqual(['"t.one": "roles" belongs only to a PR’s type']);
     expect(read.types.map(({ id, roles }) => [id, roles])).toEqual([
       ['pr.conflict', ['own', 'reviewing']],
       ['t.one', null],
     ]);
   });
 
-  it('names a file that moves a type to no category, or changes what a kind does not have, and leaves it unused', () => {
-    const { registry: read, problems } = withOverrides(registry, [
-      { name: 'nowhere.json', json: { id: 't.one', category: 'nowhere' } },
-      { name: 'order.json', json: { id: 't.two', order: 1 } },
-      { name: 'empty.json', json: { id: 'early', label: '' } },
+  it('names an entry that moves a type to no category, changes what a kind does not have, holds no object or names no id the app ships, and leaves it unused', () => {
+    const { registry: read, problems } = withChanges(registry, {
+      't.one': { category: 'nowhere' },
+      't.two': { order: 1 },
+      early: { label: '' },
+      late: true,
+      't.three': { enabled: false },
+    });
+    expect(problems).toEqual([
+      '"t.one": "category" is "nowhere", which no category has as its id',
+      '"t.two": a type has no "order" to change',
+      '"early": "label" is not text',
+      '"late": holds no object',
+      '"t.three": nothing the app ships has the id "t.three"',
     ]);
-    expect(problems).toEqual(['nowhere.json: "category" is "nowhere", which no category has as its id', 'order.json: a type has no "order" to change', 'empty.json: "label" is not text']);
     expect(read).toEqual(registry);
   });
 
   it('says a type marks while it and its category are on, and a type it does not have marks', () => {
     expect(typeIsOn(registry, 't.one')).toBe(true);
-    expect(typeIsOn(withOverrides(registry, [{ name: 'x.json', json: { id: 't.one', enabled: false } }]).registry, 't.one')).toBe(false);
-    expect(typeIsOn(withOverrides(registry, [{ name: 'x.json', json: { id: 'early', enabled: false } }]).registry, 't.one')).toBe(false);
+    expect(typeIsOn(withChanges(registry, { 't.one': { enabled: false } }).registry, 't.one')).toBe(false);
+    expect(typeIsOn(withChanges(registry, { early: { enabled: false } }).registry, 't.one')).toBe(false);
     expect(typeIsOn(registry, 'unknown')).toBe(true);
   });
 

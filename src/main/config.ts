@@ -2,7 +2,7 @@ import { ipcMain, type BrowserWindow } from 'electron';
 import { promises as fs, constants, mkdirSync, watch, type FSWatcher } from 'node:fs';
 import { homedir } from 'node:os';
 import * as path from 'node:path';
-import { configRoot, layoutsDir, needsYouDir, scriptsDir, typesDir, defaultLayoutFile, defaultLocalLayoutFile } from './paths';
+import { configRoot, layoutsDir, scriptsDir, typesDir, defaultLayoutFile, defaultLocalLayoutFile } from './paths';
 import type { LayoutReport, PathBase, PathCheck, PathKind, TypeReport } from '../shared/panels';
 import { pathProblem, resolvePathIn, type Found } from '../shared/pathcheck';
 import { ownWrites } from './appfiles';
@@ -157,7 +157,7 @@ export function onConfigChange(listener: ConfigChangeListener): void {
 /**
  * Create the folder, answer reads, and push a fresh report whenever anything in it changes.
  *
- * Directories are watched one by one rather than the folder recursively (recursive watch is unreliable on Linux/WSL, as watcher.ts found): the folder itself, `layouts/` for the file, `scripts/` so a script appearing or gaining its executable bit (an attribute change, MEASURED to reach a directory watch) clears its panel's error without a restart, `panel-types/` with each type's own folder, for its manifest and the script it runs, and `needs-you/`, for your changes to the needs-you types (main/needsyou.ts) — the report that follows is what tells every panel to check again.
+ * Directories are watched one by one rather than the folder recursively (recursive watch is unreliable on Linux/WSL, as watcher.ts found): the folder itself, `layouts/` for the file, `scripts/` so a script appearing or gaining its executable bit (an attribute change, MEASURED to reach a directory watch) clears its panel's error without a restart, `panel-types/` with each type's own folder, for its manifest and the script it runs — the report that follows is what tells every panel to check again.
  * Any event on the folder itself re-opens the ones below it, and any event on `panel-types/` re-opens the type folders, because a directory that was deleted and recreated leaves its old watcher pointing at nothing and a folder added there has none yet.
  * Events are gathered over the debounce with the paths they name, and when every one was the app's own write to one of its files, as it left it, nothing is pushed (`ownWrites`): the window already has what the app wrote, and a push would have every panel check again for nothing.
  * Answers a way to stop watching, for the tests.
@@ -221,8 +221,6 @@ export function registerConfig(getWindow: () => BrowserWindow | null): () => voi
   const watchBelow = (): void => {
     watchDir(layoutsDir, notify);
     watchDir(scriptsDir, notify);
-    // Not made by the app, so often not there: the folder's own event re-opens it once you make it.
-    watchDir(needsYouDir, notify);
     watchDir(typesDir, (file) => {
       watchTypeFolders();
       notify(file);

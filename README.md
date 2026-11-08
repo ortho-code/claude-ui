@@ -27,7 +27,7 @@ Done:
   Its kebab stops a running session, and closes it or marks it finished, each in one press, also while claude is on its way out, where one pressed changes what its going does; not while it starts.
   A tab you close or a session you mark finished can be put back from the message it leaves, with Undo; a close's message also offers Finished and Set aside… for the sessions it closed, each with an Undo back to before the close.
   A session marked as needing you has a mauve dot on its row and its tab, saying why on hover, such as that it was running when the app quit, also when the app ended without quitting; the mark stays through a resume and a restart until you act on the session, such as typing a prompt there, closing its tab, leaving claude yourself, a `/clear`, marking it finished, or choosing Clear needs you in its kebab, and a click on the dot only marks it seen.
-  Each reason is of a type in a category, such as a PR merged under Finish up, and a file of yours switches a type or a whole category off; see [What needs you](#what-needs-you).
+  Each reason is of a type in a category, such as a PR merged under Finish up, and `needsYou` in `settings.json` switches a type or a whole category off; see [What needs you](#what-needs-you).
   Which state a dot shows when several hold, and how each status, category and type is drawn, are yours to set in `settings.json` (`strength` and `looks`); the dot's tooltip lists every state that holds.
   Set aside… in its kebab asks when to come back, from your own choices, a day and time you pick or whenever, and where it stands, which is the session's note, shown as a bookmark on its row and its tab, and a filter finds them; at that day and time it needs you, within the hour if the machine slept through it, and a needs-you mark from before it was set aside stays dimmed while it stays set aside.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
@@ -310,7 +310,7 @@ For example:
 }
 ```
 
-There are ten settings: `launchFlags`, the default flags for every session the app starts, `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed, `prStatus`, whether the app asks GitHub what it says of the PRs your sessions link, `leaveButton`, what the button beside a session's menu on its tab does, `setAside`, the choices for setting a session aside, `setAsideTime`, the time of day a choice without one comes back at, `locale`, the language the app formats times and dates in, `strength`, which state a session's dot shows when several hold, `looks`, how each state is drawn, and `approvals`, how many approvals a repository's PRs need.
+There are eleven settings: `launchFlags`, the default flags for every session the app starts, `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed, `prStatus`, whether the app asks GitHub what it says of the PRs your sessions link, `leaveButton`, what the button beside a session's menu on its tab does, `setAside`, the choices for setting a session aside, `setAsideTime`, the time of day a choice without one comes back at, `locale`, the language the app formats times and dates in, `strength`, which state a session's dot shows when several hold, `looks`, how each state is drawn, `needsYou`, what you change of the reasons that mark a session as needing you ([What needs you](#what-needs-you)), and `approvals`, how many approvals a repository's PRs need.
 `runningSessionsAtLaunch` is `"cold"` until you choose otherwise, which brings their tabs back without starting them, and `"start"` starts them again; either way they are marked as needing you, unless you switch that off (below).
 `"mark"`, `"pause"` and `"leave"`, which a file an older version wrote may hold, read as `"cold"`.
 `prStatus` is `true` until you choose otherwise, which colours each session's PR mark by what GitHub says, asked with `gh` on your own login, and lets a session be marked as needing you when one of its PRs changes, such as merged or changes requested; `false` asks nothing, the marks keep one colour and no PR marks a session, and turning it on again starts from the PRs as they are then.
@@ -333,7 +333,7 @@ Your turn's types have no look of their own, since they are `"waiting"` and `"id
 A PR counts as approved when GitHub says so and, in a repository named here, once that many reviewers with write access approve: only then is its mark green and is a session marked for it, and a session's options show its count, such as "1 of 2 approvals".
 A repository it does not name counts as approved when GitHub says so; Settings has no field for it yet, and names a mistake in it in its Version control section, where the setting is not used.
 A save writes the settings you changed, and puts a value Settings can use in place of one in the file it cannot, as edits of the file's text, so your comments stay; it is refused while the file does not parse or does not hold an object.
-A change to the file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus`, `leaveButton`, `strength`, `looks`, `approvals`, `setAside` or `setAsideTime` counts at once, the last two for what you set aside from then on, and a change to `locale` too, except in the time fields, which follow it from the next launch.
+A change to the file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus`, `leaveButton`, `strength`, `looks`, `needsYou`, `approvals`, `setAside` or `setAsideTime` counts at once, the last two for what you set aside from then on, and a change to `locale` too, except in the time fields, which follow it from the next launch.
 A `settings.json` you were sent sets flags on every session you start, so read it before you use it.
 A mistake in the file is named in Settings: a value that is not used under its setting, whose section is marked in the list of sections, and what concerns the file rather than one value, such as a setting named twice or a key the app does not have, under the title; a file that does not parse keeps the settings it last read until it does.
 
@@ -350,20 +350,21 @@ Each reason a session is marked as needing you for is of a type, and each type b
 | `reminders` | `app.was-running` (it was running when the app closed), `app.reminder` (the moment you set it aside until came) |
 | `finish-up` | `pr.merged`, `pr.closed` |
 
-A `.json` file of yours in `needs-you/` in the config folder changes one by its id, such as `needs-you/merged.json`:
+`needsYou` in `settings.json` changes one by its id, `{}` until you choose otherwise:
 
 ```jsonc
-// A merge doesn't need me here: follow-ups come with their own PRs.
-{ "id": "pr.merged", "enabled": false }
+"needsYou": {
+  // A merge doesn't need me here: follow-ups come with their own PRs.
+  "pr.merged": { "enabled": false }
+}
 ```
 
 `"enabled": false` switches a type off, or a whole category with all its types, and the marks it already made go; a type can also take another `label` or `category`, and a category another `label` or `order`, which take effect once something shows them.
 A PR's type fires only for the `roles` it lists, your role on the PR: `"own"` for yours, `"reviewing"` for someone else's you reviewed or are asked to review, and `"other"` for someone else's with neither.
 Failing checks, a conflict, changes requested and approved fire for `["own"]`, since on someone else's PR they are its author's to act on; new commits since your review and your review asked fire for `["reviewing"]`; reopened, merged and closed fire for all three.
 New commits since your review mark once per review: a second push before you review again marks nothing more.
-To be marked when a PR you review is ready to merge, a file such as `needs-you/approved.json` holding `{ "id": "pr.approved", "roles": ["own", "reviewing"] }` adds that role.
-Every field you leave out stays as the app ships it, so a later version's change to it still reaches you; a file with a mistake is named in a message and not used, and the others are, while one that stops parsing is named and stays in force as it last read until it parses again.
-Only names ending in `.json` are read.
+To be marked when a PR you review is ready to merge, `"pr.approved": { "roles": ["own", "reviewing"] }` in `needsYou` adds that role.
+Every field you leave out stays as the app ships it, so a later version's change to it still reaches you; a `needsYou` with a mistake in any entry is not used at all, every category and type then as the app ships it, and Settings names the mistake in its Needs you section.
 Claude asking and claude finishing a turn are shown by its dot whatever these say: their types are for the Now view to come.
 
 ## Install a build

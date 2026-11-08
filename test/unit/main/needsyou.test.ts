@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
@@ -12,7 +12,7 @@ vi.mock('../../../src/main/log', async (importOriginal) => ({
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
-import { readBundledNeedsYou, readNeedsYou } from '../../../src/main/needsyou';
+import { readBundledNeedsYou } from '../../../src/main/needsyou';
 
 beforeEach(() => {
   logged.length = 0;
@@ -78,46 +78,5 @@ describe('the bundled needs-you categories and types', () => {
     expect(await readBundledNeedsYou(path.join(tmpdir(), 'claude-ui-no-such-folder'))).toEqual({ categories: [], types: [] });
     expect(logged).toHaveLength(1);
     expect(logged[0]).toMatch(/^error needs-you could not list the bundled categories and types: ENOENT/);
-  });
-});
-
-describe('your changes to them, in needs-you/', () => {
-  it('apply each .json file by id, and with no folder there change nothing and say nothing', async () => {
-    const bundled = await readBundledNeedsYou();
-    expect(await readNeedsYou(bundled, path.join(tmpdir(), 'claude-ui-no-such-folder'))).toEqual({ registry: bundled, problems: [] });
-    const dir = mkdtempSync(path.join(tmpdir(), 'claude-ui-needs-you-yours-'));
-    writeFileSync(path.join(dir, 'approved.json'), '// Approvals are noise here.\n{ "id": "pr.approved", "enabled": false }');
-    writeFileSync(path.join(dir, 'notes.txt'), '{ "id": "pr.merged", "enabled": false }');
-    const read = await readNeedsYou(bundled, dir);
-    expect(read.problems).toEqual([]);
-    expect(read.registry.types.filter((t) => !t.enabled).map((t) => t.id)).toEqual(['pr.approved']);
-  });
-
-  it('name a file of yours that does not parse or has a mistake, with the folder, and use the others', async () => {
-    const bundled = await readBundledNeedsYou();
-    const dir = mkdtempSync(path.join(tmpdir(), 'claude-ui-needs-you-yours-'));
-    writeFileSync(path.join(dir, 'a.json'), '{ "id": ');
-    writeFileSync(path.join(dir, 'b.json'), '{ "id": "app.nope", "enabled": false }');
-    writeFileSync(path.join(dir, 'c.json'), '{ "id": "app.reminder", "enabled": false }');
-    const read = await readNeedsYou(bundled, dir);
-    expect(read.problems).toEqual(['needs-you/a.json: expected a value at the end of the file', 'needs-you/b.json: nothing the app ships has the id "app.nope"']);
-    expect(read.registry.types.filter((t) => !t.enabled).map((t) => t.id)).toEqual(['app.reminder']);
-    expect(logged.filter((line) => line.startsWith('warn needs-you'))).toHaveLength(2);
-  });
-
-  // As the layout and the settings are (docs/principles.md § Failures show).
-  it('keep a file that stops parsing in force as it last read, naming it, and drop a file that is gone', async () => {
-    const bundled = await readBundledNeedsYou();
-    const dir = mkdtempSync(path.join(tmpdir(), 'claude-ui-needs-you-yours-'));
-    const file = path.join(dir, 'reminder.json');
-    writeFileSync(file, '{ "id": "app.reminder", "enabled": false }');
-    expect((await readNeedsYou(bundled, dir)).problems).toEqual([]);
-    writeFileSync(file, '{ "id": "app.reminder", "enabled": fals');
-    const broken = await readNeedsYou(bundled, dir);
-    expect(broken.problems).toHaveLength(1);
-    expect(broken.problems[0]).toMatch(/^needs-you\/reminder\.json: .*; it is used as it last read$/);
-    expect(broken.registry.types.find((t) => t.id === 'app.reminder')?.enabled).toBe(false);
-    rmSync(file);
-    expect((await readNeedsYou(bundled, dir)).registry).toEqual(bundled);
   });
 });

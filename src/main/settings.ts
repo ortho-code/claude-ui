@@ -8,7 +8,7 @@ import { errorText, log } from './log';
 import { getMoved, getSettings as getMetaSettings, markMoved } from './meta';
 import { settingsFile, settingsLocalFile } from './paths';
 import { defaultSettings } from '../shared/defaults';
-import type { NeedsYouRegistry } from '../shared/needsyou';
+import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../shared/needsyou';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsInForce, settingsView, valuesOf, type SettingKey, type SettingsChange, type SettingsFileRead, type SettingsSaved, type SettingsView } from '../shared/settings';
 import type { Settings } from '../shared/types';
 
@@ -54,14 +54,14 @@ let moved: Promise<void> = Promise.resolve();
 /** How many reads of the file have started this run, which numbers each (`SettingsView.read`). */
 let reads = 0;
 
-/** The needs-you categories as they stand, which the strength order's are checked against; none until the app registers this module. */
-let registryNow: () => Promise<NeedsYouRegistry | null> = () => Promise.resolve(null);
+/** The needs-you categories and types the app ships, which `needsYou` is applied to and checked against; none until the app registers this module. */
+let bundledNow: () => Promise<NeedsYouRegistry | null> = () => Promise.resolve(null);
 
 /** The settings as they stand, numbered as of when the read started, before the file is read. */
 export async function readSettings(): Promise<SettingsView> {
   await moved;
   const read = ++reads;
-  const view = settingsView(await readSettingsFile(settingsFile), read, await registryNow());
+  const view = settingsView(await readSettingsFile(settingsFile), read, await bundledNow());
   noteSettings(view);
   return view;
 }
@@ -106,14 +106,15 @@ function holds(file: SettingsFileRead, key: string): boolean {
 /** What each setting is, as the line above it in a new `settings.json` says it. */
 const STARTER_NOTES: Record<SettingKey, string> = {
   launchFlags: 'Flags added to every session the app starts, as you would type them',
-  runningSessionsAtLaunch: 'What a launch does with the sessions that were running when the app closed: "cold" brings their tabs back without starting them, "start" starts them again; either way they are marked as needing you, unless a file in needs-you/ switches "app.was-running" off',
-  prStatus: 'Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks and lets the PR types in needs-you/ mark a session as needing you when one changes, such as merged or changes requested; turned on, it starts from the PRs as they are then',
+  runningSessionsAtLaunch: 'What a launch does with the sessions that were running when the app closed: "cold" brings their tabs back without starting them, "start" starts them again; either way they are marked as needing you, unless "needsYou" below switches "app.was-running" off',
+  prStatus: 'Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks and lets the PR types mark a session as needing you when one changes, such as merged or changes requested; turned on, it starts from the PRs as they are then',
   leaveButton: 'What a tab\'s button does: "stop-close" stops a running session and then closes the tab, "stop-finish" stops it and then marks its session finished, "close" and "finish" do so in one press, and "none" leaves it to the tab\'s menu',
   setAside: 'The choices for setting a session aside, offered in the order they come with "whenever" last: "whenever", "in 30m", "in 2h", "in 3d", "in 1w", "tomorrow" or "next monday", a day with a time such as "09:00" or else the time below',
   setAsideTime: 'The time of day, as "HH:MM" in 24 hours, a choice without one comes back at',
   locale: 'The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',
   strength: 'Which state a session\'s dot shows when several hold, the first that holds: every status once, "needs-you" for every needs-you category not named, and any category, such as "back-to-work", named on its own where it should rank',
   looks: 'How a status, "needs-you", a needs-you category or type is drawn, by its id, such as "finish-up": { "colour": "green" }: "colour" a name such as "peach" or "#rrggbb", "mark" "dot", "ring", "spinner" or an icon\'s name, "core" a colour inside a spinner, "pulse" true or false, and "looksLike" another id whose look it takes for the rest',
+  needsYou: 'What you change of the needs-you categories and types the app ships, by id, such as "pr.merged": { "enabled": false }: a category its "label", "order" and "enabled", a type its "label", "category" and "enabled", and a PR\'s type its "roles", of "own", "reviewing" and "other"',
   approvals: 'How many approvals a PR needs before it counts as approved, by repository, such as "acme/app": 2; a repository not named counts as approved when GitHub says so',
 };
 
@@ -182,21 +183,34 @@ async function moveFromLocal(): Promise<void> {
 /** Where the settings are pushed to; none until the app registers this module. */
 let windowNow: () => BrowserWindow | null = () => null;
 
-/** Read the settings and push them to the window, as after a change that can change what they say: the file's, or the needs-you categories' its strength order is checked against. */
-export function tellSettings(): void {
+/** The needs-you categories and types in force the window was last given, as text, so they are told again only when a change changes them. */
+let toldNeedsYou: string | null = null;
+
+/** The needs-you categories and types in force in `view`, kept as the ones the window was given. */
+function needsYouOf(view: SettingsView): NeedsYouRegistry {
+  const registry = view.needsYouRegistry ?? NO_NEEDS_YOU_TYPES;
+  toldNeedsYou = JSON.stringify(registry);
+  return registry;
+}
+
+/** Read the settings and push them to the window after the file changed, and the needs-you categories and types in force too when `needsYou` changed them. */
+function tellSettings(): void {
   void readSettings().then((view) => {
     const win = windowNow();
-    if (win && !win.isDestroyed()) win.webContents.send('settings:changed', view);
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send('settings:changed', view);
+    if (JSON.stringify(view.needsYouRegistry ?? NO_NEEDS_YOU_TYPES) !== toldNeedsYou) win.webContents.send('needsYou:changed', needsYouOf(view));
   });
 }
 
 /**
- * Answer the window's reads and saves, make the moves, and push the settings whenever the file changes on disk other than by the app's own write.
- * `registry` gives the needs-you categories as they stand, for the strength order's check.
+ * Answer the window's reads and saves, and its ask for the needs-you categories and types in force; make the moves; and push the settings whenever the file changes on disk other than by the app's own write.
+ * `bundled` gives the needs-you categories and types the app ships, which `needsYou` changes.
  */
-export function registerSettings(getWindow: () => BrowserWindow | null, registry: () => Promise<NeedsYouRegistry>): void {
+export function registerSettings(getWindow: () => BrowserWindow | null, bundled: () => Promise<NeedsYouRegistry>): void {
   windowNow = getWindow;
-  registryNow = registry;
+  bundledNow = bundled;
+  ipcMain.handle('needsYou:types', async () => needsYouOf(await readSettings()));
   moved = startFile()
     .catch((error: unknown) => log('warn', 'settings', `${path.basename(settingsFile)} was not written with every setting at its default: ${errorText(error)}`))
     .then(moveFromMeta)

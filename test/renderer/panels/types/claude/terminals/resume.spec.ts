@@ -2,7 +2,7 @@ import type { RunningAtLaunch } from '../../../../../../src/shared/settings';
 import type { ClosedHow, TerminalLaunch } from '../../../../../../src/shared/types';
 import { type BridgeFixture, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { switchedOff } from '../../../../support/needsyou';
+import { needsYouFile, switchedOff } from '../../../../support/needsyou';
 import { tab } from '../../../../support/window';
 
 // At launch every open tab comes back, and the sessions that were running when the app closed come back as the setting says, cold by default or started again, and marked as needing you unless a file of yours switches that type off.
@@ -111,9 +111,9 @@ test('chosen to start, the sessions that were running start again, the one on sh
   expect(await sizeOf(2)).toEqual(shown);
 });
 
-// Whether they are marked is the type's, switched off by a file of yours under needs-you/ (decided 2026-11-06).
+// Whether they are marked is the type's, switched off in `needsYou` (decided 2026-11-06, kept in settings.json since 2026-11-08).
 test('with the type that marks them switched off, the sessions that were running come back cold with the other tabs, unmarked, and nothing starts', async ({ app, page }) => {
-  await app.boot({ ...fixture, needsYouTypes: switchedOff('app.was-running') });
+  await app.boot({ ...fixture, settings: needsYouFile(switchedOff('app.was-running')) });
   await expect(tab(page, one.title)).toHaveClass(/\bactive\b/);
   await expect.poll(() => app.calls('setOpenSessions')).toHaveLength(1);
   expect(await app.calls('startTerminal')).toEqual([]);

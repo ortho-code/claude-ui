@@ -61,7 +61,7 @@ export const test = base.extend<{ app: App }, { installScript: string }>({
 
     const app: App = {
       boot: async (overrides = {}) => {
-        await page.addInitScript((fixture) => (window.__claudeUiFixture = fixture), { ...defaultFixture(), needsYouTypes: { registry: bundledNeedsYou(), problems: [] }, ...overrides });
+        await page.addInitScript((fixture) => (window.__claudeUiFixture = fixture), { ...defaultFixture(), bundledNeedsYou: bundledNeedsYou(), ...overrides });
         await page.addInitScript({ content: installScript });
         await page.goto(`${ORIGIN}/index.html`);
       },
@@ -77,9 +77,15 @@ export const test = base.extend<{ app: App }, { installScript: string }>({
         expect(await app.emit('onSessionsChanged')).toBe(1);
       },
       settingsOnDisk: async (settings) => {
+        // As main tells of it: the settings, and the needs-you categories and types in force too when `needsYou` changed them.
         const told = await page.evaluate((files) => {
+          const test = window.__claudeUiTest;
+          const before = JSON.stringify(test.readSettings().needsYouRegistry);
           window.__claudeUiFixture.settings = files;
-          return window.__claudeUiTest.emit('onSettingsChanged', window.__claudeUiTest.readSettings());
+          const view = test.readSettings();
+          const toldSettings = test.emit('onSettingsChanged', view);
+          if (view.needsYouRegistry !== null && JSON.stringify(view.needsYouRegistry) !== before) test.emit('onNeedsYouTypes', view.needsYouRegistry);
+          return toldSettings;
         }, settings);
         expect(told).toBe(1);
       },

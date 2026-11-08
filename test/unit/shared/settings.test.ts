@@ -11,7 +11,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'], looks: {}, approvals: {} });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'], looks: {}, needsYou: {}, approvals: {} });
   });
 
   it("take the file's approvals by repository, none unless told otherwise, and none of an object with a mistake", () => {
@@ -211,5 +211,43 @@ describe('the looks', () => {
     expect(settingsView(holding({ looks: { idle: { colour: 'orange' } } })).looks.problem).toBe(
       '"idle": "colour" has to be one of "rosewater", "flamingo", "pink", "mauve", "red", "maroon", "peach", "yellow", "green", "teal", "sky", "sapphire", "blue", "lavender", "muted", or "#rrggbb".',
     );
+  });
+});
+
+describe('needsYou', () => {
+  const bundled = bundledNeedsYou();
+  const typeOf = (view: ReturnType<typeof settingsView>, id: string) => view.needsYouRegistry?.types.find((type) => type.id === id);
+
+  it('is nothing changed without the file, the categories and types in force the ones the app ships', () => {
+    const view = settingsView(missing, 0, bundled);
+    expect(view.needsYou).toEqual({ value: {}, problem: null });
+    expect(view.needsYouRegistry).toEqual(bundled);
+  });
+
+  it('switches off and changes what the app ships by id, the rest as it ships', () => {
+    const view = settingsView(holding({ needsYou: { 'pr.merged': { enabled: false }, 'pr.approved': { roles: ['own', 'reviewing'] } } }), 0, bundled);
+    expect(view.needsYou.problem).toBeNull();
+    expect(typeOf(view, 'pr.merged')?.enabled).toBe(false);
+    expect(typeOf(view, 'pr.approved')?.roles).toEqual(['own', 'reviewing']);
+    expect(typeOf(view, 'pr.closed')).toEqual(bundled.types.find((type) => type.id === 'pr.closed'));
+  });
+
+  it('is not used at all for one entry with a mistake, every category and type as the app ships it, saying why', () => {
+    const view = settingsView(holding({ needsYou: { 'pr.merged': { enabled: false }, 'pr.merge': { enabled: false } } }), 0, bundled);
+    expect(view.needsYou).toEqual({ value: {}, problem: '"pr.merge": nothing the app ships has the id "pr.merge"' });
+    expect(view.needsYouRegistry).toEqual(bundled);
+    expect(settingsInForce(view).needsYou).toEqual({});
+  });
+
+  it('has to be an object of objects, checked so without what the app ships, as for a save', () => {
+    expect(settingProblem('needsYou', { 'pr.merged': false })).toBe('It has to be an object of ids, each an object of the fields it changes, such as { "pr.merged": { "enabled": false } }.');
+    expect(settingProblem('needsYou', { 'pr.nothing': { enabled: false } })).toBeNull();
+    expect(settingsView(holding({ needsYou: { 'pr.nothing': { enabled: false } } })).needsYouRegistry).toBeNull();
+  });
+
+  it('is what the strength order and the looks are checked against: a category it moves or switches off is still one', () => {
+    const view = settingsView(holding({ needsYou: { 'finish-up': { enabled: false } }, strength: ['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'idle', 'closed'] }), 0, bundled);
+    expect(view.strength.problem).toBeNull();
+    expect(view.needsYouRegistry?.categories.find((category) => category.id === 'finish-up')?.enabled).toBe(false);
   });
 });

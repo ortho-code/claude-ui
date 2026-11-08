@@ -145,24 +145,22 @@ export function needsYouRegistry(files: readonly NeedsYouFile[]): { registry: Ne
   return { registry: { categories, types }, problems };
 }
 
-/** The categories and types as they stand once your files are applied, and what is wrong with your files, each named by file. */
-export interface NeedsYouRead {
-  registry: NeedsYouRegistry;
-  problems: string[];
-}
+/** What `needsYou` in settings.json changes on one category or type the app ships, by its id: a category its `label`, `order` and `enabled`, a type its `label`, `category` and `enabled`, and a PR's type its `roles`. */
+export type NeedsYouChange = Partial<Pick<NeedsYouCategory, 'label' | 'order' | 'enabled'> & Pick<NeedsYouType, 'category'> & { roles: PrRole[] }>;
 
 /**
- * The bundled categories and types with your files under `needs-you/` in the config folder applied, by id, field by field (`overriddenById`).
- * A category may change its `label`, `order` and `enabled`; a type its `label`, `category`, naming a category there is, and `enabled`, and a PR's type its `roles`.
- * Categories come in their order again afterwards, so a changed `order` moves one.
+ * The bundled categories and types with `changes`, `needsYou` in settings.json, applied by id, field by field (`overriddenById`), and what is wrong with them, each named by its id.
+ * A type may only name a category there is; categories come in their order again afterwards, so a changed `order` moves one.
  */
-export function withOverrides(registry: NeedsYouRegistry, files: readonly NeedsYouFile[]): NeedsYouRead {
+export function withChanges(registry: NeedsYouRegistry, changes: Readonly<Record<string, unknown>>): { registry: NeedsYouRegistry; problems: string[] } {
+  // Each entry as an override named by its id; one that holds no object is left as it is, for the rule to name.
+  const overrides = Object.entries(changes).map(([id, fields]) => ({ name: JSON.stringify(id), json: typeof fields === 'object' && fields !== null && !Array.isArray(fields) ? { ...fields, id } : fields }));
   const categoryIds = new Set(registry.categories.map((category) => category.id));
   const label: FieldCheck = (value) => (isText(value) ? null : 'is not text');
   const enabled: FieldCheck = (value) => (typeof value === 'boolean' ? null : 'is not true or false');
   const { items, problems } = overriddenById(
     [...registry.categories.map((category) => ({ ...category, kind: 'category' as const })), ...registry.types.map((type) => ({ ...type, kind: 'type' as const }))],
-    files,
+    overrides,
     {
       category: { label, enabled, order: (value) => (typeof value === 'number' && Number.isFinite(value) ? null : 'is not a number') },
       type: { label, enabled, category: (value) => (typeof value === 'string' && categoryIds.has(value) ? null : `is ${JSON.stringify(value)}, which no category has as its id`), roles: rolesProblem },

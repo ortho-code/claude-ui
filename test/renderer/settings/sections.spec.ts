@@ -5,7 +5,7 @@ import { openSettings } from '../support/settings';
 
 // Settings in sections (decided 2026-11-08): a list of sections on the left, the one on show beside it, one Save for them all.
 const file = (json: unknown): SettingsFileRead => settingsFileWith('settings.json', json);
-const SECTIONS = ['General', 'Sessions', 'Appearance', 'Version control', 'Logs'];
+const SECTIONS = ['General', 'Sessions', 'Needs you', 'Appearance', 'Version control', 'Logs'];
 
 test('each section shows its own settings and hides the others, and the arrow keys move along the list', async ({ app, page }) => {
   await app.boot();
@@ -20,8 +20,8 @@ test('each section shows its own settings and hides the others, and the arrow ke
   await expect(dialog.getByLabel('Default launch flags')).toBeHidden();
 
   await page.keyboard.press('ArrowDown');
-  await expect(dialog.getByRole('tab', { name: 'Appearance' })).toBeFocused();
-  await expect(dialog.getByRole('tabpanel', { name: 'Appearance' })).toBeVisible();
+  await expect(dialog.getByRole('tab', { name: 'Needs you' })).toBeFocused();
+  await expect(dialog.getByRole('tabpanel', { name: 'Needs you' })).toBeVisible();
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
   await expect(dialog.getByRole('tabpanel', { name: 'General' })).toBeVisible();
@@ -109,5 +109,7 @@ test("the parts set only by hand open the config folder, by its name", async ({ 
   await dialog.getByRole('tabpanel', { name: 'Version control' }).getByRole('button', { name: 'Open config folder' }).click();
   await dialog.getByRole('tab', { name: 'Appearance' }).click();
   await dialog.getByRole('tabpanel', { name: 'Appearance' }).getByRole('button', { name: 'Open config folder' }).click();
-  expect(await app.calls('openFolder')).toEqual([['config'], ['config']]);
+  await dialog.getByRole('tab', { name: 'Needs you' }).click();
+  await dialog.getByRole('tabpanel', { name: 'Needs you' }).getByRole('button', { name: 'Open config folder' }).click();
+  expect(await app.calls('openFolder')).toEqual([['config'], ['config'], ['config']]);
 });

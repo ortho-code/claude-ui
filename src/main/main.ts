@@ -10,11 +10,11 @@ import { findTranscript, listSessions, trashSessions, worktreeExists } from './s
 import { readHistory } from './transcript';
 import { liveTerminals, registerTerminalIpc, shellFolders, terminateAll } from './terminal';
 import { KILL_GRACE_MS, untilGone } from './shell';
-import { onConfigChange, registerConfig } from './config';
+import { registerConfig } from './config';
 import { registerFolders } from './folders';
 import { liveRuns, registerPanelsIpc, stopAllPanels } from './panels';
 import { forgetSessions, keepShellFolders, registerPanelData } from './paneldata';
-import { logsDir, needsYouDir } from './paths';
+import { logsDir } from './paths';
 import { startLog, closeLog, errorText, lastClosed, log } from './log';
 import { headerLines, logGpuStatus, logProcessFailures, registerRendererLog, watchWindow } from './diagnostics';
 import { localTimestamp } from './stamp';
@@ -73,8 +73,8 @@ import {
   getUiState,
   setUiState,
 } from './meta';
-import { readBundledNeedsYou, readNeedsYou } from './needsyou';
-import { registerSettings, settingsNow, tellSettings } from './settings';
+import { readBundledNeedsYou } from './needsyou';
+import { registerSettings, settingsNow } from './settings';
 import { rendererArguments } from './rendererargs';
 import { registerLayoutState } from './layoutstate';
 import { readProcVersion, runsOnWsl } from './platform';
@@ -507,19 +507,8 @@ ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: strin
 });
 ipcMain.handle('meta:getRunningSessions', () => getRunningSessions());
 ipcMain.handle('meta:getNeedsYou', () => getNeedsYou());
-// The bundled ones read once, as the app starts, since they change only with the app; yours under `needs-you/` again whenever that folder changes, the window told.
+// Read once, as the app starts, since they change only with the app; what you change of them is `needsYou` in settings.json, applied by the settings' read.
 const bundledNeedsYou = readBundledNeedsYou();
-let needsYouTypes = bundledNeedsYou.then((bundled) => readNeedsYou(bundled));
-ipcMain.handle('needsYou:types', () => needsYouTypes);
-onConfigChange((paths) => {
-  if (paths !== null && ![...paths].some((file) => file === needsYouDir || file.startsWith(`${needsYouDir}${path.sep}`))) return;
-  needsYouTypes = bundledNeedsYou.then((bundled) => readNeedsYou(bundled));
-  void needsYouTypes.then((read) => {
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('needsYou:changed', read);
-    // A category added or taken away can make the strength order's names right or wrong.
-    tellSettings();
-  });
-});
 ipcMain.on('meta:settleNeedsYouTypes', (_event, types: string[]) => {
   void settleNeedsYouTypes(types);
 });
@@ -680,7 +669,7 @@ void app.whenReady().then(async () => {
   registerLayoutState();
   registerSettings(
     () => mainWindow,
-    () => needsYouTypes.then((read) => read.registry),
+    () => bundledNeedsYou,
   );
   // A session exists while a tab holds it (one that has sent nothing yet has no transcript), or while its transcript is on disk: looked at, not taken from the listing's cache, which can still name a file Claude Code's retention has since removed.
   registerPanelData(

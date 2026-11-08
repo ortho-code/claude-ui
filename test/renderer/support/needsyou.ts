@@ -1,7 +1,9 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { readJsonc } from '../../../src/main/jsonc';
-import { needsYouRegistry, withOverrides, type NeedsYouRead, type NeedsYouRegistry } from '../../../src/shared/needsyou';
+import { needsYouRegistry, type NeedsYouChange, type NeedsYouRegistry } from '../../../src/shared/needsyou';
+import type { SettingsFileRead } from '../../../src/shared/settings';
+import { settingsFileWith } from './fixture';
 
 /**
  * The needs-you categories and types the app ships, read from `bundled/needs-you/` as main reads them, by the same check (`needsYouRegistry`), so the window's checks see the real ones rather than a copy kept in step by hand.
@@ -22,7 +24,10 @@ export function bundledNeedsYou(): NeedsYouRegistry {
   return registry;
 }
 
-/** What main answers with a file of yours switching each of `ids` off, a type or a category, by the same rule (`withOverrides`). */
-export function switchedOff(...ids: string[]): NeedsYouRead {
-  return withOverrides(bundledNeedsYou(), ids.map((id) => ({ name: `${id}.json`, json: { id, enabled: false } })));
+/** `needsYou` switching each of `ids` off, a type or a category, to put in a settings.json. */
+export function switchedOff(...ids: string[]): Record<string, NeedsYouChange> {
+  return Object.fromEntries(ids.map((id) => [id, { enabled: false }]));
 }
+
+/** A settings.json holding only `needsYou`. */
+export const needsYouFile = (needsYou: Record<string, NeedsYouChange>): SettingsFileRead => settingsFileWith('settings.json', { needsYou });

@@ -27,7 +27,7 @@ const LEAVE_BUTTON_LABELS: Record<LeaveButton, string> = {
   none: 'No button, only the menu',
 };
 
-type SectionId = 'general' | 'sessions' | 'appearance' | 'version-control' | 'logs';
+type SectionId = 'general' | 'sessions' | 'needs-you' | 'appearance' | 'version-control' | 'logs';
 
 /** One of Settings' sections: its place in the list, and the settings whose mistakes mark it there. */
 interface Section {
@@ -92,6 +92,18 @@ const SECTIONS: Section[] = [
         <p class="dialog-detail">A session set aside for a day without a time needs you again at this time on that day. Pick a date…'s time starts at it.</p>
         <input id="settings-set-aside-time" class="dialog-field" type="time" />
         <p id="settings-set-aside-time-error" class="dialog-error" hidden></p>
+      </div>`,
+  },
+  {
+    id: 'needs-you',
+    label: 'Needs you',
+    keys: ['needsYou'],
+    body: `
+      <div class="dialog-group">
+        <span class="dialog-label">What can mark a session</span>
+        <p class="dialog-detail">Which reasons mark a session as needing you, and in which section of Now each shows, is <code>needsYou</code> in settings.json, set there by hand: by a type's or a category's id, the fields it changes, such as <code>"needsYou": { "pr.merged": { "enabled": false } }</code> to be marked no more when a PR is merged.</p>
+        ${OPEN_CONFIG}
+        <div id="settings-needs-you-problems"></div>
       </div>`,
   },
   {
@@ -184,6 +196,7 @@ const settingsNotes = document.getElementById('settings-notes')!;
 const settingsNotesList = document.getElementById('settings-notes-list')!;
 const settingsDotsProblems = document.getElementById('settings-dots-problems')!;
 const settingsApprovalsProblems = document.getElementById('settings-approvals-problems')!;
+const settingsNeedsYouProblems = document.getElementById('settings-needs-you-problems')!;
 
 /**
  * The app's own folders, as Settings lists them: what each holds, where it is, and a button to open it.
@@ -489,6 +502,7 @@ function render(view: SettingsView): void {
     ...(view.looks.problem === null ? [] : [`The looks in ${view.file.name} are not used: ${view.looks.problem}`]),
   ]);
   lines(settingsApprovalsProblems, 'dialog-error', view.approvals.problem === null ? [] : [`The approvals in ${view.file.name} are not used: ${view.approvals.problem}`]);
+  lines(settingsNeedsYouProblems, 'dialog-error', view.needsYou.problem === null ? [] : [`What needsYou in ${view.file.name} changes is not used, so every category and type is as the app ships it: ${view.needsYou.problem}`]);
   lines(settingsNotesList, 'dialog-error', view.notes);
   settingsNotes.hidden = view.notes.length === 0;
   showPending(view);

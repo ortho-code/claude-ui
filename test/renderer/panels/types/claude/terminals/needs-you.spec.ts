@@ -3,7 +3,7 @@ import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { exitLater } from '../../../../support/clock';
 import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { switchedOff } from '../../../../support/needsyou';
+import { needsYouFile, switchedOff } from '../../../../support/needsyou';
 import { openSettings } from '../../../../support/settings';
 import { row, switcherRollUp, tab, tabLabels, toastButton } from '../../../../support/window';
 
@@ -267,19 +267,25 @@ test('a /clear in its tab takes the old session\'s mark off and does not mark th
 // Switching a type off retires the marks it made, into each session's history as off, rather than hiding them (decided 2026-11-06).
 test('a type switched off settles the marks it made at launch, and one switched off while the app runs settles its own then', async ({ app, page }) => {
   const reminder = { type: 'app.reminder' as const, at: 2 };
-  await app.boot({ ...fixture, needsYou: { [one.id]: [mark], [two.id]: [reminder] }, needsYouTypes: switchedOff('app.was-running') });
+  await app.boot({ ...fixture, needsYou: { [one.id]: [mark], [two.id]: [reminder] }, settings: needsYouFile(switchedOff('app.was-running')) });
   await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
   await expect(row(page, two.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   expect(await app.calls('settleNeedsYouTypes')).toEqual([[['app.was-running']]]);
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYouHistory)).toEqual({ [one.id]: [{ ...mark, settled: expect.any(Number), by: 'off' }] });
 
-  expect(await app.emit('onNeedsYouTypes', switchedOff('app.was-running', 'reminders'))).toBe(1);
+  await app.settingsOnDisk(needsYouFile(switchedOff('app.was-running', 'reminders')));
   await expect(row(page, two.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({});
 });
 
-test('a needs-you file of yours with a mistake is said, and the others are in force', async ({ app, page }) => {
-  await app.boot({ ...fixture, needsYouTypes: { ...switchedOff('app.was-running'), problems: ['needs-you/b.json: nothing the app ships has the id "app.nope"'] } });
-  await expect(page.locator('#toast')).toContainText('A needs-you file of yours is not used: needs-you/b.json: nothing the app ships has the id "app.nope"');
-  await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
+// Used whole or not at all, as the strength order and the looks are (decided 2026-11-08).
+test('a needsYou with a mistake is not used at all, every type marking as the app ships it, and Settings names why under Needs you', async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: needsYouFile(switchedOff('app.was-running', 'app.nope')) });
+  await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
+  await expect(page.locator('#toast')).toBeHidden();
+  const dialog = await openSettings(page, 'Needs you');
+  await expect(dialog.getByRole('tab', { name: 'Needs you' })).toHaveClass(/\bhas-mistake\b/);
+  await expect(dialog.locator('#settings-needs-you-problems')).toHaveText(
+    'What needsYou in settings.json changes is not used, so every category and type is as the app ships it: "app.nope": nothing the app ships has the id "app.nope"',
+  );
 });

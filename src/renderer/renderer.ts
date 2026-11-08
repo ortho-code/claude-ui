@@ -25,7 +25,7 @@ import { tabWith } from './state/views';
 import { startedByClaude } from '../shared/scheduled';
 import { clearSetAside, watchDueSetAside } from './state/setaside';
 import { clearNeedsYou, watchSwitchedOff } from './state/needsyou';
-import type { NeedsYouRead } from '../shared/needsyou';
+import type { NeedsYouRegistry } from '../shared/needsyou';
 import { setScheduled, setStatus } from './state/statuses';
 import { installTooltips } from './tooltip';
 import { startLooks } from './looks';
@@ -132,10 +132,9 @@ initTree({
   // The asks each panel can make, answered by the terminal area and by the sidebar.
   asks: { ...claudeAnswers, ...sessionsAnswers },
 });
-/** The needs-you types as main read them, your files under `needs-you/` applied; a mistake in one of those is said, the rest in force. */
-function useNeedsYouTypes({ registry, problems }: NeedsYouRead): void {
+/** The needs-you categories and types in force, as main read them, `needsYou` in settings.json applied; a mistake in that is Settings' to name. */
+function useNeedsYouTypes(registry: NeedsYouRegistry): void {
   store.set({ needsYouTypes: registry });
-  if (problems.length > 0) showToast(`A needs-you file of yours is not used: ${problems.join('; ')}`, true);
 }
 
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.

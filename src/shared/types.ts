@@ -384,6 +384,8 @@ export interface Settings {
   strength: string[];
   /** How a status, `needs-you`, a category or a type is drawn, by its id, each entry the fields it changes; anything not set is drawn as before (shared/looks.ts). */
   looks: Record<string, Look>;
+  /** What you change of the needs-you categories and types the app ships, by id, each entry the fields it changes, such as `"enabled": false` (shared/needsyou.ts). */
+  needsYou: Record<string, NeedsYouChange>;
   /** How many approvals a PR needs before it counts as approved, by repository as `owner/name`; a repository not named counts as approved when GitHub says so (shared/prs.ts). */
   approvals: Record<string, number>;
 }
@@ -450,7 +452,7 @@ export interface UiState {
 
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './folders';
-import type { NeedsYouRead } from './needsyou';
+import type { NeedsYouChange, NeedsYouRegistry } from './needsyou';
 import type { LogLevel } from './log';
 import type { Look } from './looks';
 import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './settings';
@@ -497,10 +499,10 @@ export interface ClaudeUiApi {
   getRunningSessions(): Promise<string[]>;
   /** The sessions marked as needing you, by session id, each with every reason it was marked for. */
   getNeedsYou(): Promise<Record<string, NeedsYou[]>>;
-  /** The needs-you categories and types, the files the app ships with yours under `needs-you/` applied, and what is wrong with yours. */
-  getNeedsYouTypes(): Promise<NeedsYouRead>;
-  /** Hear of the categories and types again whenever a file of yours under `needs-you/` changes. */
-  onNeedsYouTypes(callback: (read: NeedsYouRead) => void): void;
+  /** The needs-you categories and types in force: the ones the app ships, with `needsYou` in settings.json applied where it can be used. */
+  getNeedsYouTypes(): Promise<NeedsYouRegistry>;
+  /** Hear of the categories and types in force again whenever a change to settings.json changes them. */
+  onNeedsYouTypes(callback: (registry: NeedsYouRegistry) => void): void;
   /** Take every session's reasons of `types` off, each into its history as settled `off`: the types were switched off. */
   settleNeedsYouTypes(types: string[]): void;
   /** Mark sessions as needing you for `reasons`; each is added beside a session's other reasons, replacing one of its kind, which goes to the session's history (`markedWithHistory`). */

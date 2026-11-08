@@ -143,6 +143,7 @@ test("the window's own title bar and resize edges, where the app draws its chrom
 for (const [section, name] of [
   ['General', 'settings-general'],
   ['Sessions', 'settings-sessions'],
+  ['Needs you', 'settings-needs-you'],
   ['Appearance', 'settings-appearance'],
   ['Version control', 'settings-version-control'],
   ['Logs', 'settings-logs'],

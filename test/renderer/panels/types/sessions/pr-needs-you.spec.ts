@@ -2,8 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { PrStatus, SessionPr } from '../../../../../src/shared/types';
 import { session, settingsFileWith } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { withOverrides } from '../../../../../src/shared/needsyou';
-import { bundledNeedsYou, switchedOff } from '../../../support/needsyou';
+import { needsYouFile, switchedOff } from '../../../support/needsyou';
 import { row, tab, tabLabels } from '../../../support/window';
 
 // A linked PR changing in a way that needs you marks every session that links it as needing you, with that change as its reason, running or not, finished ones left out (decided 2026-10-29).
@@ -112,10 +111,10 @@ test('a PR turning approved with failing checks marks a reason for each, named t
   ]);
 });
 
-// A PR type a file of yours switches off marks nothing; the others found in the same answer still do (decided 2026-11-06).
+// A PR type `needsYou` switches off marks nothing; the others found in the same answer still do (decided 2026-11-06).
 test('with approved switched off, a PR turning approved with failing checks marks only the failing checks', async ({ app, page }) => {
   await page.clock.install();
-  await app.boot({ ...fixture, needsYouTypes: switchedOff('pr.approved') });
+  await app.boot({ ...fixture, settings: needsYouFile(switchedOff('pr.approved')) });
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
 
   await gitHubSays(page, { 'acme/app#7': open({ review: 'approved', checks: 'failed' }), 'acme/app#8': open() });
@@ -127,7 +126,7 @@ test('with approved switched off, a PR turning approved with failing checks mark
 // A whole category switched off: none of its types marks.
 test('with Finish up switched off, a PR merging marks nothing', async ({ app, page }) => {
   await page.clock.install();
-  await app.boot({ ...fixture, needsYouTypes: switchedOff('finish-up') });
+  await app.boot({ ...fixture, settings: needsYouFile(switchedOff('finish-up')) });
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
   await gitHubSays(page, { 'acme/app#7': { state: 'merged', role: 'own' }, 'acme/app#8': open() });
   await nextAsk(page);
@@ -225,11 +224,10 @@ test('turned off when what was seen cannot be read, it is emptied all the same, 
 });
 
 // A PR type fires only for the roles its file lists (design decision 110): a conflict asks the author to act, so the bundled one fires on your own PR alone.
-test('a conflict marks the sessions linking your own PR, not those linking a PR you review, until a file of yours adds that role', async ({ app, page }) => {
+test('a conflict marks the sessions linking your own PR, not those linking a PR you review, until needsYou adds that role', async ({ app, page }) => {
   await page.clock.install();
   const reviewed = (overrides: Partial<Extract<PrStatus, { state: 'open' }>> = {}): PrStatus => open({ role: 'reviewing', ...overrides });
-  const bundled = { registry: bundledNeedsYou(), problems: [] };
-  await app.boot({ ...fixture, needsYouTypes: bundled, prSeen: { 'acme/app#7': open(), 'acme/app#8': reviewed() }, prStatuses: { 'acme/app#7': open(), 'acme/app#8': reviewed() } });
+  await app.boot({ ...fixture, prSeen: { 'acme/app#7': open(), 'acme/app#8': reviewed() }, prStatuses: { 'acme/app#7': open(), 'acme/app#8': reviewed() } });
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
 
   await gitHubSays(page, { 'acme/app#7': open({ conflict: true }), 'acme/app#8': reviewed({ conflict: true }) });
@@ -237,7 +235,7 @@ test('a conflict marks the sessions linking your own PR, not those linking a PR 
   await expect(row(page, closed.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merge conflict');
   await notNeeds(row(page, other.title).locator('.nudge'));
 
-  await app.emit('onNeedsYouTypes', withOverrides(bundled.registry, [{ name: 'conflict.json', json: { id: 'pr.conflict', roles: ['own', 'reviewing'] } }]));
+  await app.settingsOnDisk(needsYouFile({ 'pr.conflict': { roles: ['own', 'reviewing'] } }));
   await gitHubSays(page, { 'acme/app#7': open({ conflict: true }), 'acme/app#8': reviewed() });
   await nextAsk(page);
   await gitHubSays(page, { 'acme/app#7': open({ conflict: true }), 'acme/app#8': reviewed({ conflict: true }) });
@@ -248,7 +246,7 @@ test('a conflict marks the sessions linking your own PR, not those linking a PR 
 test('a PR you review marks its sessions for new commits since your review, and for your review asked again, and your own PR marks for neither', async ({ app, page }) => {
   await page.clock.install();
   const reviewed = (overrides: Partial<Extract<PrStatus, { state: 'open' }>> = {}): PrStatus => open({ role: 'reviewing', ...overrides });
-  await app.boot({ ...fixture, needsYouTypes: { registry: bundledNeedsYou(), problems: [] }, prSeen: { 'acme/app#7': open(), 'acme/app#8': reviewed() }, prStatuses: { 'acme/app#7': open(), 'acme/app#8': reviewed() } });
+  await app.boot({ ...fixture, prSeen: { 'acme/app#7': open(), 'acme/app#8': reviewed() }, prStatuses: { 'acme/app#7': open(), 'acme/app#8': reviewed() } });
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
 
   await gitHubSays(page, { 'acme/app#7': open({ newCommits: true, reviewAsked: true }), 'acme/app#8': reviewed({ newCommits: true, reviewAsked: true }) });

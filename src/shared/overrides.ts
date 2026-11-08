@@ -1,18 +1,18 @@
 /**
- * OVERRIDE BY ID: a file of yours names something the app ships by its id and changes it field by field, or switches it off with `"enabled": false`.
- * One rule for every kind the app ships this way, the needs-you categories and types first, views and a plugin's parts later, so each is changed the same way (decided 2026-11-04, design decision 28).
- * A field the file names replaces the shipped one's; every other field stays the shipped one's, so a later version's change to a field you left alone still reaches you.
+ * OVERRIDE BY ID: an override of yours names something the app ships by its id and changes it field by field, or switches it off with `"enabled": false`.
+ * One rule for every kind the app ships this way, the needs-you categories and types first, views and a plugin's parts later, so each is changed the same way (decided 2026-11-04, design decision 28; the overrides kept in `settings.json` since 2026-11-08).
+ * A field the override names replaces the shipped one's; every other field stays the shipped one's, so a later version's change to a field you left alone still reaches you.
  * Pure, so main and the tests apply it by the same rule.
  */
 
-/** Something the app ships that a file of yours can change: its id, and its kind, which says which fields it has. */
+/** Something the app ships that an override of yours can change: its id, and its kind, which says which fields it has. */
 export interface Overridable {
   id: string;
   kind: string;
 }
 
-/** One file of yours, by its name, for the mistakes to name it. */
-export interface OverrideFile {
+/** One override of yours, by a name for the mistakes to name it by. */
+export interface Override {
   name: string;
   json: unknown;
 }
@@ -21,15 +21,15 @@ export interface OverrideFile {
 export type FieldCheck = (value: unknown, id: string) => string | null;
 
 /**
- * The shipped items with each file's changes applied, and what is wrong with the files.
- * A file is used whole or not at all (decided 2026-11-05 for the settings, the same here): one that holds no object, names no id the app ships, changes `kind`, names a field its kind does not have or gives one a value that cannot be used is left out and named; two files naming one id are both left out and named, since which should win is not for the app to guess.
- * `fields` says, per kind, the fields a file may change and how each is checked; `id` and `kind` never change.
+ * The shipped items with each override's changes applied, and what is wrong with the overrides.
+ * An override is used whole or not at all (decided 2026-11-05 for the settings, the same here): one that holds no object, names no id the app ships, changes `kind`, names a field its kind does not have or gives one a value that cannot be used is left out and named; two naming one id are both left out and named, since which should win is not for the app to guess.
+ * `fields` says, per kind, the fields an override may change and how each is checked; `id` and `kind` never change.
  */
-export function overriddenById<T extends Overridable>(shipped: readonly T[], files: readonly OverrideFile[], fields: Readonly<Record<string, Readonly<Record<string, FieldCheck>>>>): { items: T[]; problems: string[] } {
+export function overriddenById<T extends Overridable>(shipped: readonly T[], overrides: readonly Override[], fields: Readonly<Record<string, Readonly<Record<string, FieldCheck>>>>): { items: T[]; problems: string[] } {
   const problems: string[] = [];
   const byId = new Map(shipped.map((item) => [item.id, item]));
   const read: { name: string; id: string; changes: Record<string, unknown> }[] = [];
-  for (const { name, json } of files) {
+  for (const { name, json } of overrides) {
     const problem = problemOf(json, byId, fields);
     if (problem !== null) {
       problems.push(`${name}: ${problem}`);
@@ -45,7 +45,7 @@ export function overriddenById<T extends Overridable>(shipped: readonly T[], fil
   return { items: shipped.map((item) => (changed.has(item.id) ? { ...item, ...changed.get(item.id) } : item)), problems };
 }
 
-/** What is wrong with one file's object, or null for one that can be used. */
+/** What is wrong with one override's object, or null for one that can be used. */
 function problemOf(json: unknown, byId: ReadonlyMap<string, Overridable>, fields: Readonly<Record<string, Readonly<Record<string, FieldCheck>>>>): string | null {
   if (typeof json !== 'object' || json === null || Array.isArray(json)) return 'holds no object';
   const { id, kind, ...changes } = json as Record<string, unknown>;

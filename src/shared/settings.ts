@@ -1,7 +1,7 @@
 import { defaultSettings } from './defaults';
 import { parseLaunchFlags } from './flags';
 import { looksProblem, strengthProblem, type Look } from './looks';
-import type { NeedsYouRegistry } from './needsyou';
+import { withChanges, type NeedsYouChange, type NeedsYouRegistry } from './needsyou';
 import { approvalsProblem } from './prs';
 import { presetsProblem } from './setaside';
 import { timeOfDay } from './time';
@@ -16,11 +16,11 @@ import type { Settings } from './types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'setAside', 'setAsideTime', 'locale', 'strength', 'looks', 'approvals'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'setAside', 'setAsideTime', 'locale', 'strength', 'looks', 'needsYou', 'approvals'];
 
 /**
  * The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them: start them again, or bring their tabs back cold.
- * Whether they are marked as needing you is the type `app.was-running`'s, switched off by a file of yours under `needs-you/` (decided 2026-11-06).
+ * Whether they are marked as needing you is the type `app.was-running`'s, switched off in `needsYou` (decided 2026-11-06).
  */
 export const RUNNING_AT_LAUNCH = ['start', 'cold'] as const;
 export type RunningAtLaunch = (typeof RUNNING_AT_LAUNCH)[number];
@@ -79,6 +79,8 @@ export type SettingsView = SettingViews & {
   notes: string[];
   /** The file as read, so the window can say when it does not parse, and a save can be refused for a key it names more than once. */
   file: Omit<SettingsFileRead, 'json' | 'duplicates'> & { duplicates: string[] };
+  /** The needs-you categories and types in force: the ones the app ships, with `needsYou` applied where it can be used; null for a view made without them. */
+  needsYouRegistry: NeedsYouRegistry | null;
 };
 
 /** A save from Settings: the value of each setting it asks for. */
@@ -106,7 +108,7 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
     const tag = typeof value === 'string' ? languageTag(value) : null;
     return tag !== null ? { ok: true, value: tag } : { ok: false, why: 'It has to be a language tag such as "en-GB" or "nl-NL", or "" for the system\'s language.' };
   },
-  // Its categories, and the looks' ids, are checked against the needs-you registry where one is given (`settingsView`), since which there are is the needs-you files' to say.
+  // Its categories, and the looks' ids, are checked against the needs-you categories and types in force where they are given (`settingsView`), since which there are is the needs-you files' and `needsYou`'s to say.
   strength: (value) => {
     const why = strengthProblem(value, null);
     return why === null ? { ok: true, value: [...(value as string[])] } : { ok: false, why };
@@ -115,6 +117,11 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
     const why = looksProblem(value, null);
     return why === null ? { ok: true, value: structuredClone(value as Record<string, Look>) } : { ok: false, why };
   },
+  // Only its shape here: what each entry may change is checked against the categories and types the app ships, where they are given (`settingsView`).
+  needsYou: (value) =>
+    isObject(value) && Object.values(value).every(isObject)
+      ? { ok: true, value: structuredClone(value) as Record<string, NeedsYouChange> }
+      : { ok: false, why: 'It has to be an object of ids, each an object of the fields it changes, such as { "pr.merged": { "enabled": false } }.' },
   approvals: (value) => {
     const why = approvalsProblem(value);
     return why === null ? { ok: true, value: { ...(value as Record<string, number>) } } : { ok: false, why };
@@ -172,12 +179,18 @@ export function valuesOf(file: SettingsFileRead, notes: string[] = [], problems 
 
 /**
  * The settings in force from `file`, each its value there or the default, and what is wrong with the file, as main's read number `read` found it.
- * With the needs-you `registry`, a category the strength order names, or an id the looks name, that it does not have is a mistake too.
+ * With the needs-you categories and types the app ships, `bundled`, `needsYou` is checked against them and applied, used whole or not at all, and a category the strength order names, or an id the looks name, that the result does not have is a mistake too.
  */
-export function settingsView(file: SettingsFileRead, read = 0, registry: NeedsYouRegistry | null = null): SettingsView {
+export function settingsView(file: SettingsFileRead, read = 0, bundled: NeedsYouRegistry | null = null): SettingsView {
   const notes: string[] = [];
   const problems = new Map<SettingKey, string>();
   const values = valuesOf(file, notes, problems);
+  const changed = bundled === null || values.needsYou === undefined ? null : withChanges(bundled, values.needsYou);
+  if (changed !== null && changed.problems.length > 0) {
+    delete values.needsYou;
+    problems.set('needsYou', changed.problems.join('; '));
+  }
+  const registry = changed === null || changed.problems.length > 0 ? bundled : changed.registry;
   const unknownCategory = values.strength === undefined ? null : strengthProblem(values.strength, registry);
   if (unknownCategory !== null) {
     delete values.strength;
@@ -200,16 +213,18 @@ export function settingsView(file: SettingsFileRead, read = 0, registry: NeedsYo
     locale: viewOf('locale'),
     strength: viewOf('strength'),
     looks: viewOf('looks'),
+    needsYou: viewOf('needsYou'),
     approvals: viewOf('approvals'),
     read,
     notes,
     file: { name: file.name, status: file.status, error: file.error, duplicates: file.duplicates ?? [] },
+    needsYouRegistry: registry,
   };
 }
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, setAside: view.setAside.value, setAsideTime: view.setAsideTime.value, locale: view.locale.value, strength: view.strength.value, looks: view.looks.value, approvals: view.approvals.value };
+  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, setAside: view.setAside.value, setAsideTime: view.setAsideTime.value, locale: view.locale.value, strength: view.strength.value, looks: view.looks.value, needsYou: view.needsYou.value, approvals: view.approvals.value };
 }
 
 /**

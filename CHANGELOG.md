@@ -116,8 +116,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The choice is kept as the session list's view, so `"view": "recent"` on its entry in the layout starts it there.
 - Finished and Set aside… beside Undo in the message a close leaves, for the sessions it closed, whatever closed them: the tab's button, its menu or the bar.
   The message either one leaves has an Undo that puts the tabs back too, and cancelling Set aside… brings the close's message back.
-- Each reason the app marks a session as needing you for, a PR's change, a reminder or running when the app closed, can be switched off, alone or with its whole category, by a `.json` file of yours under `needs-you/` in the config folder, such as `{ "id": "pr.approved", "enabled": false }`.
-  Its marks already there go, a file with a mistake is named in a message and not used, and one that stops parsing stays as it last read; the reasons and their ids are in the README.
+- Each reason the app marks a session as needing you for, a PR's change, a reminder or running when the app closed, can be switched off, alone or with its whole category, by `needsYou` in `settings.json`, such as `"needsYou": { "pr.approved": { "enabled": false } }`.
+  Its marks already there go, and a `needsYou` with a mistake is not used at all, which Settings names; the reasons and their ids are in the README.
 - Which state a session's dot shows when several hold, such as busy and needing you, is `strength` in `settings.json`, a list where the first that holds wins, so a category such as `back-to-work` can show over a busy claude; the default shows the dots as before.
 - How each status, needs-you category and type is drawn is `looks` in `settings.json`: a colour, a dot, ring, spinner or icon, a pulse, or the look of another, each field set or left to what it belongs to; nothing changes until you set one.
 - The sessions file gives each PR's `role`, whether it is yours, one you review or someone else's, and for an open PR its approvals, whether new commits came since your review, and whether your review is asked.
@@ -189,7 +189,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A dot's tooltip lists every state its session is in, as the top of its options does, both in the order the dot picks by after what its tab says, so a busy session that needs you says why on hover too.
   A session's reasons are listed by their category, in Now's order, and newest first within one, so an approval now comes before a merge, and a merge after how the app closed.
 - Failing checks, a conflict, changes requested and approved mark a session only for a PR of your own, no longer for one you review or someone else's; reopened, merged and closed still mark for every PR.
-  A file in `needs-you/` giving a type `roles` changes which PRs it marks for.
+  `needsYou` giving a type `roles` changes which PRs it marks for.
 - A new request for changes marks a session again while an earlier one still stands, whether from another reviewer or a new round from the same one.
 - The project switcher shows how many sessions in other projects need you, in place of a dot that rolled up every project, and each project in its list shows how many of its own do; in All it counts every project.
   With nothing needing you elsewhere and something working there, it shows the working dot.

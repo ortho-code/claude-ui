@@ -74,4 +74,4 @@ Something that fails says so where it failed, and why, rather than showing nothi
 - What GitHub says of a PR is asked by the app itself, not through anything another forge could use as well.
 - A panel type draws in its own panel only: it cannot add a mark to a session's row, an item to its menu, or a filter to the session list.
 - The built-in panels take no options of their own yet: only the layout and a few settings shape them.
-- Which reasons can mark a session as needing you is the app's: a file of yours switches off or changes any it keeps, but a reason of your own cannot be added yet, and claude asking or finishing a turn always shows on its dot.
+- Which reasons can mark a session as needing you is the app's: `needsYou` in your settings switches off or changes any it keeps, but a reason of your own cannot be added yet, and claude asking or finishing a turn always shows on its dot.

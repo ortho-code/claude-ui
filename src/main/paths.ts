@@ -64,9 +64,6 @@ export const scriptsDir = path.join(configRoot, 'scripts');
  */
 export const typesDir = path.join(configRoot, PANEL_TYPES_FOLDER);
 
-/** Your changes to the needs-you categories and types the app ships, a file each naming one by its id (main/needsyou.ts); not made by the app, since nothing is changed until you write one. */
-export const needsYouDir = path.join(configRoot, 'needs-you');
-
 export const defaultLayoutFile = path.join(layoutsDir, 'default.json');
 
 /** The app's file beside it: this machine's sizes, folds and picks, by node id (layoutstate.ts). */
