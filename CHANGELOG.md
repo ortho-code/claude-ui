@@ -195,6 +195,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   With nothing needing you elsewhere and something working there, it shows the working dot.
 - The live strip at the foot of the sidebar is gone: the project switcher counts the sessions in other projects that need you, and All shows every project's sessions in the list and the tab bar.
   A panel type of your own can list what needs you and what runs from the sessions file, with each session's dot and menu on its row.
+- A dialog's button that cannot be pressed yet, such as Set aside before a time is picked, is dimmed, where it looked like one that could.
 
 ### Fixed
 

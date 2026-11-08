@@ -27,11 +27,18 @@
   border-color: var(--fill);
 }
 
-/* The override has to exist: `button:hover` sets an accent border app-wide, and on a filled button that is an outline in a near-copy of its own colour, or on the red one a clashing blue. */
+/* The override has to exist: `button:hover` sets an accent border app-wide, and on a filled button that is an outline in a near-copy of its own colour, or on the red one a clashing blue.
+   A disabled one keeps its resting look under the pointer, since a hover says a press will do something. */
 .dialog-actions .primary:hover,
 .pane-actions .primary:hover,
 .history-note .primary:hover,
 .dialog-actions .danger:hover {
-  filter: brightness(0.92);
   border-color: var(--fill);
+}
+
+.dialog-actions .primary:not(:disabled):hover,
+.pane-actions .primary:hover,
+.history-note .primary:hover,
+.dialog-actions .danger:not(:disabled):hover {
+  filter: brightness(0.92);
 }
