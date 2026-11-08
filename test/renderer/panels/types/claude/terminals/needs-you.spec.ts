@@ -4,7 +4,7 @@ import { exitLater } from '../../../../support/clock';
 import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { switchedOff } from '../../../../support/needsyou';
-import { row, stripRow, switcherEntry, tab, tabLabels, toastButton } from '../../../../support/window';
+import { row, stripRow, switcherRollUp, tab, tabLabels, toastButton } from '../../../../support/window';
 
 // A session marked as needing you, as a launch marks the ones that were running when the app closed (resume.spec.ts), keeps the mark until you act on it: a prompt there, Clear needs you, closing its tab, leaving claude yourself, or finishing it.
 // Its dot shows it where claude says nothing more pressing, on its row, its tab and its strip row alike, and a click there only marks it seen (decided 2026-10-28).
@@ -49,7 +49,7 @@ test('the mark shows on its row, its tab and its strip row by one class, with it
   await app.boot(fixture);
   await expectMarked(page, true);
   for (const dot of dots(page)) await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit');
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bneeds\b/);
+  await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bneeds\b/);
   await expect(page.locator('#strip-badge')).toHaveClass(/\bneeds\b/);
   // A marked tab is in hand, so the strip lists it though it does not run; the other cold tab is not listed.
   await expect(stripRow(page, two.title)).toHaveCount(0);
@@ -89,10 +89,10 @@ test('a strength order naming Reminders over busy shows the mark over a busy cla
 test('a strength order changed on disk while the app runs repaints every dot and roll-up at once', async ({ app, page }) => {
   await app.boot({ ...fixture, statuses: { [one.id]: 'idle' } });
   for (const dot of dots(page)) await expect(dot).toHaveClass(/\bneeds\b/);
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bneeds\b/);
+  await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bneeds\b/);
   await app.settingsOnDisk(settingsFileWith('settings.json', { strength: ['waiting', 'busy', 'background', 'idle', 'needs-you', 'closed'] }));
   for (const dot of dots(page)) await expect(dot).toHaveClass(/\bidle\b/);
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bidle\b/);
+  await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bidle\b/);
 });
 
 test('a strength order with a mistake is not used, and Settings says why', async ({ app, page }) => {
@@ -129,7 +129,7 @@ test('a resume keeps the mark, and a prompt there takes it off everywhere', asyn
   await expectMarked(page, false);
   expect(await app.calls('clearNeedsYou')).toEqual([[one.id, 'prompt']]);
   await expectSettled(page, 'prompt');
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).not.toHaveClass(/\bneeds\b/);
+  await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bneeds\b/);
 });
 
 // A turn claude starts itself fires UserPromptSubmit too (measured on claude 2.1.310): a background task's end, and a scheduled task firing, which a resumed session's tab knows from what it kept before any Stop lists it.
@@ -170,7 +170,7 @@ test('a click on its dot marks it seen, dimmed, and keeps the mark', async ({ ap
   await expect(row(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit (read)');
   expect(await app.calls('clearNeedsYou')).toEqual([]);
   // Seen is not settled: nothing nudges from the roll-ups, and the strip still lists it.
-  await expect(switcherEntry(page, 'demo').locator('.nudge')).not.toHaveClass(/\bneeds\b/);
+  await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bneeds\b/);
   await expect(stripRow(page, one.title)).toHaveCount(1);
 });
 

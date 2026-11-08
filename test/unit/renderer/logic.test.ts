@@ -43,6 +43,8 @@ import {
   strongestNudge,
   asksForYou,
   projectsForSwitcher,
+  elsewhere,
+  rollUpWords,
   modelLabel,
   reorderWithinGroup,
   buildProjectTree,
@@ -660,7 +662,32 @@ describe('projectsForSwitcher', () => {
   it('handles an empty session list', () => {
     const model = projectsForSwitcher([], new Map(), new Set(), new Map());
     expect(model.projects).toEqual([]);
-    expect(model.all).toEqual({ count: 0, badge: null });
+    expect(model.all).toEqual({ count: 0, asking: 0, working: 0, badge: null });
+  });
+
+  it('counts per project and in all the sessions that ask for you and those at work, by what each one\'s dot shows', () => {
+    const mark = [{ type: 'pr.merged' as const, at: 1, pr: 'o/r#1' }];
+    const statuses = new Map([
+      ['waiting', 'waiting'],
+      ['finished', 'idle'],
+      ['read', 'waiting'],
+      ['busy-marked', 'busy'],
+      ['background', 'background'],
+    ]);
+    const model = projectsForSwitcher(
+      [s('waiting', '/x/alpha'), s('finished', '/x/alpha'), s('marked', '/x/alpha'), s('read', '/x/beta'), s('busy-marked', '/x/beta'), s('background', '/x/beta')],
+      statuses,
+      new Set(['read']),
+      new Map([
+        ['marked', mark],
+        ['busy-marked', mark],
+      ]),
+    );
+    expect(model.projects.map((p) => [p.name, p.asking, p.working])).toEqual([
+      ['alpha', 3, 0],
+      ['beta', 0, 2],
+    ]);
+    expect([model.all.asking, model.all.working]).toEqual([3, 2]);
   });
 
   // The list keeps the same project (buildProjectTree), so the two agree on which projects there are and where each sits.
@@ -672,6 +699,40 @@ describe('projectsForSwitcher', () => {
       ['alpha', 1, null, true],
     ]);
     expect(model.all.count).toBe(1);
+  });
+});
+
+describe('elsewhere', () => {
+  const s = (id: string, repoRoot: string) => session({ id, conversationId: id, repoRoot });
+  const model = projectsForSwitcher(
+    [s('a', '/x/alpha'), s('b', '/x/beta'), s('c', '/x/gamma'), s('d', '/x/gamma')],
+    new Map([
+      ['a', 'waiting'],
+      ['b', 'idle'],
+      ['c', 'busy'],
+      ['d', 'idle'],
+    ]),
+    new Set(),
+    new Map(),
+  );
+
+  it('adds up every project but the one on show, the strongest of them its badge', () => {
+    expect(elsewhere(model, '/x/alpha', DEFAULT_RANKING)).toEqual({ asking: 2, working: 1, badge: 'idle' });
+    expect(elsewhere(model, '/x/gamma', DEFAULT_RANKING)).toEqual({ asking: 2, working: 0, badge: 'waiting' });
+  });
+
+  it('is every project in All', () => {
+    expect(elsewhere(model, null, DEFAULT_RANKING)).toEqual({ count: 4, asking: 3, working: 1, badge: 'waiting' });
+  });
+});
+
+describe('rollUpWords', () => {
+  it('names what asks for you, else what works, else nothing, outside the project on show or in what it rolls up', () => {
+    expect(rollUpWords({ asking: 3, working: 2, badge: 'waiting' }, 'elsewhere')).toBe('3 sessions in other projects need you');
+    expect(rollUpWords({ asking: 1, working: 0, badge: 'idle' }, 'here')).toBe('1 session needs you');
+    expect(rollUpWords({ asking: 0, working: 2, badge: 'busy' }, 'elsewhere')).toBe('2 sessions in other projects are working');
+    expect(rollUpWords({ asking: 0, working: 1, badge: 'busy' }, 'here')).toBe('1 session is working');
+    expect(rollUpWords({ asking: 0, working: 0, badge: null }, 'here')).toBeNull();
   });
 });
 

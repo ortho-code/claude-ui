@@ -79,7 +79,7 @@
 
 /* Shape, hover and the fill of the entry on show come from the menu row (menu-row.css). */
 
-/* The name takes only its own width, so a dead project's mark sits against it rather than out by the dot; the dot is pushed to the right instead. */
+/* The name takes only its own width, so a dead project's mark sits against it rather than out by the roll-up; the roll-up and the count are pushed to the right instead, together, whether the roll-up shows or not. */
 .switcher-item-name {
   flex: 0 1 auto;
   min-width: 0;
@@ -88,8 +88,20 @@
   white-space: nowrap;
 }
 
-.switcher-item-name ~ .nudge {
+.switcher-item-end {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* What asks for you, counted in the pill a count wears (card.css), in the colour of the strongest of it: the look's `--look`, which a state's classes give anything they are on (looks.ts). */
+#project-switcher .switcher-asking {
+  margin-left: 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--look, var(--accent));
+  background: color-mix(in srgb, var(--look, var(--accent)) 18%, transparent);
 }
 
 .switcher-item-count {

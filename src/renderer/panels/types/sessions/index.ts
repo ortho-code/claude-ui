@@ -36,7 +36,10 @@ document.getElementById('parked')!.append(sidebar);
 
 export const sessionsType = builtinType('sessions', sidebar, 'Sessions', 'sessions', () => railStatus(store.get()), arrangementMounted);
 
-/** What the sidebar's rail icon says while it is folded or behind another panel: waiting while any session anywhere waits for you, else needs while one is marked as needing you, by the switcher's badge (`switcherModel`). */
+/**
+ * What the sidebar's rail icon says while it is folded or behind another panel: waiting while any session anywhere waits for you, else needs while one is marked as needing you, by every project's roll-up (`switcherModel`).
+ * Every project, the one on show included, where the switcher's title leaves that one out: folded, the sidebar shows no project, so its icon answers whether anything anywhere wants you (decided 2026-11-08).
+ */
 function railStatus(view: View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs' | 'settings' | 'needsYouTypes'>): NudgeStatus {
   return switcherModel(view).all.badge;
 }

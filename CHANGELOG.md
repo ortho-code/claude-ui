@@ -195,6 +195,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Failing checks, a conflict, changes requested and approved mark a session only for a PR of your own, no longer for one you review or someone else's; reopened, merged and closed still mark for every PR.
   A file in `needs-you/` giving a type `roles` changes which PRs it marks for.
 - A new request for changes marks a session again while an earlier one still stands, whether from another reviewer or a new round from the same one.
+- The project switcher shows how many sessions in other projects need you, in place of a dot that rolled up every project, and each project in its list shows how many of its own do; in All it counts every project.
+  With nothing needing you elsewhere and something working there, it shows the working dot.
 
 ### Fixed
 

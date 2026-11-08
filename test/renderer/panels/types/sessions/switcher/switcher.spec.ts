@@ -2,7 +2,7 @@ import type { Locator } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { clickAcross } from '../../../../support/press';
-import { chooseProject, headings, switcherEntries, switcherEntry, switcherNames, tab, tabLabels } from '../../../../support/window';
+import { chooseProject, headings, switcherEntries, switcherEntry, switcherNames, switcherRollUp, tab, tabLabels } from '../../../../support/window';
 
 // Selecting a project is a statement about what you are looking at, so every surface honours it (docs/architecture.md § UI conventions): the list, the tab bar, and the tab on show, which is the one you were last in there, selected and not started (§ Tab lifecycle).
 const OTHER = `${HOME}/projects/other`;
@@ -81,7 +81,7 @@ test('a press on a switcher entry still counts, and a focused entry keeps the fo
   await app.boot({ ...fixture, openSessions: [] });
   const status = (state: string) => async (): Promise<void> => {
     expect(await app.emit('onSessionStatus', here.id, state, '', '')).toBe(1);
-    await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(new RegExp(`\\b${state}\\b`));
+    await expect(switcherRollUp(page, 'demo')).toHaveClass(new RegExp(`\\b${state}\\b`));
   };
   await page.locator('#switcher-current').click();
   const other = switcherEntry(page, 'other');

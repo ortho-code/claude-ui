@@ -459,17 +459,16 @@ export function nudgeOf(shown: string | undefined, acked: boolean, muted = false
   return shown === 'busy' || shown === 'background' ? 'busy' : null;
 }
 
-export interface SwitcherProject {
+export interface SwitcherProject extends RollUp {
   repoRoot: string;
   name: string;
   count: number;
-  badge: NudgeStatus;
   /** Whether the project's folder is still there, by the same rule as the session list's headings. */
   rootExists: boolean;
 }
 
 export interface SwitcherModel {
-  all: { count: number; badge: NudgeStatus };
+  all: RollUp & { count: number };
   projects: SwitcherProject[];
 }
 
@@ -500,18 +499,37 @@ export function sessionPart(status: string | undefined, reasons: readonly NeedsY
   return nudgeOf(shownState(status, reasons, strength), acked, muted);
 }
 
-function rollUpNudge(
+/** What several sessions add up to: how many ask for you, how many are at work, and the nudge that speaks for them (`strongestNudge`). */
+export interface RollUp {
+  /** The sessions whose part asks for you (`asksForYou`). */
+  asking: number;
+  /** The sessions whose part is at work, background work included. */
+  working: number;
+  badge: NudgeStatus;
+}
+
+/** Several roll-ups as one, as projects add up to the switcher's title. */
+function rollUpOf(rollUps: readonly RollUp[], strength: Strength): RollUp {
+  return {
+    asking: rollUps.reduce((total, part) => total + part.asking, 0),
+    working: rollUps.reduce((total, part) => total + part.working, 0),
+    badge: strongestNudge(
+      rollUps.map((part) => part.badge),
+      strength,
+    ),
+  };
+}
+
+function rollUp(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
   needsYou: ReadonlyMap<string, readonly NeedsYou[]>,
   muted: ReadonlySet<string>,
   strength: Strength,
-): NudgeStatus {
-  return strongestNudge(
-    sessions.map((s) => sessionPart(statuses.get(s.id), needsYou.get(entityKey(s)) ?? [], muted.has(entityKey(s)), acked.has(s.id), strength)),
-    strength,
-  );
+): RollUp {
+  const parts = sessions.map((s) => sessionPart(statuses.get(s.id), needsYou.get(entityKey(s)) ?? [], muted.has(entityKey(s)), acked.has(s.id), strength));
+  return { asking: parts.filter(asksForYou).length, working: parts.filter((part) => part === 'busy').length, badge: strongestNudge(parts, strength) };
 }
 
 /**
@@ -565,13 +583,37 @@ export function projectsForSwitcher(
     repoRoot,
     name: displayName(repoRoot, names),
     count: entry.shown.length,
-    badge: rollUpNudge(entry.shown, statuses, acked, needsYou, muted, strength),
+    ...rollUp(entry.shown, statuses, acked, needsYou, muted, strength),
     rootExists: projectRootExists(folderWitnesses(entry)),
   }));
   return {
-    all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked, needsYou, muted, strength) },
+    all: { count: sessions.length, ...rollUp(sessions, statuses, acked, needsYou, muted, strength) },
     projects,
   };
+}
+
+/**
+ * What the switcher's title adds up: every project but the one on show, and every project in All (decided 2026-11-08).
+ * The project on show is left out because its tabs and its rows already show it; All has no elsewhere, and is where a summary of everything is wanted.
+ */
+export function elsewhere(model: SwitcherModel, onShow: string | null, strength: Strength): RollUp {
+  if (onShow === null) return model.all;
+  return rollUpOf(
+    model.projects.filter((project) => project.repoRoot !== onShow),
+    strength,
+  );
+}
+
+/**
+ * A roll-up's tooltip, sessions counted `elsewhere` (outside the project on show) or `here` (in what the roll-up is of): what asks for you, else what works, else nothing.
+ * "3 sessions in other projects need you", "1 session needs you", "2 sessions in other projects are working".
+ */
+export function rollUpWords({ asking, working }: RollUp, where: 'elsewhere' | 'here'): string | null {
+  const place = where === 'elsewhere' ? ' in other projects' : '';
+  const sessions = (n: number): string => `${n} ${n === 1 ? 'session' : 'sessions'}${place}`;
+  if (asking > 0) return `${sessions(asking)} ${asking === 1 ? 'needs' : 'need'} you`;
+  if (working > 0) return `${sessions(working)} ${working === 1 ? 'is' : 'are'} working`;
+  return null;
 }
 
 // --- The session list's shape -------------------------------------------------------------------- One project section per repo, each holding its groups (in registry order) and then the sessions that are in no group.
@@ -741,14 +783,14 @@ export function groupJumpTargets(
     groupId: group.id,
     name: group.name,
     count: sessions.length,
-    badge: rollUpNudge(sessions, statuses, acked, needsYou, muted, strength),
+    badge: rollUp(sessions, statuses, acked, needsYou, muted, strength).badge,
   }));
   if (project.loose.length > 0) {
     targets.push({
       groupId: null,
       name: 'Ungrouped',
       count: project.loose.length,
-      badge: rollUpNudge(project.loose, statuses, acked, needsYou, muted, strength),
+      badge: rollUp(project.loose, statuses, acked, needsYou, muted, strength).badge,
     });
   }
   return targets;

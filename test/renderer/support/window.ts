@@ -47,6 +47,9 @@ export const switcherEntries = (page: Page): Locator => page.locator('.switcher-
 /** The switcher's entry for the project named exactly `name`, or All. */
 export const switcherEntry = (page: Page, name: string): Locator => switcherEntries(page).filter({ has: page.locator('.switcher-item-name', { hasText: new RegExp(`^${name}$`) }) });
 
+/** What a switcher entry draws of its project's sessions: their count asking for you, the busy dot, or nothing. */
+export const switcherRollUp = (page: Page, name: string): Locator => switcherEntry(page, name).locator('.switcher-roll-up');
+
 /** Every switcher entry's name, in its order. */
 export const switcherNames = (page: Page): Locator => switcherEntries(page).locator('.switcher-item-name');
 

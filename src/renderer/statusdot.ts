@@ -7,8 +7,11 @@ import { setTooltip } from './tooltip';
 
 /** The status dots: a session's own, as the sidebar row, the tab, the live strip and a list panel's row draw it, and a roll-up's, which stands for many; their shape is base.css's `.nudge`, and each state's look is a class the looks' stylesheet draws (looks.ts). */
 
-/** The classes a state draws with: a needs-you reason's `needs` and any other state its own, then its look's. */
-function stateClass(state: string): string {
+/**
+ * The classes a state draws with: a needs-you reason's `needs` and any other state its own, then its look's.
+ * On anything but a dot they give only the look's colour, `--look`, a reason of a type without a look of its own taking needs-you's through `needs` (looks.ts).
+ */
+export function stateClass(state: string): string {
   const look = lookOf(state);
   return `${isNeeds(state) ? 'needs' : state}${look === null ? '' : ` ${lookClass(look)}`}`;
 }
