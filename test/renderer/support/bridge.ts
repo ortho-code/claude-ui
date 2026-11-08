@@ -188,7 +188,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     setUiState: sent,
     // Main's rules (src/shared/settings.ts) over the fixture's settings.json in place of main's read of it, numbered as main numbers its reads.
     getSettings: () => answer(readSettings()),
-    // Main checks the value, refuses a save of a setting the file names more than once (`saveRefusal`), and writes what `fileChanges` says into settings.json, then reads it again for its answer; its refusal to write over a file that does not parse is main's look at the disk, so that is main's to answer, not this.
+    // Main checks the value, refuses a save of a setting the file names more than once (`saveRefusal`), and writes what `fileChanges` says into settings.json, then reads it again for its answer; a file that does not parse it refuses to write over, as `editAppFile` words it, answering with the file as it reads.
     setSettings: (change) => {
       const view = readSettings();
       const refused = SETTING_KEYS.map((key) => (change[key] === undefined ? null : settingProblem(key, change[key]))).find((problem) => problem !== null);
@@ -196,7 +196,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       const twice = saveRefusal(view, change);
       if (twice !== null) return answer({ view, refused: twice });
       const changes = fileChanges(view, change);
-      if (changes.length > 0 && fixture.settings.status === 'unparsable') return unmodelled('setSettings')();
+      if (changes.length > 0 && fixture.settings.status === 'unparsable') return answer({ view, refused: `${fixture.settings.name} does not parse, so it was not written: ${fixture.settings.error ?? ''}` });
       const json: Record<string, unknown> = { ...(fixture.settings.json as Record<string, unknown> | null) };
       for (const { key, value } of changes) json[key] = value;
       if (changes.length > 0) fixture.settings = { ...fixture.settings, status: 'read', error: null, json };

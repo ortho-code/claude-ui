@@ -53,12 +53,31 @@ test('flags saved in Settings go into settings.json', async ({ app, page }) => {
   await expect(settings.field).toHaveValue('--allowedTools Grep');
 });
 
-test('a save that changes nothing leaves settings.json as it was, and adds no setting only to say its default', async ({ app, page }) => {
+test('Save is off while a save would write nothing, on after an edit, and off again once the edit is put back', async ({ app, page }) => {
   await app.boot({ settings: file({ launchFlags: '--mine' }) });
   const settings = await open(page);
-  await settings.save.click();
-  await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual(savedWith('--mine'));
+  const general = settings.dialog.getByRole('tab', { name: 'General' });
+  await expect(settings.save).toBeDisabled();
+  await expect(general).not.toHaveClass(/\bhas-change\b/);
+  await settings.field.press('Enter');
+  await expect(settings.dialog).toBeVisible();
+
+  const flags = settings.dialog.locator('.dialog-group:has(#settings-flags)');
+  const language = settings.dialog.locator('.dialog-group:has(#settings-locale)');
+  await expect(flags).not.toHaveClass(/\bhas-change\b/);
+
+  await settings.field.fill('--mine --other');
+  await expect(settings.save).toBeEnabled();
+  await expect(general).toHaveClass(/\bhas-change\b/);
+  await expect(flags).toHaveClass(/\bhas-change\b/);
+  await expect(language).not.toHaveClass(/\bhas-change\b/);
+  await expect(settings.dialog.getByRole('tab', { name: 'Sessions' })).not.toHaveClass(/\bhas-change\b/);
+
+  await settings.field.fill('--mine');
+  await expect(settings.save).toBeDisabled();
+  await expect(general).not.toHaveClass(/\bhas-change\b/);
+  await expect(flags).not.toHaveClass(/\bhas-change\b/);
+  expect(await app.calls('setSettings')).toEqual([]);
   expect(await onDisk(page)).toEqual({ launchFlags: '--mine' });
 });
 
@@ -74,7 +93,7 @@ test('flags are saved without the spaces around them', async ({ app, page }) => 
 test('the error under the field goes once the field is typed in', async ({ app, page }) => {
   await app.boot();
   const settings = await open(page);
-  const error = settings.dialog.locator('#settings-error');
+  const error = settings.dialog.locator('#settings-flags-error');
   await settings.field.fill('--resume other');
   await settings.save.click();
   await expect(error).toBeVisible();
@@ -108,7 +127,7 @@ test('flags Settings would refuse are said under the field and never saved', asy
   const settings = await open(page);
   await settings.field.fill('--resume other');
   await settings.save.click();
-  await expect(settings.dialog.locator('#settings-error')).toHaveText("--resume can't be set here — claude-ui decides which session a tab resumes.");
+  await expect(settings.dialog.locator('#settings-flags-error')).toHaveText("--resume can't be set here — claude-ui decides which session a tab resumes.");
   await expect(settings.dialog).toBeVisible();
   expect(await app.calls('setSettings')).toEqual([]);
 });
@@ -128,8 +147,9 @@ test('a settings file that stops parsing is toasted though main tells of it only
     return window.__claudeUiTest.readSettings();
   }, broken);
   const settings = await open(page);
+  await settings.field.fill('--mine');
   await settings.save.click();
-  await expect(settings.dialog).toBeHidden();
+  await expect(settings.dialog.locator('#settings-save-error')).toHaveText('settings.json does not parse, so it was not written: expected a comma at line 3, column 3');
   await app.emit('onSettingsChanged', readBefore);
   await expect(page.locator('#toast-message')).toHaveText('settings.json: expected a comma at line 3, column 3');
 });

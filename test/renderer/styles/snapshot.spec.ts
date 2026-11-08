@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { defaultUi } from '../../../src/shared/defaults';
 import type { Exchange, UiState } from '../../../src/shared/types';
 import { LAYOUT, runs, withLayout } from '../panels/layout/layout';
-import { type BridgeFixture, CONFIG_ROOT, HOME, PROJECT, session } from '../support/fixture';
+import { type BridgeFixture, CONFIG_ROOT, HOME, PROJECT, session, settingsFileWith } from '../support/fixture';
 import { type App, expect, test } from '../support/harness';
 import { row, rows, tabLabel } from '../support/window';
 import { snapshot } from './capture';
@@ -139,12 +139,22 @@ test("the window's own title bar and resize edges, where the app draws its chrom
   await snapshot(page, DIR!, 'chrome');
 });
 
-test('Settings open', async ({ app, page }) => {
-  await app.boot();
-  await page.locator('#settings-toggle').click();
-  await expect(page.locator('#settings-overlay')).toBeVisible();
-  await snapshot(page, DIR!, 'settings');
-});
+// One state per section of Settings, each with a mistake in the file so the list's mark and the notes under the title are drawn too.
+for (const [section, name] of [
+  ['General', 'settings-general'],
+  ['Sessions', 'settings-sessions'],
+  ['Appearance', 'settings-appearance'],
+  ['Version control', 'settings-version-control'],
+  ['Logs', 'settings-logs'],
+] as const) {
+  test(`Settings open on ${section}`, async ({ app, page }) => {
+    await app.boot({ settings: settingsFileWith('settings.json', { looks: { nothing: { colour: 'peach' } }, lanchFlags: '' }) });
+    await page.locator('#settings-toggle').click();
+    await page.getByRole('dialog', { name: 'Settings' }).getByRole('tab', { name: section, exact: true }).click();
+    await expect(page.getByRole('tabpanel', { name: section, exact: true })).toBeVisible();
+    await snapshot(page, DIR!, name);
+  });
+}
 
 test('the text prompt open, renaming a project', async ({ app, page }) => {
   await app.boot();

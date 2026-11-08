@@ -14,7 +14,7 @@ interface PrStatusSetting {
 }
 
 const open = async (page: Page): Promise<PrStatusSetting> => {
-  const dialog = await openSettings(page);
+  const dialog = await openSettings(page, 'Version control');
   return {
     dialog,
     box: dialog.getByRole('checkbox', { name: 'PR status from GitHub' }),
@@ -49,7 +49,7 @@ test('a setting settings.json names twice is named under the settings, and a sav
   await expect(settings.dialog.locator('#settings-notes')).toContainText('settings.json names "prStatus" more than once: the last is the one read, and Settings refuses a save that would change it until only one is left.');
   await settings.box.uncheck();
   await settings.save.click();
-  await expect(settings.dialog.locator('#settings-error')).toHaveText('settings.json names "prStatus" more than once, so nothing was saved: leave one of each, then save again.');
+  await expect(settings.dialog.locator('#settings-save-error')).toHaveText('settings.json names "prStatus" more than once, so nothing was saved: leave one of each, then save again.');
   await expect(settings.dialog).toBeVisible();
   expect(await page.evaluate(() => window.__claudeUiFixture.settings.json)).toEqual({ prStatus: true });
 });

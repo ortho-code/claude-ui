@@ -157,7 +157,7 @@ const prStatusIs = (on: boolean): SettingsFileRead => settingsFileWith('settings
 
 /** Tick or untick PR status in Settings and save. */
 async function saveWith(page: Page, on: boolean): Promise<void> {
-  const dialog = await openSettings(page);
+  const dialog = await openSettings(page, 'Version control');
   await dialog.getByRole('checkbox', { name: 'PR status from GitHub' }).setChecked(on);
   await dialog.getByRole('button', { name: 'Save' }).click();
 }

@@ -62,7 +62,7 @@ Done:
 - Opens the way you left it: window size and position, the sidebar's search, filters, folds, width and scroll offset, and the tab bar's fold.
 - A consistent control system: every mark is an SVG icon (no font glyphs), clickable icons share one mark size and one hover for each kind, a borderless one turning accent blue, a bordered one filling, the header's buttons hovering as the ordinary button beside them does, and a panel's icon in a strip filling as a tab does, and radius and type come from tokens.
 - Reaching a group without scrolling: a jump list on the project heading.
-- Settings: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included.
+- Settings, in sections listed beside the one on show: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included.
   The flags the app sets for itself are refused there rather than allowed to break a session.
   They are kept in the config folder, over a `settings.json` of your own; see [Settings](#settings).
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
@@ -323,19 +323,19 @@ A language tag is needed because a system whose `LANG` is `C.UTF-8`, as a WSL di
 `strength` is `["waiting", "busy", "background", "needs-you", "idle", "closed"]` until you choose otherwise: the dot shows the first that holds, so claude waiting or working shows over a needs-you mark and the mark over a finished turn, and the dot's tooltip and the top of its options list every state in that order, after what its tab says, such as that it is stopping.
 It names every status once, `"needs-you"` once, standing for every needs-you category it does not name, in their order in [What needs you](#what-needs-you), and any category on its own where it should rank, such as `["waiting", "back-to-work", "busy", "background", "needs-you", "idle", "closed"]` to show a PR back to work over a busy claude.
 Where the dots are rolled up, in the colour of the project switcher's count, a group's jump menu, the tab bar's fold and a panel's icon, what asks for you comes before what is at work, each in this order.
-Settings has no field for it yet, and names a mistake in it under Status dots; a list with a mistake is not used.
+Settings has no field for it yet, and names a mistake in it in its Appearance section; a list with a mistake is not used.
 `looks` is `{}` until you choose otherwise, and says how a status, `"needs-you"`, a category or a type of [What needs you](#what-needs-you) is drawn, by its id, each entry the fields it changes: `colour`, one of `rosewater`, `flamingo`, `pink`, `mauve`, `red`, `maroon`, `peach`, `yellow`, `green`, `teal`, `sky`, `sapphire`, `blue`, `lavender` and `muted`, or `"#rrggbb"`; `mark`, `"dot"`, `"ring"`, `"spinner"` or the name of a panel's icon, drawn in the dot's place; `core`, a colour inside a spinner, as background work has; `pulse`, `true` or `false`; and `looksLike`, the id of another whose look it takes for every field it leaves out.
 What an entry leaves out comes from what it looks like, else from its category for a type, from `"needs-you"` for a category, and from the dots as they were for a status, so a type you leave alone follows its category.
 `{ "back-to-work": { "colour": "peach" } }` draws every Back to work reason as a peach dot, still pulsing as needs you does; `{ "pr.changes-requested": { "mark": "bug", "colour": "red" }, "pr.checks-failed": { "looksLike": "pr.changes-requested" } }` draws both as a red bug; `{ "finish-up": { "looksLike": "idle" } }` draws a merged or closed PR as a still green dot, its tooltip still saying which.
 A look changes how a dot is drawn, never what it shows, which is the order's; on a panel's icon the dot is a plain one in the look's colour, and the attention toasts' edge takes its colour.
-Your turn's types have no look of their own, since they are `"waiting"` and `"idle"`; looks with a mistake are not used, and Settings names it under Status dots.
+Your turn's types have no look of their own, since they are `"waiting"` and `"idle"`; looks with a mistake are not used, and Settings names it in its Appearance section.
 `approvals` is `{}` until you choose otherwise, and says how many approvals a PR needs before it counts as approved, by repository as `owner/name`, such as `{ "acme/app": 2 }` for a team that merges on two where GitHub asks one; the name matches in any case.
 A PR counts as approved when GitHub says so and, in a repository named here, once that many reviewers with write access approve: only then is its mark green and is a session marked for it, and a session's options show its count, such as "1 of 2 approvals".
-A repository it does not name counts as approved when GitHub says so; Settings has no field for it yet, and names a mistake in it under Pull requests, where the setting is not used.
+A repository it does not name counts as approved when GitHub says so; Settings has no field for it yet, and names a mistake in it in its Version control section, where the setting is not used.
 A save writes the settings you changed, and puts a value Settings can use in place of one in the file it cannot, as edits of the file's text, so your comments stay; it is refused while the file does not parse or does not hold an object.
 A change to the file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus`, `leaveButton`, `strength`, `looks`, `approvals`, `setAside` or `setAsideTime` counts at once, the last two for what you set aside from then on, and a change to `locale` too, except in the time fields, which follow it from the next launch.
 A `settings.json` you were sent sets flags on every session you start, so read it before you use it.
-A mistake in the file is named in Settings, and a file that does not parse keeps the settings it last read until it does.
+A mistake in the file is named in Settings: a value that is not used under its setting, whose section is marked in the list of sections, and what concerns the file rather than one value, such as a setting named twice or a key the app does not have, under the title; a file that does not parse keeps the settings it last read until it does.
 
 ### What needs you
 

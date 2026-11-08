@@ -23,7 +23,7 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
-/* A dialog holding a form rather than a question: a flag line is typed left to right and wants to be readable at a glance, which 360px does not give it. */
+/* A dialog holding a form rather than a question: a session's name, its first prompt or where it stands is typed in a field that wants to be readable at a glance, which 360px does not give it. */
 .dialog.wide {
   width: min(520px, 86vw);
 }

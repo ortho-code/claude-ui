@@ -105,7 +105,7 @@ test('with leaveButton none, a tab has no button, its kebab ends it, and a middl
 test('a change to the setting redraws the button at once', async ({ app, page }) => {
   await app.boot(fixture);
   await expect(button(page)).toHaveAttribute('data-mark', 'close');
-  const dialog = await openSettings(page);
+  const dialog = await openSettings(page, 'Sessions');
   const choice = dialog.getByRole('combobox', { name: 'Leave button' });
   await expect(choice.locator('option')).toHaveText(['Stop, then close the tab', 'Stop, then mark the session finished', 'Close the tab', 'Mark the session finished', 'No button, only the menu']);
   await expect(choice).toHaveValue('stop-close');

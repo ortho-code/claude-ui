@@ -196,6 +196,10 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The live strip at the foot of the sidebar is gone: the project switcher counts the sessions in other projects that need you, and All shows every project's sessions in the list and the tab bar.
   A panel type of your own can list what needs you and what runs from the sessions file, with each session's dot and menu on its row.
 - A dialog's button that cannot be pressed yet, such as Set aside before a time is picked, is dimmed, where it looked like one that could.
+- Settings is in sections, General, Sessions, Appearance, Version control and Logs, listed on the left beside the one on show; a section holding a setting whose value in `settings.json` is not used is marked in the list, and one Save keeps what you changed in every section.
+  Save can be pressed only while there is something to save; a setting changed and not yet saved has a blue bar down its left edge, and its section a blue dot in the list.
+  The dialog is as large as the window allows, and a section's name stays in view while its settings scroll.
+  What Settings shows but cannot change, the approvals and the dots' order and looks, says where in `settings.json` it is set, with the config folder's Open.
 
 ### Fixed
 
