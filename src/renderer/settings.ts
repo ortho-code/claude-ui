@@ -25,7 +25,6 @@ const LEAVE_BUTTON_LABELS: Record<LeaveButton, string> = {
 };
 
 // App preferences, from the config folder: settings.json, which you edit and this dialog saves into (shared/settings.ts), said once under the title.
-// One section for now; the shape is per-section so a second one (a read-only view of the user's own Claude config) is an addition rather than a rework.
 // Under a field, a value of the file's that is not used and why; under the section, what is wrong with the file as a whole.
 // The app's own folders are one row each under it, built from SETTINGS_FOLDERS below.
 document.body.insertAdjacentHTML(
