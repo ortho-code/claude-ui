@@ -170,6 +170,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     unkeep: (ids) => {
       fixture.kept = unkept(fixture.kept, ids);
     },
+    recordReview: sent,
     linkSessionPr: (id, url) => {
       fixture.prLinks = withPrLink(fixture.prLinks, id, url);
     },

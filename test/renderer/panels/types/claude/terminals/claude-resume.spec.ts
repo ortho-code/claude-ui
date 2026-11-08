@@ -53,7 +53,7 @@ test('a finished session resumed in a tab is made unfinished, a toast says so, a
   await app.emit('onSessionStatus', one.id, 'closed', token, 'SessionEnd');
   await app.emit('onSessionStart', old.id, token, 'resume');
 
-  await expect.poll(() => app.calls('unfinish')).toEqual([[[old.id]]]);
+  await expect.poll(() => app.calls('unfinish')).toEqual([[[old.id], 'resume']]);
   await expect(page.locator('#toast-message')).toHaveText(`"${old.title}" was finished; resuming it in claude made it unfinished`);
   await expect(titlesIn(group(page, 'Other'))).toHaveText([old.title]);
   await tab(page, old.title).locator('.tab-kebab').click();

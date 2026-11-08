@@ -261,7 +261,7 @@ test("a prompt there takes it off, a scheduled task's turn and its tab's close d
 
   await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit', undefined, 'what next?');
   await expect(row(page, one.title).locator('.set-aside-mark')).toBeHidden();
-  expect(await app.calls('clearSetAside')).toEqual([[[one.id]]]);
+  expect(await app.calls('clearSetAside')).toEqual([[[one.id], 'prompt']]);
 });
 
 test('finishing it takes the mark off, and Undo gives it back as it was', async ({ app, page }) => {
@@ -354,7 +354,7 @@ test('a prompt there settles both marks', async ({ app, page }) => {
   await expect(row(page, one.title).locator('.set-aside-mark')).toBeHidden();
   await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
   expect(await app.calls('clearNeedsYou')).toEqual([[one.id, 'prompt']]);
-  expect(await app.calls('clearSetAside')).toEqual([[[one.id]]]);
+  expect(await app.calls('clearSetAside')).toEqual([[[one.id], 'prompt']]);
 });
 
 // Setting aside took over from pausing a tab, so pause and its force are gone from every menu, whatever the tab is doing (decided 2026-10-29).

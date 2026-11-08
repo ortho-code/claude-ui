@@ -484,8 +484,8 @@ export interface ClaudeUiApi {
   getFinished(): Promise<Record<string, number>>;
   /** Mark sessions finished in one write, each keeping when it was finished if it already is, so a second call leaves the finished map as it is; resolves to the updated finished map. */
   finish(ids: string[]): Promise<Record<string, number>>;
-  /** Make sessions unfinished in one write, whatever their state, so a second call leaves the finished map as it is; resolves to the updated finished map. */
-  unfinish(ids: string[]): Promise<Record<string, number>>;
+  /** Make sessions unfinished in one write, whatever their state, so a second call leaves the finished map as it is; resolves to the updated finished map; `by` says a session resumed in claude did, rather than you. */
+  unfinish(ids: string[], by?: 'resume'): Promise<Record<string, number>>;
   /**
    * Delete a session: move its transcript file to the trash and drop it from metadata.
    * The renderer confirms first via its own modal.
@@ -519,14 +519,16 @@ export interface ClaudeUiApi {
   getSetAside(): Promise<Record<string, SetAside>>;
   /** Set sessions aside in one write, `due` the moment they come back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
   markSetAside(ids: string[], due: number | null, at?: number): void;
-  /** Take sessions' set-aside marks off in one write, whether or not each had one. */
-  clearSetAside(ids: string[]): void;
+  /** Take sessions' set-aside marks off in one write, whether or not each had one; `by` says a prompt there did, rather than you. */
+  clearSetAside(ids: string[], by?: 'prompt'): void;
   /** When each session was last kept out of the review, by session id (epoch ms). */
   getKept(): Promise<Record<string, number>>;
   /** Keep sessions out of the review from `at` or now, in one write; a stamp already there is replaced. */
   keep(ids: string[], at?: number): void;
   /** Take sessions' keep stamps off, in one write, as Keep's Undo does. */
   unkeep(ids: string[]): void;
+  /** Note in the usage record that the review opened or ended, over the project on show or every project, offering `offered` sessions to decide at that moment. */
+  recordReview(act: 'start' | 'end', scope: 'project' | 'all', offered: number): void;
   /** Link a session to the PR at `url`, a GitHub pull request page, unless it is linked to it already; the listing gives it among the session's PRs from the first listing that names the session. */
   linkSessionPr(id: string, url: string): void;
   /** Settle the set-aside marks that have come due by `now` (`cameDue`): each goes, and, while `remind` says the reminder's type is on, a session not marked as needing you is marked with a reminder. */

@@ -130,6 +130,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The sessions file says of each session whether its claude is running in a tab, `running`, so a panel can list what runs, in any project.
 - Settings lists what can mark a session as needing you, each category and type with its id and its look, which are off and what `needsYou` changed, and the order the dots show states in.
 - Settings says the default under every setting `settings.json` gives other than it, with a Reset that writes the default back when you save, and Only what differs narrows every section to those settings.
+- A usage record, `usage.log` beside `meta.json`, noting each time sessions are finished, set aside or kept or that is undone, each opening and ending of the review, and each needs-you mark and what settled it, so how the app is used can be counted over weeks.
+  It holds moments, session ids, types and counts, never a title, a prompt or a note, stays on this machine, and keeps a year.
 
 ### Changed
 

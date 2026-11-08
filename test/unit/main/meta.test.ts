@@ -82,6 +82,7 @@ import {
   getMoved,
   markMoved,
   recordClear,
+  settleNeedsYouTypes,
 } from '../../../src/main/meta';
 
 let dir: string;
@@ -1352,5 +1353,73 @@ describe('a filter a stored file has no value for', () => {
     } finally {
       defaultsWith.pinnedOn = false;
     }
+  });
+});
+
+describe('the usage record', () => {
+  /** The usage record's events so far, without their moments. */
+  async function usage(): Promise<unknown[]> {
+    const text = await fs.readFile(path.join(dir, 'usage.log'), 'utf8').catch(() => '');
+    return text
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line.slice(line.indexOf(' ') + 1)) as unknown);
+  }
+
+  it('takes a line per decision, of the sessions it changed, and none for a decision that changed nothing', async () => {
+    await finish(['a', 'b']);
+    await finish(['a', 'c']);
+    await unfinish(['b', 'x']);
+    await markSetAside(['d'], null, 1);
+    await clearSetAside(['d', 'x']);
+    await keep(['e'], 1);
+    await unkeep(['e', 'x']);
+    await unfinish(['x']);
+    await clearSetAside(['x']);
+    await unkeep(['x']);
+    expect(await usage()).toEqual([
+      { kind: 'decide', act: 'finish', ids: ['a', 'b'] },
+      { kind: 'decide', act: 'finish', ids: ['c'] },
+      { kind: 'decide', act: 'unfinish', ids: ['b'] },
+      { kind: 'decide', act: 'setAside', ids: ['d'] },
+      { kind: 'decide', act: 'clearSetAside', ids: ['d'] },
+      { kind: 'decide', act: 'keep', ids: ['e'] },
+      { kind: 'decide', act: 'unkeep', ids: ['e'] },
+    ]);
+  });
+
+  it('names what wrote a decision you did not take: a prompt clearing a set-aside mark, a resume unfinishing', async () => {
+    await finish(['a']);
+    await markSetAside(['b'], null, 1);
+    await unfinish(['a'], 'resume');
+    await clearSetAside(['b'], 'prompt');
+    expect((await usage()).slice(2)).toEqual([
+      { kind: 'decide', act: 'unfinish', ids: ['a'], by: 'resume' },
+      { kind: 'decide', act: 'clearSetAside', ids: ['b'], by: 'prompt' },
+    ]);
+  });
+
+  it('takes a line per session whose needs-you reasons a write marked, settled or put back, with what settled them', async () => {
+    const closed = { type: 'app.was-running', at: 1, how: 'quit' } as const;
+    await markNeedsYou(['a', 'b'], [closed]);
+    await markNeedsYou(['a'], [{ type: 'app.was-running', at: 2, how: 'ended' }]);
+    await clearNeedsYou('a', 'prompt');
+    await restoreNeedsYou('a', [closed]);
+    await finish(['a']);
+    await settleNeedsYouTypes(['app.was-running']);
+    await markSetAside(['c'], 5, 1);
+    await setAsideCameDue(10);
+    await clearNeedsYou('x', 'cleared');
+    expect((await usage()).filter((event) => (event as { kind: string }).kind === 'needsYou')).toEqual([
+      { kind: 'needsYou', act: 'marked', id: 'a', types: ['app.was-running'] },
+      { kind: 'needsYou', act: 'marked', id: 'b', types: ['app.was-running'] },
+      { kind: 'needsYou', act: 'settled', id: 'a', types: ['app.was-running'], by: 'replaced' },
+      { kind: 'needsYou', act: 'marked', id: 'a', types: ['app.was-running'] },
+      { kind: 'needsYou', act: 'settled', id: 'a', types: ['app.was-running'], by: 'prompt' },
+      { kind: 'needsYou', act: 'restored', id: 'a', types: ['app.was-running'] },
+      { kind: 'needsYou', act: 'settled', id: 'a', types: ['app.was-running'], by: 'finished' },
+      { kind: 'needsYou', act: 'settled', id: 'b', types: ['app.was-running'], by: 'off' },
+      { kind: 'needsYou', act: 'marked', id: 'c', types: ['app.reminder'] },
+    ]);
   });
 });

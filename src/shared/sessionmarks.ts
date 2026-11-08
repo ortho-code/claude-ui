@@ -91,7 +91,7 @@ function withSettled(history: Readonly<Record<string, readonly SettledNeedsYou[]
 }
 
 /** Whether two reasons are the same one: of one type, marked at one moment, for one PR, however either spells it, or one close. */
-function sameReason(a: NeedsYou, b: NeedsYou): boolean {
+export function sameReason(a: NeedsYou, b: NeedsYou): boolean {
   return a.type === b.type && a.at === b.at && (isPrReason(a) && isPrReason(b) ? referenceKey(a.pr) === referenceKey(b.pr) : true) && (a.type === 'app.was-running' && b.type === 'app.was-running' ? a.how === b.how : true);
 }
 

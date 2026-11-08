@@ -16,6 +16,7 @@ import { liveRuns, registerPanelsIpc, stopAllPanels } from './panels';
 import { forgetSessions, keepShellFolders, registerPanelData } from './paneldata';
 import { logsDir } from './paths';
 import { startLog, closeLog, errorText, lastClosed, log } from './log';
+import { recordUsage, reviewUsageOf, trimUsage } from './usage';
 import { headerLines, logGpuStatus, logProcessFailures, registerRendererLog, watchWindow } from './diagnostics';
 import { localTimestamp } from './stamp';
 import {
@@ -145,6 +146,7 @@ if (!app.requestSingleInstanceLock()) {
   startLog({ dir: logsDir, header: () => headerLines(launched) });
   logProcessFailures();
   registerRendererLog();
+  void trimUsage();
   logGpuStatus();
   app.on('second-instance', () => {
     if (!mainWindow) return;
@@ -490,7 +492,7 @@ ipcMain.on('shell:openExternal', (_event, url: string) => {
 });
 ipcMain.handle('meta:getFinished', () => getFinished());
 ipcMain.handle('meta:finish', (_event, ids: string[]) => finish(ids));
-ipcMain.handle('meta:unfinish', (_event, ids: string[]) => unfinish(ids));
+ipcMain.handle('meta:unfinish', (_event, ids: string[], by: unknown) => unfinish(ids, by === 'resume' ? by : undefined));
 ipcMain.handle('sessions:delete', async (_event, id: string) => {
   // The renderer confirms via its own modal (a native dialog flickers under WSLg), so here we just do the deletion: move the files to trash, then drop the session from metadata.
   await trashSessions([id]);
@@ -533,14 +535,18 @@ ipcMain.on('meta:keep', (_event, ids: string[], at?: number) => {
 ipcMain.on('meta:unkeep', (_event, ids: string[]) => {
   void unkeep(ids);
 });
+ipcMain.on('usage:review', (_event, act: unknown, scope: unknown, offered: unknown) => {
+  const review = reviewUsageOf(act, scope, offered);
+  if (review) void recordUsage([review]);
+});
 ipcMain.on('meta:linkSessionPr', (_event, id: unknown, url: unknown) => {
   if (typeof id === 'string' && typeof url === 'string') void addPrLink(id, url);
 });
 ipcMain.on('meta:markSetAside', (_event, ids: string[], due: number | null, at?: number) => {
   void markSetAside(ids, due, at);
 });
-ipcMain.on('meta:clearSetAside', (_event, ids: string[]) => {
-  void clearSetAside(ids);
+ipcMain.on('meta:clearSetAside', (_event, ids: string[], by: unknown) => {
+  void clearSetAside(ids, by === 'prompt' ? by : undefined);
 });
 ipcMain.on('meta:setAsideCameDue', (_event, now: number, remind: boolean) => {
   void setAsideCameDue(now, remind);

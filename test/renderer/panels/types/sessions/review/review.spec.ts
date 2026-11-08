@@ -67,6 +67,19 @@ test('opening it shows the two sets, each row saying why it is there, and sets t
   await expect(row(page, old.title)).toHaveCount(0);
 });
 
+test('opening and ending it are noted in the usage record, with its scope and what was left to decide each time', async ({ app, page }) => {
+  await app.boot(fixture);
+  await button(page).click();
+  await expect.poll(() => app.calls('recordReview')).toEqual([['start', 'project', 2]]);
+  await row(page, old.title).click();
+  await act(page, 'keep').click();
+  await page.locator('#bulk-done').click();
+  await expect.poll(() => app.calls('recordReview')).toEqual([
+    ['start', 'project', 2],
+    ['end', 'project', 1],
+  ]);
+});
+
 test('in All a row says which project and group it sits in, ahead of why', async ({ app, page }) => {
   await app.boot({ ...fixture, activeProject: null, groupState: { groups: [{ id: 'g-ideas', name: 'Ideas', repoRoot: PROJECT }], groupOf: { [old.id]: 'g-ideas' } } });
   await button(page).click();

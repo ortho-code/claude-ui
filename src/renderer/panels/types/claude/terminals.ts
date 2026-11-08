@@ -940,7 +940,7 @@ function adoptResumed(owner: TabState, id: string): TabState | null {
   persistOpenTabs();
   const key = entityKey(session);
   if (!store.get().finished.has(key)) return null;
-  void window.claudeUi.unfinish([key]).then((finished) => {
+  void window.claudeUi.unfinish([key], 'resume').then((finished) => {
     store.set({ finished: new Map(Object.entries(finished)) });
     showToast(`"${sessionLabel(session)}" was finished; resuming it in claude made it unfinished`);
   }, () => showToast(`"${sessionLabel(session)}" is finished and running; make it unfinished from the finished sessions`));

@@ -1150,6 +1150,27 @@ The window's uncaught errors arrive through `console-message` as `Uncaught …` 
 **What is not**: prompts, transcript text, session and worktree names, the value of a flag, a panel's command line or its output.
 The one exception is a failed start's last five lines, which for a resume that dies at once can include some of the history it had just drawn.
 
+## The usage record
+
+`usage.log` in `app.getPath('userData')`, beside `meta.json`, is how the app's use is counted over weeks: how many sessions were decided, how often the review was used, and how noisy needs-you is (decided 2026-11-08, so the session model's next stages are checked against real use before they are built).
+`src/main/usage.ts` owns it; each line is a moment as the log writes one (`appendStamped`) and a JSON event:
+- `decide`: one per write of `finish`, `unfinish`, `markSetAside`, `clearSetAside`, `keep` or `unkeep`, named after the write, with the ids it changed (`setAside` and `keep` every id given, since each restamps its moment); `finish`, `unfinish`, `clearSetAside` and `unkeep` that changed nothing give no line.
+  The act is the write's, not what you meant: an Undo writes whatever puts things back, so it can show as `finish`, `setAside` or `keep`.
+  The two writes nobody decides carry `by`: `"by":"prompt"` on the `clearSetAside` each prompt you send makes, and `"by":"resume"` on the `unfinish` of a finished session resumed in claude.
+- `review`: the review's `start` or `end`, with its scope (`project` or `all`) and how many sessions it offered to decide, each as of that moment.
+  A review cut short by quitting or reloading has a start and no end, and a finish of a running tab is written when its claude exits, which can be after the review's end.
+- `needsYou`: per session, the reasons a write `marked`, `settled` with what settled them (`SettledBy`), or `restored` by Undo, by type.
+
+**Recorded in main, where `meta.json` is written** (`update` in `src/main/meta.ts`), after the write has landed, so every surface that decides — the review, the bulk bar, the close toast, a session's menu, a tab's button — is counted without passing a source through; only the two writes nobody decides say what made them.
+The window sends only the review's opening and ending, which `reviewUsageOf` checks on arrival as the log checks the window's lines.
+
+**Not the audit log**: `meta-audit.log` is trimmed by size to trace a lost write over the last few sessions of work; this is kept by time, a year (`USAGE_KEPT_DAYS`), trimmed at each launch.
+It repeats on purpose what the needs-you history keeps, since that history holds only the newest 20 per session and goes with a delete.
+
+**What a line holds**: moments, session ids, types and counts; never a title, a prompt or a note.
+A failed append is logged, each distinct error once per log file, and never fails the write it records.
+Nothing in the app reads it yet: a count is a script over it and `meta.json`.
+
 ## Panels
 
 A layout file arranges the whole window: rows and columns of panel groups, with the sidebar and the terminal area as two of the panels.

@@ -81,4 +81,10 @@ export function watchReviewButton(): void {
   store.watch(slices, showReviewButton);
   window.setInterval(() => showReviewButton(store.get()), REVIEW_LOOK_EVERY_MS);
   showReviewButton(store.get());
+  let wasReviewing = store.get().reviewing;
+  store.watch(slices, (view) => {
+    if (view.reviewing === wasReviewing) return;
+    wasReviewing = view.reviewing;
+    window.claudeUi.recordReview(view.reviewing ? 'start' : 'end', view.activeProject === null ? 'all' : 'project', reviewCount(reviewInScope(view)));
+  });
 }

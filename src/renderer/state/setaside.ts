@@ -19,14 +19,15 @@ export function markSetAside(ids: readonly string[], due: number | null, at = Da
   window.claudeUi.markSetAside([...ids], due, at);
 }
 
-/** Take sessions' set-aside marks off, in one write; nothing is sent for those that have none. */
-export function clearSetAside(ids: readonly string[]): void {
+/** Take sessions' set-aside marks off, in one write; nothing is sent for those that have none; `by` says a prompt there did, rather than you. */
+export function clearSetAside(ids: readonly string[], by?: 'prompt'): void {
   const marked = ids.filter((id) => store.get().setAside.has(id));
   if (marked.length === 0) return;
   let setAside = Object.fromEntries(store.get().setAside);
   for (const id of marked) setAside = clearedSetAside(setAside, id);
   store.set({ setAside: new Map(Object.entries(setAside)) });
-  window.claudeUi.clearSetAside(marked);
+  if (by === undefined) window.claudeUi.clearSetAside(marked);
+  else window.claudeUi.clearSetAside(marked, by);
 }
 
 /** Settle the set-aside marks that have come due (`cameDue`); nothing is sent while none has. */

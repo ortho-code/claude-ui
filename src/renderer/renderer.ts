@@ -84,7 +84,7 @@ window.claudeUi.onSessionStatus((id, status, tabToken, event, background, prompt
     const scheduled = [...(store.get().scheduledTasks.get(id) ?? []), ...(tabWith(id)?.scheduledWhenStopped ?? [])].map((task) => task.prompt);
     if (prompt === undefined || !startedByClaude(prompt, scheduled, source)) {
       clearNeedsYou(id, 'prompt');
-      clearSetAside([id]);
+      clearSetAside([id], 'prompt');
     }
   }
   // A new session's title isn't on disk immediately; re-read on its status events until it is (this also replaces the tab's own stand-in row with the real one).
