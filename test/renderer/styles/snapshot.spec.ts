@@ -162,6 +162,14 @@ test('the confirm dialog open, deleting a finished session', async ({ app, page 
   await snapshot(page, DIR!, 'confirm');
 });
 
+test("Set aside… open, from a session's menu", async ({ app, page }) => {
+  await app.boot({ sessions: [session()] });
+  await page.locator('.session .session-kebab').click();
+  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Set aside…$/ }).click();
+  await expect(page.locator('#set-aside-overlay')).toBeVisible();
+  await snapshot(page, DIR!, 'set-aside');
+});
+
 /** A live claude with a history of three exchanges, pins, code and a folded run of tools, its bar beside the pane. */
 async function liveHistory(app: App, page: Page): Promise<void> {
   const one = session();
