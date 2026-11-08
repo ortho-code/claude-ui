@@ -40,8 +40,8 @@ const subagent = { id: 'a9f387eb22d2413de', type: 'subagent' };
 
 const report = (status: string, at: number, running = [] as Report['running'], runningAt = 0): Report => ({ status, at, ts: Math.floor(at / 1000), tab: 'tab-token-1', running, runningAt, crons: [] });
 const facts = (extra: Partial<Facts>): Facts => ({ ...newFacts(), ...extra });
-const interrupted = (running: Work[]): Ending => ({ event: INTERRUPT_EVENT, status: 'idle', running, ends: ['busy', 'waiting'] });
-const workEnded = (running: Work[]): Ending => ({ event: TASK_END_EVENT, status: 'idle', running, ends: ['background'] });
+const interrupted = (running: Work[]): Ending => ({ event: INTERRUPT_EVENT, status: 'ready', running, ends: ['busy', 'waiting'] });
+const workEnded = (running: Work[]): Ending => ({ event: TASK_END_EVENT, status: 'ready', running, ends: ['background'] });
 const refused: Ending = { event: REFUSAL_EVENT, status: 'busy', running: [], ends: ['waiting'] };
 
 describe('the end no hook reports', () => {
@@ -60,7 +60,7 @@ describe('the end no hook reports', () => {
       expect(unhookedEnd(report(status, 2000), facts({ interruptedAt: 1500 }))).toBe(null);
     });
 
-    it.each(['idle', 'background', 'closed', 'start'])('leaves %s alone, which no interrupt can end', (status) => {
+    it.each(['ready', 'background', 'closed', 'start'])('leaves %s alone, which no interrupt can end', (status) => {
       expect(unhookedEnd(report(status, 1000), facts({ interruptedAt: 1500 }))).toBe(null);
     });
 
@@ -112,7 +112,7 @@ describe('the end no hook reports', () => {
       expect(unhookedEnd(report('waiting', 2000), facts({ refusedAt: 1500 }))).toBe(null);
     });
 
-    it.each(['busy', 'idle', 'background'])('leaves %s alone, which says nothing is asked', (status) => {
+    it.each(['busy', 'ready', 'background'])('leaves %s alone, which says nothing is asked', (status) => {
       expect(unhookedEnd(report(status, 1000), facts({ refusedAt: 1500 }))).toBe(null);
     });
   });
@@ -204,11 +204,11 @@ describe('a transcript that changes', () => {
     runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
     await appendNow(marker);
     await transcriptChanged(transcript, SETTLE);
-    expect(await readStatusFile()).toMatchObject({ status: 'idle', event: INTERRUPT_EVENT, tab: 'tab-token-1' });
+    expect(await readStatusFile()).toMatchObject({ status: 'ready', event: INTERRUPT_EVENT, tab: 'tab-token-1' });
   });
 
   it('ends it in the background while a subagent the turn sent off still runs', async () => {
-    runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [], session_crons: [] });
+    runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [], session_crons: [] });
     runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
     await appendNow({ type: 'user', toolUseResult: { isAsync: true, status: 'async_launched', agentId: subagent.id, description: 'Run sleep command in background' }, message: { content: [{ type: 'tool_result', content: 'Async agent launched successfully.' }] } });
     runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
@@ -227,16 +227,16 @@ describe('a transcript that changes', () => {
   });
 
   it('ends background once the work it named is stopped from the task list', async () => {
-    runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }], session_crons: [] });
+    runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }], session_crons: [] });
     expect((await readStatusFile())?.status).toBe('background');
     await appendNow({ type: 'queue-operation', operation: 'enqueue', content: '<task-notification>\n<task-id>bh9w6pqmt</task-id>\n<tool-use-id>toolu_01</tool-use-id>\n<status>killed</status>\n<summary>Task "Background sleep command" was stopped by the user</summary>\n</task-notification>' });
     await transcriptChanged(transcript, SETTLE);
-    expect(await readStatusFile()).toMatchObject({ status: 'idle', event: TASK_END_EVENT });
+    expect(await readStatusFile()).toMatchObject({ status: 'ready', event: TASK_END_EVENT });
   });
 
   // A finished shell's notice is followed by a turn of its own, its busy about 0.1 s later (measured), and that turn says what the session does.
   it('leaves an end that claude answers with a turn of its own to that turn', async () => {
-    runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }], session_crons: [] });
+    runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }], session_crons: [] });
     await appendNow({ type: 'queue-operation', operation: 'enqueue', content: '<task-notification>\n<task-id>bh9w6pqmt</task-id>\n<tool-use-id>toolu_01</tool-use-id>\n<status>completed</status>\n<summary>Background command "Sleep" completed (exit code 0)</summary>\n</task-notification>' });
     const reading = transcriptChanged(transcript, 600);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -250,27 +250,27 @@ describe('a transcript that changes', () => {
   // The end goes back through the script with what the Stop listed, so an artifact watch on that list must still read as nothing running.
   it('ends background once the work it named is stopped, an artifact watch still listed beside it', async () => {
     const watch = { id: 'sg1al8hmg', type: 'monitor', status: 'running', description: 'live updates for artifact https://claude.ai/artifact/AbCdEf123 (auto-armed on publish)' };
-    runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }, watch], session_crons: [] });
+    runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }, watch], session_crons: [] });
     expect(await readStatusFile()).toMatchObject({ status: 'background', background: ['shell'] });
     await appendNow({ type: 'queue-operation', operation: 'enqueue', content: killed });
     await transcriptChanged(transcript, SETTLE);
-    expect(await readStatusFile()).toMatchObject({ status: 'idle', event: TASK_END_EVENT });
+    expect(await readStatusFile()).toMatchObject({ status: 'ready', event: TASK_END_EVENT });
   });
 
   // The report after an interrupt is written a second later, and a shell stopped from the task list in that second fires no hook, so only its notice says it has ended.
   it('ends work stopped while the end of an interrupt waits to be reported', async () => {
-    runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }], session_crons: [] });
+    runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }], session_crons: [] });
     runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
     await appendNow(marker);
     const reading = transcriptChanged(transcript, 400);
     await appendNow({ type: 'queue-operation', operation: 'enqueue', content: killed });
     await reading;
-    expect(await readStatusFile()).toMatchObject({ status: 'idle', event: INTERRUPT_EVENT });
+    expect(await readStatusFile()).toMatchObject({ status: 'ready', event: INTERRUPT_EVENT });
   });
 
   // A record reaches the disk up to a few tenths of a second after the time claude stamps it with (an interrupt was on disk 0.19-0.37 s after the key, stamped 0.03-0.16 s after it, measured), so a stop just before the app's own report can carry an earlier time than it.
   it("counts work stopped before the app's report of an interrupt was written, from the Stop that listed it", async () => {
-    runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }], session_crons: [] });
+    runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }], session_crons: [] });
     runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
     await appendNow(marker);
     await transcriptChanged(transcript, SETTLE);
@@ -278,7 +278,7 @@ describe('a transcript that changes', () => {
     const reported = (await fs.stat(path.join(statusDir, `${SID}.stop`))).mtimeMs;
     await append({ type: 'queue-operation', operation: 'enqueue', timestamp: new Date(reported - 50).toISOString(), content: killed });
     await transcriptChanged(transcript, SETTLE);
-    expect(await readStatusFile()).toMatchObject({ status: 'idle', event: TASK_END_EVENT });
+    expect(await readStatusFile()).toMatchObject({ status: 'ready', event: TASK_END_EVENT });
   });
 
   const refusal = (feedback: string) => ({
@@ -301,7 +301,7 @@ describe('a transcript that changes', () => {
     const reading = transcriptChanged(transcript, 400);
     await appendNow(marker);
     await reading;
-    expect(await readStatusFile()).toMatchObject({ status: 'idle', event: INTERRUPT_EVENT });
+    expect(await readStatusFile()).toMatchObject({ status: 'ready', event: INTERRUPT_EVENT });
   });
 
   // Claude answered at once after a refusal with feedback and its Stop came 1.0 s later (measured): the turn's end must not be overwritten with busy.
@@ -310,9 +310,9 @@ describe('a transcript that changes', () => {
     await appendNow(refusal('just reply ok'));
     const reading = transcriptChanged(transcript, 400);
     await new Promise((resolve) => setTimeout(resolve, 150));
-    runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [], session_crons: [] });
+    runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [], session_crons: [] });
     await reading;
-    expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'Stop' });
+    expect(await readStatusFile()).toMatchObject({ status: 'ready', event: 'Stop' });
   });
 
   it('reads only what was added since the last read', async () => {

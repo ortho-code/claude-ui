@@ -5,7 +5,7 @@ import { dotStatus } from './views';
 
 /** The writes to a session's status and its mark read, which both surfaces make: a status event, a click on a dot, a tab that closes. */
 
-/** `background` is what still runs behind a finished turn, kept for the status `background` and dropped with any other. */
+/** `background` is what still runs after the turn ended, kept for the status `background` and dropped with any other. */
 export function setStatus(id: string, status: string | undefined, background: readonly string[] = []): void {
   const { statuses, backgroundTasks, acked } = store.get();
   // A new status event is fresh activity: drop any "read" mark so the dot re-lights (and, for a new waiting, re-pulses) even if the user had acked the previous state.
@@ -17,7 +17,7 @@ export function setStatus(id: string, status: string | undefined, background: re
 }
 
 /**
- * Whether a session's "read" mark can be set or cleared now: only in the attention states, idle (done), waiting (claude asks you) and needs (marked as needing you), as its dot shows them.
+ * Whether a session's "read" mark can be set or cleared now: only in the attention states, ready (done), waiting (claude asks you) and needs (marked as needing you), as its dot shows them.
  * Busy (working) and closed/hollow have nothing to acknowledge.
  * Nor a finished one, which is put away: a status it still shows is one its claude left behind, such as one that ended without saying so.
  * Reading a needs-you mark dims it and keeps it: seeing it is not settling it (`clearNeedsYou`).
@@ -25,7 +25,7 @@ export function setStatus(id: string, status: string | undefined, background: re
 export function canMarkRead(id: string, view: View<'statuses' | 'tabs' | 'finished' | 'needsYou' | 'settings' | 'needsYouTypes'> = store.get()): boolean {
   if (view.finished.has(id)) return false;
   const status = dotStatus(id, view);
-  return status === 'idle' || status === 'waiting' || isNeeds(status);
+  return status === 'ready' || status === 'waiting' || isNeeds(status);
 }
 
 // Toggle the "read" mark on a session's dot: mutes a live status (dimmed, no pulse) without closing the tab or replying; a no-op where there is nothing to mark (`canMarkRead`).

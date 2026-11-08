@@ -317,7 +317,7 @@
 
 .exchange-tool::before,
 .exchange-fold.tools > .exchange-fold-head::before {
-  background: var(--idle);
+  background: var(--ready);
 }
 
 .exchange-tool-name {

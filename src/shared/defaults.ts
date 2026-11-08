@@ -2,7 +2,7 @@ import { DEFAULT_STRENGTH } from './looks';
 import type { Settings, UiState } from './types';
 
 /**
- * What the app does before anyone has chosen otherwise: nothing added to the launch line, what was running when it closed brought back at launch marked as needing you, without starting, so it costs no process until you open it, PR status asked of GitHub, a stopped tab's button closing it, a session set aside tomorrow, in a week or whenever, back at 09:00, times and dates in the system's language, and a dot showing claude waiting or working over a needs-you mark, the mark over a finished turn, every dot drawn in its look of before looks could be set, every needs-you category and type as the app ships it, and a PR approved when GitHub says so.
+ * What the app does before anyone has chosen otherwise: nothing added to the launch line, what was running when it closed brought back at launch marked as needing you, without starting, so it costs no process until you open it, PR status asked of GitHub, a stopped tab's button closing it, a session set aside tomorrow, in a week or whenever, back at 09:00, times and dates in the system's language, and a dot showing claude waiting or working over a needs-you mark, the mark over claude ready, every dot drawn in its look of before looks could be set, every needs-you category and type as the app ships it, and a PR approved when GitHub says so.
  * Under the settings file (shared/settings.ts); meta's `settings` falls back to the launch flags here.
  */
 export function defaultSettings(): Settings {

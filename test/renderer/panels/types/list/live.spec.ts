@@ -46,8 +46,8 @@ test("a row naming a session shows its status dot, which follows its status", as
   const dot = row(page, 'Review: Fix the login redirect').locator('.list-dot');
   await expect(dot.locator('.nudge')).toHaveClass(/\bwaiting\b/);
   await expect(dot).toHaveAttribute('aria-label', /^Fix the login redirect · /);
-  await app.emit('onSessionStatus', named.id, 'idle', '', 'Stop');
-  await expect(dot.locator('.nudge')).toHaveClass(/\bidle\b/);
+  await app.emit('onSessionStatus', named.id, 'ready', '', 'Stop');
+  await expect(dot.locator('.nudge')).toHaveClass(/\bready\b/);
 });
 
 test("a press on a named session's dot marks it read and unread again, and is not the row's press", async ({ app, page }) => {

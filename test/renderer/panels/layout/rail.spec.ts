@@ -37,7 +37,7 @@ test("the folded sidebar's icon carries the waiting dot while a session waits, a
   // A session in the project that is not on show: the dot is how the folded sidebar says so.
   expect(await app.emit('onSessionStatus', there.id, 'waiting', '', 'Notification')).toBe(1);
   await expect(sessions.locator('.nudge.waiting')).toBeVisible();
-  await app.emit('onSessionStatus', there.id, 'idle', '', 'Stop');
+  await app.emit('onSessionStatus', there.id, 'ready', '', 'Stop');
   await expect(sessions.locator('.nudge.waiting')).toBeHidden();
 });
 

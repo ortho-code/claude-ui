@@ -69,7 +69,7 @@ test('a press on a tab or its button still counts, and a focused button keeps th
   await status('busy')();
   await expect(close).toBeFocused();
 
-  await clickAcross(page, tab(page, other.title).locator('.tab-label'), status('idle'));
+  await clickAcross(page, tab(page, other.title).locator('.tab-label'), status('ready'));
   await expect(tab(page, other.title)).toHaveClass(/\bactive\b/);
 
   // The button's icon is its own element, over the middle of the button, where a press lands; `one` was never started, so the press closes its tab.

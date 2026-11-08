@@ -4,7 +4,7 @@ import { withChanges } from '../../../src/shared/needsyou';
 import { bundledNeedsYou } from '../../renderer/support/needsyou';
 
 const registry = bundledNeedsYou();
-const ordered = (...middle: string[]): string[] => ['waiting', 'busy', 'background', ...middle, 'idle', 'closed'];
+const ordered = (...middle: string[]): string[] => ['waiting', 'busy', 'background', ...middle, 'ready', 'closed'];
 
 describe('expandedStrength', () => {
   it("puts the app's categories at needs-you in Now's order, Your turn left out, and keeps needs-you after them", () => {
@@ -12,7 +12,7 @@ describe('expandedStrength', () => {
   });
 
   it('leaves a category named on its own where it is named', () => {
-    expect(expandedStrength(['waiting', 'back-to-work', 'busy', 'background', 'needs-you', 'idle', 'closed'], registry)).toEqual([
+    expect(expandedStrength(['waiting', 'back-to-work', 'busy', 'background', 'needs-you', 'ready', 'closed'], registry)).toEqual([
       'waiting',
       'back-to-work',
       'busy',
@@ -22,7 +22,7 @@ describe('expandedStrength', () => {
       'reminders',
       'finish-up',
       'needs-you',
-      'idle',
+      'ready',
       'closed',
     ]);
   });
@@ -42,8 +42,8 @@ describe('strengthProblem', () => {
   it('names what is wrong: no list, a name twice, a status or needs-you missing, Your turn, a category nobody has', () => {
     expect(strengthProblem('waiting', registry)).toMatch(/has to be a list of names/);
     expect(strengthProblem([...DEFAULT_STRENGTH, 'busy'], registry)).toBe('"busy" is named more than once.');
-    expect(strengthProblem(['waiting', 'busy', 'needs-you', 'idle'], registry)).toBe('It has to name "background", "closed" too: every status and "needs-you" once.');
-    expect(strengthProblem(['your-turn', ...DEFAULT_STRENGTH], registry)).toBe('"your-turn" has no place of its own: its types are "waiting" and "idle".');
+    expect(strengthProblem(['waiting', 'busy', 'needs-you', 'ready'], registry)).toBe('It has to name "background", "closed" too: every status and "needs-you" once.');
+    expect(strengthProblem(['your-turn', ...DEFAULT_STRENGTH], registry)).toBe('"your-turn" has no place of its own: its types are "waiting" and "ready".');
     expect(strengthProblem(['merged', ...DEFAULT_STRENGTH], registry)).toBe('"merged" is neither a status, "needs-you" nor a needs-you category.');
   });
 
@@ -82,9 +82,9 @@ describe('resolvedLooks', () => {
     expect(looks.get('pr.conflict')).toEqual({ ...needsYou, pulse: false });
   });
 
-  it("draws a category that looks like a status as that status, a still green dot for idle, and a later change to the status reaches it", () => {
-    expect(resolved({ 'finish-up': { looksLike: 'idle' } }).get('pr.merged')).toEqual(DEFAULT_LOOKS.idle);
-    expect(resolved({ 'finish-up': { looksLike: 'idle' }, idle: { colour: '#ABCDEF' } }).get('pr.merged')).toEqual({ ...DEFAULT_LOOKS.idle, colour: '#abcdef' });
+  it("draws a category that looks like a status as that status, a still green dot for ready, and a later change to the status reaches it", () => {
+    expect(resolved({ 'finish-up': { looksLike: 'ready' } }).get('pr.merged')).toEqual(DEFAULT_LOOKS.ready);
+    expect(resolved({ 'finish-up': { looksLike: 'ready' }, ready: { colour: '#ABCDEF' } }).get('pr.merged')).toEqual({ ...DEFAULT_LOOKS.ready, colour: '#abcdef' });
   });
 
   it("draws what looks like an id the categories do not have as a category would, from your needs-you look", () => {
@@ -105,16 +105,16 @@ describe('looksProblem', () => {
 
   it.each([
     [[], 'It has to be an object of looks by id, such as { "finish-up": { "colour": "green" } }.'],
-    [{ 'your-turn': { colour: 'red' } }, '"your-turn" has no look of its own: Your turn\'s types are drawn as "waiting" and "idle".'],
-    [{ 'claude.asks': { colour: 'red' } }, '"claude.asks" has no look of its own: Your turn\'s types are drawn as "waiting" and "idle".'],
+    [{ 'your-turn': { colour: 'red' } }, '"your-turn" has no look of its own: Your turn\'s types are drawn as "waiting" and "ready".'],
+    [{ 'claude.asks': { colour: 'red' } }, '"claude.asks" has no look of its own: Your turn\'s types are drawn as "waiting" and "ready".'],
     [{ merged: { colour: 'red' } }, '"merged" is neither a status, "needs-you", a category nor a type.'],
-    [{ idle: 'green' }, '"idle" has to be an object of fields, such as { "colour": "green" }.'],
-    [{ idle: { color: 'green' } }, '"idle" has "color", which a look does not have: it has "colour", "mark", "core", "pulse", "looksLike".'],
-    [{ idle: { mark: 'star' } }, '"idle": "mark" has to be "dot", "ring", "spinner" or an icon\'s name.'],
-    [{ idle: { core: 'green!' } }, '"idle": "core" has to be a colour, as "colour" is.'],
-    [{ idle: { pulse: 'yes' } }, '"idle": "pulse" has to be true or false.'],
-    [{ idle: { looksLike: 'idle' } }, '"idle" cannot look like itself.'],
-    [{ idle: { looksLike: 'merged' } }, '"idle" looks like "merged", which is neither a status, "needs-you", a category nor a type.'],
+    [{ ready: 'green' }, '"ready" has to be an object of fields, such as { "colour": "green" }.'],
+    [{ ready: { color: 'green' } }, '"ready" has "color", which a look does not have: it has "colour", "mark", "core", "pulse", "looksLike".'],
+    [{ ready: { mark: 'star' } }, '"ready": "mark" has to be "dot", "ring", "spinner" or an icon\'s name.'],
+    [{ ready: { core: 'green!' } }, '"ready": "core" has to be a colour, as "colour" is.'],
+    [{ ready: { pulse: 'yes' } }, '"ready": "pulse" has to be true or false.'],
+    [{ ready: { looksLike: 'ready' } }, '"ready" cannot look like itself.'],
+    [{ ready: { looksLike: 'merged' } }, '"ready" looks like "merged", which is neither a status, "needs-you", a category nor a type.'],
     [{ 'finish-up': { looksLike: 'pr.merged' }, 'pr.merged': { looksLike: 'finish-up' } }, '"finish-up", "pr.merged" look like each other in a circle.'],
   ])('names the mistake in %j', (looks, why) => {
     expect(looksProblem(looks, registry)).toBe(why);
@@ -122,6 +122,6 @@ describe('looksProblem', () => {
 
   it('passes an id it cannot know without the categories, as for a check of a save, but never Your turn', () => {
     expect(looksProblem({ merged: { looksLike: 'reviewed' } }, null)).toBeNull();
-    expect(looksProblem({ 'your-turn': {} }, null)).toBe('"your-turn" has no look of its own: Your turn\'s types are drawn as "waiting" and "idle".');
+    expect(looksProblem({ 'your-turn': {} }, null)).toBe('"your-turn" has no look of its own: Your turn\'s types are drawn as "waiting" and "ready".');
   });
 });

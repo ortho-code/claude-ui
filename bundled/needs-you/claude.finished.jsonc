@@ -1,2 +1,0 @@
-// Claude finished a turn, and you have not marked its dot read.
-{ "kind": "type", "id": "claude.finished", "label": "Claude finished", "category": "your-turn" }

@@ -57,8 +57,8 @@ test("a colour set for a reason's category draws on its dot and every roll-up, a
   expect(await ink(pill(page))).toBe(rgb(PALETTE.peach));
 });
 
-test("a type that looks like idle draws as a still green dot, and its menu header's dot alike", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: settingsFileWith('settings.json', { looks: { 'app.was-running': { looksLike: 'idle' } } }) });
+test("a type that looks like ready draws as a still green dot, and its menu header's dot alike", async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: settingsFileWith('settings.json', { looks: { 'app.was-running': { looksLike: 'ready' } } }) });
   for (const dot of dots(page)) {
     expect(await fill(dot)).toBe(rgb(PALETTE.green));
     expect(await dot.evaluate((el) => getComputedStyle(el).animationName)).toBe('none');

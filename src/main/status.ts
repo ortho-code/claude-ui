@@ -34,9 +34,9 @@ export const TAB_ENV = 'CLAUDE_UI_TAB';
  */
 const HOOK_EVENTS: [string, string][] = [
   ['UserPromptSubmit', 'busy'],
-  // Idle, or `background` while work the turn started still runs: its payload lists that work (`background_tasks`, measured on claude 2.1.289), and the script reads it.
+  // Ready, or `background` while work the turn started still runs: its payload lists that work (`background_tasks`, measured on claude 2.1.289), and the script reads it.
   // For a shell, a monitor and a subagent (measured), the work's end starts a turn of its own, so the next `Stop` brings the list up to date without anything else to hook.
-  ['Stop', 'idle'],
+  ['Stop', 'ready'],
   ['Notification', 'waiting'],
   // Also waiting, and the reason is how soon.
   // Claude sends a permission prompt's `Notification` about six seconds after the prompt appears (by its source, six seconds after the later of that and the last key pressed at it), and none at all once it is answered sooner; `PermissionRequest` fires as the prompt appears (measured on claude 2.1.289, four prompts: the notice 6.0 s after it for the two left open, and none for the two answered about a second after it).
@@ -56,7 +56,7 @@ const HOOK_EVENTS: [string, string][] = [
   // What the process does next is the business of `SessionStart` below, which reports the id that succeeded this one.
   ['SessionEnd', 'closed'],
   // Not a state either: it reports WHICH MODEL the session is on from here.
-  // The app cannot get this anywhere else while a session sits idle — a transcript records only which model ANSWERED, so `/model` is invisible in it until the next reply, and the row went on naming the old model in the meantime.
+  // The app cannot get this anywhere else while a session sits ready — a transcript records only which model ANSWERED, so `/model` is invisible in it until the next reply, and the row went on naming the old model in the meantime.
   // MEASURED: the payload carries `from_model`, `to_model`, `requested_model` and `source`; `to_model` is the one that matters and is a full model id.
   ['PostModelSwitch', 'model'],
   // Compaction is claude WORKING — it is thinking about the transcript — so the dot belongs on busy until it finishes, and the finish is a `SessionStart` carrying `source=compact` (see the script).
@@ -64,7 +64,7 @@ const HOOK_EVENTS: [string, string][] = [
   ['PreCompact', 'busy'],
   // Two jobs, and only one of them is a status.
   // IDENTITY, always: the payload's session id is what this terminal is running NOW, which is how a tab follows a `/clear` or claude's own `/resume` onto the session that replaced it; the script writes it with its source to a file of its own (`<id>.start`), since the status file below keeps a status it already has.
-  // A STATUS, only for `source=compact`, where it means the compaction above has ended; the script turns that one into `idle` and leaves every other source as the identity-only marker `start`.
+  // A STATUS, only for `source=compact`, where it means the compaction above has ended; the script turns that one into `ready` and leaves every other source as the identity-only marker `start`.
   // It must never overwrite a real status, because these files seed the dots at launch and this event also fires mid-session — the script guards that too.
   ['SessionStart', 'start'],
 ];
@@ -100,7 +100,7 @@ expect_ts="$(field claude_ui_expect_ts)"
 # A subagent's events carry the session's own id, told apart by agent_id.
 # Once the session's turn has ended, a subagent still at work runs in the background, and its tool calls are not the session working again.
 # Waiting still goes through: it needs you, whoever asks.
-if [ "$status" = busy ] && [ -n "$(field agent_id)" ] && grep -qE '"status":"(idle|background)"' "$dir/$sid.json" 2>/dev/null; then
+if [ "$status" = busy ] && [ -n "$(field agent_id)" ] && grep -qE '"status":"(ready|background)"' "$dir/$sid.json" 2>/dev/null; then
   exit 0
 fi
 # Notices of something finished ask nothing: a login done, an agent finished or failed, claude done using your computer (where claude 2.1.310 sends them), an MCP server's form confirmed complete and the answer it was given (claude 2.1.316).
@@ -120,7 +120,7 @@ fi
 # A compaction is the same claude going on, so its SessionStart keeps what the last Stop said.
 # A Stop's is written with its status, below, so an end the app reports and the script then drops leaves it as it was.
 keep_stop=''
-if [ "$status" = idle ]; then
+if [ "$status" = ready ]; then
   keep_stop=1
 elif [ "$status" = start ] && [ "$(field source)" != compact ]; then
   printf '{}' > "$dir/$sid.stop"
@@ -128,20 +128,20 @@ elif [ "$status" = start ] && [ "$(field source)" != compact ]; then
   # Written before that status file, though the app may still hear either first: it reads each file as it changes, and the reads can finish in either order.
   printf '{"tab":"%s","source":"%s"}' "\${CLAUDE_UI_TAB:-}" "$(field source)" > "$dir/$sid.start"
 fi
-# A minute at its prompt without input (its default), claude sends an idle notice, which says the turn is done, not that it asks you anything: that is idle.
-# Nothing over idle or background, which say as much already and keep their read mark and their work list, and nothing over waiting, which a question still open says better.
+# A minute at its prompt without input (its default), claude sends an idle notice, which says the turn is done, not that it asks you anything: that is ready.
+# Nothing over ready or background, which say as much already and keep their read mark and their work list, and nothing over waiting, which a question still open says better.
 # Below the Stop's keeping, so its payload is not kept as a Stop's; every other notification, such as a permission prompt or a question, goes through as waiting.
 if [ "$status" = waiting ] && [ "$(field notification_type)" = idle_prompt ]; then
-  grep -qE '"status":"(idle|background|waiting)"' "$dir/$sid.json" 2>/dev/null && exit 0
-  status=idle
+  grep -qE '"status":"(ready|background|waiting)"' "$dir/$sid.json" 2>/dev/null && exit 0
+  status=ready
 fi
-# Stop lists the work still running behind the turn it ends, and while any runs the session has not finished: it reports background in idle's place, with the type claude gives each piece of work.
+# Stop lists the work still running behind the turn it ends, and while any runs the session is not ready: it reports background in ready's place, with the type claude gives each piece of work.
 # Only a "type" key can match, never one inside a string, whose quotes arrive escaped; Stop's own fields have none, so each match is one entry of the list.
 # An artifact claude watches for comments is listed as a monitor while the watch lasts, and nothing runs meanwhile: a comment sent to Claude summons a turn of its own (by claude's source), as a scheduled wakeup starts one.
-# So each watch takes one monitor off the list, and a list of nothing but watches is idle.
+# So each watch takes one monitor off the list, and a list of nothing but watches is ready.
 # Claude starts a watch's description with the same words every time, and the same key-and-value match keeps one inside a string from counting.
 extra=''
-if [ "$status" = idle ] && printf '%s' "$input" | grep -qE '"background_tasks"[[:space:]]*:[[:space:]]*\\[[[:space:]]*\\{'; then
+if [ "$status" = ready ] && printf '%s' "$input" | grep -qE '"background_tasks"[[:space:]]*:[[:space:]]*\\[[[:space:]]*\\{'; then
   entries="$(printf '%s' "$input" | grep -oE '"type"[[:space:]]*:' | wc -l)"
   watches="$(printf '%s' "$input" | grep -oE '"description"[[:space:]]*:[[:space:]]*"live updates for artifact ' | wc -l)"
   if (( watches == 0 || entries > watches )); then
@@ -152,7 +152,7 @@ if [ "$status" = idle ] && printf '%s' "$input" | grep -qE '"background_tasks"[[
 fi
 # The end of a compaction, which is the only SessionStart that means a state rather than an identity.
 if [ "$status" = start ] && [ "$(field source)" = compact ]; then
-  status=idle
+  status=ready
 fi
 # Every other SessionStart carries identity only, so it must not overwrite a status: these files seed the dots at launch, and the event fires on clear and compact MID-session, where a session already has a status worth keeping.
 # A brand-new session has no file yet, which is the case this still writes for.
@@ -335,7 +335,8 @@ async function readStatus(id: string): Promise<StatusEntry | null> {
     };
     if (typeof parsed.status !== 'string') return null;
     return {
-      status: parsed.status,
+      // A status file outlives the app that wrote it, and 0.3 and earlier wrote `idle` for `ready`.
+      status: parsed.status === 'idle' ? 'ready' : parsed.status,
       ts: Number.isInteger(parsed.ts) ? (parsed.ts as number) : null,
       tab: typeof parsed.tab === 'string' ? parsed.tab : '',
       event: typeof parsed.event === 'string' ? parsed.event : '',
@@ -498,16 +499,16 @@ async function mtimeOf(file: string): Promise<number | null> {
 export interface Ending {
   /** What the status file names as having reported it. */
   event: string;
-  /** Idle as a Stop writes it, so background while `running` holds anything; or busy, for a turn that goes on. */
-  status: 'idle' | 'busy';
-  /** For idle, the work still listed as running. */
+  /** Ready as a Stop writes it, so background while `running` holds anything; or busy, for a turn that goes on. */
+  status: 'ready' | 'busy';
+  /** For ready, the work still listed as running. */
   running: Work[];
   /** The statuses it ends: the script writes it only over one of these, stamped as the report it read was. */
   ends: readonly string[];
 }
 
 /**
- * Report an end that no hook reports by running the hook script as the hook would have, so the script stays the one writer of the status files: an idle reads exactly as a Stop's would, idle or background naming that work.
+ * Report an end that no hook reports by running the hook script as the hook would have, so the script stays the one writer of the status files: a ready reads exactly as a Stop's would, ready or background naming that work.
  * `report` is the one the end was read from: the script writes only over that status of that second, and keeps with the work still running the time of the Stop it was taken from, so that work ending after that Stop still counts as ended, even before this report is written.
  */
 export function reportEnd(id: string, report: Report, ending: Ending): Promise<void> {
@@ -524,7 +525,7 @@ export function reportEnd(id: string, report: Report, ending: Ending): Promise<v
     const listed = Number.isFinite(listedAt) ? { listed_at: listedAt } : {};
     // What that Stop left scheduled goes with it, since the script writes this over the Stop's file: an interrupt leaves a cron as it was, though it takes a `/loop` wakeup with it (by claude's source), which the next Stop says.
     const crons = report.crons ? { session_crons: report.crons, ...(report.transcript ? { transcript_path: report.transcript } : {}) } : {};
-    const stop = ending.status === 'idle' ? { background_tasks: ending.running, ...crons, ...listed } : {};
+    const stop = ending.status === 'ready' ? { background_tasks: ending.running, ...crons, ...listed } : {};
     child.stdin.end(JSON.stringify({ session_id: id, hook_event_name: ending.event, claude_ui_expect: ending.ends.join('|'), claude_ui_expect_ts: String(ts ?? ''), ...stop }));
   });
 }

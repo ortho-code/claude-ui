@@ -51,7 +51,7 @@ const busy = {
   notes: { [marked.id]: 'A note\non two lines' },
   openSessions: [cold.id, live.id, booting.id, there.id, dead.id],
   groupState: groups,
-  statuses: { [cold.id]: 'waiting', [live.id]: 'busy', [there.id]: 'idle' },
+  statuses: { [cold.id]: 'waiting', [live.id]: 'busy', [there.id]: 'ready' },
   history: Object.fromEntries(everyone.map((s) => [s.id, []])),
 };
 const ui = (over: Partial<UiState>): { uiState: UiState } => ({ uiState: { ...defaultUi(), ...over } });

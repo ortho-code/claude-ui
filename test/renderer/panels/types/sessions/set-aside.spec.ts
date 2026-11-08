@@ -318,13 +318,13 @@ test('a needs-you mark from before the set-aside mark is muted, read-looking and
   await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bneeds\b/);
 });
 
-// The dot shows the mark over idle, read-looking; the roll-ups follow the dot, so an idle session so set aside nudges nowhere, while claude asking still does.
-test('a muted session that runs and is idle rolls up as read, and one whose claude asks still counts', async ({ app, page }) => {
+// The dot shows the mark over ready, read-looking; the roll-ups follow the dot, so a ready session so set aside nudges nowhere, while claude asking still does.
+test('a muted session that runs and is ready rolls up as read, and one whose claude asks still counts', async ({ app, page }) => {
   await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.was-running', at: 5, how: 'quit' }] }, setAside: { [one.id]: { due: null, at: 10 } } });
   await startLive(page, app);
-  await app.emit('onSessionStatus', one.id, 'idle', '', 'Stop');
+  await app.emit('onSessionStatus', one.id, 'ready', '', 'Stop');
   await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b.*\backed\b|\backed\b.*\bneeds\b/);
-  await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bidle\b|\bneeds\b/);
+  await expect(switcherRollUp(page, 'demo')).not.toHaveClass(/\bready\b|\bneeds\b/);
 
   await app.emit('onSessionStatus', one.id, 'waiting', '', 'PermissionRequest');
   await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bwaiting\b/);

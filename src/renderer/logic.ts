@@ -432,13 +432,13 @@ function rankedReasons(reasons: readonly NeedsYou[], strength: Strength): NeedsY
 }
 
 // A project's rolled-up nudge for the switcher: the strongest UNATTENDED state among its sessions, so a project you're not looking at still shows it needs you.
-// What asks for you (waiting, a needs-you reason, a finished turn) over what works, each in the strength order; null when nothing needs surfacing.
+// What asks for you (waiting, a needs-you reason, ready) over what works, each in the strength order; null when nothing needs surfacing.
 // A read session waiting, needing you or finished is muted and contributes nothing (`nudgeOf`).
-export type NudgeStatus = 'waiting' | NeedsShown | 'idle' | 'busy' | null;
+export type NudgeStatus = 'waiting' | NeedsShown | 'ready' | 'busy' | null;
 
 /**
  * What a session's dot shows of its claude's status and its needs-you reasons, one rule for its dot and for every roll-up: the first in the strength order that holds, a reason by its category, the strongest category's newest reason (decided 2026-11-06).
- * With the default order that is the mark where claude says nothing more pressing: busy and background show over it, since claude is then working, and waiting does, since claude then asks you something; idle, closed and no status at all give way to it.
+ * With the default order that is the mark where claude says nothing more pressing: busy and background show over it, since claude is then working, and waiting does, since claude then asks you something; ready, closed and no status at all give way to it.
  * A status the order does not know shows as itself where no reason does, so a state nobody named still reads in its tooltip.
  */
 export function shownState(status: string | undefined, reasons: readonly NeedsYou[], strength: Strength): string | undefined {
@@ -450,11 +450,11 @@ export function shownState(status: string | undefined, reasons: readonly NeedsYo
 
 /**
  * One session's part in a roll-up: what it shows (`shownState`), muted to nothing once read, and a reason also once its set-aside mark mutes it (`muted`); closed, unknown or not reported yet is nothing too.
- * Only waiting, a reason and idle can be read (`toggleAck`), and a new status clears the mark, so the mark mutes only those.
- * Work still running behind a finished turn (`background`) is working, so it rolls up as busy: a roll-up must not carry a "finished" that is not true yet.
+ * Only waiting, a reason and ready can be read (`toggleAck`), and a new status clears the mark, so the mark mutes only those.
+ * Work still running after the turn ended (`background`) is working, so it rolls up as busy: a roll-up must not carry a "ready" that is not true yet.
  */
 export function nudgeOf(shown: string | undefined, acked: boolean, muted = false): NudgeStatus {
-  if (shown === 'waiting' || shown === 'idle') return acked ? null : shown;
+  if (shown === 'waiting' || shown === 'ready') return acked ? null : shown;
   if (isNeeds(shown)) return acked || muted ? null : shown;
   return shown === 'busy' || shown === 'background' ? 'busy' : null;
 }
@@ -475,7 +475,7 @@ export interface SwitcherModel {
 /**
  * The nudge that speaks for several, and nothing when none has one; how sessions roll up into a project and projects into a line.
  * What asks for you comes before what works, each in the strength order, whatever the order says of the two (decided 2026-11-06): a roll-up says where you are needed, and a session at work there needs nothing yet, while a dot says what one session is doing.
- * With the default order: waiting, then each category in Now's order, then idle, then busy.
+ * With the default order: waiting, then each category in Now's order, then ready, then busy.
  */
 export function strongestNudge(nudges: Iterable<NudgeStatus>, strength: Strength): NudgeStatus {
   let strongest: NudgeStatus = null;
@@ -488,7 +488,7 @@ export function strongestNudge(nudges: Iterable<NudgeStatus>, strength: Strength
 
 /** Whether a nudge asks something of you: waiting for you, marked as needing you, or a turn that finished, and not marked read, which `nudgeOf` has already taken away; work in progress asks nothing. */
 export function asksForYou(nudge: NudgeStatus): boolean {
-  return nudge === 'waiting' || nudge === 'idle' || isNeeds(nudge);
+  return nudge === 'waiting' || nudge === 'ready' || isNeeds(nudge);
 }
 
 /**
@@ -796,7 +796,7 @@ export function groupJumpTargets(
  */
 const STATUS_LABEL: Record<string, string> = {
   busy: 'Busy',
-  idle: 'Idle',
+  ready: 'Ready',
   // The turn has ended and claude's prompt is open, but work it started still runs.
   background: 'Working in the background',
   waiting: 'Waiting for you',

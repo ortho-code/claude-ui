@@ -7,13 +7,13 @@ const OTHER = `${HOME}/projects/other`;
 const THIRD = `${HOME}/projects/third`;
 const here = session({ id: '00000000-0000-4000-8000-0000000000d1', title: 'Waiting here' });
 const there = session({ id: '00000000-0000-4000-8000-0000000000d2', title: 'Waiting there', cwd: OTHER, repoRoot: OTHER });
-const finished = session({ id: '00000000-0000-4000-8000-0000000000d3', title: 'Finished there', cwd: OTHER, repoRoot: OTHER });
+const ready = session({ id: '00000000-0000-4000-8000-0000000000d3', title: 'Ready there', cwd: OTHER, repoRoot: OTHER });
 const working = session({ id: '00000000-0000-4000-8000-0000000000d4', title: 'Working elsewhere', cwd: THIRD, repoRoot: THIRD });
 const fixture = {
-  sessions: [here, there, finished, working],
+  sessions: [here, there, ready, working],
   projectOrder: [PROJECT, OTHER, THIRD],
   activeProject: null,
-  statuses: { [here.id]: 'waiting', [there.id]: 'waiting', [finished.id]: 'idle', [working.id]: 'busy' },
+  statuses: { [here.id]: 'waiting', [there.id]: 'waiting', [ready.id]: 'ready', [working.id]: 'busy' },
 };
 const title = '#switcher-badge';
 

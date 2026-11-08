@@ -13,13 +13,13 @@ import { sessionNudge, sessionRunning, switcherPool, tabWith } from '../state/vi
  */
 
 /** A session's status as the snapshot gives it: what its claude last reported; a session claude-ui did not start reports nothing, and is null rather than guessed. */
-export type SnapshotStatus = 'busy' | 'idle' | 'background' | 'waiting' | 'closed';
+export type SnapshotStatus = 'busy' | 'ready' | 'background' | 'waiting' | 'closed';
 
-const STATUSES: ReadonlySet<string> = new Set<SnapshotStatus>(['busy', 'idle', 'background', 'waiting', 'closed']);
+const STATUSES: ReadonlySet<string> = new Set<SnapshotStatus>(['busy', 'ready', 'background', 'waiting', 'closed']);
 
 /**
  * One reason a session needs you, as the file gives it: its type, the category that type belongs to, null for a type the app has no category for, and when it was marked; a PR's change names its PR, `owner/name#number`, and a session that was running when the app closed how it closed.
- * Claude asking or finishing a turn is not here: `status` and `read` say it.
+ * Claude asking or ready is not here: `status` and `read` say it.
  */
 export interface SnapshotReason {
   type: NeedsYou['type'];

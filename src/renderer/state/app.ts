@@ -14,10 +14,10 @@ import { createStore } from './store';
 export interface AppState {
   /** Every session the listing read from disk, the tips of families included, as main lists them. */
   sessions: SessionSummary[];
-  /** Session id -> its status as its hooks last reported it (busy, idle, background, waiting, …); a session with none is absent. */
+  /** Session id -> its status as its hooks last reported it (busy, ready, background, waiting, …); a session with none is absent. */
   statuses: ReadonlyMap<string, string>;
   /**
-   * Session id -> what still runs behind its finished turn, by the type claude gives each piece of work (`shell`, `subagent`, …): set and cleared with each status event, kept for `background` and dropped with any other.
+   * Session id -> what still runs after its turn ended, by the type claude gives each piece of work (`shell`, `subagent`, …): set and cleared with each status event, kept for `background` and dropped with any other.
    * The launch read passes on statuses alone, so a `background` read back at launch has no entry: what ran is not known, and the dot says no more than that.
    */
   backgroundTasks: ReadonlyMap<string, readonly string[]>;

@@ -40,7 +40,7 @@ export function whereOf(session: SessionSummary, view: View<'activeProject' | 'p
 
 /**
  * What a session's menu opens with: its title, then where it is filed, each state it is in on a line of its own with its dot, its set-aside mark, when it was active and on what model, when it was finished, its worktree, its note's first line, and why it cannot run.
- * Every state, where its one dot shows the strongest: a session idle and needing you says both (decided 2026-10-28).
+ * Every state, where its one dot shows the strongest: a session ready and needing you says both (decided 2026-10-28).
  */
 export function sessionHeader(
   session: SessionSummary,

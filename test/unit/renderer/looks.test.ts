@@ -26,7 +26,7 @@ describe('lookRules', () => {
   });
 
   it("gives its colour as --look to anything carrying the class, for a toast's edge", () => {
-    expect(lookRules('idle', DEFAULT_LOOKS.idle)).toContain(`.look-idle { --look: ${PALETTE.green}; }`);
+    expect(lookRules('ready', DEFAULT_LOOKS.ready)).toContain(`.look-ready { --look: ${PALETTE.green}; }`);
   });
 
   it('spins a spinner whatever its pulse says, and draws a core only where it has one', () => {

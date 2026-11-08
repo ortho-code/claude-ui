@@ -11,7 +11,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'], looks: {}, needsYou: {}, approvals: {} });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {} });
   });
 
   it("take the file's approvals by repository, none unless told otherwise, and none of an object with a mistake", () => {
@@ -178,7 +178,7 @@ describe('what a save writes into the file', () => {
 });
 
 describe('the strength order', () => {
-  const mine = ['waiting', 'back-to-work', 'busy', 'background', 'needs-you', 'idle', 'closed'];
+  const mine = ['waiting', 'back-to-work', 'busy', 'background', 'needs-you', 'ready', 'closed'];
 
   it("is the file's where it reads, checked against the categories where they are given", () => {
     expect(settingsView(holding({ strength: mine }), 0, bundledNeedsYou()).strength).toEqual({ value: mine, problem: null });
@@ -188,10 +188,10 @@ describe('the strength order', () => {
   it('keeps the default, the whole list unused, for a list with a mistake, saying why', () => {
     const wrong = ['waiting', 'back-to-wrok', ...mine.slice(2)];
     expect(settingsView(holding({ strength: wrong }), 0, bundledNeedsYou()).strength).toEqual({
-      value: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'],
+      value: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'],
       problem: '"back-to-wrok" is neither a status, "needs-you" nor a needs-you category.',
     });
-    expect(settingsView(holding({ strength: ['waiting'] })).strength.problem).toBe('It has to name "busy", "background", "idle", "closed", "needs-you" too: every status and "needs-you" once.');
+    expect(settingsView(holding({ strength: ['waiting'] })).strength.problem).toBe('It has to name "busy", "background", "ready", "closed", "needs-you" too: every status and "needs-you" once.');
   });
 });
 
@@ -208,8 +208,8 @@ describe('the looks', () => {
       value: {},
       problem: '"pr.merdged" is neither a status, "needs-you", a category nor a type.',
     });
-    expect(settingsView(holding({ looks: { idle: { colour: 'orange' } } })).looks.problem).toBe(
-      '"idle": "colour" has to be one of "rosewater", "flamingo", "pink", "mauve", "red", "maroon", "peach", "yellow", "green", "teal", "sky", "sapphire", "blue", "lavender", "muted", or "#rrggbb".',
+    expect(settingsView(holding({ looks: { ready: { colour: 'orange' } } })).looks.problem).toBe(
+      '"ready": "colour" has to be one of "rosewater", "flamingo", "pink", "mauve", "red", "maroon", "peach", "yellow", "green", "teal", "sky", "sapphire", "blue", "lavender", "muted", or "#rrggbb".',
     );
   });
 });
@@ -246,7 +246,7 @@ describe('needsYou', () => {
   });
 
   it('is what the strength order and the looks are checked against: a category it moves or switches off is still one', () => {
-    const view = settingsView(holding({ needsYou: { 'finish-up': { enabled: false } }, strength: ['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'idle', 'closed'] }), 0, bundled);
+    const view = settingsView(holding({ needsYou: { 'finish-up': { enabled: false } }, strength: ['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'ready', 'closed'] }), 0, bundled);
     expect(view.strength.problem).toBeNull();
     expect(view.needsYouRegistry?.categories.find((category) => category.id === 'finish-up')?.enabled).toBe(false);
   });
@@ -258,8 +258,8 @@ describe('sameValue', () => {
     expect(sameValue({ 'pr.merged': { enabled: false } }, { 'pr.merged': { enabled: true } })).toBe(false);
     expect(sameValue({ a: 1 }, { a: 1, b: 2 })).toBe(false);
     expect(sameValue(['in 2h', 'whenever'], ['whenever', 'in 2h'])).toBe(false);
-    const view = settingsView(holding({ approvals: { 'acme/app': 2 }, looks: { idle: { colour: 'teal' } } }));
-    expect(fileChanges(view, { approvals: { 'acme/app': 2 }, looks: { idle: { colour: 'teal' } } })).toEqual([]);
+    const view = settingsView(holding({ approvals: { 'acme/app': 2 }, looks: { ready: { colour: 'teal' } } }));
+    expect(fileChanges(view, { approvals: { 'acme/app': 2 }, looks: { ready: { colour: 'teal' } } })).toEqual([]);
     expect(fileChanges(view, { approvals: {} })).toEqual([{ key: 'approvals', value: {} }]);
   });
 });

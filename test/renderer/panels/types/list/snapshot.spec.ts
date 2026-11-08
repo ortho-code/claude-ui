@@ -62,15 +62,15 @@ test('a run is given every session not finished, by id, with its title, project,
   });
 });
 
-test('a session asks for you as its dot and the switcher count it: waiting, finished or marked, unless read or claude is at work', async ({ app, page }) => {
+test('a session asks for you as its dot and the switcher count it: waiting, ready or marked, unless read or claude is at work', async ({ app, page }) => {
   const id = (n: number): string => `00000000-0000-4000-8000-0000000000e${n}`;
-  const cases = { waiting: id(1), finished: id(2), marked: id(3), busyMarked: id(4), readWaiting: id(5), busy: id(6) };
+  const cases = { waiting: id(1), ready: id(2), marked: id(3), busyMarked: id(4), readWaiting: id(5), busy: id(6) };
   const sessions = Object.entries(cases).map(([title, each]) => session({ id: each, title }));
   const mark = [{ type: 'pr.merged' as const, at: 1_000, pr: 'acme/app#9' }];
   await bootList(app, page, LIST, {
     more: {
       sessions,
-      statuses: { [cases.waiting]: 'waiting', [cases.finished]: 'idle', [cases.busyMarked]: 'busy', [cases.readWaiting]: 'waiting', [cases.busy]: 'busy' },
+      statuses: { [cases.waiting]: 'waiting', [cases.ready]: 'ready', [cases.busyMarked]: 'busy', [cases.readWaiting]: 'waiting', [cases.busy]: 'busy' },
       needsYou: { [cases.marked]: mark, [cases.busyMarked]: mark },
       history: Object.fromEntries(sessions.map((each) => [each.id, []])),
     },
@@ -82,7 +82,7 @@ test('a session asks for you as its dot and the switcher count it: waiting, fini
   const { sessions: given } = await snapshotOf(app, 1);
   expect(Object.fromEntries(given.map((each) => [each.id, each.asks]))).toEqual({
     [cases.waiting]: true,
-    [cases.finished]: true,
+    [cases.ready]: true,
     [cases.marked]: true,
     [cases.busyMarked]: false,
     [cases.readWaiting]: false,
@@ -116,27 +116,27 @@ async function bootWatching(app: App, page: Page): Promise<void> {
 
 test('watching sessions, a change runs the panel again once nothing more has changed for 2 seconds, with the new snapshot', async ({ app, page }) => {
   await bootWatching(app, page);
-  await app.emit('onSessionStatus', asked.id, 'idle', '', 'Stop');
+  await app.emit('onSessionStatus', asked.id, 'ready', '', 'Stop');
   await page.clock.fastForward(1_500);
   await app.emit('onSessionStatus', quiet.id, 'busy', '', 'UserPromptSubmit');
   await page.clock.fastForward(1_500);
   expect(await runs(app, 'changes')).toHaveLength(1);
   await page.clock.fastForward(600);
   await expect.poll(() => runs(app, 'changes')).toHaveLength(2);
-  expect((await snapshotOf(app, 1)).sessions.map(({ status }) => status)).toEqual(['busy', 'idle']);
+  expect((await snapshotOf(app, 1)).sessions.map(({ status }) => status)).toEqual(['busy', 'ready']);
 });
 
 test('watching sessions, a change the snapshot does not show runs nothing', async ({ app, page }) => {
   await bootWatching(app, page);
   // A finished session is not in it.
-  await app.emit('onSessionStatus', shelved.id, 'idle', '', 'Stop');
+  await app.emit('onSessionStatus', shelved.id, 'ready', '', 'Stop');
   await page.clock.fastForward(5_000);
   expect(await runs(app, 'changes')).toHaveLength(1);
 });
 
 test('watching sessions, a change while a run goes runs the panel again 2 seconds after that run ends', async ({ app, page }) => {
   await bootWatching(app, page);
-  await app.emit('onSessionStatus', asked.id, 'idle', '', 'Stop');
+  await app.emit('onSessionStatus', asked.id, 'ready', '', 'Stop');
   await page.clock.fastForward(2_100);
   await expect.poll(() => runs(app, 'changes')).toHaveLength(2);
 
@@ -153,7 +153,7 @@ test('a panel not watching sessions is given them, and a change does not run it'
   await page.clock.install();
   await bootList(app, page, LIST, { more: { ...more, prStatuses: {}, prSeen: null } });
   expect((await snapshotOf(app, 0)).sessions).toHaveLength(2);
-  await app.emit('onSessionStatus', asked.id, 'idle', '', 'Stop');
+  await app.emit('onSessionStatus', asked.id, 'ready', '', 'Stop');
   await page.clock.fastForward(5_000);
   expect(await runs(app, 'changes')).toHaveLength(1);
 });

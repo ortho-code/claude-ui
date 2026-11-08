@@ -136,9 +136,9 @@ A row keeps a session's title and dot current between runs through a live value 
 | `title` | What the app calls it, as a live value's `title` says it when the run starts. |
 | `project` | Its project's folder, the repository's root. |
 | `group` | Its group, `{ "id", "name" }`, or `null` for none. |
-| `status` | What its claude last said: `busy`, `idle`, `background` (the turn has ended and work it started still runs), `waiting` or `closed`; `null` when it has said nothing, as for a session the app did not start, and once its claude has gone, its tab closed or no longer running, unless its end is reported after that, which is `closed`. |
+| `status` | What its claude last said: `busy`, `ready`, `background` (the turn has ended and work it started still runs), `waiting` or `closed`; `null` when it has said nothing, as for a session the app did not start, and once its claude has gone, its tab closed or no longer running, unless its end is reported after that, which is `closed`. |
 | `read` | Whether its dot was marked read. |
-| `asks` | Whether it asks for you now, by the rule its dot and the project switcher's count follow: claude waiting for you or a finished turn, or a needs-you reason, where that is what its dot shows in the strength order, it is not marked read, and a reason was not put aside by setting the session aside after it. |
+| `asks` | Whether it asks for you now, by the rule its dot and the project switcher's count follow: claude waiting for you or ready, or a needs-you reason, where that is what its dot shows in the strength order, it is not marked read, and a reason was not put aside by setting the session aside after it. |
 | `running` | Whether a tab holds it with its claude running, whatever claude last said: false for a session without a tab, or whose claude has gone. |
 | `needsYou` | Why it is marked as needing you, a reason each, and empty when it is not (below). |
 | `setAside` | Its set-aside mark, `{ "due", "at" }`: when it comes back as needing you, `null` for whenever, and when it was set, both as epoch milliseconds; `null` when it is not set aside. |
@@ -164,7 +164,7 @@ The categories are `your-turn`, `back-to-work`, `ready-to-merge`, `look-again`, 
 A PR's type names its PR in `pr`, `owner/name#number`.
 A PR's type marks a session only for your roles on the PR its file lists (the README's What needs you): as shipped, failing checks, a conflict, changes requested and approved for your own PRs, new commits since your review and your review asked for a PR you review, and the rest for every role.
 Several changes found in one look at a PR are a reason each, with the same `at`, such as `pr.checks-failed` and `pr.approved` together; the app names them on one line, "PR #7 checks failed, approved".
-Claude asking you something or finishing a turn are types too, `claude.asks` and `claude.finished` in `your-turn`, but they are never in `needsYou`: `status` and `read` say them.
+Claude asking you something or being ready are types too, `claude.asks` and `claude.ready` in `your-turn`, but they are never in `needsYou`: `status` and `read` say them.
 
 `needsYou` lists every reason, also those a set-aside mark set after them puts aside: the app shows a session as needing you only while a reason's `at` is after its set-aside mark's `at`, or it is not set aside.
 A set-aside mark whose moment has passed shows here until the app has turned it into a reminder: at that moment while the machine is awake, and within the hour of waking when it slept through it.
@@ -252,7 +252,7 @@ An entry naming a view the list does not offer is said under the panel.
 | `shut` | `true` starts the row folded; only a row with `children` can fold. |
 
 `tone` is one of: `normal`, `attention`, `positive`, `muted`, `danger`.
-`attention`, `positive` and `danger` mark the row's leading edge in the waiting, idle and failed colours (yellow, green and red), and `muted` dims it.
+`attention`, `positive` and `danger` mark the row's leading edge in the waiting, ready and failed colours (yellow, green and red), and `muted` dims it.
 
 `cut` is one of: `end`, `start`.
 `end` is what a row without one gets.
@@ -292,7 +292,7 @@ A live value's `field` is one of: `title`.
 ### A row's session
 
 The dot of the session an item's `session` names shows the session's status as the session list's dot does, and hovering it names the session and its state.
-A press on it marks the session read, or unread again, wherever a press on its dot in the session list would: claude waiting, a finished turn, or a needs-you reason; on a dot with nothing to mark, such as a session at work, the press is the row's.
+A press on it marks the session read, or unread again, wherever a press on its dot in the session list would: claude waiting, ready, or a needs-you reason; on a dot with nothing to mark, such as a session at work, the press is the row's.
 For a session the app does not have, the row shows no dot.
 
 ### A part

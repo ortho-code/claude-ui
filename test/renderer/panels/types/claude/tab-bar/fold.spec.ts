@@ -120,7 +120,7 @@ test('folded, the chevron turns into the dot of a tab out of sight that asks for
     await expect(fold).toHaveCSS('opacity', '0.35');
     await expect(fold).toHaveAttribute('aria-label', 'Unfold the tab bar');
   };
-  const asDot = async (status: 'waiting' | 'idle', said: string): Promise<void> => {
+  const asDot = async (status: 'waiting' | 'ready', said: string): Promise<void> => {
     await expect(dot).toBeVisible();
     await expect(dot).toHaveClass(new RegExp(`\\b${status}\\b`));
     await expect(arrow).toBeHidden();
@@ -138,8 +138,8 @@ test('folded, the chevron turns into the dot of a tab out of sight that asks for
   await expect(row(page, looseOne.title).locator('.nudge')).toHaveClass(/\bbusy\b/);
   await asChevron();
 
-  expect(await app.emit('onSessionStatus', looseOne.id, 'idle', '', 'Stop')).toBe(1);
-  await asDot('idle', 'idle');
+  expect(await app.emit('onSessionStatus', looseOne.id, 'ready', '', 'Stop')).toBe(1);
+  await asDot('ready', 'ready');
   expect(await app.emit('onSessionStatus', looseTwo.id, 'waiting', '', 'Notification')).toBe(1);
   await asDot('waiting', 'waiting for you');
 
@@ -149,15 +149,15 @@ test('folded, the chevron turns into the dot of a tab out of sight that asks for
   await page.mouse.move(0, 0);
   await asDot('waiting', 'waiting for you');
 
-  // Marked read from its row in the list, the waiting one asks nothing, and the other's idle speaks; read too, nothing does.
+  // Marked read from its row in the list, the waiting one asks nothing, and the other's ready speaks; read too, nothing does.
   await row(page, looseTwo.title).locator('.nudge').click();
-  await asDot('idle', 'idle');
+  await asDot('ready', 'ready');
   await row(page, looseOne.title).locator('.nudge').click();
   await asChevron();
 
   // Unfolded, nothing is out of sight.
   await row(page, looseOne.title).locator('.nudge').click();
-  await asDot('idle', 'idle');
+  await asDot('ready', 'ready');
   await fold.click();
   await expect(tabBarRows(page)).toHaveCount(2);
   await page.mouse.move(0, 0);

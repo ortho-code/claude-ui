@@ -449,7 +449,7 @@ describe('nudgeOf', () => {
     const table: [string | undefined, unread: string | null, read: string | null][] = [
       ['waiting', 'waiting', null],
       ['needs:pr.merged', 'needs:pr.merged', null],
-      ['idle', 'idle', null],
+      ['ready', 'ready', null],
       // Busy cannot be read (toggleAck), so the mark is never there to mute it.
       ['busy', 'busy', 'busy'],
       // Work still running is working, whatever the turn did: nothing to read, and no "finished" for a roll-up to carry.
@@ -466,10 +466,10 @@ describe('nudgeOf', () => {
 
 describe('shownState', () => {
   // The order decided 2026-10-28: claude working or asking shows over the mark, and the mark over a turn that finished or no status at all.
-  it('shows the needs-you mark over idle, closed and no status, and busy, background and waiting over it', () => {
-    for (const status of ['idle', 'closed', undefined]) expect(shownState(status, [wasRunning], APP_ORDER), `${status} marked`).toBe('needs:app.was-running');
+  it('shows the needs-you mark over ready, closed and no status, and busy, background and waiting over it', () => {
+    for (const status of ['ready', 'closed', undefined]) expect(shownState(status, [wasRunning], APP_ORDER), `${status} marked`).toBe('needs:app.was-running');
     for (const status of ['busy', 'background', 'waiting']) expect(shownState(status, [wasRunning], APP_ORDER), `${status} marked`).toBe(status);
-    for (const status of ['idle', 'busy', undefined]) expect(shownState(status, [], APP_ORDER), `${status} unmarked`).toBe(status);
+    for (const status of ['ready', 'busy', undefined]) expect(shownState(status, [], APP_ORDER), `${status} unmarked`).toBe(status);
   });
 
   it("shows the strongest category's newest reason, one answer's changes by the order the PR types are named in", () => {
@@ -481,9 +481,9 @@ describe('shownState', () => {
     expect(shownState(undefined, [{ ...conflict, at: 5, pr: 'acme/app#3' }, checks], APP_ORDER)).toBe('needs:pr.checks-failed');
   });
 
-  it('follows an order of your own: a category over busy, or idle over the categories', () => {
-    expect(shownState('busy', [wasRunning], strengthOf(['waiting', 'reminders', 'busy', 'background', 'needs-you', 'idle', 'closed']))).toBe('needs:app.was-running');
-    expect(shownState('idle', [wasRunning], strengthOf(['waiting', 'busy', 'background', 'idle', 'needs-you', 'closed']))).toBe('idle');
+  it('follows an order of your own: a category over busy, or ready over the categories', () => {
+    expect(shownState('busy', [wasRunning], strengthOf(['waiting', 'reminders', 'busy', 'background', 'needs-you', 'ready', 'closed']))).toBe('needs:app.was-running');
+    expect(shownState('ready', [wasRunning], strengthOf(['waiting', 'busy', 'background', 'ready', 'needs-you', 'closed']))).toBe('ready');
   });
 
   it('shows a status the order does not know as itself, and under any reason', () => {
@@ -492,7 +492,7 @@ describe('shownState', () => {
   });
 
   it('places a reason of a category not known yet at needs-you, as before the categories are read', () => {
-    expect(shownState('idle', [wasRunning], DEFAULT_RANKING)).toBe('needs:app.was-running');
+    expect(shownState('ready', [wasRunning], DEFAULT_RANKING)).toBe('needs:app.was-running');
     expect(shownState('busy', [wasRunning], DEFAULT_RANKING)).toBe('busy');
   });
 });
@@ -503,13 +503,13 @@ describe('the default strength order', () => {
   const partBefore = (status: string | undefined, marked: boolean, muted: boolean, acked: boolean): string | null => {
     const shown = dotBefore(status, marked);
     const read = acked || (muted && shown === 'needs');
-    if (shown === 'waiting' || shown === 'needs' || shown === 'idle') return read ? null : shown;
+    if (shown === 'waiting' || shown === 'needs' || shown === 'ready') return read ? null : shown;
     return shown === 'busy' || shown === 'background' ? 'busy' : null;
   };
-  const rollUpBefore = (parts: (string | null)[]): string | null => ['waiting', 'needs', 'idle', 'busy'].find((nudge) => parts.includes(nudge)) ?? null;
+  const rollUpBefore = (parts: (string | null)[]): string | null => ['waiting', 'needs', 'ready', 'busy'].find((nudge) => parts.includes(nudge)) ?? null;
   const asBefore = (state: string | null | undefined): string | null | undefined => (isNeeds(state) ? 'needs' : state);
 
-  const statuses = ['waiting', 'busy', 'background', 'idle', 'closed', undefined, 'compacting'];
+  const statuses = ['waiting', 'busy', 'background', 'ready', 'closed', undefined, 'compacting'];
   const reasonSets: NeedsYou[][] = [
     [],
     [wasRunning],
@@ -533,18 +533,18 @@ describe('the default strength order', () => {
 });
 
 describe('strongestNudge', () => {
-  it('ranks waiting over needs over idle over busy', () => {
-    expect(strongestNudge(['busy', 'idle', 'needs:pr.merged', 'waiting'], APP_ORDER)).toBe('waiting');
-    expect(strongestNudge(['busy', 'idle', 'needs:pr.merged'], APP_ORDER)).toBe('needs:pr.merged');
-    expect(strongestNudge(['busy', 'idle'], APP_ORDER)).toBe('idle');
+  it('ranks waiting over needs over ready over busy', () => {
+    expect(strongestNudge(['busy', 'ready', 'needs:pr.merged', 'waiting'], APP_ORDER)).toBe('waiting');
+    expect(strongestNudge(['busy', 'ready', 'needs:pr.merged'], APP_ORDER)).toBe('needs:pr.merged');
+    expect(strongestNudge(['busy', 'ready'], APP_ORDER)).toBe('ready');
     expect(strongestNudge([null], APP_ORDER)).toBeNull();
   });
 
   it('ranks the categories in the order, and what asks for you over what works whatever the order says of them', () => {
     expect(strongestNudge(['needs:pr.merged', 'needs:pr.conflict'], APP_ORDER)).toBe('needs:pr.conflict');
-    expect(strongestNudge(['needs:pr.merged', 'needs:pr.conflict'], strengthOf(['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'idle', 'closed']))).toBe('needs:pr.merged');
-    expect(strongestNudge(['busy', 'needs:pr.merged'], strengthOf(['busy', 'waiting', 'background', 'needs-you', 'idle', 'closed']))).toBe('needs:pr.merged');
-    expect(strongestNudge(['needs:pr.merged', 'idle'], strengthOf(['waiting', 'busy', 'background', 'idle', 'needs-you', 'closed']))).toBe('idle');
+    expect(strongestNudge(['needs:pr.merged', 'needs:pr.conflict'], strengthOf(['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'ready', 'closed']))).toBe('needs:pr.merged');
+    expect(strongestNudge(['busy', 'needs:pr.merged'], strengthOf(['busy', 'waiting', 'background', 'needs-you', 'ready', 'closed']))).toBe('needs:pr.merged');
+    expect(strongestNudge(['needs:pr.merged', 'ready'], strengthOf(['waiting', 'busy', 'background', 'ready', 'needs-you', 'closed']))).toBe('ready');
   });
 });
 
@@ -552,7 +552,7 @@ describe('asksForYou', () => {
   it('is a turn that ended, waiting for you or finished, and nothing at work or with nothing to say', () => {
     expect(asksForYou('waiting')).toBe(true);
     expect(asksForYou('needs:app.reminder')).toBe(true);
-    expect(asksForYou('idle')).toBe(true);
+    expect(asksForYou('ready')).toBe(true);
     expect(asksForYou('busy')).toBe(false);
     expect(asksForYou(null)).toBe(false);
   });
@@ -581,12 +581,12 @@ describe('projectsForSwitcher', () => {
     expect(model.projects.map((f) => f.name)).toEqual(['beta', 'alpha']);
   });
 
-  it('rolls up the strongest nudge per folder: waiting > idle > busy', () => {
+  it('rolls up the strongest nudge per folder: waiting > ready > busy', () => {
     const statuses = new Map([
       ['a1', 'busy'],
       ['a2', 'waiting'],
       ['b1', 'busy'],
-      ['b2', 'idle'],
+      ['b2', 'ready'],
     ]);
     const model = projectsForSwitcher(
       [s('a1', '/x/alpha'), s('a2', '/x/alpha'), s('b1', '/x/beta'), s('b2', '/x/beta')],
@@ -596,15 +596,15 @@ describe('projectsForSwitcher', () => {
     );
     const byName = new Map(model.projects.map((f) => [f.name, f.badge]));
     expect(byName.get('alpha')).toBe('waiting'); // waiting beats busy
-    expect(byName.get('beta')).toBe('idle'); // idle beats busy
+    expect(byName.get('beta')).toBe('ready'); // ready beats busy
     expect(model.all.badge).toBe('waiting'); // strongest across everything
   });
 
-  // A session marked as needing you counts where claude says nothing more pressing: over idle, under waiting, and not while claude works.
-  it('rolls up a needs-you mark between waiting and idle, and not over busy', () => {
+  // A session marked as needing you counts where claude says nothing more pressing: over ready, under waiting, and not while claude works.
+  it('rolls up a needs-you mark between waiting and ready, and not over busy', () => {
     const mark = [{ type: 'app.was-running' as const, at: 1, how: 'quit' as const }];
     const statuses = new Map([
-      ['a2', 'idle'],
+      ['a2', 'ready'],
       ['b1', 'waiting'],
       ['c1', 'busy'],
     ]);
@@ -624,16 +624,16 @@ describe('projectsForSwitcher', () => {
     expect(byName.get('beta')).toBe('waiting');
     expect(byName.get('gamma')).toBe('busy');
     // Read, it falls through as any other.
-    expect(projectsForSwitcher([s('a1', '/x/alpha'), s('a2', '/x/alpha')], statuses, new Set(['a1']), needsYou).projects[0].badge).toBe('idle');
+    expect(projectsForSwitcher([s('a1', '/x/alpha'), s('a2', '/x/alpha')], statuses, new Set(['a1']), needsYou).projects[0].badge).toBe('ready');
   });
 
   it('mutes acked sessions so the badge falls through to the next status', () => {
     const statuses = new Map([
       ['a1', 'waiting'],
-      ['a2', 'idle'],
+      ['a2', 'ready'],
     ]);
     const model = projectsForSwitcher([s('a1', '/x/alpha'), s('a2', '/x/alpha')], statuses, new Set(['a1']), new Map());
-    expect(model.projects[0].badge).toBe('idle'); // waiting is acked, so idle wins
+    expect(model.projects[0].badge).toBe('ready'); // waiting is acked, so ready wins
   });
 
   it('badge is null when a folder has no live status (or all acked)', () => {
@@ -668,13 +668,13 @@ describe('projectsForSwitcher', () => {
     const mark = [{ type: 'pr.merged' as const, at: 1, pr: 'o/r#1' }];
     const statuses = new Map([
       ['waiting', 'waiting'],
-      ['finished', 'idle'],
+      ['ready', 'ready'],
       ['read', 'waiting'],
       ['busy-marked', 'busy'],
       ['background', 'background'],
     ]);
     const model = projectsForSwitcher(
-      [s('waiting', '/x/alpha'), s('finished', '/x/alpha'), s('marked', '/x/alpha'), s('read', '/x/beta'), s('busy-marked', '/x/beta'), s('background', '/x/beta')],
+      [s('waiting', '/x/alpha'), s('ready', '/x/alpha'), s('marked', '/x/alpha'), s('read', '/x/beta'), s('busy-marked', '/x/beta'), s('background', '/x/beta')],
       statuses,
       new Set(['read']),
       new Map([
@@ -707,16 +707,16 @@ describe('elsewhere', () => {
     [s('a', '/x/alpha'), s('b', '/x/beta'), s('c', '/x/gamma'), s('d', '/x/gamma')],
     new Map([
       ['a', 'waiting'],
-      ['b', 'idle'],
+      ['b', 'ready'],
       ['c', 'busy'],
-      ['d', 'idle'],
+      ['d', 'ready'],
     ]),
     new Set(),
     new Map(),
   );
 
   it('adds up every project but the one on show, the strongest of them its badge', () => {
-    expect(elsewhere(model, '/x/alpha', DEFAULT_RANKING)).toEqual({ asking: 2, working: 1, badge: 'idle' });
+    expect(elsewhere(model, '/x/alpha', DEFAULT_RANKING)).toEqual({ asking: 2, working: 1, badge: 'ready' });
     expect(elsewhere(model, '/x/gamma', DEFAULT_RANKING)).toEqual({ asking: 2, working: 0, badge: 'waiting' });
   });
 
@@ -728,7 +728,7 @@ describe('elsewhere', () => {
 describe('rollUpWords', () => {
   it('names what asks for you, else what works, else nothing, outside the project on show or in what it rolls up', () => {
     expect(rollUpWords({ asking: 3, working: 2, badge: 'waiting' }, 'elsewhere')).toBe('3 sessions in other projects need you');
-    expect(rollUpWords({ asking: 1, working: 0, badge: 'idle' }, 'here')).toBe('1 session needs you');
+    expect(rollUpWords({ asking: 1, working: 0, badge: 'ready' }, 'here')).toBe('1 session needs you');
     expect(rollUpWords({ asking: 0, working: 2, badge: 'busy' }, 'elsewhere')).toBe('2 sessions in other projects are working');
     expect(rollUpWords({ asking: 0, working: 1, badge: 'busy' }, 'here')).toBe('1 session is working');
     expect(rollUpWords({ asking: 0, working: 0, badge: null }, 'here')).toBeNull();
@@ -942,14 +942,14 @@ describe('groupJumpTargets', () => {
     const statuses = new Map([
       ['a', 'busy'],
       ['b', 'waiting'],
-      ['c', 'idle'],
+      ['c', 'ready'],
     ]);
     const out = groupJumpTargets(tree({ a: 'g1', b: 'g1' }), statuses, none, new Map());
-    expect(out.map((t) => t.badge)).toEqual(['waiting', null, 'idle']);
+    expect(out.map((t) => t.badge)).toEqual(['waiting', null, 'ready']);
   });
 
-  it('rolls up a needs-you mark over idle', () => {
-    const out = groupJumpTargets(tree({ a: 'g1' }), new Map([['c', 'idle']]), none, new Map([['c', [wasRunning]]]));
+  it('rolls up a needs-you mark over ready', () => {
+    const out = groupJumpTargets(tree({ a: 'g1' }), new Map([['c', 'ready']]), none, new Map([['c', [wasRunning]]]));
     expect(out.map((t) => t.badge)).toEqual([null, null, 'needs:app.was-running']);
   });
 
@@ -1055,7 +1055,7 @@ describe('orderAsTabs', () => {
 describe('statusLabel', () => {
   it('names each status as a state', () => {
     expect(statusLabel('busy')).toBe('Busy');
-    expect(statusLabel('idle')).toBe('Idle');
+    expect(statusLabel('ready')).toBe('Ready');
     expect(statusLabel('waiting')).toBe('Waiting for you');
     // Not "Stopped": the status arrives from SessionEnd, which fires whether the session was stopped, finished on its own, or had its tab closed — so naming the event would be wrong twice over.
     expect(statusLabel('closed')).toBe('Not running');
@@ -1071,7 +1071,7 @@ describe('statusLabel', () => {
   });
 
   // Counted per type, each type in the order claude listed it first.
-  it('names the work still running behind a finished turn, counted by type', () => {
+  it('names the work still running after the turn ended, counted by type', () => {
     expect(statusLabel('background', ['shell'])).toBe('Working in the background: 1 shell');
     expect(statusLabel('background', ['shell', 'subagent', 'shell'])).toBe('Working in the background: 2 shells, 1 subagent');
     expect(statusLabel('background', ['MCP task', 'MCP task'])).toBe('Working in the background: 2 MCP tasks');
@@ -1127,7 +1127,7 @@ describe('needsYouLines', () => {
 
   it('follows an order of your own', () => {
     const reasons: NeedsYou[] = [wasRunning, { type: 'pr.merged', at: 0, pr: 'acme/app#2' }];
-    expect(texts(reasons, strengthOf(['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'idle', 'closed']))).toEqual(['Needs you — PR #2 merged', 'Needs you — was running when the app quit']);
+    expect(texts(reasons, strengthOf(['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'ready', 'closed']))).toEqual(['Needs you — PR #2 merged', 'Needs you — was running when the app quit']);
   });
 
   it("names one answer's changes of a PR spelt with other capitals on one line, and no repository for it", () => {
@@ -1167,8 +1167,8 @@ describe('stateLines', () => {
 
   it('lists every state, the one the dot shows first', () => {
     expect(texts({ status: 'busy', reasons: [wasRunning] })).toEqual(['Busy', 'Needs you — was running when the app quit']);
-    expect(texts({ status: 'idle', reasons: [wasRunning] })).toEqual(['Needs you — was running when the app quit', 'Idle']);
-    expect(texts({ status: 'idle', reasons: [wasRunning] }, strengthOf(['waiting', 'busy', 'background', 'idle', 'needs-you', 'closed']))).toEqual(['Idle', 'Needs you — was running when the app quit']);
+    expect(texts({ status: 'ready', reasons: [wasRunning] })).toEqual(['Needs you — was running when the app quit', 'Ready']);
+    expect(texts({ status: 'ready', reasons: [wasRunning] }, strengthOf(['waiting', 'busy', 'background', 'ready', 'needs-you', 'closed']))).toEqual(['Ready', 'Needs you — was running when the app quit']);
   });
 
   it("leads with what the tab says, and leaves a status nobody named last, as itself", () => {
@@ -1178,10 +1178,10 @@ describe('stateLines', () => {
 
   it('marks read what the dot shows, every reason where it shows one, and a muted reason wherever it is', () => {
     expect(texts({ status: 'waiting', acked: true })).toEqual(['Waiting for you (read)']);
-    expect(texts({ status: 'idle', reasons: [wasRunning, { type: 'app.reminder', at: 0 }], acked: true })).toEqual([
+    expect(texts({ status: 'ready', reasons: [wasRunning, { type: 'app.reminder', at: 0 }], acked: true })).toEqual([
       'Needs you — was running when the app quit (read)',
       `Needs you — reminder for ${momentLabel(0)} (read)`,
-      'Idle',
+      'Ready',
     ]);
     expect(texts({ status: 'busy', reasons: [wasRunning], muted: true })).toEqual(['Busy', 'Needs you — was running when the app quit (read)']);
   });
@@ -1198,12 +1198,12 @@ describe('stateLines', () => {
 
 describe('sessionPart', () => {
   it('rolls a muted needs-you mark up as read, as its dot shows it, and claude working or asking over it as itself', () => {
-    expect(sessionPart('idle', [wasRunning], false, false, APP_ORDER)).toBe('needs:app.was-running');
-    expect(sessionPart('idle', [wasRunning], true, false, APP_ORDER)).toBeNull();
+    expect(sessionPart('ready', [wasRunning], false, false, APP_ORDER)).toBe('needs:app.was-running');
+    expect(sessionPart('ready', [wasRunning], true, false, APP_ORDER)).toBeNull();
     expect(sessionPart(undefined, [wasRunning], true, false, APP_ORDER)).toBeNull();
     expect(sessionPart('waiting', [wasRunning], true, false, APP_ORDER)).toBe('waiting');
     expect(sessionPart('busy', [wasRunning], true, false, APP_ORDER)).toBe('busy');
-    expect(sessionPart('idle', [], false, false, APP_ORDER)).toBe('idle');
+    expect(sessionPart('ready', [], false, false, APP_ORDER)).toBe('ready');
   });
 });
 

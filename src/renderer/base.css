@@ -17,9 +17,9 @@
   --active: #3b4360;
   /* A group's rail, beside its rows in the sidebar and its tabs in the tab bar: muted rather than accent, which open and active rows already use for their bars. */
   --group-rail: color-mix(in srgb, var(--muted) 25%, transparent);
-  /* Waiting's and idle's colours where they colour something other than a session's dot, such as a PR's tone, its dot in a menu included: a session's dot takes its look from settings.json's looks (looks.ts), and a look set there must not repaint these. */
+  /* Waiting's and ready's colours where they colour something other than a session's dot, such as a PR's tone, its dot in a menu included: a session's dot takes its look from settings.json's looks (looks.ts), and a look set there must not repaint these. */
   --waiting: #f9e2af;
-  --idle: #a6e3a1;
+  --ready: #a6e3a1;
   /* Something gone wrong: a panel's run that did not end well (its rail icon, the line above its list), a list row its script marks as danger, and a dialog's inline error. */
   --failed: #f38ba8;
   /* What destroys: a dialog's delete, and the window's close. */

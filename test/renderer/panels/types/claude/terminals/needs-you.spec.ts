@@ -55,14 +55,14 @@ test('the mark shows on its row and its tab by one class, with its reason, and t
 
 // The dot shows the strongest state; the menu's header lists each, with its dot, under where the session is filed, in the strength order, the dot's first (decided 2026-10-28, ordered 2026-11-06).
 test("the menu's header lists every state the session is in, each with its dot, the needs-you mark saying why", async ({ app, page }) => {
-  await app.boot({ ...fixture, statuses: { [one.id]: 'idle' } });
+  await app.boot({ ...fixture, statuses: { [one.id]: 'ready' } });
   await row(page, one.title).locator('.session-kebab').click();
   const lines = page.locator('.kebab-menu .menu-header .menu-header-line');
   await expect(lines.nth(1)).toHaveText('demo');
   const dotted = page.locator('.kebab-menu .menu-header .menu-header-line.dotted');
-  await expect(dotted).toHaveText(['Needs you — was running when the app quit', 'Idle']);
+  await expect(dotted).toHaveText(['Needs you — was running when the app quit', 'Ready']);
   await expect(dotted.nth(0).locator('.nudge')).toHaveClass(/\bneeds\b/);
-  await expect(dotted.nth(1).locator('.nudge')).toHaveClass(/\bidle\b/);
+  await expect(dotted.nth(1).locator('.nudge')).toHaveClass(/\bready\b/);
 });
 
 // The tooltip lists every state, as the header does, so a mark a busy dot does not show is still there on hover (decided 2026-11-06).
@@ -76,7 +76,7 @@ test("a session marked while claude works shows busy on its dot, and its tooltip
 
 // The strength order is yours, in settings.json: a category named over busy shows over claude working, on every dot and in the tooltip's order.
 test('a strength order naming Reminders over busy shows the mark over a busy claude', async ({ app, page }) => {
-  await app.boot({ ...fixture, statuses: { [one.id]: 'busy' }, settings: settingsFileWith('settings.json', { strength: ['waiting', 'reminders', 'busy', 'background', 'needs-you', 'idle', 'closed'] }) });
+  await app.boot({ ...fixture, statuses: { [one.id]: 'busy' }, settings: settingsFileWith('settings.json', { strength: ['waiting', 'reminders', 'busy', 'background', 'needs-you', 'ready', 'closed'] }) });
   for (const dot of dots(page)) {
     await expect(dot).toHaveClass(/\bneeds\b/);
     await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit\nBusy');
@@ -84,16 +84,16 @@ test('a strength order naming Reminders over busy shows the mark over a busy cla
 });
 
 test('a strength order changed on disk while the app runs repaints every dot and roll-up at once', async ({ app, page }) => {
-  await app.boot({ ...fixture, statuses: { [one.id]: 'idle' } });
+  await app.boot({ ...fixture, statuses: { [one.id]: 'ready' } });
   for (const dot of dots(page)) await expect(dot).toHaveClass(/\bneeds\b/);
   await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bneeds\b/);
-  await app.settingsOnDisk(settingsFileWith('settings.json', { strength: ['waiting', 'busy', 'background', 'idle', 'needs-you', 'closed'] }));
-  for (const dot of dots(page)) await expect(dot).toHaveClass(/\bidle\b/);
-  await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bidle\b/);
+  await app.settingsOnDisk(settingsFileWith('settings.json', { strength: ['waiting', 'busy', 'background', 'ready', 'needs-you', 'closed'] }));
+  for (const dot of dots(page)) await expect(dot).toHaveClass(/\bready\b/);
+  await expect(switcherRollUp(page, 'demo')).toHaveClass(/\bready\b/);
 });
 
 test('a strength order with a mistake is not used, and Settings says why', async ({ app, page }) => {
-  await app.boot({ ...fixture, statuses: { [one.id]: 'busy' }, settings: settingsFileWith('settings.json', { strength: ['waiting', 'reminder', 'busy', 'background', 'needs-you', 'idle', 'closed'] }) });
+  await app.boot({ ...fixture, statuses: { [one.id]: 'busy' }, settings: settingsFileWith('settings.json', { strength: ['waiting', 'reminder', 'busy', 'background', 'needs-you', 'ready', 'closed'] }) });
   for (const dot of dots(page)) await expect(dot).toHaveClass(/\bbusy\b/);
   const dialog = await openSettings(page, 'Appearance');
   await expect(dialog.locator('#settings-strength-problems')).toHaveText(
@@ -136,7 +136,7 @@ test("a turn claude starts itself keeps the mark: a background task's end, and a
   await startLive(page, app);
   await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit', undefined, '<task-notification>\n<task-id>b1</task-id>');
   await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit', undefined, tick.prompt);
-  await app.emit('onSessionStatus', one.id, 'idle', '', 'Stop');
+  await app.emit('onSessionStatus', one.id, 'ready', '', 'Stop');
   await expectMarked(page, true);
   expect(await app.calls('clearNeedsYou')).toEqual([]);
   await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit', undefined, 'what next?');
@@ -144,7 +144,7 @@ test("a turn claude starts itself keeps the mark: a background task's end, and a
 });
 
 // Claude working or asking shows over the mark, which comes back once it has done; only a prompt submitted takes it off.
-test('busy, background and waiting show over the mark, and idle gives way to it', async ({ app, page }) => {
+test('busy, background and waiting show over the mark, and ready gives way to it', async ({ app, page }) => {
   await app.boot(fixture);
   await startLive(page, app);
   for (const [status, event] of [
@@ -155,7 +155,7 @@ test('busy, background and waiting show over the mark, and idle gives way to it'
     await app.emit('onSessionStatus', one.id, status, '', event);
     for (const dot of dots(page)) await expect(dot).toHaveClass(new RegExp(`\\b${status}\\b`));
   }
-  await app.emit('onSessionStatus', one.id, 'idle', '', 'Stop');
+  await app.emit('onSessionStatus', one.id, 'ready', '', 'Stop');
   await expectMarked(page, true);
   expect(await app.calls('clearNeedsYou')).toEqual([]);
 });

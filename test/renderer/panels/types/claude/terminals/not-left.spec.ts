@@ -108,7 +108,7 @@ test('newer toasts do not push the toast for a stop claude has not left out of t
   await expectSaid(page);
   // The other session, not on show once the stuck one is, ends four turns.
   await tab(page, stuck.title).click();
-  for (const status of ['waiting', 'idle', 'waiting', 'idle'] as const) await app.emit('onSessionStatus', other.id, status, '', 'Stop');
+  for (const status of ['waiting', 'ready', 'waiting', 'ready'] as const) await app.emit('onSessionStatus', other.id, status, '', 'Stop');
   await expect(toasts(page).filter({ hasText: other.title })).toHaveCount(3);
   await expect(toasts(page).filter({ hasText: stuck.title })).toHaveCount(1);
 });

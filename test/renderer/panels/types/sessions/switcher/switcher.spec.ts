@@ -90,7 +90,7 @@ test('a press on a switcher entry still counts, and a focused entry keeps the fo
   await status('busy')();
   await expect(other).toBeFocused();
 
-  await clickAcross(page, other, status('idle'));
+  await clickAcross(page, other, status('ready'));
   await expect(page.locator('#switcher-name')).toHaveText('other');
 });
 

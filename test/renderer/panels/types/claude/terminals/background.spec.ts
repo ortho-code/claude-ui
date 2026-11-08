@@ -4,7 +4,7 @@ import { type App, expect, test } from '../../../../support/harness';
 import { lookOf, token } from '../../../../support/looks';
 import { row, switcherRollUp, tab } from '../../../../support/window';
 
-// A turn that ends with work still running behind it, such as a shell or a subagent it sent off, reports `background` in idle's place (docs/architecture.md § Status cues).
+// A turn that ends with work still running behind it, such as a shell or a subagent it sent off, reports `background` in ready's place (docs/architecture.md § Status cues).
 // Every dot standing for the session says so alike, naming what runs; nothing calls it finished until that work has ended and a turn of its own has.
 const one = session();
 const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Second session' });
@@ -30,8 +30,8 @@ test('a turn ending with work behind it shows background on every dot of the ses
   await startBoth(page, app);
 
   await app.emit('onSessionStatus', one.id, 'background', '', 'Stop', ['shell', 'subagent', 'shell']);
-  // Busy's spinning arc around idle's green: the turn is done, and work still goes on.
-  const look = { background: await token(page, '--idle'), border: await token(page, '--accent') };
+  // Busy's spinning arc around ready's green: the turn is done, and work still goes on.
+  const look = { background: await token(page, '--ready'), border: await token(page, '--accent') };
   for (const dot of dots(page, one.title)) {
     await expect(dot).toHaveClass(/\bbackground\b/);
     await expect(dot).toHaveAttribute('data-tooltip', 'Working in the background: 2 shells, 1 subagent');
@@ -45,8 +45,8 @@ test('a turn ending with work behind it shows background on every dot of the ses
   // Its end starts a turn of its own, and only that turn's end is the session finishing.
   await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit');
   for (const dot of dots(page, one.title)) await expect(dot).toHaveAttribute('data-tooltip', 'Busy');
-  await app.emit('onSessionStatus', one.id, 'idle', '', 'Stop');
-  for (const dot of dots(page, one.title)) await expect(dot).toHaveAttribute('data-tooltip', 'Idle');
+  await app.emit('onSessionStatus', one.id, 'ready', '', 'Stop');
+  for (const dot of dots(page, one.title)) await expect(dot).toHaveAttribute('data-tooltip', 'Ready');
   await expect(toasts(page)).toHaveCount(1);
 });
 
@@ -69,7 +69,7 @@ test('a dot showing background work cannot be marked read', async ({ app, page }
   await expect(dot).toHaveAttribute('data-tooltip', 'Working in the background: 1 shell');
 
   // The same dot, once the session has finished, is marked read by a click, so it is the background state that keeps the one above from marking it.
-  await app.emit('onSessionStatus', one.id, 'idle', '', 'Stop');
+  await app.emit('onSessionStatus', one.id, 'ready', '', 'Stop');
   await dot.click();
   await expect(dot).toHaveClass(/\backed\b/);
 });

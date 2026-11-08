@@ -164,7 +164,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Going on working meanwhile, with a prompt, a `/resume` or a `/clear`, calls the archive off, a prompt with a message saying so; quitting before claude has gone leaves the session unarchived.
   Archiving a session whose tab is open but not running closes the tab at once.
 - The app no longer opens an archived session again: an archived sibling in a session's options says it is archived, and a tab left open for one does not come back at the next launch.
-- A session's status dot reacts to a click only while the session is idle or waiting for you, when a click marks it read; any other dot no longer looks clickable, and a click on it does what a click beside it does.
+- A session's status dot reacts to a click only while the session is ready or waiting for you, when a click marks it read; any other dot no longer looks clickable, and a click on it does what a click beside it does.
 - The arrow beside a project's or a group's + is there outside a git repository too, its New worktree session… greyed out saying why, where the arrow used to be missing.
   A project's and a group's options open with the ways to add something there, on a project New group… among them, and end with the moves, Move to top, up, down and bottom, where it has any, which used to come first.
 - A panel without a folder of its own follows its tab's session into the worktree claude is changing files in, also one it reached by path or with a `cd`, and back once claude changes a file git does not ignore in the main checkout.
@@ -184,7 +184,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A permission prompt, a question or another notice from claude that may ask something still turns it to waiting.
 - The sessions that were running when the app closed come back marked as needing you, a mauve dot that says why, instead of paused, and stay marked until you act on the session, such as typing a prompt there, closing the tab, leaving claude yourself, archiving it or choosing Clear needs you.
   Whether they are marked is a needs-you type you can switch off, `app.was-running`, and a `"mark"`, `"pause"` or `"leave"` already in your `settings.json` reads as `"cold"`.
-- The top of a session's options lists every state it is in on a line of its own, each with its dot, such as idle and needing you at once, where the status used to end the line with its project.
+- The top of a session's options lists every state it is in on a line of its own, each with its dot, such as ready and needing you at once, where the status used to end the line with its project.
 - A session's dot no longer turns to waiting for claude's notices of something finished, such as a login that succeeded, an agent that finished, or a form an MCP server asked you to fill in that has its answer.
 - The date filter's calendar starts its weeks on the first day of the language for times and dates, Monday for en-GB and nl-NL, as Pick a date…'s does.
 - Set aside… takes over from pausing a tab: Pause and Force pause are gone from a session's options, and the paused filter is a filter for the sessions set aside.
@@ -211,11 +211,12 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   What Settings shows but cannot change, the approvals and the dots' order and looks, says where in `settings.json` it is set, with the config folder's Open.
 - Every on/off in Settings is a switch rather than a checkbox, such as PR status from GitHub.
 - The filter's button and Collapse all sit on the row under the sidebar's header, after Review, leaving the header's room to the project's name.
+- A session whose claude has stopped at its prompt reads Ready, where it read Idle, so Finished means only a session put away.
 
 ### Fixed
 
 - A session you `/clear` stays in the group it was in, instead of the tab dropping out of its section.
-- Compacting a session shows it as busy while it runs and idle when it finishes, instead of leaving the dot on whatever it said before.
+- Compacting a session shows it as busy while it runs and ready when it finishes, instead of leaving the dot on whatever it said before.
 - Entering or leaving a worktree, and gaining a sibling, show up in the session list when they happen instead of waiting for some unrelated change.
 - Stopping a session now ends it.
   It was asked once, with a signal it was free to ignore, and the session could keep running while the app showed it as stopped — including the sessions left behind when you quit the app.

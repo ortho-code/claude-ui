@@ -26,7 +26,7 @@ const bootList = (app: App, page: Page, list: PrintedList = LIST): Promise<void>
 const edgeOf = (target: Locator): Promise<string> => target.evaluate((el) => /rgba?\([^)]*\)/.exec(getComputedStyle(el).boxShadow)?.[0] ?? 'none');
 
 test("a row's tone marks its leading edge in the status colours, and a normal row has no edge", async ({ app, page }) => {
-  const tones = { attention: '--waiting', positive: '--idle', danger: '--failed' };
+  const tones = { attention: '--waiting', positive: '--ready', danger: '--failed' };
   await bootList(app, page, { version: 1, sections: [{ items: [...Object.keys(tones), 'normal'].map((tone) => ({ key: tone, text: `A ${tone} row`, tone })) }] });
   for (const [tone, colour] of Object.entries(tones)) await expect.poll(() => edgeOf(row(page, `A ${tone} row`))).toBe(await token(page, colour));
   // No shadow at all, not a transparent one, which shifts a dimmed row's corner pixels (list.css).
@@ -78,7 +78,7 @@ test("a row's lead takes its tone's colour, the meta line's grey without one, ne
   await bootList(app, page, FILES);
   const colourOf = (text: string): Promise<string> => row(page, text).locator('.list-lead').evaluate((el) => getComputedStyle(el).color);
   expect(await colourOf('FQDN.php')).toBe(await token(page, '--waiting'));
-  expect(await colourOf('LongerThanAnyRowIsWide')).toBe(await token(page, '--idle'));
+  expect(await colourOf('LongerThanAnyRowIsWide')).toBe(await token(page, '--ready'));
   expect(await colourOf('LegacyHost.php')).toBe(await token(page, '--failed'));
   // A danger row whose lead has no tone of its own: the edge is red, the lead grey.
   expect(await edgeOf(row(page, 'composer.lock'))).toBe(await token(page, '--failed'));

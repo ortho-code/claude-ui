@@ -74,7 +74,7 @@ describe('installStatusHooks', () => {
     expect(tool.hooks.UserPromptSubmit[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
     // A permission prompt is waiting from the moment claude asks, not from its notice six seconds later.
     expect(tool.hooks.PermissionRequest[0].hooks[0].command).toBe(`'${ourCmd}' waiting`);
-    // Compaction is work: busy while it runs, and its END arrives as a SessionStart the script turns into idle.
+    // Compaction is work: busy while it runs, and its END arrives as a SessionStart the script turns into ready.
     expect(tool.hooks.PreCompact[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
     expect(tool.hooks.SessionStart[0].hooks[0].command).toBe(`'${ourCmd}' start`);
   });
@@ -83,7 +83,7 @@ describe('installStatusHooks', () => {
   it('strips an injected hook on an event this version does not register', async () => {
     await writeSettings({
       hooks: {
-        SubagentStop: [{ hooks: [{ type: 'command', command: `${ourCmd} idle` }] }, foreignPromptHook],
+        SubagentStop: [{ hooks: [{ type: 'command', command: `${ourCmd} ready` }] }, foreignPromptHook],
       },
     });
     await installStatusHooks();
@@ -98,7 +98,7 @@ describe('installStatusHooks', () => {
         // ours + a foreign hook on the same event: keep the foreign one.
         UserPromptSubmit: [{ hooks: [{ type: 'command', command: `${ourCmd} busy` }] }, foreignPromptHook],
         // only ours: the event key goes away entirely.
-        Stop: [{ hooks: [{ type: 'command', command: `${ourCmd} idle` }] }],
+        Stop: [{ hooks: [{ type: 'command', command: `${ourCmd} ready` }] }],
         // unrelated event we never touch.
         PreToolUse: [foreignPreTool],
       },
@@ -219,10 +219,10 @@ describe('the hook script', () => {
   });
 
   // A compaction ending is the one SessionStart that means a STATE, and it has to beat the guard below because the session already has a status — the busy that PreCompact set.
-  it('turns the end of a compaction into idle, over a live status', async () => {
+  it('turns the end of a compaction into ready, over a live status', async () => {
     runHook('busy', { session_id: SID, hook_event_name: 'PreCompact' });
     runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'compact' });
-    expect((await readStatusFile())?.status).toBe('idle');
+    expect((await readStatusFile())?.status).toBe('ready');
   });
 
   // Every other SessionStart is identity only.
@@ -261,6 +261,13 @@ describe('the hook script', () => {
     expect(await getAllStatuses()).not.toHaveProperty(SID);
     runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
     expect(await getAllStatuses()).toHaveProperty(SID, 'busy');
+  });
+
+  // 0.3 and earlier wrote `idle` for `ready`, and a file a crash left behind is read at the next launch.
+  it('reads a status file written as idle as ready', async () => {
+    await fs.mkdir(statusDir, { recursive: true });
+    await fs.writeFile(path.join(statusDir, `${SID}.json`), JSON.stringify({ status: 'idle', ts: 1, tab: '', event: 'Stop' }));
+    expect(await getAllStatuses()).toHaveProperty(SID, 'ready');
   });
 
   /**
@@ -314,7 +321,7 @@ describe('the hook script', () => {
 
   /**
    * `Stop` lists the work still running behind the turn it ends (`background_tasks`), in the shape claude 2.1.289 was measured to send it.
-   * Work still running means the session has not finished, so the dot says so in idle's place.
+   * Work still running means the session is not ready, so the dot says so in ready's place.
    */
   describe('a turn that ends with work still running behind it', () => {
     const task = (type: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -332,19 +339,19 @@ describe('the hook script', () => {
       ...extra,
     });
 
-    it('reports background in place of idle, naming what runs', async () => {
-      runHook('idle', stop({ background_tasks: [task('shell', { command: 'sleep 20' }), task('subagent', { agent_type: 'general-purpose' })], session_crons: [] }));
+    it('reports background in place of ready, naming what runs', async () => {
+      runHook('ready', stop({ background_tasks: [task('shell', { command: 'sleep 20' }), task('subagent', { agent_type: 'general-purpose' })], session_crons: [] }));
       expect(await readStatusFile()).toMatchObject({ status: 'background', event: 'Stop', background: ['shell', 'subagent'] });
     });
 
     // Read back at launch as the state it is; what ran comes only with a status event.
     it('is read back at launch as background', async () => {
-      runHook('idle', stop({ background_tasks: [task('shell')] }));
+      runHook('ready', stop({ background_tasks: [task('shell')] }));
       expect(await getAllStatuses()).toHaveProperty(SID, 'background');
     });
 
     it('names a type of work it has not heard of as claude labels it', async () => {
-      runHook('idle', stop({ background_tasks: [task('MCP task', { server: 'github', tool: 'watch' })] }));
+      runHook('ready', stop({ background_tasks: [task('MCP task', { server: 'github', tool: 'watch' })] }));
       expect(await readStatusFile()).toMatchObject({ status: 'background', background: ['MCP task'] });
     });
 
@@ -352,17 +359,17 @@ describe('the hook script', () => {
     it.each([
       ['an empty list', { background_tasks: [], session_crons: [] }],
       ['no list at all', {}],
-    ])('reports idle for %s', async (_case, extra) => {
-      runHook('idle', stop(extra));
+    ])('reports ready for %s', async (_case, extra) => {
+      runHook('ready', stop(extra));
       const written = await readStatusFile();
-      expect(written?.status).toBe('idle');
+      expect(written?.status).toBe('ready');
       expect(written).not.toHaveProperty('background');
     });
 
     // A `/loop` or a scheduled wakeup will start a turn LATER; nothing is running meanwhile, and counting it would keep a looping session from ever showing finished.
     it('does not count a scheduled wakeup as running', async () => {
-      runHook('idle', stop({ background_tasks: [], session_crons: [{ id: 'cron-1', schedule: '*/5 * * * *', recurring: true, prompt: 'check the build' }] }));
-      expect((await readStatusFile())?.status).toBe('idle');
+      runHook('ready', stop({ background_tasks: [], session_crons: [{ id: 'cron-1', schedule: '*/5 * * * *', recurring: true, prompt: 'check the build' }] }));
+      expect((await readStatusFile())?.status).toBe('ready');
     });
 
     /**
@@ -372,15 +379,15 @@ describe('the hook script', () => {
     const watch = task('monitor', { id: 'sg1al8hmg', description: 'live updates for artifact https://claude.ai/artifact/AbCdEf123 (auto-armed on publish)' });
 
     it('does not count an artifact watch as running', async () => {
-      runHook('idle', stop({ background_tasks: [watch], session_crons: [] }));
+      runHook('ready', stop({ background_tasks: [watch], session_crons: [] }));
       const written = await readStatusFile();
-      expect(written?.status).toBe('idle');
+      expect(written?.status).toBe('ready');
       expect(written).not.toHaveProperty('background');
     });
 
     // A monitor of your own counts as work, and it is listed as `monitor` too, so a watch takes only one of them off the list.
     it('leaves an artifact watch out of what runs beside it', async () => {
-      runHook('idle', stop({ background_tasks: [task('shell'), watch, task('monitor')] }));
+      runHook('ready', stop({ background_tasks: [task('shell'), watch, task('monitor')] }));
       expect(await readStatusFile()).toMatchObject({ status: 'background', background: ['shell', 'monitor'] });
     });
 
@@ -388,33 +395,33 @@ describe('the hook script', () => {
      * A minute at its prompt without input makes claude send an idle notice, `idle_prompt`, whether or not a shell still runs (measured on claude 2.1.289); by its source the same goes for a monitor, while claude itself holds the notice back for a background subagent.
      * While work runs, claude is not waiting for you: that work's end starts a turn of its own, and the same notice a minute after THAT turn is the real one.
      */
-    it("keeps background through claude's idle notice, and idle through the one after the work has ended", async () => {
-      runHook('idle', stop({ background_tasks: [task('shell')] }));
+    it("keeps background through claude's idle notice, and ready through the one after the work has ended", async () => {
+      runHook('ready', stop({ background_tasks: [task('shell')] }));
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' });
       expect((await readStatusFile())?.status).toBe('background');
 
       runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: '<task-notification>' });
-      runHook('idle', stop({ background_tasks: [] }));
+      runHook('ready', stop({ background_tasks: [] }));
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' });
-      expect((await readStatusFile())?.status).toBe('idle');
+      expect((await readStatusFile())?.status).toBe('ready');
     });
 
     // Only the idle notice is held back: a permission prompt, a question, anything else claude notifies, needs you.
     it.each(['permission_prompt', 'elicitation_dialog', 'agent_needs_input', undefined])('still says waiting over background for a %s notification', async (type) => {
-      runHook('idle', stop({ background_tasks: [task('shell')] }));
+      runHook('ready', stop({ background_tasks: [task('shell')] }));
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', ...(type ? { notification_type: type } : {}) });
       expect((await readStatusFile())?.status).toBe('waiting');
     });
 
     it('says waiting over background when claude asks for permission', async () => {
-      runHook('idle', stop({ background_tasks: [task('shell')] }));
+      runHook('ready', stop({ background_tasks: [task('shell')] }));
       runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'WebFetch' });
       expect((await readStatusFile())?.status).toBe('waiting');
     });
 
     // The turn's own words are a string, so a `"type"` inside them arrives escaped and must not count as a task.
     it('counts nothing out of the words the turn ended on', async () => {
-      runHook('idle', stop({ last_assistant_message: 'The payload had "type":"shell" in it.', background_tasks: [task('subagent')] }));
+      runHook('ready', stop({ last_assistant_message: 'The payload had "type":"shell" in it.', background_tasks: [task('subagent')] }));
       expect((await readStatusFile())?.background).toEqual(['subagent']);
     });
   });
@@ -423,14 +430,14 @@ describe('the hook script', () => {
    * What the last Stop left running is kept beside the status, for the reader of the transcript that ends what no hook ends (transcriptends.ts).
    * It is that Stop's own payload, so it survives the busy of the next turn, which is when an interrupt needs it.
    */
-  /** A minute at its prompt without input, claude says "Claude is waiting for your input": the turn is done, which is idle, and nothing asks you anything. */
+  /** A minute at its prompt without input, claude says "Claude is waiting for your input": the turn is done, which is ready, and nothing asks you anything. */
   describe("claude's idle notice", () => {
     const notice = { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' };
 
-    it('writes nothing over the idle the Stop wrote, so the Stop stays the event', async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop' });
+    it('writes nothing over the ready the Stop wrote, so the Stop stays the event', async () => {
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop' });
       runHook('waiting', notice);
-      expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'Stop' });
+      expect(await readStatusFile()).toMatchObject({ status: 'ready', event: 'Stop' });
     });
 
     it('writes nothing over a waiting, which a question still open says better', async () => {
@@ -439,10 +446,10 @@ describe('the hook script', () => {
       expect(await readStatusFile()).toMatchObject({ status: 'waiting', event: 'PermissionRequest' });
     });
 
-    it('says idle where the file says claude is still at work, since claude is at its prompt', async () => {
+    it('says ready where the file says claude is still at work, since claude is at its prompt', async () => {
       runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
       runHook('waiting', notice);
-      expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'Notification' });
+      expect(await readStatusFile()).toMatchObject({ status: 'ready', event: 'Notification' });
     });
 
     it('keeps the last Stop for what it left running and scheduled', async () => {
@@ -456,10 +463,10 @@ describe('the hook script', () => {
 
   /** Notices claude sends of something finished (claude 2.1.310's binary: "Claude Code login successful", "<agent> finished", "Claude is done using your computer"; 2.1.316's: an MCP server's form confirmed complete, and the answer it was given), which ask nothing. */
   describe('a notice of something finished', () => {
-    it.each(['auth_success', 'agent_completed', 'computer_use_exit', 'elicitation_complete', 'elicitation_response'])('writes nothing for %s, over idle or busy', async (type) => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop' });
+    it.each(['auth_success', 'agent_completed', 'computer_use_exit', 'elicitation_complete', 'elicitation_response'])('writes nothing for %s, over ready or busy', async (type) => {
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop' });
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: type });
-      expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'Stop' });
+      expect(await readStatusFile()).toMatchObject({ status: 'ready', event: 'Stop' });
       runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: 'go' });
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: type });
       expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'UserPromptSubmit' });
@@ -467,7 +474,7 @@ describe('the hook script', () => {
 
     // One that may ask something, or a kind a later claude adds, still says waiting: missing a question is worse than a waiting too many.
     it.each(['push_notification', 'auth_storage_failure', 'agent_needs_input', 'worker_permission_prompt', 'a_kind_not_known_yet'])('still says waiting for %s', async (type) => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop' });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop' });
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: type });
       expect((await readStatusFile())?.status).toBe('waiting');
     });
@@ -482,23 +489,23 @@ describe('the hook script', () => {
     });
 
     it('is kept through the turns after it until the next Stop', async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [shell], session_crons: [] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [shell], session_crons: [] });
       runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'permission_prompt' });
       expect(await readReport(SID)).toMatchObject({ status: 'waiting', tab: TOKEN, running: [{ id: 'bh9w6pqmt', type: 'shell' }] });
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [] });
       expect((await readReport(SID))?.running).toEqual([]);
     });
 
     // A new process has nothing running behind it yet; a compaction leaves what ran running.
     it.each(['startup', 'resume', 'clear'])('is nothing after a SessionStart that says %s', async (source) => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [shell] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [shell] });
       runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source });
       expect((await readReport(SID))?.running).toEqual([]);
     });
 
     it('is kept through a compaction', async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [shell] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [shell] });
       runHook('busy', { session_id: SID, hook_event_name: 'PreCompact' });
       runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'compact' });
       expect((await readReport(SID))?.running).toEqual([{ id: 'bh9w6pqmt', type: 'shell', description: 'Background sleep command' }]);
@@ -534,7 +541,7 @@ describe('the hook script', () => {
     });
 
     it("is each task the Stop listed, by its prompt, whether it repeats and, for a cron, its schedule as its transcript gives it", async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, background_tasks: [], session_crons: [wakeup, cron] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, background_tasks: [], session_crons: [wakeup, cron] });
       expect(await readScheduled(SID)).toEqual([
         { prompt: '/loop say the word tick', recurring: false, cron: null },
         { prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' },
@@ -543,10 +550,10 @@ describe('the hook script', () => {
 
     it('reads a transcript on from where it last stopped, and anew one that shrank', async () => {
       const later = { ...cron, id: '34f607db', prompt: 'say hi' };
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, session_crons: [cron] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, session_crons: [cron] });
       expect((await readScheduled(SID))?.[0]?.cron).toBe('Every 10 minutes');
       await fs.appendFile(transcript, `${cronMade(later.id, 'Every 5 minutes')}\n`);
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, session_crons: [cron, later] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, session_crons: [cron, later] });
       expect((await readScheduled(SID))?.map((task) => task.cron)).toEqual(['Every 10 minutes', 'Every 5 minutes']);
       await fs.writeFile(transcript, `${cronMade(later.id, 'Every hour')}\n`);
       expect((await readScheduled(SID))?.map((task) => task.cron)).toEqual([null, 'Every hour']);
@@ -554,29 +561,29 @@ describe('the hook script', () => {
 
     it('takes two looks at one transcript in turn, so a look after them skips nothing written since', async () => {
       const later = { ...cron, id: '34f607db', prompt: 'say hi' };
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, session_crons: [cron] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, session_crons: [cron] });
       await Promise.all([readScheduled(SID), readScheduled(SID)]);
       // More is written after the new cron than the transcript held before, so a look that went on from twice that length would start past it.
       const before = (await fs.stat(transcript)).size;
       await fs.appendFile(transcript, `${cronMade(later.id, 'Every 5 minutes')}\n${'x'.repeat(before * 2)}\n`);
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, session_crons: [cron, later] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, session_crons: [cron, later] });
       expect((await readScheduled(SID))?.map((task) => task.cron)).toEqual(['Every 10 minutes', 'Every 5 minutes']);
     });
 
     it('takes a task as no cron when the Stop names no transcript, or one that is not there', async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', session_crons: [cron] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', session_crons: [cron] });
       expect(await readScheduled(SID)).toEqual([{ prompt: 'say the word tock', recurring: true, cron: null }]);
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', transcript_path: path.join(statusDir, 'gone.jsonl'), session_crons: [cron] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', transcript_path: path.join(statusDir, 'gone.jsonl'), session_crons: [cron] });
       expect(await readScheduled(SID)).toEqual([{ prompt: 'say the word tock', recurring: true, cron: null }]);
     });
 
     it('leaves out an entry without a prompt, and reads a missing repeat as once', async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', session_crons: [null, { id: 'x' }, { prompt: 'check the build' }] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', session_crons: [null, { id: 'x' }, { prompt: 'check the build' }] });
       expect(await readScheduled(SID)).toEqual([{ prompt: 'check the build', recurring: false, cron: null }]);
     });
 
     it('is nothing from a Stop with an empty list, or with no Stop file, whose claude has gone', async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [], session_crons: [] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [], session_crons: [] });
       expect(await readScheduled(SID)).toEqual([]);
       await fs.rm(stopFile);
       expect(await readScheduled(SID)).toEqual([]);
@@ -584,10 +591,10 @@ describe('the hook script', () => {
 
     // A start writes `{}`: a claude started again has reported nothing yet, which is not news that nothing is scheduled.
     it('is unknown, not nothing, after a start or from a Stop without the list', async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', session_crons: [cron] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', session_crons: [cron] });
       runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'resume' });
       expect(await readScheduled(SID)).toBe(null);
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [] });
       expect(await readScheduled(SID)).toBe(null);
     });
 
@@ -595,8 +602,8 @@ describe('the hook script', () => {
     it("stays unknown through an end reported in a hook's place before any Stop", async () => {
       runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'resume' });
       runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
-      await reportEnd(SID, (await readReport(SID))!, { event: 'transcript:interrupt', status: 'idle', running: [], ends: ['busy', 'waiting'] });
-      expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'transcript:interrupt' });
+      await reportEnd(SID, (await readReport(SID))!, { event: 'transcript:interrupt', status: 'ready', running: [], ends: ['busy', 'waiting'] });
+      expect(await readStatusFile()).toMatchObject({ status: 'ready', event: 'transcript:interrupt' });
       expect(await readScheduled(SID)).toBe(null);
     });
 
@@ -607,10 +614,10 @@ describe('the hook script', () => {
     });
 
     it("is kept through an end reported in a hook's place, a cron still told by its transcript", async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, background_tasks: [], session_crons: [cron] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', transcript_path: transcript, background_tasks: [], session_crons: [cron] });
       runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
-      await reportEnd(SID, (await readReport(SID))!, { event: 'transcript:interrupt', status: 'idle', running: [], ends: ['busy', 'waiting'] });
-      expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'transcript:interrupt' });
+      await reportEnd(SID, (await readReport(SID))!, { event: 'transcript:interrupt', status: 'ready', running: [], ends: ['busy', 'waiting'] });
+      expect(await readStatusFile()).toMatchObject({ status: 'ready', event: 'transcript:interrupt' });
       expect(await readScheduled(SID)).toEqual([{ prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' }]);
     });
   });
@@ -618,9 +625,9 @@ describe('the hook script', () => {
   /** An end no hook reports goes through the script, as the hook would have: the script stays the one writer of the status files. */
   describe('reporting an end no hook reports', () => {
     const shell = { id: 'bh9w6pqmt', type: 'shell' };
-    const interrupt = (running: Work[] = []): Ending => ({ event: 'transcript:interrupt', status: 'idle', running, ends: ['busy', 'waiting'] });
+    const interrupt = (running: Work[] = []): Ending => ({ event: 'transcript:interrupt', status: 'ready', running, ends: ['busy', 'waiting'] });
     const refusal: Ending = { event: 'transcript:refusal', status: 'busy', running: [], ends: ['waiting'] };
-    const taskEnd: Ending = { event: 'transcript:task-end', status: 'idle', running: [], ends: ['background'] };
+    const taskEnd: Ending = { event: 'transcript:task-end', status: 'ready', running: [], ends: ['background'] };
     /** The report the reader would have read: the status file as it is now. */
     const current = async (): Promise<Report> => (await readReport(SID))!;
 
@@ -628,10 +635,10 @@ describe('the hook script', () => {
       await fs.rm(path.join(statusDir, `${SID}.stop`), { force: true });
     });
 
-    it('writes idle when nothing is left running, naming the report', async () => {
+    it('writes ready when nothing is left running, naming the report', async () => {
       runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
       await reportEnd(SID, await current(), interrupt());
-      expect(await readStatusFile()).toMatchObject({ status: 'idle', tab: TOKEN, event: 'transcript:interrupt' });
+      expect(await readStatusFile()).toMatchObject({ status: 'ready', tab: TOKEN, event: 'transcript:interrupt' });
     });
 
     it('writes background naming what still runs, and keeps it as the last Stop would', async () => {
@@ -656,7 +663,7 @@ describe('the hook script', () => {
     });
 
     it('writes busy for a turn that goes on, and keeps what the last Stop left running', async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running' }] });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running' }] });
       runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'Bash' });
       await reportEnd(SID, await current(), refusal);
       expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'transcript:refusal' });
@@ -665,14 +672,14 @@ describe('the hook script', () => {
 
     // A hook that wrote between the reader's last look and this report has the newer word: a turn's Stop must never be overwritten with busy.
     it.each([
-      ['a refusal over the idle of a Stop', refusal, 'idle'],
+      ['a refusal over the ready of a Stop', refusal, 'ready'],
       ['an interrupt over a background', interrupt(), 'background'],
       ['an end of background work over busy', taskEnd, 'busy'],
     ])('writes nothing for %s', async (_case, ending, status) => {
       runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'Bash' });
       const read = await current();
-      if (status === 'idle') runHook('idle', { session_id: SID, hook_event_name: 'Stop' });
-      if (status === 'background') runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running' }] });
+      if (status === 'ready') runHook('ready', { session_id: SID, hook_event_name: 'Stop' });
+      if (status === 'background') runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running' }] });
       if (status === 'busy') runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
       const before = await fs.readFile(statusFile, 'utf8');
       await reportEnd(SID, read, ending);
@@ -705,10 +712,10 @@ describe('the hook script', () => {
     const fromSubagent = { agent_id: 'a4f90cdffb4a6bcc9', agent_type: 'general-purpose' };
 
     it.each([
-      ['idle', {}],
+      ['ready', {}],
       ['background', { background_tasks: [{ id: 'a4f90cdffb4a6bcc9', type: 'subagent', status: 'running', description: 'a subagent' }] }],
     ])('never writes busy over %s', async (status, extra) => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', ...extra });
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', ...extra });
       runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse', tool_name: 'Bash', ...fromSubagent });
       expect((await readStatusFile())?.status).toBe(status);
     });
@@ -721,8 +728,8 @@ describe('the hook script', () => {
     });
 
     // Waiting is the one state that needs you, so it is never held back, whoever asks.
-    it('still writes waiting over a finished turn', async () => {
-      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ id: 'a4f90cdffb4a6bcc9', type: 'subagent', status: 'running', description: 'a subagent' }] });
+    it('still writes waiting over ready', async () => {
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ id: 'a4f90cdffb4a6bcc9', type: 'subagent', status: 'running', description: 'a subagent' }] });
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', ...fromSubagent });
       expect((await readStatusFile())?.status).toBe('waiting');
     });

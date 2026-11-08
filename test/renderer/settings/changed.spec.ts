@@ -71,7 +71,7 @@ test('Reset on one id of needsYou, on its row, empties that entry and keeps the 
 });
 
 test('Only what differs shows the strength order’s mistake under it, though the looks are as they ship', async ({ app, page }) => {
-  await app.boot({ settings: file({ strength: ['waiting', 'nothing', 'busy', 'background', 'needs-you', 'idle', 'closed'] }) });
+  await app.boot({ settings: file({ strength: ['waiting', 'nothing', 'busy', 'background', 'needs-you', 'ready', 'closed'] }) });
   const dialog = await openSettings(page, 'Appearance');
   await dialog.getByRole('switch', { name: 'Only what differs' }).check();
   await expect(dialog.locator('#settings-strength-problems')).toBeVisible();

@@ -3,7 +3,7 @@ import { badgeClass } from './statusdot';
 import { closeIcon } from './svg';
 import './notifications.css';
 
-// Stacking attention toasts: a background tab (one you're not viewing) went waiting/idle, or its claude has not left a stop.
+// Stacking attention toasts: a background tab (one you're not viewing) went waiting/ready, or its claude has not left a stop.
 // Separate from the one-off #toast message bar (toast.ts).
 document.body.insertAdjacentHTML('beforeend', '<div id="notifications"></div>');
 const notifications = document.getElementById('notifications')!;
@@ -12,7 +12,7 @@ const NOTIF_MAX = 4;
 
 /** What an attention toast says, and where a click on it goes; the caller decides both, since it is the one that knows the session. */
 export interface Attention {
-  status: 'waiting' | 'idle';
+  status: 'waiting' | 'ready';
   label: string;
   project: string;
   /** Why it is up, under the project, where the status alone does not say it; its line breaks kept. */

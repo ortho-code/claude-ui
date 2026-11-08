@@ -87,13 +87,13 @@ test('a confirmed delete takes the row away at once and it never comes back', as
 const worker = session({ id: '00000000-0000-4000-8000-0000000000c3', title: 'Working session' });
 
 test('a status that lands while the read after a delete is out is not put back by it, so nothing is toasted', async ({ app, page }) => {
-  // Its tab restored and not on show, idle as main last said.
-  await app.boot({ ...fixture, sessions: [kept, gone, worker], openSessions: [worker.id], statuses: { [worker.id]: 'idle' } });
+  // Its tab restored and not on show, ready as main last said.
+  await app.boot({ ...fixture, sessions: [kept, gone, worker], openSessions: [worker.id], statuses: { [worker.id]: 'ready' } });
   const dot = tab(page, worker.title).locator('.nudge');
-  await expect(dot).toHaveClass(/\bidle\b/);
+  await expect(dot).toHaveClass(/\bready\b/);
   await deleteWithListingHeld(app, page);
 
-  // Busy since main answered the read, which still says idle.
+  // Busy since main answered the read, which still says ready.
   expect(await app.emit('onSessionStatus', worker.id, 'busy', '', 'UserPromptSubmit')).toBe(1);
   await expect(dot).toHaveClass(/\bbusy\b/);
   await releaseListing(app);

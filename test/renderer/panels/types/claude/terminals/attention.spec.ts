@@ -28,7 +28,7 @@ test('a status read at launch is not news: a restored tab already waiting is not
   await expect(toasts(page)).toHaveCount(0);
 });
 
-test('a tab not on show that turns waiting or finished is toasted once, and the toast takes you to it', async ({ app, page }) => {
+test('a tab not on show that turns waiting or ready is toasted once, and the toast takes you to it', async ({ app, page }) => {
   await app.boot(fixture);
   const status = async (id: string, state: string): Promise<void> => {
     expect(await app.emit('onSessionStatus', id, state, '', '')).toBe(1);
@@ -45,7 +45,7 @@ test('a tab not on show that turns waiting or finished is toasted once, and the 
 
   // The same state again is no news, and the tab on show is already in front of you.
   await status(there.id, 'waiting');
-  await status(here.id, 'idle');
+  await status(here.id, 'ready');
   await expect(toasts(page)).toHaveCount(1);
 
   // Into its project, and onto its tab.
@@ -56,9 +56,9 @@ test('a tab not on show that turns waiting or finished is toasted once, and the 
 
   // Now the other one is behind you, and finishing is news.
   await status(here.id, 'busy');
-  await status(here.id, 'idle');
+  await status(here.id, 'ready');
   await expect(toasts(page)).toHaveCount(1);
-  await expect(toasts(page).first()).toHaveClass(/\bidle\b/);
+  await expect(toasts(page).first()).toHaveClass(/\bready\b/);
   await expect(toasts(page).first().locator('.notif-title')).toHaveText(here.title);
 });
 

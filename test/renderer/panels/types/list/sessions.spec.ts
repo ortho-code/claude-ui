@@ -150,13 +150,13 @@ test("a row's session mark follows its session's status, a mark read, and whethe
   await expect(mark(page, 'Fix the login redirect').locator('.nudge')).toHaveClass(/\bwaiting\b/);
   expect(await app.emit('onSessionStatus', reviewed.id, 'busy', '', 'UserPromptSubmit')).toBe(1);
   await expect(mark(page, 'Fix the login redirect').locator('.nudge')).toHaveClass(/\bbusy\b/);
-  // Work still running behind a finished turn, named as the session list names it.
+  // Work still running after the turn ended, named as the session list names it.
   expect(await app.emit('onSessionStatus', reviewed.id, 'background', '', 'Stop', ['shell'])).toBe(1);
   await expect(mark(page, 'Fix the login redirect').locator('.nudge')).toHaveClass(/\bbackground\b/);
   await expect(mark(page, 'Fix the login redirect')).toHaveAttribute('aria-label', `Go to ${reviewed.title} · Working in the background: 1 shell`);
 
   // A mark read, made on the session list's own dot.
-  expect(await app.emit('onSessionStatus', reviewed.id, 'idle', '', 'Stop')).toBe(1);
+  expect(await app.emit('onSessionStatus', reviewed.id, 'ready', '', 'Stop')).toBe(1);
   await row(page, reviewed.title).locator('.nudge').click();
   await expect(mark(page, 'Fix the login redirect').locator('.nudge')).toHaveClass(/\backed\b/);
 

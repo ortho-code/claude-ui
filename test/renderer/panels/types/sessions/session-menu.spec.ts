@@ -154,11 +154,11 @@ test("Mark as read in a tab's menu marks the session read, as a click on its dot
 });
 
 // The dot is a control only where its click marks something, by the rule the menu's item follows, so a dot never looks pressable for nothing.
-test("a session's dot is a control only while it is idle or waiting, on its row and its tab alike", async ({ app, page }) => {
+test("a session's dot is a control only while it is ready or waiting, on its row and its tab alike", async ({ app, page }) => {
   await app.boot(fixture);
   await tabLabel(page, full.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  for (const [status, control] of [['busy', false], ['idle', true], ['waiting', true], ['closed', false]] as const) {
+  for (const [status, control] of [['busy', false], ['ready', true], ['waiting', true], ['closed', false]] as const) {
     expect(await app.emit('onSessionStatus', full.id, status, '', '')).toBe(1);
     for (const dot of [row(page, full.title).locator('.nudge'), tab(page, full.title).locator('.nudge')]) {
       if (control) await expect(dot).toHaveClass(/\bclickable\b/);
@@ -184,7 +184,7 @@ test('Mark as read is unavailable, with the reason, while the session is busy', 
   expect(await app.emit('onSessionStatus', full.id, 'busy', '', '')).toBe(1);
   await tab(page, full.title).locator('.tab-kebab').click();
   await expect(item(page, 'Mark as read')).toHaveClass(/\bunavailable\b/);
-  await expect(item(page, 'Mark as read')).toHaveAttribute('data-tooltip', 'Only a session that is idle, waiting for you or marked as needing you can be marked read or unread');
+  await expect(item(page, 'Mark as read')).toHaveAttribute('data-tooltip', 'Only a session that is ready, waiting for you or marked as needing you can be marked read or unread');
 });
 
 // The tab's button is a shortcut to one of the menu's leave items: one rule for the two (`leaveAction`), so the item says and does what the button would.

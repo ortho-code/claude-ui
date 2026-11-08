@@ -71,7 +71,7 @@ window.claudeUi.onSessionStatus((id, status, tabToken, event, background, prompt
   // The terminal area's part first: a cleared session's successor is the tab's, a prompt calls off a stop, and the history on show reads what was added.
   claudeWatch.sessionStatus(id, tabToken, event);
   // 'start' reports which session a tab is running, not a state it is in — and it fires mid-session on clear and compact, where setting a status would wipe a live one.
-  // The one SessionStart that does mean a state (a compaction ending) reaches us as 'idle', not as this.
+  // The one SessionStart that does mean a state (a compaction ending) reaches us as 'ready', not as this.
   if (status === 'start') return;
   // An end reported from another tab than the one holding the session is not the session's: a claude that resumed a session another tab runs is asked to leave for it (`adoptResumed`), and reports the session's end on its way out while it runs on.
   // Only an end: one the app reads from a transcript carries the tab the status file last named, which after a restart is not the tab running the session now, and is the session's all the same.

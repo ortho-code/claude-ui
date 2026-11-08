@@ -115,7 +115,7 @@ test("a session's PR mark takes the colour its PRs roll up to, outline and count
   const expected: [title: string, colour: string, says: string][] = [
     [failing.title, '--failed', '2 PRs linked to this session — 1 with failing checks — click to list them'],
     [asked.title, '--waiting', '1 PR linked to this session — 1 with changes requested — click to list them'],
-    [ready.title, '--idle', '1 PR linked to this session — 1 approved — click to list them'],
+    [ready.title, '--ready', '1 PR linked to this session — 1 approved — click to list them'],
     [waiting.title, '--accent', '1 PR linked to this session — 1 awaiting review — click to list them'],
     [done.title, '--muted', '2 PRs linked to this session — 1 merged, 1 closed — click to list them'],
   ];
@@ -251,7 +251,7 @@ test('a PR GitHub calls approved stays the accent, awaiting review, below the ap
 
   await app.settingsOnDisk(settingsFileWith('settings.json', {}));
   await expect(mark(page, ready.title)).toHaveAttribute('data-tooltip', '1 PR linked to this session — 1 approved — click to list them');
-  expect((await lookOf(mark(page, ready.title))).color).toBe(await token(page, '--idle'));
+  expect((await lookOf(mark(page, ready.title))).color).toBe(await token(page, '--ready'));
 });
 
 test("a PR's list item names someone else's PR by your role, and counts an open PR's approvals against its repository's number", async ({ app, page }) => {

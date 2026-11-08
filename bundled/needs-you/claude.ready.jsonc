@@ -1,0 +1,2 @@
+// Claude is ready at its prompt, and you have not marked its dot read.
+{ "kind": "type", "id": "claude.ready", "label": "Claude is ready", "category": "your-turn" }

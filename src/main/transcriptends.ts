@@ -6,7 +6,7 @@ import { endedTaskId, isInterruptMarker, isRefusal, readAppended, startedTask, t
 /**
  * The ends no hook reports, read from a session's transcript: a turn interrupted by Ctrl+C or Esc, a shell or a monitor stopped from claude's task list, and a permission prompt turned down with feedback, after which claude carries on.
  * None of them fired any hook (measured on claude 2.1.289), so the dot stayed busy, waiting or background until claude's next turn or its next tool.
- * The transcript may END a state the hooks started, with idle, background or, for a prompt turned down with feedback, busy, and never start one from nothing: everything else is the hooks' alone.
+ * The transcript may END a state the hooks started, with ready, background or, for a prompt turned down with feedback, busy, and never start one from nothing: everything else is the hooks' alone.
  */
 
 /** The names the status file gives these reports, as it names the hook event behind any other; not claude's, so none can be mistaken for one. */
@@ -63,7 +63,7 @@ export function readFact(facts: Facts, record: Record<string, unknown>): void {
  *
  * An interrupt written after a busy or a waiting ends the turn as a Stop would, with the work the last Stop listed and any work started since as still running, less whatever has ended since that Stop.
  * A waiting written after the interrupt is taken as a question claude asked since, and stands.
- * Background ends a piece of work at a time: whatever the last Stop listed that has ended since comes off the list, and with nothing left the session is idle.
+ * Background ends a piece of work at a time: whatever the last Stop listed that has ended since comes off the list, and with nothing left the session is ready.
  * Only an end written after that Stop counts, since one written before it is an earlier end of an id the Stop lists as running again.
  * A refusal written after a waiting, with no interrupt after it, is a prompt turned down with feedback: the question is answered and the turn goes on, so the session is busy.
  */
@@ -72,13 +72,13 @@ export function unhookedEnd(report: Report, facts: Facts): Ending | null {
   if ((report.status === 'busy' || report.status === 'waiting') && facts.interruptedAt > report.at) {
     const listed = new Set(report.running.map((work) => work.id));
     const since = facts.started.filter((work) => work.at >= report.runningAt && !listed.has(work.id)).map(({ id, type }) => ({ id, type }));
-    return { event: INTERRUPT_EVENT, status: 'idle', running: [...report.running, ...since].filter(runs), ends: ['busy', 'waiting'] };
+    return { event: INTERRUPT_EVENT, status: 'ready', running: [...report.running, ...since].filter(runs), ends: ['busy', 'waiting'] };
   }
   if (report.status === 'waiting' && facts.refusedAt > report.at && facts.refusedAt > facts.interruptedAt) {
     return { event: REFUSAL_EVENT, status: 'busy', running: [], ends: ['waiting'] };
   }
   if (report.status === 'background' && !report.running.every(runs)) {
-    return { event: TASK_END_EVENT, status: 'idle', running: report.running.filter(runs), ends: ['background'] };
+    return { event: TASK_END_EVENT, status: 'ready', running: report.running.filter(runs), ends: ['background'] };
   }
   return null;
 }

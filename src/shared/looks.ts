@@ -7,20 +7,20 @@ import { isIconName, type IconName } from './icons';
 import type { NeedsYouRegistry } from './needsyou';
 
 /** The statuses a hook reports, each an entry of the order. */
-export const STATUSES = ['waiting', 'busy', 'background', 'idle', 'closed'] as const;
+export const STATUSES = ['waiting', 'busy', 'background', 'ready', 'closed'] as const;
 export type Status = (typeof STATUSES)[number];
 
 /** The entry standing for every needs-you category the order does not name, in Now's order (their `order`). */
 export const NEEDS_YOU = 'needs-you';
 
-/** The category whose two types, claude asking and claude finishing a turn, are the statuses `waiting` and `idle` themselves, never stored reasons, so it has no place of its own in the order. */
+/** The category whose two types, claude asking and claude ready, are the statuses `waiting` and `ready` themselves, never stored reasons, so it has no place of its own in the order. */
 export const YOUR_TURN = 'your-turn';
 
 /** The status each of Your turn's types is, and so the look it is drawn in. */
-export const YOUR_TURN_STATUS: Readonly<Record<string, Status>> = { 'claude.asks': 'waiting', 'claude.finished': 'idle' };
+export const YOUR_TURN_STATUS: Readonly<Record<string, Status>> = { 'claude.asks': 'waiting', 'claude.ready': 'ready' };
 
-/** The order before anyone has chosen otherwise: claude's own status over a needs-you mark while it waits or works, the mark over a finished turn, as the dot has shown them since the mark came (decided 2026-11-06). */
-export const DEFAULT_STRENGTH: readonly string[] = ['waiting', 'busy', 'background', NEEDS_YOU, 'idle', 'closed'];
+/** The order before anyone has chosen otherwise: claude's own status over a needs-you mark while it waits or works, the mark over claude ready, as the dot has shown them since the mark came (decided 2026-11-06). */
+export const DEFAULT_STRENGTH: readonly string[] = ['waiting', 'busy', 'background', NEEDS_YOU, 'ready', 'closed'];
 
 const isStatus = (value: string): value is Status => (STATUSES as readonly string[]).includes(value);
 
@@ -29,13 +29,13 @@ const isStatus = (value: string): value is Status => (STATUSES as readonly strin
  * With a registry, a category it does not have is a mistake too; without one, as for a check of a save, any other text passes.
  */
 export function strengthProblem(value: unknown, registry: NeedsYouRegistry | null): string | null {
-  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) return 'It has to be a list of names, such as ["waiting", "busy", "background", "needs-you", "idle", "closed"].';
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) return 'It has to be a list of names, such as ["waiting", "busy", "background", "needs-you", "ready", "closed"].';
   const entries = value as string[];
   const twice = [...new Set(entries.filter((entry, at) => entries.indexOf(entry) !== at))];
   if (twice.length > 0) return `${quoted(twice)} ${twice.length === 1 ? 'is' : 'are'} named more than once.`;
   const missing = [...STATUSES, NEEDS_YOU].filter((needed) => !entries.includes(needed));
   if (missing.length > 0) return `It has to name ${quoted(missing)} too: every status and "${NEEDS_YOU}" once.`;
-  if (entries.includes(YOUR_TURN)) return `"${YOUR_TURN}" has no place of its own: its types are "waiting" and "idle".`;
+  if (entries.includes(YOUR_TURN)) return `"${YOUR_TURN}" has no place of its own: its types are "waiting" and "ready".`;
   if (registry !== null) {
     const known = new Set(registry.categories.map((category) => category.id));
     const unknown = entries.filter((entry) => !isStatus(entry) && entry !== NEEDS_YOU && !known.has(entry));
@@ -48,7 +48,7 @@ const quoted = (names: readonly string[]): string => names.map((name) => `"${nam
 
 /**
  * The order as it ranks: `needs-you` gives way to the categories the list does not name, in their order, Your turn left out, and stays after them, where a reason of a category not known yet ranks, such as before main has answered.
- * With the default list and the app's categories: waiting, busy, background, back-to-work, ready-to-merge, look-again, reminders, finish-up, needs-you, idle, closed.
+ * With the default list and the app's categories: waiting, busy, background, back-to-work, ready-to-merge, look-again, reminders, finish-up, needs-you, ready, closed.
  */
 export function expandedStrength(list: readonly string[], registry: NeedsYouRegistry): string[] {
   const named = new Set(list);
@@ -108,7 +108,7 @@ export const DEFAULT_LOOKS: Readonly<Record<Status | typeof NEEDS_YOU, ResolvedL
   waiting: { colour: PALETTE.yellow, mark: 'dot', core: null, pulse: true },
   busy: { colour: PALETTE.blue, mark: 'spinner', core: null, pulse: false },
   background: { colour: PALETTE.blue, mark: 'spinner', core: PALETTE.green, pulse: false },
-  idle: { colour: PALETTE.green, mark: 'dot', core: null, pulse: false },
+  ready: { colour: PALETTE.green, mark: 'dot', core: null, pulse: false },
   closed: { colour: PALETTE.muted, mark: 'ring', core: null, pulse: false },
   [NEEDS_YOU]: { colour: PALETTE.mauve, mark: 'dot', core: null, pulse: true },
 };
@@ -122,7 +122,7 @@ const isColour = (value: unknown): value is string => typeof value === 'string' 
 /** A colour a look names, as `#rrggbb`. */
 const hexOf = (colour: string): string => (Object.hasOwn(PALETTE, colour) ? PALETTE[colour as keyof typeof PALETTE] : colour.toLowerCase());
 
-/** Your turn's types: the statuses `waiting` and `idle` themselves, drawn in those statuses' looks, so none has a look of its own. */
+/** Your turn's types: the statuses `waiting` and `ready` themselves, drawn in those statuses' looks, so none has a look of its own. */
 const yourTurnTypes = (registry: NeedsYouRegistry): Set<string> => new Set(registry.types.filter((type) => type.category === YOUR_TURN).map((type) => type.id));
 
 /** Every id a look can be set for: the statuses, `needs-you`, and the categories and types but Your turn's. */
@@ -140,7 +140,7 @@ export function looksProblem(value: unknown, registry: NeedsYouRegistry | null):
   const known = registry === null ? null : new Set(lookIds(registry));
   const yours = registry === null ? new Set<string>() : yourTurnTypes(registry);
   const unknownId = (id: string): string | null => {
-    if (id === YOUR_TURN || yours.has(id)) return `has no look of its own: Your turn's types are drawn as "waiting" and "idle".`;
+    if (id === YOUR_TURN || yours.has(id)) return `has no look of its own: Your turn's types are drawn as "waiting" and "ready".`;
     if (known !== null && !known.has(id)) return `is neither a status, "${NEEDS_YOU}", a category nor a type.`;
     return null;
   };

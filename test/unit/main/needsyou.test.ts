@@ -34,7 +34,7 @@ describe('the bundled needs-you categories and types', () => {
       'app.reminder': 'reminders',
       'app.was-running': 'reminders',
       'claude.asks': 'your-turn',
-      'claude.finished': 'your-turn',
+      'claude.ready': 'your-turn',
       'pr.approved': 'ready-to-merge',
       'pr.changes-requested': 'back-to-work',
       'pr.checks-failed': 'back-to-work',

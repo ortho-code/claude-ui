@@ -25,7 +25,7 @@ export type PrChange = 'checks failed' | 'merge conflict' | 'changes requested' 
 
 /**
  * One reason a session needs you, by its type (bundled/needs-you/), and when it was marked (epoch ms); for a reminder, the moment it was due.
- * A session keeps every reason it was marked for, as a list; claude asking or finishing a turn are types too, but read from its status and never kept here.
+ * A session keeps every reason it was marked for, as a list; claude asking and claude ready are types too, but read from its status and never kept here.
  */
 export type NeedsYou =
   /** It was running when the app closed, and how the app closed. */
@@ -638,12 +638,12 @@ export interface ClaudeUiApi {
   openExternal(url: string): void;
   /** What GitHub says of `prs`, asked with `gh` (`src/main/prstatus.ts`); a merged one is not asked again while the app runs. */
   prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
-  /** Current status per session id (busy | idle | background | waiting). */
+  /** Current status per session id (busy | ready | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
   /**
    * Subscribe to live status changes.
    * `tab` is the reporting terminal's token (empty for a session claude-ui is not running), and `event` the hook event that reported it (empty from a file written before the hook named it).
-   * `background` comes with that status alone: the type claude gives each piece of work still running behind the finished turn, such as `shell` or `subagent`.
+   * `background` comes with that status alone: the type claude gives each piece of work still running after the turn ended, such as `shell` or `subagent`.
    * `prompt` comes with a `UserPromptSubmit` alone: what was submitted, yours or a turn claude started itself, and `source` with it where claude says where it came from.
    */
   onSessionStatus(callback: (id: string, status: string, tab: string, event: string, background?: string[], prompt?: string, source?: string) => void): void;

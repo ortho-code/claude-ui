@@ -5,7 +5,7 @@
 }
 
 .tone-positive {
-  --tone: var(--idle);
+  --tone: var(--ready);
 }
 
 .tone-danger {

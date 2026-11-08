@@ -84,13 +84,13 @@ test('a running session is marked too, and a prompt there takes it off', async (
   await app.boot(fixture);
   await tabLabels(page).filter({ hasText: cold.title }).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  await app.emit('onSessionStatus', cold.id, 'idle', '', 'Stop');
+  await app.emit('onSessionStatus', cold.id, 'ready', '', 'Stop');
 
   await gitHubSays(page, { 'acme/app#7': open({ review: 'changes-requested' }), 'acme/app#8': open() });
   await nextAsk(page);
   await needs(tab(page, cold.title).locator('.nudge'));
   // The tooltip lists every state, the one the dot shows first (decided 2026-11-06).
-  await expect(tab(page, cold.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 changes requested\nIdle');
+  await expect(tab(page, cold.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 changes requested\nReady');
   await app.emit('onSessionStatus', cold.id, 'busy', '', 'UserPromptSubmit');
   await notNeeds(tab(page, cold.title).locator('.nudge'));
 });

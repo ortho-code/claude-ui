@@ -263,7 +263,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface, 
   items.push(
     canMarkRead(session.id)
       ? { label: markLabel, onSelect: () => toggleAck(session.id) }
-      : { label: markLabel, disabled: 'Only a session that is idle, waiting for you or marked as needing you can be marked read or unread' },
+      : { label: markLabel, disabled: 'Only a session that is ready, waiting for you or marked as needing you can be marked read or unread' },
   );
   // Settling the needs-you mark without acting on the session, which a prompt there, a close and a finish also do; reading it only dims it (decided 2026-10-28).
   items.push(
