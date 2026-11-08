@@ -69,6 +69,7 @@ Done:
   Panels so far run a command or a script and show its output, again on an interval, when the script says, or when the git working tree of their folder changes, or give you plain shells, as tabs per project that come back at the next launch, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
   A panel follows its tab's session into the worktree claude is changing files in, by path, after a `cd` or by claude's own worktree tools, and names the folder it looks in beside its title.
   Any panel, the sidebar and the terminal included, fills the window from a button in its header, and the same button puts the layout back as it was.
+  Show in list and a project's or group's name in the tab bar bring the session list into view when it is folded, behind another panel or under another panel's full screen.
   See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag.
   See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
@@ -102,7 +103,6 @@ Next:
 - End-to-end tests of the built app with a stand-in `claude`, now that the window's own checks run headless; then split view.
 - Visual regression checks: reference pictures of the window, made on CI, which a change to the look updates on purpose.
 - A Renovate configuration of the repo's own, tuned to its dependencies and workflows rather than left at Renovate's defaults.
-- A jump into the session list, from a tab or a panel's row, bringing the list into view when it is folded or behind another panel.
 - Named layouts, several in `layouts/` with the one in use chosen in settings, and blocks: parts of a layout kept in files of their own and used in it by name, as often as you like.
 - More panel types (markdown, diff, transcript, config), and layouts per project.
 - Panels opened at will rather than only from the file, and panels that belong to one project while others stay the same everywhere.

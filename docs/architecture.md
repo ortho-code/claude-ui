@@ -556,8 +556,11 @@ The caret is on every heading, and the worktree item is unavailable outside a gi
 Whether a project is a git repository is a fact about its folder, so every session the app knows there answers it (`buildProjectTree`'s `known`), not only the ones a filter shows: git can file a session's folder as no repository for the rest of a run when it took too long there, and a filter showing only that session used to take the worktree item away; a session started at the repository's root then still sits under the project, and the project's other sessions, its worktree ones among them, say the folder is a repository.
 The completeness check covers every button on the two headings, in the state its fixture sets up: the "+", its caret and the project's jump button; a press on a heading, which folds it, has no item.
 
-**A known gap**: with the session list folded or behind another panel, Show in list, like every jump into the list, scrolls a list nobody can see.
-The fix belongs to the layout tree, which no panel can yet ask to bring a panel on show, so it waits for that rather than one jump differing from the rest.
+**A press that asks to see the list brings it into view; following a session keeps it in step** (decided 2026-11-08).
+Show in list, the tab bar's project and group names and a terminal panel's project names first bring the list into view (`PanelHost.bringIntoView`, § Full screen): its group unfolded, the list shown in its group, another panel's full screen left; then they land where they point.
+Following a session (the `followSession` ask: a tab's click, opening a session from a panel, a toast or a sibling, and a tab's claude moving to a session another tab runs) unfolds only inside the list and never touches the layout, so a folded sidebar stays folded while you switch tabs.
+A follow made while the list is out of sight, where nothing can be scrolled, lands on its row once the list takes up room again (`following` in `sessions/reveal.ts`).
+Turned down: every jump into the list bringing it into view, which unfolded the sidebar, or left a full-screen terminal area, on every tab switch.
 
 ### A session whose folder is gone
 
@@ -1357,7 +1360,9 @@ Each split on the way to that panel shows only the child holding it; the sibling
 Only that panel is on show, so every other one is told it is hidden, and its group draws no rail, so nothing switches or folds until the layout is back.
 Nothing of it is written: the sizes, folds and picks in the app's file stay as they were, and full screen is off at every launch, since a window that opens on one panel with the rest hidden and nothing saying why is the confusing case.
 A panel the layout lets go of, hides or refuses ends full screen; one that says itself it cannot run stays full screen, showing why.
-Opening a session, from a row, a panel, a menu or a toast, brings the layout back first when a panel other than the terminal area fills the window, so its tab is in view; a toast floats over the whole window, so it asks for the terminal area to be in view itself (`PanelHost.bringIntoView`), the check the opening asks make; inside a full-screen terminal area, switching tabs keeps it full screen, and the session list keeps in step behind it, as it does behind a folded sidebar.
+Bringing a panel into view (`PanelHost.bringIntoView`) is the tree's one answer to "show this panel": the layout back when another panel fills the window, the panel's group unfolded, and the panel shown in its group, the fold and the pick kept as a rail click keeps them.
+Opening a session, from a row, a panel, a menu or a toast, brings the terminal area into view first, so its tab is on screen; a toast floats over the whole window, so it asks for that itself.
+Inside a full-screen terminal area, switching tabs keeps it full screen, and the session list keeps in step behind it, as it does behind a folded sidebar; a press that asks to see the list, such as Show in list or a project's name in the tab bar, brings the layout back (revised 2026-11-08: it did nothing visible there, which read as broken, and a fold and a full screen now answer that press alike; § A session's menu holds everything about it).
 
 ### A layout change keeps panels running
 

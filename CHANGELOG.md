@@ -134,6 +134,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   It holds moments, session ids, types and counts, never a title, a prompt or a note, stays on this machine, and keeps a year.
 - Any panel fills the window from a button in its header, the session list's at the end of its header and the terminal area's at the end of its tab bar, and the same button brings the layout back as it was.
   Opening a session from anywhere but the terminal area brings the layout back too; full screen is off again at the next launch.
+- Show in list and a project's or group's name in the tab bar bring the session list into view when its group is folded, it is behind another panel, or another panel fills the window.
+  Switching tabs leaves the sidebar folded, and the tab's session is in view in the list once you unfold it.
 
 ### Changed
 

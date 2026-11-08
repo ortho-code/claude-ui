@@ -1,4 +1,5 @@
 import { sessionById } from '../../../state/views';
+import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
 import { sessionMenuItems, setAsideNamed } from './actions';
 import { revealGroup, revealProject, revealSession } from './reveal';
@@ -19,6 +20,12 @@ export const sessionsAnswers: Pick<Asks, 'selectProject' | 'followSession' | 're
     const session = sessionById(id);
     if (session) revealSession(session);
   },
-  revealProject: (repoRoot) => revealProject(repoRoot),
-  revealGroup: (repoRoot, groupId) => revealGroup(repoRoot, groupId),
+  revealProject: (repoRoot) => {
+    hostOf('sessions').bringIntoView();
+    revealProject(repoRoot);
+  },
+  revealGroup: (repoRoot, groupId) => {
+    hostOf('sessions').bringIntoView();
+    revealGroup(repoRoot, groupId);
+  },
 };

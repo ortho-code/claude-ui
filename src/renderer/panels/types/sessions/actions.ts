@@ -375,13 +375,15 @@ function copyIdItem(session: SessionSummary): MenuItem {
   return { label: `Copy session id (${session.id.slice(0, 8)})`, onSelect: () => void copyText(session.id, 'Session id copied.') };
 }
 
-// Bring a session's row into view, widening the list to All first when it shows another project.
+// Bring the list into view and a session's row in it, widening the list to All first when it shows another project.
 // All rather than the session's project: choosing a project moves the tab bar and the tab on show with it, which would take you out of the tab you are in, while All holds every tab, so the one on show stays.
 // The list can still leave the session out, and the toast says why where the store says it, rather than the press seeming to do nothing: under a filter, or not, such as one being deleted.
 // Never for being finished: a finished session's menu has no Show in list on any surface (its own branch in `sessionMenuItems`).
 function showInList(session: SessionSummary): void {
   const { activeProject } = store.get();
-  if (activeProject !== null && activeProject !== session.repoRoot) hostOf('sessions').selectProject(null);
+  const host = hostOf('sessions');
+  host.bringIntoView();
+  if (activeProject !== null && activeProject !== session.repoRoot) host.selectProject(null);
   if (revealSession(session)) return;
   const title = sessionLabel(session);
   if (isFiltering(store.get())) showToast(`"${title}" is left out by the filter. Clear it to see its row.`);

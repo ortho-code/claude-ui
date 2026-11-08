@@ -131,9 +131,9 @@ export interface Asks {
   selectProject(repoRoot: string | null): void;
   /** Keep the list in step with a session gone to elsewhere, such as by a tab's click: its row unfolded and scrolled to, wherever the list itself stands. */
   followSession(id: string): void;
-  /** Bring a project's heading into view, unfolding it. */
+  /** Bring the list into view (`PanelHost.bringIntoView`) and a project's heading in it, unfolding it: for a press that asks to see the project in the list. */
   revealProject(repoRoot: string): void;
-  /** Bring a group's heading into view, or the project's rows in no group for null, and flash it. */
+  /** Bring the list into view (`PanelHost.bringIntoView`) and a group's heading in it, or the project's rows in no group for null, and flash it: for a press that asks to see the group in the list. */
   revealGroup(repoRoot: string, groupId: string | null): void;
   /** A session's menu, as the kebab on `from` lists it, with `own`, what that surface offers beyond its buttons, under its header: null for a session the app no longer has. */
   sessionMenu(id: string, from: SessionSurface, own?: readonly MenuItem[]): MenuItem[] | null;
@@ -261,7 +261,10 @@ export interface PanelHost extends Asks {
    * One element for the mount, sized by the bar it sits in.
    */
   readonly fullScreenButton: HTMLButtonElement;
-  /** Bring the layout back when another panel fills the window, so this one is in view: for a press that shows something here from outside the panel, such as a toast over the window. */
+  /**
+   * Bring the panel into view: the layout back when another panel fills the window, its group unfolded, and the panel shown in its group, the fold and the pick kept as a rail click keeps them.
+   * For a press that shows something here from outside the panel, such as a toast over the window.
+   */
   bringIntoView(): void;
 }
 

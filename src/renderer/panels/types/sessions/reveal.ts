@@ -22,7 +22,13 @@ export function revealSession(session: SessionSummary): boolean {
     unfold('projects', session.repoRoot);
   }
   const row = sessionRows.find(entityKey(session));
+  following = null;
   if (!row) return false;
+  // A list out of sight has no layout to scroll, so the row is landed on once the list is on show again.
+  if (container.getClientRects().length === 0) {
+    following = session;
+    return true;
+  }
   // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole app).
   // Land the row clear of EVERYTHING pinned above it: the project heading always, plus its group's heading when the row sits in a group — that one is sticky too, and a fixed offset for the project heading alone left the row half-hidden behind it.
   const groupHeading = groupId ? groupSections.find(groupId)?.heading : undefined;
@@ -34,6 +40,12 @@ export function revealSession(session: SessionSummary): boolean {
 
 /** A little air between a revealed row and the headings pinned above it, so it doesn't sit flush. */
 const REVEAL_GAP = 6;
+
+/** The session last revealed while the list was out of sight, such as behind a folded sidebar, whose row is landed on when the list next takes up room; null once landed or overtaken by another reveal. */
+let following: SessionSummary | null = null;
+new ResizeObserver(() => {
+  if (following && container.getClientRects().length > 0) revealSession(following);
+}).observe(container);
 
 /**
  * In Recent, where no heading says where a project's or a group's sessions are, the tab bar's names land on the newest row drawn of that project, or of that group, or of the project's sessions in no group for `null`, and flash it (decided 2026-11-04); true where Recent is on show, whether or not such a row is drawn.
@@ -54,6 +66,7 @@ function revealInRecent(holds: (session: SessionSummary) => boolean): boolean {
 
 // Scroll the (All-view) session list to a project's heading — used by the project name in the tab bar, so it links to where that project's sessions live.
 export function revealProject(repoRoot: string): void {
+  following = null;
   if (revealInRecent((session) => session.repoRoot === repoRoot)) return;
   unfold('projects', repoRoot);
   const els = projectSections.find(repoRoot);
@@ -79,6 +92,7 @@ export function syncStickyOffset(): void {
 // Jump to one of a project's groups (or to where its ungrouped sessions start).
 // Expands the target if it is folded — otherwise the jump lands on a heading with nothing under it — and lands it just below the project heading, whose height is MEASURED rather than assumed: it changes with the type scale, and a stale constant would tuck the target under the sticky heading.
 export function revealGroup(repoRoot: string, groupId: string | null): void {
+  following = null;
   const { groupOf } = store.get().groupState;
   if (revealInRecent((session) => session.repoRoot === repoRoot && (groupOf[entityKey(session)] ?? null) === groupId)) return;
   const els = projectSections.find(repoRoot);

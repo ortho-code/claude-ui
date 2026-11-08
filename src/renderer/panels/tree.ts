@@ -180,8 +180,8 @@ export function initTree(treeHost: TreeHost): void {
 }
 
 /**
- * The asks that open a session: each leaves full screen first when a panel other than the terminal area fills the window, so the session's tab is on screen.
- * Inside a full-screen terminal area they keep it full screen, as every other ask does: the session list's reveals keep the list in step behind it, the way they do behind a folded sidebar.
+ * The asks that open a session: each brings the terminal area into view first (`bringIntoView`), so the session's tab is on screen.
+ * Inside a full-screen terminal area they keep it full screen, as following a session does: the session list keeps in step behind it, the way it does behind a folded sidebar.
  */
 function leavingFullScreen(asks: Asks): Asks {
   const leave = (): void => bringTypeIntoView('claude');
@@ -210,9 +210,37 @@ function leavingFullScreen(asks: Asks): Asks {
   };
 }
 
-/** Bring the layout back when a panel of another type than `type` fills the window, so a panel of `type` is in view. */
+/** Bring the panel of type `type` into view, for a type the layout places once (`bringIntoView`). */
 function bringTypeIntoView(type: string): void {
-  if (fullScreen !== null && mounted.get(fullScreen)?.slot.type !== type) setFullScreen(null);
+  const key = [...mounted.values()].find((entry) => entry.slot.type === type)?.slot.key;
+  if (key !== undefined) bringIntoView(key);
+}
+
+/**
+ * Bring the panel `key` into view: the layout back when another panel fills the window, its group unfolded, and the panel shown in its group, the fold and the pick kept as a rail click keeps them.
+ * Draws only when something changed.
+ */
+function bringIntoView(key: string): void {
+  const leave = fullScreen !== null && fullScreen !== key;
+  if (leave) fullScreen = null;
+  const group = groupHolding(tree, key);
+  const changes: NodeStateChange[] = [];
+  if (group) {
+    if (shownSlot(group, group.slots.filter((slot) => !slot.hidden)).key !== key) changes.push({ id: group.id, field: 'active', value: keptOver(key, group.active) });
+    if (foldable(group) && foldedNow(group)) changes.push({ id: group.id, field: 'folded', value: keptOver(false, group.folded) });
+  }
+  if (changes.length > 0) keep(changes);
+  if (leave || changes.length > 0) render();
+}
+
+/** The group that places the panel `key`. */
+function groupHolding(node: ResolvedNode, key: string): ResolvedGroup | undefined {
+  if (node.kind === 'group') return node.slots.some((slot) => slot.key === key) ? node : undefined;
+  for (const child of node.children) {
+    const found = groupHolding(child, key);
+    if (found) return found;
+  }
+  return undefined;
 }
 
 /** Put the panel `key` full screen, or go back to the layout for null. */
@@ -824,7 +852,7 @@ function mountedFor(slot: PanelSlot): Mounted {
     sessionsSnapshot: snapshotText,
     watchSessions: (listener) => store.watch(SNAPSHOT_SLICES, listener),
     fullScreenButton,
-    bringIntoView: () => bringTypeIntoView(slot.type!),
+    bringIntoView: () => bringIntoView(slot.key),
     ...host.asks,
   };
   const panel = type.mount(slot, panelHost);
