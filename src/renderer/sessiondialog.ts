@@ -14,26 +14,26 @@ document.body.insertAdjacentHTML(
     <div id="session-dialog" class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="session-title">
       <p id="session-title" class="dialog-title">Start a session</p>
       <p id="session-about" class="dialog-detail"></p>
-      <div id="session-mode" class="dialog-section dialog-choices" role="radiogroup" hidden>
+      <div id="session-mode" class="dialog-group dialog-choices" role="radiogroup" hidden>
         <label class="dialog-choice"><input type="radio" name="session-mode" value="continue" /> <span id="session-continue-label"></span></label>
         <p id="session-continue-note" class="dialog-detail"></p>
         <label class="dialog-choice"><input type="radio" name="session-mode" value="new" /> New session</label>
       </div>
       <div id="session-new">
-        <div class="dialog-section">
+        <div class="dialog-group">
           <label class="dialog-label" for="session-project">Project</label>
           <select id="session-project" class="dialog-field"></select>
         </div>
-        <div class="dialog-section">
+        <div class="dialog-group">
           <label class="dialog-label" for="session-group">Group</label>
           <select id="session-group" class="dialog-field"></select>
         </div>
-        <div class="dialog-section">
+        <div class="dialog-group">
           <label class="dialog-label" for="session-name">Name</label>
           <input id="session-name" class="dialog-field" type="text" spellcheck="false" autocomplete="off" />
         </div>
       </div>
-      <div id="session-prompt-section" class="dialog-section">
+      <div id="session-prompt-group" class="dialog-group">
         <label id="session-prompt-label" class="dialog-label" for="session-prompt">First prompt</label>
         <p id="session-prompt-hint" class="dialog-detail"></p>
         <textarea id="session-prompt" class="dialog-field" rows="3" spellcheck="false"></textarea>
@@ -100,7 +100,7 @@ export function askForSession(ask: SessionAsk): Promise<SessionAnswer | null> {
   const continueLabel = document.getElementById('session-continue-label')!;
   const continueNote = document.getElementById('session-continue-note')!;
   const newFields = document.getElementById('session-new')!;
-  const promptSection = document.getElementById('session-prompt-section')!;
+  const promptGroup = document.getElementById('session-prompt-group')!;
   const promptLabel = document.getElementById('session-prompt-label')!;
   const promptHint = document.getElementById('session-prompt-hint')!;
 
@@ -120,7 +120,7 @@ export function askForSession(ask: SessionAsk): Promise<SessionAnswer | null> {
     const continuing = continueRadio!.checked;
     newFields.hidden = continuing;
     ok.textContent = continuing ? 'Continue' : 'Start';
-    promptSection.hidden = continuing && ask.continueIn?.running === true;
+    promptGroup.hidden = continuing && ask.continueIn?.running === true;
     promptLabel.textContent = continuing ? 'Prompt' : 'First prompt';
     promptHint.textContent = continuing ? 'Sent to claude as the session resumes. Ctrl+Enter continues.' : 'Sent to claude as the session starts. Ctrl+Enter starts it.';
   };

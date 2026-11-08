@@ -28,14 +28,14 @@
   width: min(520px, 86vw);
 }
 
-/* One labelled setting.
-   The gap belongs to the section so a second one spaces itself. */
-.dialog-section {
+/* One labelled group of a dialog's form, such as a setting or a session's project.
+   The gap belongs to the group so a second one spaces itself. */
+.dialog-group {
   margin-bottom: 16px;
 }
 
-/* The section owns the gap below it, so its last child must not add a second one — a .dialog-detail carries its own bottom margin for the dialogs where it IS the last thing before the buttons. */
-.dialog-section > :last-child {
+/* The group owns the gap below it, so its last child must not add a second one — a .dialog-detail carries its own bottom margin for the dialogs where it IS the last thing before the buttons. */
+.dialog-group > :last-child {
   margin-bottom: 0;
 }
 

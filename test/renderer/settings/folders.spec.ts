@@ -4,7 +4,7 @@ import { openSettings } from '../support/settings';
 test('Settings lists each of the app folders once, and each Open names its own folder', async ({ app, page }) => {
   await app.boot({ folders: { config: '/home/tester/.config/claude-ui/config', logs: '/home/tester/.config/claude-ui/logs' } });
   const dialog = await openSettings(page);
-  const rows = dialog.locator('#settings-folders .dialog-section');
+  const rows = dialog.locator('#settings-folders .dialog-group');
 
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0)).toContainText('Config folder');

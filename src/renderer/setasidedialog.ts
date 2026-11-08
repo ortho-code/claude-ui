@@ -20,7 +20,7 @@ document.body.insertAdjacentHTML(
     <div id="set-aside-dialog" class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="set-aside-title">
       <p id="set-aside-title" class="dialog-title"></p>
       <p id="set-aside-now" class="dialog-detail"></p>
-      <div class="dialog-section">
+      <div class="dialog-group">
         <span id="set-aside-when" class="dialog-label">When to come back</span>
         <div id="set-aside-choices" role="group" aria-labelledby="set-aside-when"></div>
         <div id="set-aside-pick" hidden>
@@ -28,7 +28,7 @@ document.body.insertAdjacentHTML(
           <input id="set-aside-time" class="dialog-field" type="time" aria-label="Time" />
         </div>
       </div>
-      <div class="dialog-section">
+      <div class="dialog-group">
         <label id="set-aside-where" class="dialog-label" for="set-aside-note">Where it stands</label>
         <textarea id="set-aside-note" class="dialog-field note-field" rows="4"></textarea>
         <p id="set-aside-notes-stay" class="dialog-detail">Their notes stay as they are.</p>

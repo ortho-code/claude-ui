@@ -25,7 +25,7 @@ const LEAVE_BUTTON_LABELS: Record<LeaveButton, string> = {
 };
 
 // App preferences, from the config folder: settings.json, which you edit and this dialog saves into (shared/settings.ts), said once under the title.
-// Under a field, a value of the file's that is not used and why; under the section, what is wrong with the file as a whole.
+// Under a field, a value of the file's that is not used and why; in a block of its own, what is wrong with the file as a whole.
 // The app's own folders are one row each under it, built from SETTINGS_FOLDERS below.
 document.body.insertAdjacentHTML(
   'beforeend',
@@ -33,57 +33,57 @@ document.body.insertAdjacentHTML(
     <div id="settings-dialog" class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <p id="settings-title" class="dialog-title">Settings</p>
       <p class="dialog-detail">Saved in <code>settings.json</code> in the config folder, where you can edit them by hand too.</p>
-      <div class="dialog-section">
+      <div class="dialog-group">
         <label class="dialog-label" for="settings-flags">Default launch flags</label>
         <p class="dialog-detail">Added to every session started from now on. Sessions already running keep the flags they started with.</p>
         <input id="settings-flags" class="dialog-field" type="text" spellcheck="false" autocomplete="off" placeholder="--allowedTools Grep,Glob" />
         <p id="settings-error" class="dialog-error" hidden></p>
       </div>
-      <div class="dialog-section">
+      <div class="dialog-group">
         <label class="dialog-label" for="settings-running">Sessions running when the app closed</label>
         <p class="dialog-detail">What the next launch does with them. A marked one stays marked until your next prompt there. The other tabs come back waiting for a click.</p>
         <select id="settings-running" class="dialog-field">
           ${RUNNING_AT_LAUNCH.map((choice) => `<option value="${choice}">${RUNNING_LABELS[choice]}</option>`).join('')}
         </select>
       </div>
-      <div class="dialog-section">
+      <div class="dialog-group">
         <span class="dialog-label">Pull requests</span>
         <p class="dialog-detail">A session's PR badge takes the colour of what GitHub says of its PRs, such as changes requested, failing checks or merged, and a PR changing like that marks the session as needing you. The app asks with gh, on your own login. Turned on, it starts from the PRs as they are then.</p>
         <label id="settings-pr-status-row" class="dialog-choice"><input id="settings-pr-status" type="checkbox" /> PR status from GitHub</label>
         <p class="dialog-detail">How many approvals a repository's PRs need before they count as approved is <code>approvals</code> in settings.json, set there by hand; a repository it does not name counts as approved when GitHub says so.</p>
         <div id="settings-approvals-problems"></div>
       </div>
-      <div class="dialog-section">
+      <div class="dialog-group">
         <label class="dialog-label" for="settings-leave-button">Leave button</label>
         <p class="dialog-detail">The button beside a session's menu on its tab, which a middle-click on the tab presses too. A running session is asked to leave first, whichever it is. Without the button, the session's menu holds it all.</p>
         <select id="settings-leave-button" class="dialog-field">
           ${LEAVE_BUTTON.map((choice) => `<option value="${choice}">${LEAVE_BUTTON_LABELS[choice]}</option>`).join('')}
         </select>
       </div>
-      <div class="dialog-section">
+      <div class="dialog-group">
         <label class="dialog-label" for="settings-set-aside">Set aside: the choices</label>
         <p class="dialog-detail">Separated by commas, offered in the order they come, with Pick a date… beside them and whenever last: whenever, in 30m, in 2h, in 3d, in 1w, tomorrow or next monday, a day with a time such as 09:00 or else the time below.</p>
         <input id="settings-set-aside" class="dialog-field" type="text" spellcheck="false" autocomplete="off" placeholder="tomorrow, in 1w, whenever" />
         <p id="settings-set-aside-error" class="dialog-error" hidden></p>
       </div>
-      <div class="dialog-section">
+      <div class="dialog-group">
         <label class="dialog-label" for="settings-set-aside-time">Time of day for a choice without one</label>
         <p class="dialog-detail">A session set aside for a day without a time needs you again at this time on that day. Pick a date…'s time starts at it.</p>
         <input id="settings-set-aside-time" class="dialog-field" type="time" />
         <p id="settings-set-aside-time-error" class="dialog-error" hidden></p>
       </div>
-      <div class="dialog-section">
+      <div class="dialog-group">
         <label class="dialog-label" for="settings-locale">Language for times and dates</label>
         <p class="dialog-detail">A language tag such as en-GB or nl-NL, or empty for the system's. Time fields follow this from the next launch; the rest of the app at once.</p>
         <input id="settings-locale" class="dialog-field" type="text" spellcheck="false" autocomplete="off" />
         <p id="settings-locale-error" class="dialog-error" hidden></p>
       </div>
-      <div class="dialog-section">
+      <div class="dialog-group">
         <span class="dialog-label">Status dots</span>
         <p class="dialog-detail">Which state a session's dot shows when several hold, such as busy and needing you, is <code>strength</code> in settings.json, and how each status, category and type is drawn is <code>looks</code>, both set there by hand.</p>
         <div id="settings-dots-problems"></div>
       </div>
-      <div id="settings-notes" class="dialog-section" hidden>
+      <div id="settings-notes" class="dialog-group" hidden>
         <span class="dialog-label">In settings.json</span>
         <div id="settings-notes-list"></div>
       </div>
@@ -139,8 +139,8 @@ const SETTINGS_FOLDERS: { name: FolderName; label: string; detail: string }[] = 
 function renderFolderRows(paths: Record<FolderName, string>): void {
   settingsFolders.replaceChildren(
     ...SETTINGS_FOLDERS.map(({ name, label, detail }) => {
-      const section = document.createElement('div');
-      section.className = 'dialog-section';
+      const group = document.createElement('div');
+      group.className = 'dialog-group';
       const heading = document.createElement('span');
       heading.className = 'dialog-label';
       heading.textContent = label;
@@ -157,8 +157,8 @@ function renderFolderRows(paths: Record<FolderName, string>): void {
       open.textContent = 'Open';
       open.addEventListener('click', () => window.claudeUi.openFolder(name));
       row.append(where, open);
-      section.append(heading, explanation, row);
-      return section;
+      group.append(heading, explanation, row);
+      return group;
     }),
   );
 }
@@ -330,7 +330,7 @@ const localeField = new SettingField(
 /** Every setting's field. */
 const fields = [flagsField, runningField, prStatusField, leaveButtonField, setAsideField, setAsideTimeField, localeField];
 
-/** Fill the dialog from the settings as they stand: each setting's field, what is wrong with those set only by hand, and under the section what is wrong with the file as a whole. */
+/** Fill the dialog from the settings as they stand: each setting's field, what is wrong with those set only by hand, and in a block of its own what is wrong with the file as a whole. */
 function render(view: SettingsView): void {
   for (const field of fields) field.render(view);
   lines(settingsDotsProblems, 'dialog-error', [
