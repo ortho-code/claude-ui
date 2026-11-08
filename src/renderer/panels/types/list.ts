@@ -316,7 +316,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
 
   /**
    * What a row shows of a session, at its end, as one of two in the same place: the dot of the session the row names (`session`), or else the mark for the sessions the row started (decided 2026-10-31: the type chose what the place shows).
-   * The named session's dot is its status dot and nothing to press, the row's press being the type's to say, naming the session and its state on hover; nothing for a session the app does not have.
+   * The named session's dot is its status dot, which a press marks read or unread where it can be marked and is otherwise the row's press, naming the session and its state on hover; nothing for a session the app does not have.
    * The mark, hidden without one: the latest's status dot, and a press goes to it; with several, their count beside the dot, and a press offers them all.
    * Only sessions the app still has: a link whose session is gone shows nothing.
    * Either dot shows the status as the session list's does, and says it in its words.
@@ -325,7 +325,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     if (item.session !== null) {
       const named = this.host.session(item.session);
       if (!named) return null;
-      namedDot.className = sessionDotClass(named.status, named.acked);
+      namedDot.className = sessionDotClass(named.status, named.acked, named.canMarkRead);
       const label = `${named.title} · ${stateOf(named)}`;
       namedDotBox.setAttribute('aria-label', label);
       setTooltip(namedDotBox, label);
@@ -550,6 +550,13 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     const dot = element('span');
     const count = element('span', 'list-session-count');
     const namedDot = element('span');
+    // A press marks it read or unread where it can be marked, as on every session dot; on a dot with nothing to mark it is the row's.
+    namedDot.addEventListener('click', (event) => {
+      if (!namedDot.classList.contains('clickable')) return;
+      event.stopPropagation();
+      const id = this.items.get(key)?.session;
+      if (id) this.host.toggleRead(id);
+    });
     const namedDotBox = element('span', 'list-dot');
     namedDotBox.append(namedDot);
     // The chevron of a row holding rows: the section heading's own caret, in a button of its own so it folds from the keyboard too.

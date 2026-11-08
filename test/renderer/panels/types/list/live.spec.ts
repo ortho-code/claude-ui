@@ -3,7 +3,7 @@ import { expect, test } from '../../../support/harness';
 import { runs } from '../../layout/layout';
 import { bootList, row, type PrintedList } from './list';
 
-// A row's text may hold live values, which the app fills in from a session it has and keeps current between runs, and the session it names (`session`) shows its status dot in place of the mark for the sessions it started (docs/panel-types.md § A text, § A row's session).
+// A row's text may hold live values, which the app fills in from a session it has and keeps current between runs, and the session it names (`session`) shows its status dot in place of the mark for the sessions it started, a press on it marking it read as on every session dot (docs/panel-types.md § A text, § A row's session).
 const named = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'Fix the login redirect' });
 const started = session({ id: '00000000-0000-4000-8000-0000000000a2', title: 'Review #2' });
 const GONE = '00000000-0000-4000-8000-0000000000ff';
@@ -48,6 +48,28 @@ test("a row naming a session shows its status dot, which follows its status", as
   await expect(dot).toHaveAttribute('aria-label', /^Fix the login redirect · /);
   await app.emit('onSessionStatus', named.id, 'idle', '', 'Stop');
   await expect(dot.locator('.nudge')).toHaveClass(/\bidle\b/);
+});
+
+test("a press on a named session's dot marks it read and unread again, and is not the row's press", async ({ app, page }) => {
+  const pressing: PrintedList = { version: 1, sections: [{ items: [{ key: 'named', session: named.id, text: 'Review', press: { 'open-session': named.id } }] }] };
+  await bootList(app, page, pressing, { more: { ...more, statuses: { [named.id]: 'waiting' } } });
+  const nudge = row(page, 'Review').locator('.list-dot .nudge');
+  await expect(nudge).not.toHaveClass(/\backed\b/);
+  await nudge.click();
+  await expect(nudge).toHaveClass(/\backed\b/);
+  await nudge.click();
+  await expect(nudge).not.toHaveClass(/\backed\b/);
+  expect(await app.calls('startTerminal')).toHaveLength(0);
+});
+
+test("a press on a named session's dot with nothing to mark is the row's press", async ({ app, page }) => {
+  const pressing: PrintedList = { version: 1, sections: [{ items: [{ key: 'named', session: named.id, text: 'Review', press: { 'open-session': named.id } }] }] };
+  await bootList(app, page, pressing, { more: { ...more, statuses: { [named.id]: 'busy' } } });
+  const nudge = row(page, 'Review').locator('.list-dot .nudge');
+  // Forced, since a spinning dot never holds still for the wait Playwright makes before a click.
+  await nudge.click({ force: true });
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await expect(nudge).not.toHaveClass(/\backed\b/);
 });
 
 test('a row naming a session the app does not have shows no dot', async ({ app, page }) => {

@@ -92,6 +92,8 @@ export interface LinkedSession {
   acked: boolean;
   /** A tab holds it with its process live. */
   running: boolean;
+  /** A press on its dot marks it read or unread, by the rule every session dot follows (`canMarkRead`). */
+  canMarkRead: boolean;
 }
 
 /** Where a session's menu is opened: its row in the list or its tab, each of which leaves out the item that would be itself, its row in the live strip, or a panel's row naming it. */
@@ -248,6 +250,8 @@ export interface PanelHost extends Asks {
   linkedSessions(itemKey: string): LinkedSession[];
   /** A session the app has, by its full id, as `linkedSessions` gives one; null when it has none. */
   session(id: string): LinkedSession | null;
+  /** Mark a session's dot read, or unread again, as a press on its dot in the session list does; nothing where it cannot be marked. */
+  toggleRead(id: string): void;
   /** Offer several of an item's sessions in a menu at `anchor`, to go to one. */
   pickSession(anchor: HTMLElement, sessions: LinkedSession[]): void;
   /** Put `text` on the clipboard and say so in a toast, in `confirmation`'s words, as every copy in the app does (`copyText`). */

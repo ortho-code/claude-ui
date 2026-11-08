@@ -33,6 +33,7 @@ import { folderTypes } from './types/folder';
 import { linkedSessions, pickSession, sessionNamed, startSession } from './links';
 import { SNAPSHOT_SLICES, snapshotText } from './snapshot';
 import { store } from '../state/app';
+import { toggleAck } from '../state/statuses';
 import { HeaderTabs } from './tabs';
 import { viewButton } from './view-switch';
 import type { Asks, MountedPanel, PanelHost, PanelStatus, PanelType, PanelView, Where } from './contract';
@@ -737,6 +738,7 @@ function mountedFor(slot: PanelSlot): Mounted {
     startSession: (request) => void startSession(slot.key, request, host.asks),
     linkedSessions: (itemKey) => linkedSessions(slot.key, itemKey),
     session: sessionNamed,
+    toggleRead: toggleAck,
     pickSession: (anchor, sessions) => pickSession(anchor, sessions, host.asks),
     copyText: (text, confirmation) => void copyText(text, confirmation),
     sessionsSnapshot: snapshotText,

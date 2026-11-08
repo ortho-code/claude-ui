@@ -81,7 +81,7 @@ Done:
 - Panel types of your own, from a folder in the config folder: a script prints a list and the app draws it, with links, sections that fold, and a count on the panel's icon kept current on an interval.
   See [Panel types of your own](#panel-types-of-your-own).
   A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick, and linked to the PR when the action gives its page; it then shows that session's status and leads back to it, and a second press offers to continue it.
-  A row can name a session, showing its status dot and the session's menu behind its ⋮, so a session in another project can be stopped, set aside or marked read from the panel.
+  A row can name a session, showing its status dot and the session's menu behind its ⋮, so a session in another project can be stopped, set aside or marked read from the panel; a press on the dot marks it read too.
 - The sidebar and the terminal area are panel types like the others, each drawn by modules of its own.
 - A config folder that stays yours: the settings in `settings.json`, which you edit and Settings saves into, keeping your comments, and your layout, which the app never writes, keeping where you left it — the sizes you drag to, the groups you fold — in a `.local.json` file of its own beside it, in your file's own field names.
   Every file there may carry comments and trailing commas.
