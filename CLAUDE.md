@@ -49,6 +49,8 @@ The roadmap in `README.md` is the source of truth for what is done and what is n
 - A fix to behaviour starts with a check that fails without it: a window check where the window shows the bug, a unit test where main or a pure function does.
   The check lands with the fix, and an area without checks gets one when it is next touched.
 - `node-pty` (M2) is a native module — rebuild against Electron's ABI after install.
+- The app's own data in its config folder (`meta.json`, `status/`, `panel-data/`) changes only through the app, never through a session's script, even one reusing the app's own functions: the app merges a partial update into what it holds, and a script writing the result as the whole file loses every field it did not return, as one did on 2026-11-08, wiping the groups, the project order and the sidebar's state.
+  A cleanup the app has no action for is done in the app by the user, or becomes an app feature first.
 
 ## Conventions
 
