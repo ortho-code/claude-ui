@@ -6,19 +6,19 @@ import type { NativeImage } from 'electron';
 import { execFile } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
-import { findTranscript, listSessions, trashSessions, worktreeExists } from './sessions';
-import { readHistory } from './transcript';
-import { liveTerminals, registerTerminalIpc, shellFolders, terminateAll } from './terminal';
-import { KILL_GRACE_MS, untilGone } from './shell';
-import { registerConfig } from './config';
-import { registerFolders } from './folders';
-import { liveRuns, registerPanelsIpc, stopAllPanels } from './panels';
-import { forgetSessions, keepShellFolders, registerPanelData } from './paneldata';
+import { findTranscript, listSessions, trashSessions, worktreeExists } from './sessions/sessions';
+import { readHistory } from './sessions/transcript';
+import { liveTerminals, registerTerminalIpc, shellFolders, terminateAll } from './pty/terminal';
+import { KILL_GRACE_MS, untilGone } from './pty/shell';
+import { registerConfig } from './config/config';
+import { registerFolders } from './window/folders';
+import { liveRuns, registerPanelsIpc, stopAllPanels } from './panels/panels';
+import { forgetSessions, keepShellFolders, registerPanelData } from './panels/paneldata';
 import { logsDir } from './paths';
-import { startLog, closeLog, errorText, lastClosed, log } from './log';
-import { recordUsage, reviewUsageOf, trimUsage } from './usage';
-import { headerLines, logGpuStatus, logProcessFailures, registerRendererLog, watchWindow } from './diagnostics';
-import { localTimestamp } from './stamp';
+import { startLog, closeLog, errorText, lastClosed, log } from './logs/log';
+import { recordUsage, reviewUsageOf, trimUsage } from './logs/usage';
+import { headerLines, logGpuStatus, logProcessFailures, registerRendererLog, watchWindow } from './logs/diagnostics';
+import { localTimestamp } from './files/stamp';
 import {
   getPinned,
   togglePin,
@@ -73,14 +73,14 @@ import {
   setWindowBounds,
   getUiState,
   setUiState,
-} from './meta';
-import { readBundledNeedsYou } from './needsyou';
-import { registerSettings, settingsNow } from './settings';
-import { rendererArguments } from './rendererargs';
-import { registerLayoutState } from './layoutstate';
-import { readProcVersion, runsOnWsl } from './platform';
-import { copiedFiles } from './clipboard';
-import { registerPrStatus } from './prstatus';
+} from './sessions/meta';
+import { readBundledNeedsYou } from './status/needsyou';
+import { registerSettings, settingsNow } from './config/settings';
+import { rendererArguments } from './window/rendererargs';
+import { registerLayoutState } from './panels/layoutstate';
+import { readProcVersion, runsOnWsl } from './platform/platform';
+import { copiedFiles } from './platform/clipboard';
+import { registerPrStatus } from './sessions/prstatus';
 import { withPrLinks } from '../shared/prs';
 import {
   placeWindow,
@@ -92,11 +92,11 @@ import {
   MIN_WIDTH,
   MIN_HEIGHT,
   NO_INSET,
-} from './bounds';
-import type { Edge, Inset } from './bounds';
-import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
-import { registerSessionsWatcher } from './watcher';
-import { transcriptChanged } from './transcriptends';
+} from './window/bounds';
+import type { Edge, Inset } from './window/bounds';
+import { installStatusHooks, registerStatusIpc, clearStatuses } from './status/status';
+import { registerSessionsWatcher } from './sessions/watcher';
+import { transcriptChanged } from './status/transcriptends';
 import { NO_TRANSCRIPT } from '../shared/history';
 import type { HistoryPin, HistorySlice, NeedsYou, OrderMove, PrSeen, SettledBy, UiState } from '../shared/types';
 
@@ -582,7 +582,7 @@ ipcMain.handle('window:chrome', () => ({
 // Decided once: what the window's terminals do with Ctrl+V depends on it (docs/architecture/panels.md § The `terminal` type).
 const WSL = runsOnWsl(process.platform, process.env, readProcVersion);
 ipcMain.handle('app:wsl', () => WSL);
-// Only under WSL is a copied file on Windows' side alone (src/main/clipboard.ts).
+// Only under WSL is a copied file on Windows' side alone (src/main/platform/clipboard.ts).
 ipcMain.handle('clipboard:copiedFiles', () => (WSL ? copiedFiles() : []));
 ipcMain.on('window:minimize', () => mainWindow?.minimize());
 ipcMain.on('window:toggleMaximize', () => {

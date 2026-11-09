@@ -2,7 +2,7 @@
 
 ## Reading sessions
 
-`src/main/sessions.ts` walks `~/.claude/projects/*/*.jsonl`.
+`src/main/sessions/sessions.ts` walks `~/.claude/projects/*/*.jsonl`.
 Each `.jsonl` is one session transcript with one JSON event per line.
 For each file it streams the lines to pull the working directory and the first prompt without loading the whole file, counts the events, and takes last activity from the file mtime.
 The renderer groups the results by working directory.
@@ -46,7 +46,7 @@ Whether a checkout is gone is the reading's, or its folder missing at the listin
 **A session's PRs come from its transcript too**: Claude Code writes a `pr-link` record naming a PR's repository, number and page, and writes the same one again and again through a session, so each is kept once, in the order first linked (`prs`), and drawn as a mark on the row that lists them.
 A record says the PR is linked to the session, not who opened it, so the mark says "linked": over one machine's transcripts (2026-10-14), 96 of the 98 PRs linked were the user's own, and the other two a colleague's that a session worked on.
 A fork's transcript copies none of its parent's records, but in four of the five families there with a PR, the fork's opening records link its parent's PR afresh, so a fork tends to show its parent's PR from the start.
-Claude Code links no PR for a review posted on it, nor for a comment posted through `gh api`, so the reader also links the PR of each one claude posts (`src/main/postedprs.ts`): `gh pr review|comment` naming the repository with `--repo` or the PR by its URL, and a `gh api` POST, given as the method or implied by a body, to `repos/<owner>/<repo>/pulls/<number>/reviews` or `…/comments`.
+Claude Code links no PR for a review posted on it, nor for a comment posted through `gh api`, so the reader also links the PR of each one claude posts (`src/main/sessions/postedprs.ts`): `gh pr review|comment` naming the repository with `--repo` or the PR by its URL, and a `gh api` POST, given as the method or implied by a body, to `repos/<owner>/<repo>/pulls/<number>/reviews` or `…/comments`.
 Each invocation in a command is judged on its own, split at the shell's separators outside quotes, subshells and substitutions included, with heredoc bodies left out, so a `-f` in one invocation never makes a read in another a post, and `gh` counts only as the command an invocation runs.
 A substitution inside double quotes stays part of its word, so a `gh` command run there, or a heredoc it opens, is not read.
 A PR named by a bare number names no repository, and is left out rather than guessed from the folder's remotes, which `gh` chooses among by rules of its own; over 30 days' transcripts here (2026-11-07), 88 of 89 posts named it.
@@ -59,7 +59,7 @@ Until the listing names the new session, which is once its first message is in i
 The link stays with that session's id: neither a fork nor a `/clear` successor carries it, as neither carries a note.
 What a PR's state is, open or merged, is not in the record, so it is asked of GitHub.
 
-**What GitHub says of a PR is asked with `gh`**: main runs `gh api graphql` through the login shell (`src/main/prstatus.ts`), on the person's own `gh` login, so the app keeps no token, and `gh`'s stderr comes on fd 3, apart from the shell's job-control lines.
+**What GitHub says of a PR is asked with `gh`**: main runs `gh api graphql` through the login shell (`src/main/sessions/prstatus.ts`), on the person's own `gh` login, so the app keeps no token, and `gh`'s stderr comes on fd 3, apart from the shell's job-control lines.
 It asks in two steps, because asking more than a PR's state is slow (measured 2026-10-21, 103 PRs in one repository: 25 PRs with every field took 3.4–4.1 s, the state alone of all 103 under one): a PR not known yet, or closed, is asked its state, and one known to be open every field.
 Both asks also ask what your role is told from, whether you wrote it, your latest review and a request for your review, so a merged PR has a role too; the open-PR ask adds its head and each reviewer's latest review (`latestOpinionatedReviews`, asked for reviewers with write access, which on the PRs linked on 2026-11-06 held only approvals and requests for changes), which give the approvals and whether new commits came since your review.
 Measured 2026-11-06 on the PRs linked then: the open-PR ask was no slower at 25 PRs with these fields, and 100 PRs asked their state, whether you wrote them, and your latest review's id and state answered in 1.5–1.7 s, three times of three.
@@ -102,7 +102,7 @@ Everything the app knows that Claude Code doesn't — pins, finished sessions, o
 
 The finished sessions are kept in `meta.json` under `finished`, by session id with when each was finished.
 A file an older build wrote holds them as `archived`, which is read into `finished` and dropped at the next write, and `ui.filters.archived` the same way into `ui.filters.finished` ([decided 2026-11-05](../decisions/0169-finished-sessions-are-kept-under-finished.md)).
-A build from before then reads none of them from a file this one wrote, so going back a build means restoring `meta.json.<version>.bak`, the copy the first write of a new version keeps of the file as the outgoing build left it (`main/backup.ts`).
+A build from before then reads none of them from a file this one wrote, so going back a build means restoring `meta.json.<version>.bak`, the copy the first write of a new version keeps of the file as the outgoing build left it (`main/files/backup.ts`).
 An older build keeps the `finished` it does not know and writes its own `archived` beside it, and the newer build then reads `finished` first, so what was finished in the older build is lost on coming back unless the copy was restored; two builds of the same version take no such copy.
 
 The app's own preferences are not there: they live in the config folder (see The config folder; [decided 2026-10-07](../decisions/0058-preferences-live-in-the-config-folder.md)).

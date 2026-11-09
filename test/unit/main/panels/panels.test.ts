@@ -1,0 +1,516 @@
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
+import { EventEmitter } from 'node:events';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+
+// The IPC handlers panels.ts registers, and every child it spawns, captured so the tests can drive them the way the renderer and the OS do.
+const { handlers, spawned, refused, seq, logged } = vi.hoisted(() => ({
+  handlers: new Map<string, (...args: unknown[]) => unknown>(),
+  spawned: [] as FakeChild[],
+  /** The options of every spawn that threw before there was a child, as Node's own checks of them do. */
+  refused: [] as FakeChild['options'][],
+  // Never reset: panels.ts keeps its own map of live runs across tests, and a recycled pid would have one test's signals counted against another's process.
+  seq: { pid: 7000 },
+  /** Every log line as `level area message`; the log itself is not started in tests. */
+  logged: [] as string[],
+}));
+
+vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../../src/main/logs/log')>()),
+  log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
+}));
+
+type FakePipe = EventEmitter & { destroy: () => void };
+
+/** Enough of a ChildProcess to drive a run: a pid to signal, pipes to feed, and an exit we fire by hand. */
+interface FakeChild extends EventEmitter {
+  pid: number;
+  file: string;
+  args: string[];
+  options: { cwd: string; env: Record<string, string>; detached: boolean; stdio: unknown };
+  stdout: FakePipe;
+  /** Every descriptor, as ChildProcess has them: an `apart` run reads fds 3 and 4. */
+  stdio: (FakePipe | null)[];
+  /** What the OS would do: the process ends, `exit` first and `close` once the pipe drains. */
+  end: (code: number | null, signal?: NodeJS.Signals | null) => void;
+}
+
+vi.mock('electron', () => ({
+  app: { getPath: () => '/tmp/claude-ui-test', setPath: () => {} },
+  ipcMain: {
+    handle: (channel: string, fn: (...a: unknown[]) => unknown) => handlers.set(channel, fn),
+    on: (channel: string, fn: (...a: unknown[]) => unknown) => handlers.set(channel, fn),
+  },
+  shell: { openPath: async () => '' },
+}));
+vi.mock('node:child_process', () => ({
+  // For the working tree's git, which these tests never ask about: gitstate.test.ts runs it against a real repository.
+  execFile: vi.fn(),
+  spawn: (file: string, args: string[], options: FakeChild['options']) => {
+    // A test asks for the refusal through an option, which reaches the environment.
+    if (options.env.CLAUDE_UI_OPTION_REFUSE) {
+      refused.push(options);
+      throw new TypeError('The argument options.env is invalid');
+    }
+    const child = new EventEmitter() as FakeChild;
+    child.pid = seq.pid++;
+    child.file = file;
+    child.args = args;
+    child.options = options;
+    const pipe = (): FakePipe => Object.assign(new EventEmitter(), { destroy: vi.fn() });
+    child.stdout = pipe();
+    child.stdio = [null, child.stdout, null, pipe(), pipe()];
+    child.end = (code, signal = null) => {
+      child.emit('exit', code, signal);
+      child.emit('close', code, signal);
+    };
+    spawned.push(child);
+    return child;
+  },
+}));
+
+import { registerPanelsIpc, stopAllPanels, panelInvocation, panelEnv, contextEnv } from '../../../../src/main/panels/panels';
+import { PANEL_CONTROL_CAP, PANEL_CONTROL_VARIABLE, PANEL_OUTPUT_CAP, PANEL_SESSIONS_VARIABLE, PANEL_TIMEOUT_MS, PANEL_VIEW_VARIABLE, type PanelRunEvent, type PanelRunRequest } from '../../../../src/shared/panels';
+import { KILL_GRACE_MS } from '../../../../src/main/pty/shell';
+
+const CONTEXT = { projectRoot: process.cwd(), cwd: process.cwd(), sessionId: 'sess-1' };
+const SHELL = process.env.SHELL ?? '/bin/bash';
+
+describe('what reaches the shell', () => {
+  it('runs a command line through the interactive login shell, as an argument to a fresh copy of it', () => {
+    const line = 'git status --short; echo "done" | wc -l';
+    expect(panelInvocation({ command: line })).toEqual({
+      file: SHELL,
+      // `$1` is the shell that parses the line, `$2` the line itself: nothing here was assembled from it.
+      args: ['-l', '-i', '-c', 'exec 2>&1; exec "$1" -c "$2"', 'claude-ui-panel', SHELL, line],
+    });
+  });
+
+  it('passes a script path as ONE argument, resolved against the config folder, spaces and all', () => {
+    const { args } = panelInvocation({ script: 'scripts/my status.sh' });
+    // The mocked `app.getPath` answers `/tmp/claude-ui-test` for the data directory, so the config folder sits right under it.
+    expect(args.slice(-2)).toEqual(['claude-ui-panel', '/tmp/claude-ui-test/config/scripts/my status.sh']);
+    expect(args[3]).toBe('exec 2>&1; exec "$1"');
+  });
+
+  it('leaves an absolute script path where it is', () => {
+    const { args } = panelInvocation({ script: '/opt/tools/status' });
+    expect(args.at(-1)).toBe('/opt/tools/status');
+  });
+
+  it('apart, sends the command’s stdout and stderr to fds 3 and 4 and closes both before it runs, in either form', () => {
+    expect(panelInvocation({ script: '/opt/tools/status' }, 'apart').args[3]).toBe('exec 1>&3 2>&4 3>&- 4>&-; exec "$1"');
+    expect(panelInvocation({ command: 'true' }, 'apart').args[3]).toBe('exec 1>&3 2>&4 3>&- 4>&-; exec "$1" -c "$2"');
+  });
+
+  it('asks for plain text, names the context, and does NOT mark the run as a claude-ui session', () => {
+    const env = panelEnv({ projectRoot: '/repo', cwd: '/repo/wt', sessionId: 'abc' });
+    expect(env).toMatchObject({
+      NO_COLOR: '1',
+      TERM: 'dumb',
+      CLAUDE_UI_PROJECT_ROOT: '/repo',
+      CLAUDE_UI_CWD: '/repo/wt',
+      CLAUDE_UI_SESSION_ID: 'abc',
+      CLAUDE_UI_CONFIG_ROOT: '/tmp/claude-ui-test/config',
+    });
+    // The marker is what fires the status hooks; a panel that runs `claude -p` must not report as a session.
+    expect(env).not.toHaveProperty('CLAUDE_UI');
+    expect(env).not.toHaveProperty('COLORTERM');
+  });
+
+  it('gives a panel type’s script exactly the variables docs/panel-types.md names', () => {
+    const doc = readFileSync(new URL('../../../../docs/panel-types.md', import.meta.url), 'utf8').split('\n');
+    const start = doc.indexOf('### Variables');
+    const named: string[] = [];
+    for (const line of doc.slice(start + 1)) {
+      if (line.startsWith('#')) break;
+      const match = /^\| `([^`]+)` \|/.exec(line);
+      if (match) named.push(match[1]);
+    }
+    expect(start).toBeGreaterThanOrEqual(0);
+    // The context, the run's own control file beside it, and a list panel's view and sessions file.
+    const run = [...Object.keys(contextEnv({ projectRoot: '/repo', cwd: '/repo', sessionId: 's' })), PANEL_CONTROL_VARIABLE, PANEL_VIEW_VARIABLE, PANEL_SESSIONS_VARIABLE];
+    expect(named.filter((name) => name !== 'CLAUDE_UI_OPTION_<NAME>').sort()).toEqual(run.sort());
+    expect(named).toContain('CLAUDE_UI_OPTION_<NAME>');
+  });
+
+  it('gives a type’s options as CLAUDE_UI_OPTION_<NAME>, and leaves out a name that cannot make a variable’s', () => {
+    const env = panelEnv({ projectRoot: '/repo', cwd: '/repo', sessionId: '' }, { for: 'HarmenM', team_size: '4', 'bad-name': 'x', PATH: '/evil' });
+    expect(env).toMatchObject({ CLAUDE_UI_OPTION_FOR: 'HarmenM', CLAUDE_UI_OPTION_TEAM_SIZE: '4' });
+    expect(Object.keys(env).filter((key) => key.startsWith('CLAUDE_UI_OPTION_'))).toEqual(['CLAUDE_UI_OPTION_FOR', 'CLAUDE_UI_OPTION_TEAM_SIZE']);
+    // An option never reaches the environment under its own name.
+    expect(env.PATH).not.toBe('/evil');
+  });
+});
+
+describe('a run', () => {
+  let kill: MockInstance<typeof process.kill>;
+  let sent: { entryId: string; token: string; event: PanelRunEvent }[];
+  const sender = {
+    isDestroyed: () => false,
+    send: (_channel: string, entryId: string, token: string, event: PanelRunEvent) => sent.push({ entryId, token, event }),
+  };
+  let tokens = 0;
+
+  /** Start a run the way the renderer does, and hand back its child and token. */
+  function start(over: Partial<PanelRunRequest> = {}): { child: FakeChild; token: string } {
+    const token = `run-${++tokens}`;
+    handlers.get('panel:run')!({ sender }, { entryId: 'status', token, source: { command: 'true' }, context: CONTEXT, ...over });
+    return { child: spawned[spawned.length - 1], token };
+  }
+  const signals = (pid: number): string[] =>
+    kill.mock.calls.filter((c) => c[0] === -pid || c[0] === pid).map((c) => String(c[1]));
+  const events = (token: string): PanelRunEvent[] => sent.filter((s) => s.token === token).map((s) => s.event);
+  const text = (token: string): string =>
+    events(token)
+      .map((e) => (e.kind === 'output' ? e.text : ''))
+      .join('');
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    handlers.clear();
+    spawned.length = 0;
+    sent = [];
+    logged.length = 0;
+    registerPanelsIpc();
+    kill = vi.spyOn(process, 'kill').mockImplementation(() => true);
+  });
+  afterEach(() => {
+    stopAllPanels();
+    kill.mockRestore();
+    vi.useRealTimers();
+    // A run a test left going keeps its files, which are real files in the system's temp folder.
+    for (const child of spawned) {
+      for (const variable of [PANEL_CONTROL_VARIABLE, PANEL_SESSIONS_VARIABLE]) rmSync(child.options.env[variable] ?? '', { force: true, recursive: true });
+    }
+  });
+
+  it('gives a run the view it asks with, empty too, and a run that asks with none no view at all', () => {
+    expect(start({ view: 'tree' }).child.options.env[PANEL_VIEW_VARIABLE]).toBe('tree');
+    expect(start({ view: '' }).child.options.env[PANEL_VIEW_VARIABLE]).toBe('');
+    expect(start().child.options.env).not.toHaveProperty(PANEL_VIEW_VARIABLE);
+  });
+
+  it('spawns detached in the context directory with the shell’s own stderr discarded', () => {
+    const { child } = start();
+    expect(child.options.cwd).toBe(process.cwd());
+    expect(child.options.detached).toBe(true);
+    expect(child.options.stdio).toEqual(['ignore', 'pipe', 'ignore']);
+  });
+
+  it('forwards output under the run’s token and reports the exit code', () => {
+    const { child, token } = start();
+    child.stdout.emit('data', Buffer.from(' M tracked\n'));
+    child.stdout.emit('data', Buffer.from('?? untracked\n'));
+    child.end(3);
+    expect(events(token)).toEqual([
+      { kind: 'output', text: ' M tracked\n' },
+      { kind: 'output', text: '?? untracked\n' },
+      { kind: 'exit', code: 3, signal: null },
+    ]);
+  });
+
+  it('decodes a multibyte character split across two reads', () => {
+    const { child, token } = start();
+    const bytes = Buffer.from('é');
+    child.stdout.emit('data', bytes.subarray(0, 1));
+    child.stdout.emit('data', bytes.subarray(1));
+    child.end(0);
+    expect(text(token)).toBe('é');
+  });
+
+  it('cuts the output at the cap, says so, and stops the process', () => {
+    const { child, token } = start();
+    child.stdout.emit('data', Buffer.alloc(PANEL_OUTPUT_CAP - 10, 'a'));
+    child.stdout.emit('data', Buffer.alloc(100, 'b'));
+    // The chunk that crosses the cap is cut at it, not dropped and not forwarded whole.
+    expect(text(token)).toHaveLength(PANEL_OUTPUT_CAP);
+    expect(events(token).at(-1)).toEqual({ kind: 'truncated' });
+    expect(signals(child.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    // Anything more is dropped while the stop lands.
+    child.stdout.emit('data', Buffer.from('late'));
+    expect(text(token)).toHaveLength(PANEL_OUTPUT_CAP);
+    child.end(null, 'SIGTERM');
+    expect(events(token).at(-1)).toEqual({ kind: 'stopped', reason: 'truncated' });
+  });
+
+  it('stops a run that is still going at the timeout, and reports why', async () => {
+    const { child, token } = start();
+    await vi.advanceTimersByTimeAsync(PANEL_TIMEOUT_MS - 1);
+    expect(signals(child.pid)).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signals(child.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    child.end(null, 'SIGTERM');
+    expect(events(token).at(-1)).toEqual({ kind: 'stopped', reason: 'timeout' });
+  });
+
+  it('escalates to SIGKILL when the process ignores the ask, and not when it has left', async () => {
+    const stubborn = start({ entryId: 'a' });
+    const polite = start({ entryId: 'b' });
+    await vi.advanceTimersByTimeAsync(PANEL_TIMEOUT_MS);
+    polite.child.end(null, 'SIGTERM');
+    await vi.advanceTimersByTimeAsync(KILL_GRACE_MS);
+    expect(signals(stubborn.child.pid)).toEqual(['SIGTERM', 'SIGTERM', 'SIGKILL', 'SIGKILL']);
+    // By now that pid may belong to somebody else.
+    expect(signals(polite.child.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+  });
+
+  it('a re-run stops the run before it and silences its tail', () => {
+    const first = start();
+    const second = start();
+    expect(signals(first.child.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    expect(signals(second.child.pid)).toEqual([]);
+    // Output the old process still had in flight belongs to nobody now; the new run's is the entry's.
+    first.child.stdout.emit('data', Buffer.from('stale'));
+    second.child.stdout.emit('data', Buffer.from('fresh'));
+    first.child.end(null, 'SIGTERM');
+    expect(events(first.token)).toEqual([]);
+    expect(text(second.token)).toBe('fresh');
+  });
+
+  it('stops an entry’s run on request', () => {
+    const { child, token } = start();
+    handlers.get('panel:stop')!(null, 'status');
+    expect(signals(child.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    child.end(null, 'SIGTERM');
+    expect(events(token).at(-1)).toEqual({ kind: 'stopped', reason: 'request' });
+  });
+
+  it('takes every live run down at quit, superseded ones included', () => {
+    const a = start({ entryId: 'a' });
+    const b = start({ entryId: 'b' });
+    const c = start({ entryId: 'b' });
+    kill.mockClear();
+    stopAllPanels();
+    expect(signals(a.child.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    // `b` was already asked to leave by `c` replacing it; asking twice would restart its escalation.
+    expect(signals(b.child.pid)).toEqual([]);
+    expect(signals(c.child.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+  });
+
+  it('refuses a context directory that is not there, naming it, and spawns nothing', () => {
+    const { token } = start({ context: { ...CONTEXT, cwd: '/definitely/not/here' } });
+    expect(spawned).toHaveLength(0);
+    expect(events(token)).toEqual([{ kind: 'exit', code: null, signal: null, error: '/definitely/not/here is not there' }]);
+  });
+
+  it('reports a spawn Node refuses before there is a process as an exit with the error, and logs it, so the panel is not left busy', () => {
+    const { token } = start({ entryId: 'refused', options: { refuse: 'yes' } });
+    expect(spawned).toHaveLength(0);
+    expect(events(token)).toEqual([{ kind: 'exit', code: null, signal: null, error: 'The argument options.env is invalid' }]);
+    expect(logged).toEqual(['warn panel refused could not run: The argument options.env is invalid']);
+  });
+
+  it('reports a spawn that fails as an exit with the error', () => {
+    const { child, token } = start();
+    child.emit('error', new Error('spawn /bin/bash ENOENT'));
+    expect(events(token)).toEqual([{ kind: 'exit', code: null, signal: null, error: 'spawn /bin/bash ENOENT' }]);
+  });
+
+  it('logs a failing run by its panel id and how long it took, and a clean one not at all', async () => {
+    const clean = start({ entryId: 'clean' });
+    clean.child.end(0);
+    const failing = start({ entryId: 'failing', source: { command: 'secret-tool lookup token' } });
+    await vi.advanceTimersByTimeAsync(1500);
+    failing.child.end(2);
+    expect(logged).toEqual(['warn panel failing failed: code 2, after 1.5 s']);
+    // The command line is the user's own words.
+    expect(logged.join('\n')).not.toContain('secret-tool');
+  });
+
+  it('logs a timeout, a spawn that fails and a refused folder', async () => {
+    const slow = start({ entryId: 'slow' });
+    await vi.advanceTimersByTimeAsync(PANEL_TIMEOUT_MS);
+    slow.child.end(null, 'SIGTERM');
+    start({ entryId: 'broken' }).child.emit('error', new Error('spawn /bin/bash ENOENT'));
+    start({ entryId: 'nowhere', context: { ...CONTEXT, cwd: '/definitely/not/here' } });
+    expect(logged).toEqual([
+      'warn panel slow still running at 30.0 s, stopped',
+      'warn panel broken could not run: spawn /bin/bash ENOENT',
+      'warn panel nowhere refused: /definitely/not/here is not there',
+    ]);
+  });
+
+  it('logs nothing for a run the app stopped on purpose', () => {
+    const first = start();
+    start();
+    first.child.end(null, 'SIGTERM');
+    handlers.get('panel:stop')!(null, 'status');
+    spawned[spawned.length - 1].end(null, 'SIGTERM');
+    expect(logged).toEqual([]);
+  });
+
+  it('ends the run a moment after the process when something it started keeps the pipe open', async () => {
+    const { child, token } = start();
+    child.stdout.emit('data', Buffer.from('out\n'));
+    child.emit('exit', 0, null);
+    expect(events(token).at(-1)).toEqual({ kind: 'output', text: 'out\n' });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(events(token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null });
+    expect(child.stdout.destroy).toHaveBeenCalled();
+    // The leader is gone, so the timeout must not signal a pid that may have been reused.
+    await vi.advanceTimersByTimeAsync(PANEL_TIMEOUT_MS);
+    expect(signals(child.pid)).toEqual([]);
+  });
+
+  describe('with stderr apart', () => {
+    const apart = (): { child: FakeChild; token: string } => start({ stderr: 'apart' });
+    // The descriptors the command's two streams arrive on.
+    const stdout = 3;
+    const stderr = 4;
+
+    it('discards the shell’s own stdout and stderr, and reads the command’s from fds 3 and 4', () => {
+      expect(apart().child.options.stdio).toEqual(['ignore', 'ignore', 'ignore', 'pipe', 'pipe']);
+    });
+
+    it('forwards stdout as output and stderr as stderr, each decoded on its own', () => {
+      const { child, token } = apart();
+      const bytes = Buffer.from('é');
+      child.stdio[stdout]!.emit('data', Buffer.from('{"version":1}'));
+      child.stdio[stderr]!.emit('data', bytes.subarray(0, 1));
+      child.stdio[stdout]!.emit('data', Buffer.from('\n'));
+      child.stdio[stderr]!.emit('data', bytes.subarray(1));
+      child.end(2);
+      expect(events(token)).toEqual([
+        { kind: 'output', text: '{"version":1}' },
+        { kind: 'output', text: '\n' },
+        { kind: 'stderr', text: 'é' },
+        { kind: 'exit', code: 2, signal: null },
+      ]);
+    });
+
+    it('counts both pipes toward the one cap', () => {
+      const { child, token } = apart();
+      child.stdio[stderr]!.emit('data', Buffer.alloc(PANEL_OUTPUT_CAP - 10, 'e'));
+      child.stdio[stdout]!.emit('data', Buffer.alloc(100, 'o'));
+      expect(events(token).filter((e) => e.kind === 'output')).toEqual([{ kind: 'output', text: 'o'.repeat(10) }]);
+      expect(events(token).at(-1)).toEqual({ kind: 'truncated' });
+    });
+
+    it('closes both pipes from this end when something the command started holds them open', async () => {
+      const { child, token } = apart();
+      child.emit('exit', 0, null);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(events(token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null });
+      expect(child.stdio[stdout]!.destroy).toHaveBeenCalled();
+      expect(child.stdio[stderr]!.destroy).toHaveBeenCalled();
+    });
+  });
+
+  describe('its control file', () => {
+    const controlOf = (child: FakeChild): string => child.options.env[PANEL_CONTROL_VARIABLE];
+
+    it('is a fresh, empty file of the run’s own, named in its environment and readable by the user alone', () => {
+      const first = controlOf(start({ entryId: 'a' }).child);
+      const second = controlOf(start({ entryId: 'b' }).child);
+      expect(first).not.toBe(second);
+      for (const file of [first, second]) {
+        expect(statSync(file).size).toBe(0);
+        expect(statSync(file).mode & 0o777).toBe(0o600);
+      }
+    });
+
+    it('rides on the run’s end as written, and is removed', () => {
+      const { child, token } = start();
+      appendFileSync(controlOf(child), 'next=5m\n');
+      child.end(0);
+      expect(events(token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null, control: 'next=5m\n' });
+      expect(existsSync(controlOf(child))).toBe(false);
+    });
+
+    it('rides on a failed run’s end, and on the end of one the timeout stopped', async () => {
+      const failed = start({ entryId: 'failed' });
+      appendFileSync(controlOf(failed.child), 'next=1m\n');
+      failed.child.end(1);
+      expect(events(failed.token).at(-1)).toEqual({ kind: 'exit', code: 1, signal: null, control: 'next=1m\n' });
+
+      const slow = start({ entryId: 'slow' });
+      appendFileSync(controlOf(slow.child), 'next=off\n');
+      await vi.advanceTimersByTimeAsync(PANEL_TIMEOUT_MS);
+      slow.child.end(null, 'SIGTERM');
+      expect(events(slow.token).at(-1)).toEqual({ kind: 'stopped', reason: 'timeout', control: 'next=off\n' });
+    });
+
+    it('adds nothing to the end when nothing was written, or the script removed it, and leaves no file', () => {
+      const quiet = start({ entryId: 'quiet' });
+      quiet.child.end(0);
+      expect(events(quiet.token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null });
+      expect(existsSync(controlOf(quiet.child))).toBe(false);
+
+      const tidy = start({ entryId: 'tidy' });
+      rmSync(controlOf(tidy.child));
+      tidy.child.end(0);
+      expect(events(tidy.token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null });
+      expect(logged).toEqual([]);
+    });
+
+    it('is read no further than the cap', () => {
+      const { child, token } = start();
+      appendFileSync(controlOf(child), 'x'.repeat(PANEL_CONTROL_CAP + 100));
+      child.end(0);
+      const end = events(token).at(-1);
+      expect(end?.kind === 'exit' ? end.control : undefined).toHaveLength(PANEL_CONTROL_CAP);
+    });
+
+    it('with a folder in its place, ends the run all the same and says so in the log', () => {
+      const { child, token } = start();
+      rmSync(controlOf(child));
+      mkdirSync(controlOf(child));
+      child.end(0);
+      expect(events(token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null });
+      expect(logged.map((line) => line.replace(/: .*/, ''))).toEqual(['warn panel status control file unreadable', 'warn panel status control file not removed']);
+    });
+
+    it('goes with a run Node refuses to spawn, before there is a run to end', () => {
+      start({ options: { refuse: 'yes' } });
+      const file = refused.at(-1)!.env[PANEL_CONTROL_VARIABLE];
+      expect(file).toBeTruthy();
+      expect(existsSync(file)).toBe(false);
+    });
+
+    it('is removed for a run a re-run replaced, which says nothing', () => {
+      const first = start();
+      start();
+      appendFileSync(controlOf(first.child), 'next=1m\n');
+      first.child.end(null, 'SIGTERM');
+      expect(events(first.token)).toEqual([]);
+      expect(existsSync(controlOf(first.child))).toBe(false);
+    });
+  });
+
+  describe('its sessions file', () => {
+    const SNAPSHOT = '{"version":1,"sessions":[]}';
+    const sessionsOf = (child: FakeChild): string => child.options.env[PANEL_SESSIONS_VARIABLE];
+
+    it('holds the snapshot the run asks with, in a file of its own readable by the user alone, and a run that asks with none has none', () => {
+      const { child } = start({ sessions: SNAPSHOT });
+      expect(readFileSync(sessionsOf(child), 'utf8')).toBe(SNAPSHOT);
+      expect(statSync(sessionsOf(child)).mode & 0o777).toBe(0o600);
+      expect(sessionsOf(child)).not.toBe(child.options.env[PANEL_CONTROL_VARIABLE]);
+      expect(start().child.options.env).not.toHaveProperty(PANEL_SESSIONS_VARIABLE);
+    });
+
+    it('is removed at the run’s end, at a re-run’s, and with a run Node refuses to spawn', () => {
+      const ended = start({ entryId: 'ended', sessions: SNAPSHOT });
+      ended.child.end(0);
+      expect(existsSync(sessionsOf(ended.child))).toBe(false);
+
+      const first = start({ sessions: SNAPSHOT });
+      start({ sessions: SNAPSHOT });
+      first.child.end(null, 'SIGTERM');
+      expect(existsSync(sessionsOf(first.child))).toBe(false);
+
+      start({ sessions: SNAPSHOT, options: { refuse: 'yes' } });
+      const file = refused.at(-1)!.env[PANEL_SESSIONS_VARIABLE];
+      expect(file).toBeTruthy();
+      expect(existsSync(file)).toBe(false);
+    });
+  });
+
+  it('sends nothing to a window that has gone', () => {
+    const gone = { isDestroyed: () => true, send: vi.fn() };
+    handlers.get('panel:run')!({ sender: gone }, { entryId: 'x', token: 't', source: { command: 'true' }, context: CONTEXT });
+    spawned[0].stdout.emit('data', Buffer.from('hi'));
+    spawned[0].end(0);
+    expect(gone.send).not.toHaveBeenCalled();
+  });
+});

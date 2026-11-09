@@ -198,7 +198,7 @@ export interface PrStatusRead {
 }
 
 /**
- * One request in a session and what claude sent back, read from the session's transcript (`src/main/transcript.ts`).
+ * One request in a session and what claude sent back, read from the session's transcript (`src/main/sessions/transcript.ts`).
  * Only the LAST exchange of a session ever changes, and only by growing: claude's reply to it is still being written.
  * The one exception is a rewind, which marks the requests it went back past.
  */
@@ -572,12 +572,12 @@ export interface ClaudeUiApi {
    */
   getWindowChrome(): Promise<WindowChrome>;
   /**
-   * Whether the app runs under WSL, by claude's own rule (`runsOnWsl`, src/main/platform.ts).
+   * Whether the app runs under WSL, by claude's own rule (`runsOnWsl`, src/main/platform/platform.ts).
    * Asked once at startup: it cannot change while the app runs.
    */
   isWsl(): Promise<boolean>;
   /**
-   * The files copied in Windows, as Linux paths, for a paste under WSL that brought no text (`copiedFiles`, src/main/clipboard.ts).
+   * The files copied in Windows, as Linux paths, for a paste under WSL that brought no text (`copiedFiles`, src/main/platform/clipboard.ts).
    * None where the clipboard holds an image, which is left to claude, where nothing was copied, without wl-clipboard, and where Windows cannot be asked.
    */
   copiedFiles(): Promise<string[]>;
@@ -636,7 +636,7 @@ export interface ClaudeUiApi {
   pickFolder(): Promise<string | null>;
   /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */
   openExternal(url: string): void;
-  /** What GitHub says of `prs`, asked with `gh` (`src/main/prstatus.ts`); a merged one is not asked again while the app runs. */
+  /** What GitHub says of `prs`, asked with `gh` (`src/main/sessions/prstatus.ts`); a merged one is not asked again while the app runs. */
   prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
   /** Current status per session id (busy | ready | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
@@ -717,7 +717,7 @@ export interface ClaudeUiApi {
    * `token` is the one the run was requested with, so a superseded run's tail can be told apart.
    */
   onPanelRun(callback: (entryId: string, token: string, event: PanelRunEvent) => void): void;
-  /** The git working tree at `dir`, as a fingerprint of what git reports there, for a panel that runs again when it changes (src/main/gitstate.ts). */
+  /** The git working tree at `dir`, as a fingerprint of what git reports there, for a panel that runs again when it changes (src/main/panels/gitstate.ts). */
   panelTree(dir: string): Promise<WorkingTree>;
   /** What the app keeps for a panel: the sessions its rows started, the group last picked for one, and a terminal panel's shells. */
   getPanelData(entryId: string): Promise<PanelData>;

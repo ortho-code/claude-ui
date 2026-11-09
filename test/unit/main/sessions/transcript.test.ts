@@ -1,0 +1,468 @@
+import { describe, it, expect, afterAll } from 'vitest';
+import { promises as fs } from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import type { Exchange } from '../../../../src/shared/types';
+import { endedTaskId, foldRecord, isInterruptMarker, isRefusal, newFold, readHistory, startedTask, type HistoryFold } from '../../../../src/main/sessions/transcript';
+
+// Records shaped as Claude Code writes them, reduced to the fields the fold reads.
+let n = 0;
+const uuid = (): string => `u${++n}`;
+const typed = (text: string, extra: Record<string, unknown> = {}) => ({ type: 'user', uuid: uuid(), timestamp: '2026-09-29T10:00:00Z', message: { content: text }, ...extra });
+const userList = (content: unknown[], extra: Record<string, unknown> = {}) => ({ type: 'user', uuid: uuid(), timestamp: '2026-09-29T10:00:00Z', message: { content }, ...extra });
+const toolResult = () => userList([{ type: 'tool_result', tool_use_id: 't', content: 'output' }]);
+const answer = (...parts: unknown[]) => ({ type: 'assistant', uuid: uuid(), timestamp: '2026-09-29T10:00:30Z', message: { content: parts } });
+const text = (t: string) => ({ type: 'text', text: t });
+const tool = (name: string, input: Record<string, unknown>) => ({ type: 'tool_use', name, input });
+const command = (name: string, args = '') => typed(`<command-message>${name.slice(1)}</command-message>\n<command-name>${name}</command-name>\n<command-args>${args}</command-args>`);
+// A command claude runs itself, written name first, as a user record or, as claude 2.1.302 writes `/rename`, as a system one.
+const localText = (name: string, args = '') => `<command-name>${name}</command-name>\n            <command-message>${name.slice(1)}</command-message>\n            <command-args>${args}</command-args>`;
+const local = (name: string, args = '') => typed(localText(name, args));
+const localSystem = (name: string, args = '') => ({ type: 'system', subtype: 'local_command', uuid: uuid(), timestamp: '2026-09-29T10:00:00Z', content: localText(name, args) });
+const queued = (prompt: string, extra: Record<string, unknown> = {}) => ({ type: 'attachment', uuid: uuid(), timestamp: '2026-09-29T10:01:00Z', attachment: { type: 'queued_command', prompt, source_uuid: 'not-a-record', ...extra } });
+
+function fold(...records: Record<string, unknown>[]): HistoryFold {
+  const f = newFold();
+  for (const r of records) foldRecord(f, r);
+  return f;
+}
+const requests = (f: HistoryFold) => f.exchanges.map((e) => `${e.kind}: ${e.request}`);
+const replyText = (e: Exchange) => e.parts.flatMap((p) => (p.kind === 'text' ? [p.text] : [])).join('\n\n');
+const toolLines = (e: Exchange) => e.parts.flatMap((p) => (p.kind === 'tool' ? [p.detail ? `${p.name}(${p.detail})` : p.name] : []));
+
+describe('what counts as a request', () => {
+  it('a typed prompt, with its reply: each message its own part, the tool calls where they came', () => {
+    const q = typed('why does the sniff not fire?');
+    const first = answer(text('Let me look.'), tool('Read', { file_path: '/repo/src/Sniff.php' }));
+    const second = answer(text('Found it.'));
+    const f = fold(q, first, toolResult(), second);
+    expect(f.exchanges).toEqual([
+      {
+        id: q.uuid,
+        time: q.timestamp,
+        request: 'why does the sniff not fire?',
+        kind: 'typed',
+        replaced: false,
+        rewound: false,
+        parts: [
+          { kind: 'text', id: `${first.uuid}:0`, time: first.timestamp, text: 'Let me look.' },
+          { kind: 'tool', name: 'Read', detail: '/repo/src/Sniff.php' },
+          { kind: 'text', id: `${second.uuid}:0`, time: second.timestamp, text: 'Found it.' },
+        ],
+      },
+    ]);
+  });
+
+  it('gives each message of one record its own id, by its place among them', () => {
+    const a = answer(text('One.'), tool('Bash', { command: 'ls' }), text('Two.'));
+    const f = fold(typed('go'), a);
+    expect(f.exchanges[0].parts.flatMap((p) => (p.kind === 'text' ? [p.id] : []))).toEqual([`${a.uuid}:0`, `${a.uuid}:1`]);
+  });
+
+  it('a prompt with a pasted image, by its text', () => {
+    expect(requests(fold(userList([{ type: 'image', source: {} }, text('why so many changes?')])))).toEqual(['typed: why so many changes?']);
+  });
+
+  it('a prompt sent while a tool ran is marked busy', () => {
+    const f = fold(typed('run the suite'), answer(tool('Bash', { command: 'vendor/bin/phpunit' })), userList([{ type: 'tool_result', content: '' }, text('and add it to pre-commit?')]));
+    expect(requests(f)).toEqual(['typed: run the suite', 'busy: and add it to pre-commit?']);
+  });
+
+  it('a prompt queued while claude worked is a request, keyed by its own record uuid', () => {
+    const q = queued("isn't revisionId always 1?");
+    const f = fold(typed('fix it'), answer(text('Working.')), q);
+    expect(requests(f)).toEqual(['typed: fix it', "busy: isn't revisionId always 1?"]);
+    expect(f.exchanges[1].id).toBe(q.uuid);
+  });
+
+  it('a user record the CLI marks as queued is busy too', () => {
+    expect(requests(fold(typed('and this', { promptSource: 'queued' })))).toEqual(['busy: and this']);
+  });
+
+  it('a slash command claude answers is a request, as its command line', () => {
+    const f = fold(command('/review', 'https://github.com/o/r/pull/1'), userList([text('Base directory for this skill: …')], { isMeta: true }), answer(text('The review.')));
+    expect(requests(f)).toEqual(['command: /review https://github.com/o/r/pull/1']);
+    expect(replyText(f.exchanges[0])).toBe('The review.');
+  });
+
+  it('a slash command sent to the model that claude does not answer is dropped when the user sends something else', () => {
+    const f = fold(command('/learn'), typed('hello'), answer(text('Hi.')));
+    expect(requests(f)).toEqual(['typed: hello']);
+  });
+
+  it('a command claude runs itself is a request at once, with no reply, as a user record or a system one', () => {
+    const f = fold(
+      typed('<local-command-caveat>The command below was run directly in Claude Code, not sent to you as a request.</local-command-caveat>', { isMeta: true }),
+      local('/model', 'opus'),
+      typed('<local-command-stdout>Set model to Opus</local-command-stdout>'),
+      localSystem('/rename', 'hook rules'),
+      { type: 'system', subtype: 'local_command', uuid: uuid(), content: '<local-command-stdout>Session renamed to: hook rules</local-command-stdout>' },
+      typed('hello'),
+      answer(text('Hi.')),
+    );
+    expect(requests(f)).toEqual(['command: /model opus', 'command: /rename hook rules', 'typed: hello']);
+    expect(f.exchanges.map((e) => replyText(e))).toEqual(['', '', 'Hi.']);
+  });
+
+  it("a command claude runs itself takes no reply of claude's but its own synthetic line, and leaves the rest to the request claude is answering", () => {
+    const f = fold(
+      typed('review the PR again'),
+      answer(text('Looking.')),
+      localSystem('/rename', 'review'),
+      answer(text('Found it.')),
+      queued('<agent-message from="a3f8">\nThe report.', { isMeta: true, origin: { kind: 'peer', from: 'a3f8', handback: true, name: 'scout', body: 'The report follows:\n  All clear.' } }),
+      local('/compact'),
+      { ...answer(text('No response requested.')), message: { model: '<synthetic>', content: [text('No response requested.')] } },
+    );
+    expect(requests(f)).toEqual(['typed: review the PR again', 'command: /rename review', 'command: /compact']);
+    expect(f.exchanges.map((e) => replyText(e))).toEqual(['Looking.\n\nFound it.', '', 'No response requested.']);
+    expect(f.exchanges[0].parts.filter((p) => p.kind === 'report')).toHaveLength(1);
+  });
+
+  it('a command claude runs itself that repeats the line typed just before it is that one request, and one run again is another', () => {
+    const f = fold(typed('/compact'), typed('This session is being continued from a previous conversation', { isCompactSummary: true }), local('/compact'), local('/model', 'opus'), local('/model', 'opus'));
+    expect(requests(f)).toEqual(['typed: /compact', 'command: /model opus', 'command: /model opus']);
+  });
+
+  it('a slash command waiting at the end of one read becomes a request when the next read brings its answer', () => {
+    const f = fold(command('/learn'));
+    expect(f.exchanges).toEqual([]);
+    foldRecord(f, answer(text('Learned.')));
+    expect(requests(f)).toEqual(['command: /learn']);
+  });
+
+  it.each([
+    ['a tool result', toolResult()],
+    ['a meta record', typed('Another Claude session sent a message', { isMeta: true })],
+    ['a compaction summary', typed('This session is being continued from a previous conversation', { isCompactSummary: true })],
+    ['an interruption', userList([text('[Request interrupted by user]')])],
+    ['an interruption during a tool', userList([text('[Request interrupted by user for tool use]')])],
+    ['a task notification', typed('<task-notification> <task-id>x</task-id>')],
+    ['a task notification queued while claude worked', queued('<task-notification>\n<task-id>x</task-id>')],
+    ["a subagent's hand-back queued while claude worked", queued('<agent-message from="a3f8">\n[Subagent hand-back] The report.', { isMeta: true, origin: { kind: 'peer', from: 'a3f8', handback: true } })],
+    ['a queued record Claude Code marks meta, whatever it says', queued('The report.', { isMeta: true })],
+    ['plumbing whose tag carries attributes', typed('<agent-message from="a3f8">\nThe report.')],
+    ['a local command caveat', typed('<local-command-caveat>Caveat: …</local-command-caveat>')],
+    ['bash mode', typed('<bash-input>ls</bash-input>')],
+    ['a sidechain record', typed('from a subagent', { isSidechain: true })],
+  ])('%s is not a request', (_name, record) => {
+    expect(fold(record).exchanges).toEqual([]);
+  });
+
+  it('claude text before the first request answers nothing and is dropped', () => {
+    expect(fold(answer(text('Hello.')), typed('first')).exchanges[0].parts).toEqual([]);
+  });
+
+  it('an interruption keeps the reply written so far on its request', () => {
+    const f = fold(typed('long job'), answer(text('Starting.')), userList([text('[Request interrupted by user]')]));
+    expect(f.exchanges.map(replyText)).toEqual(['Starting.']);
+  });
+});
+
+/** The records that end a turn, or the work behind it, without a hook: shaped as claude 2.1.289 wrote them in a live session, reduced to the fields read. */
+describe('what a record says about the work behind a turn', () => {
+  const notice = (status: string, operation = 'enqueue') => ({
+    type: 'queue-operation',
+    operation,
+    timestamp: '2026-10-12T11:50:31.168Z',
+    content: `<task-notification>\n<task-id>bh9w6pqmt</task-id>\n<tool-use-id>toolu_01</tool-use-id>\n<status>${status}</status>\n<summary>Task "Background sleep command" was stopped by the user</summary>\n</task-notification>`,
+  });
+
+  it.each(['[Request interrupted by user]', '[Request interrupted by user for tool use]'])('reads %s as an interrupt', (marker) => {
+    expect(isInterruptMarker(userList([text(marker)]))).toBe(true);
+  });
+
+  it.each([
+    ['a prompt that quotes the marker', typed('what does [Request interrupted by user] mean?')],
+    ['the marker in a reply', answer(text('[Request interrupted by user]'))],
+    ['the tool result an interrupt leaves', userList([{ type: 'tool_result', content: "The user doesn't want to proceed with this tool use." }])],
+  ])('reads %s as no interrupt', (_name, record) => {
+    expect(isInterruptMarker(record)).toBe(false);
+  });
+
+  // Both forms measured: without feedback (an interrupt follows) and with it (claude carries on).
+  it.each([
+    ['without feedback', "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed."],
+    ['with feedback', "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). To tell you how to proceed, the user said: Do not run anything."],
+  ])('reads a tool call turned down %s as a refusal', (_name, content) => {
+    expect(isRefusal(userList([{ type: 'tool_result', is_error: true, content }]))).toBe(true);
+  });
+
+  it.each([
+    ['a tool that failed', userList([{ type: 'tool_result', is_error: true, content: 'Exit code 1' }])],
+    ['a subagent denied permission, in its own transcript', userList([{ type: 'tool_result', is_error: true, content: 'Permission for this tool use was denied.' }])],
+    ['a prompt that quotes the words', typed("The user doesn't want to proceed with this tool use.")],
+  ])('reads %s as no refusal', (_name, record) => {
+    expect(isRefusal(record)).toBe(false);
+  });
+
+  it.each(['killed', 'completed', 'failed'])('reads a notice that work was %s as its end', (status) => {
+    expect(endedTaskId(notice(status))).toBe('bh9w6pqmt');
+  });
+
+  it.each([
+    ['work that is blocked', notice('blocked')],
+    ['the notice taken off the queue', notice('killed', 'dequeue')],
+    ['a prompt queued while claude worked', { type: 'queue-operation', operation: 'enqueue', content: 'and then <task-id>x</task-id> <status>killed</status>' }],
+  ])('reads %s as no end', (_name, record) => {
+    expect(endedTaskId(record)).toBe(null);
+  });
+
+  it('reads a background shell from its tool result', () => {
+    const started = userList([{ type: 'tool_result', content: 'Command running in background with ID: bh9w6pqmt.' }], { toolUseResult: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'bh9w6pqmt' } });
+    expect(startedTask(started)).toEqual({ id: 'bh9w6pqmt', type: 'shell' });
+  });
+
+  it('reads a subagent sent off in the background from its tool result', () => {
+    const started = userList([{ type: 'tool_result', content: [{ type: 'text', text: 'Async agent launched successfully.' }] }], {
+      toolUseResult: { isAsync: true, status: 'async_launched', agentId: 'a9f387eb22d2413de', description: 'Run sleep command in background', prompt: 'Run this…', outputFile: '/tmp/a.output', canReadOutputFile: true, resolvedModel: 'claude-haiku' },
+    });
+    expect(startedTask(started)).toEqual({ id: 'a9f387eb22d2413de', type: 'subagent' });
+  });
+
+  // Stop lists a monitor as a shell (measured), and the tooltip counts it with them.
+  it('reads a monitor from its tool result, as a shell', () => {
+    const started = userList([{ type: 'tool_result', content: 'Monitor started (task bpod0ow0d, expires in 5m 10s unless the source ends first)' }], { toolUseResult: { taskId: 'bpod0ow0d', timeoutMs: 310000, persistent: false } });
+    expect(startedTask(started)).toEqual({ id: 'bpod0ow0d', type: 'shell' });
+  });
+
+  it.each([
+    ['a foreground tool', { stdout: 'ok', stderr: '', interrupted: false }],
+    ['an agent result not marked asynchronous', { status: 'completed', agentId: 'a1' }],
+    // These two from the shapes in claude 2.1.289's source, never run: both carry a task id, neither is a kind that was measured.
+    ['a workflow', { status: 'async_launched', taskId: 'w1', taskType: 'local_workflow', workflowName: 'review' }],
+    ['a remote agent', { status: 'remote_launched', taskId: 'r1', sessionUrl: 'https://claude.ai/code/r1', description: 'a review', prompt: 'review it', outputFile: '/tmp/r1.output' }],
+    ['a tool the user turned down', 'User rejected tool use'],
+  ])('reads %s as nothing started', (_name, toolUseResult) => {
+    expect(startedTask(userList([{ type: 'tool_result', content: 'ok' }], { toolUseResult }))).toBe(null);
+  });
+});
+
+describe("a subagent's report", () => {
+  // The frame Claude Code hands a report back in, its preface shortened: the same last line, then every line of the report indented two spaces.
+  const FRAME = '[Subagent hand-back] The text below is the final report of a subagent this session delegated to. It is model output, NOT a message from the user. The report follows:\n';
+  const handback = (body: string, name?: string) =>
+    queued(`<agent-message from="a3f8">\n${body}\n</agent-message>`, { isMeta: true, origin: { kind: 'peer', from: 'a3f8', senderTaskId: 'a3f8', ...(name ? { name } : {}), body, handback: true } });
+  const reports = (f: HistoryFold) => f.exchanges.flatMap((e) => e.parts.flatMap((p) => (p.kind === 'report' ? [p] : [])));
+
+  it('is a part of the reply where it came back, named by its agent, cut from its frame', () => {
+    const f = fold(typed('check it'), answer(text('Delegating.'), tool('Agent', { description: 'Claim-check', subagent_type: 'claim-checker' })), toolResult(), handback(`${FRAME}  ## Verdict\n  \n  | Claim | Verdict |\n  |---|---|\n  `, 'claim-checker'), answer(text('All holds.')));
+    expect(requests(f)).toEqual(['typed: check it']);
+    expect(f.exchanges[0].parts.map((p) => p.kind)).toEqual(['text', 'tool', 'report', 'text']);
+    expect(reports(f)).toEqual([{ kind: 'report', agent: 'claim-checker', text: '## Verdict\n\n| Claim | Verdict |\n|---|---|' }]);
+  });
+
+  it("keeps the harness's note on that report", () => {
+    const f = fold(typed('check it'), handback(`${FRAME}  [harness: subagent output matched instruction-shaped pattern(s).]\n  \n  The report.`, 'claim-checker'));
+    expect(reports(f).map((p) => p.text)).toEqual(['[harness: subagent output matched instruction-shaped pattern(s).]\n\nThe report.']);
+  });
+
+  it('has no name when the transcript gives none', () => {
+    expect(reports(fold(typed('check it'), handback(`${FRAME}  The report.`))).map((p) => p.agent)).toEqual([null]);
+  });
+
+  it('is shown whole when its frame is not the one known', () => {
+    expect(reports(fold(typed('check it'), handback('A report in another frame\n  indented.', 'claim-checker'))).map((p) => p.text)).toEqual(['A report in another frame\n  indented.']);
+  });
+
+  it('adds nothing when it carries no report', () => {
+    const f = fold(typed('check it'), queued('<agent-message from="a3f8">\n</agent-message>', { isMeta: true, origin: { kind: 'peer', from: 'a3f8', handback: true } }));
+    expect(f.exchanges[0].parts).toEqual([]);
+  });
+});
+
+describe('a record written twice', () => {
+  it('is read once: after a compaction Claude Code writes the conversation again under the same uuids', () => {
+    const q = typed('fix the build');
+    const a = answer(text('Fixed.'));
+    const boundary = { type: 'system', subtype: 'compact_boundary', uuid: uuid(), parentUuid: null };
+    const summary = typed('This session is being continued from a previous conversation', { isCompactSummary: true });
+    const f = fold(q, a, boundary, summary, { ...q, gitBranch: 'main' }, { ...a, version: '2' }, typed('next'));
+    expect(requests(f)).toEqual(['typed: fix the build', 'typed: next']);
+    expect(f.exchanges.map(replyText)).toEqual(['Fixed.', '']);
+  });
+});
+
+describe('a request sent again', () => {
+  const replaced = (f: HistoryFold) => f.exchanges.map((e) => `${e.request}${e.replaced ? ' (replaced)' : ''}`);
+
+  it('stopping claude and sending again marks the first attempt replaced', () => {
+    const f = fold(typed('hello', { parentUuid: 'p' }), userList([text('[Request interrupted by user]')]), typed('hello', { parentUuid: 'p' }), answer(text('Hi.')));
+    expect(replaced(f)).toEqual(['hello (replaced)', 'hello']);
+  });
+
+  it('an edited resend replaces it too', () => {
+    const f = fold(typed("what's next?", { parentUuid: 'p' }), typed("what's next? give me a complete list", { parentUuid: 'p' }));
+    expect(replaced(f)).toEqual(["what's next? (replaced)", "what's next? give me a complete list"]);
+  });
+
+  it('a request that follows on from the one before replaces nothing', () => {
+    const first = typed('one', { parentUuid: 'root' });
+    const f = fold(first, answer(text('A.')), typed('two', { parentUuid: 'a1' }));
+    expect(replaced(f)).toEqual(['one', 'two']);
+  });
+
+  it('a request replaced from further on, by requests that did not follow on from it, is left unmarked', () => {
+    const f = fold(typed('one', { parentUuid: 'p' }), typed('two', { parentUuid: 'q' }), typed('three', { parentUuid: 'p' }));
+    expect(replaced(f)).toEqual(['one', 'two', 'three']);
+    expect(f.exchanges.map((e) => e.rewound)).toEqual([false, false, false]);
+  });
+
+  it('a request with no parent replaces nothing', () => {
+    expect(replaced(fold(typed('one'), typed('two')))).toEqual(['one', 'two']);
+  });
+
+  it('a slash command claude answers can replace the attempt before it', () => {
+    const f = fold(command('/review', 'x'), typed('<local-command-stdout>…</local-command-stdout>'));
+    foldRecord(f, typed('first try', { parentUuid: 'p' }));
+    foldRecord(f, { ...command('/review', 'y'), parentUuid: 'p' });
+    foldRecord(f, answer(text('Review.')));
+    expect(replaced(f)).toEqual(['first try (replaced)', '/review y']);
+  });
+});
+
+describe('a rewind', () => {
+  // A conversation that went on from `one` through `two`, then back to before `one` with claude's rewind.
+  const branch = () => {
+    const one = typed('one', { parentUuid: 'p' });
+    const a1 = { ...answer(text('A.')), parentUuid: one.uuid };
+    const two = typed('two', { parentUuid: a1.uuid });
+    const a2 = { ...answer(text('B.')), parentUuid: two.uuid };
+    const again = typed('back before one', { parentUuid: 'p' });
+    return [one, a1, two, a2, again];
+  };
+
+  it('marks every request it went back past, and not the one it carried on with', () => {
+    const f = fold(...branch());
+    expect(f.exchanges.map((e) => `${e.request}${e.rewound ? ' (rewound)' : ''}${e.replaced ? ' (replaced)' : ''}`)).toEqual(['one (rewound)', 'two (rewound)', 'back before one']);
+  });
+
+  it('says from where the exchanges changed, for the reader to send them again', () => {
+    const records = branch();
+    const f = fold(...records.slice(0, 4));
+    expect(f.changedFrom).toBeNull();
+    foldRecord(f, records[4]);
+    expect(f.changedFrom).toBe(0);
+  });
+});
+
+describe('tool lines', () => {
+  it('names the tool and the one input that says what it acted on, on one line, cut long', () => {
+    const f = fold(typed('go'), answer(tool('Bash', { command: 'git status\ngit diff' }), tool('Grep', { pattern: 'enum ' }), tool('TodoWrite', { todos: [] }), tool('Bash', { command: 'x'.repeat(200) })));
+    expect(toolLines(f.exchanges[0]).slice(0, 3)).toEqual(['Bash(git status)', 'Grep(enum )', 'TodoWrite']);
+    expect(toolLines(f.exchanges[0])[3]).toHaveLength('Bash()'.length + 120);
+  });
+
+  it('names the notebook a notebook edit changed, by its own input', () => {
+    const f = fold(typed('go'), answer(tool('NotebookEdit', { notebook_path: '/repo/a.ipynb', cell_id: 'c1', new_source: 'print(1)', cell_type: 'code', edit_mode: 'replace' })));
+    expect(toolLines(f.exchanges[0])).toEqual(['NotebookEdit(/repo/a.ipynb)']);
+  });
+});
+
+describe('reading a transcript', () => {
+  let dir = '';
+  const file = async (name: string) => {
+    if (!dir) dir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-ui-history-'));
+    return path.join(dir, name);
+  };
+  const line = (record: unknown) => `${JSON.stringify(record)}\n`;
+  afterAll(async () => {
+    if (dir) await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it('reads the whole file first, then only what was appended, sending the last exchange again', async () => {
+    const f = await file('grow.jsonl');
+    await fs.writeFile(f, line(typed('one')) + line(answer(text('A.'))) + line(typed('two')));
+    const first = await readHistory(f, 0, 0);
+    expect(first.from).toBe(0);
+    expect(first.exchanges.map((e) => e.request)).toEqual(['one', 'two']);
+
+    await fs.appendFile(f, line(answer(text('B.'))) + line(typed('three')));
+    const next = await readHistory(f, first.total, first.generation);
+    expect(next.generation).toBe(first.generation);
+    expect(next.from).toBe(1);
+    expect(next.exchanges.map((e) => [e.request, replyText(e)])).toEqual([['two', 'B.'], ['three', '']]);
+    expect(next.total).toBe(3);
+  });
+
+  it('marks the last exchange it sent replaced when the next read brings its replacement', async () => {
+    const f = await file('resend.jsonl');
+    await fs.writeFile(f, line(typed('hello', { parentUuid: 'p' })));
+    const first = await readHistory(f, 0, 0);
+    expect(first.exchanges[0].replaced).toBe(false);
+    await fs.appendFile(f, line(typed('hello', { parentUuid: 'p' })));
+    const next = await readHistory(f, first.total, first.generation);
+    expect(next.from).toBe(0);
+    expect(next.exchanges.map((e) => e.replaced)).toEqual([true, false]);
+  });
+
+  it("sends a request again when claude's reply to it goes on after a command claude ran itself", async () => {
+    const f = await file('login.jsonl');
+    await fs.writeFile(f, line(typed('review the PR again')) + line(answer(text('Looking.'))) + line(localSystem('/login')));
+    const first = await readHistory(f, 0, 0);
+    await fs.appendFile(f, line(answer(text('Found it.'))));
+    const next = await readHistory(f, first.total, first.generation);
+    expect(next.from).toBe(0);
+    expect(next.exchanges.map((e) => [e.request, replyText(e)])).toEqual([['review the PR again', 'Looking.\n\nFound it.'], ['/login', '']]);
+  });
+
+  it('sends the requests a rewind went back past again, from the first of them', async () => {
+    const f = await file('rewind.jsonl');
+    const one = typed('one', { parentUuid: 'p' });
+    const a1 = { ...answer(text('A.')), parentUuid: one.uuid };
+    const two = typed('two', { parentUuid: a1.uuid });
+    await fs.writeFile(f, line(one) + line(a1) + line(two));
+    const first = await readHistory(f, 0, 0);
+    await fs.appendFile(f, line(typed('back before one', { parentUuid: 'p' })));
+    const next = await readHistory(f, first.total, first.generation);
+    expect(next.from).toBe(0);
+    expect(next.exchanges.map((e) => [e.request, e.rewound])).toEqual([['one', true], ['two', true], ['back before one', false]]);
+    const after = await readHistory(f, next.total, next.generation);
+    expect(after.from).toBe(2);
+  });
+
+  it('holds a line claude has not finished writing until its newline arrives', async () => {
+    const f = await file('partial.jsonl');
+    const whole = line(typed('complete me'));
+    await fs.writeFile(f, whole.slice(0, 20));
+    expect((await readHistory(f, 0, 0)).total).toBe(0);
+    await fs.appendFile(f, whole.slice(20));
+    const read = await readHistory(f, 0, 0);
+    expect(read.exchanges.map((e) => e.request)).toEqual(['complete me']);
+  });
+
+  it('keeps a multi-byte character whole when a read ends inside it', async () => {
+    const f = await file('utf8.jsonl');
+    await fs.writeFile(f, line(typed('café — naïve ✓ 日本')) + line(typed('after')));
+    // Three bytes a read: every non-ASCII character above is cut somewhere.
+    const read = await readHistory(f, 0, 0, 3);
+    expect(read.exchanges.map((e) => e.request)).toEqual(['café — naïve ✓ 日本', 'after']);
+  });
+
+  it('reads a file that shrank again from the start, as a new generation', async () => {
+    const f = await file('shrink.jsonl');
+    await fs.writeFile(f, line(typed('old one')) + line(typed('old two')));
+    const first = await readHistory(f, 0, 0);
+    await fs.writeFile(f, line(typed('new')));
+    const again = await readHistory(f, first.total, first.generation);
+    expect(again.generation).not.toBe(first.generation);
+    expect(again.from).toBe(0);
+    expect(again.exchanges.map((e) => e.request)).toEqual(['new']);
+  });
+
+  it('two reads at once fold the appended bytes once', async () => {
+    const f = await file('twice.jsonl');
+    await fs.writeFile(f, line(typed('a')));
+    const first = await readHistory(f, 0, 0);
+    await fs.appendFile(f, line(typed('b')));
+    const [x, y] = await Promise.all([readHistory(f, first.total, first.generation), readHistory(f, first.total, first.generation)]);
+    expect(x.total).toBe(2);
+    expect(y.total).toBe(2);
+  });
+
+  it('hands back an empty history for a file that is not there', async () => {
+    const read = await readHistory(await file('missing.jsonl'), 0, 0);
+    expect(read.total).toBe(0);
+    expect(read.exchanges).toEqual([]);
+  });
+});

@@ -1,6 +1,6 @@
 /**
  * Main's rules for the marks a session carries in meta — its pin, its finished entry, its note (written with `withText`, src/shared/text.ts), its needs-you and set-aside marks, and when it was kept out of the review — pure, so that the window's checks answer them the way main does, and the window keeps its own copy of the needs-you, set-aside and keep marks by them.
- * Main (src/main/meta.ts) applies them inside its serialised writes of `meta.json`.
+ * Main (src/main/sessions/meta.ts) applies them inside its serialised writes of `meta.json`.
  */
 import { isPrReason } from './needsyou';
 import { prFromUrl, prKey, referenceKey } from './prs';
@@ -213,7 +213,7 @@ export interface SessionPlaces {
   groupOf: Record<string, string>;
 }
 
-/** Everything meta holds about a deleted session forgotten, its marks with the rest: main's purge (`purgeSession`, src/main/meta.ts), and the window checks' stand-in's. */
+/** Everything meta holds about a deleted session forgotten, its marks with the rest: main's purge (`purgeSession`, src/main/sessions/meta.ts), and the window checks' stand-in's. */
 export function purgedSession(meta: Readonly<SessionMarks & SessionPlaces>, id: string): SessionMarks & SessionPlaces {
   const groupOf = { ...meta.groupOf };
   delete groupOf[id];

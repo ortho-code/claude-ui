@@ -29,8 +29,7 @@ Tagging a version runs CI's checks on it, then builds both on CI and publishes t
 
 ## Project layout
 
-- `src/main` — Electron main process: window and IPC.
-- `src/main/sessions.ts` — reads and summarizes `~/.claude/projects`.
+- `src/main` — the Electron main process: `main.ts` starts the app and `paths.ts` decides where its data lives; the rest is by area, the same areas as the architecture notes: `sessions/` (reading Claude Code's sessions, the app's metadata about them, their PRs), `status/` (the status hooks and the needs-you types), `pty/` (the pseudo-terminals claude and the shells run in), `panels/`, `config/` (the config folder and settings), `logs/` (the log and the usage record), `window/`, `platform/`, and `files/` (how the app writes its own files).
 - `src/preload` — the bridge the renderer uses to reach the main process.
 - `src/renderer` — the window UI.
 - `src/renderer/state` — the store the window's surfaces share, and what more than one of them reads from it.

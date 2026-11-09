@@ -1,0 +1,469 @@
+/**
+ * Reading the records of a session transcript (`~/.claude/projects/<dir>/<id>.jsonl`, one JSON record per line).
+ * What a record says is decided here once, for every reader of the transcript: the session list's summary, the history of a session's requests, and the ends of a turn no hook reports (transcriptends.ts).
+ */
+
+import { promises as fs } from 'node:fs';
+import { readFrom } from '../../shared/history';
+import type { Exchange, HistorySlice, ReplyPart } from '../../shared/types';
+import { fsFailure, logOnce } from '../logs/log';
+
+/**
+ * A slash command is written in tags — `<command-message>word</command-message>\n<command-name>/cmd</command-name>` plus an optional (possibly empty) `<command-args>…</command-args>` — which reads as junk where it is shown.
+ * Render it as the command line the user effectively typed: "/cmd args".
+ * Anything else passes through untouched.
+ */
+export function commandLabel(text: string): string {
+  const name = text.match(/<command-name>([^<]*)<\/command-name>/)?.[1]!.trim();
+  if (!name) return text;
+  const args = text.match(/<command-args>([^<]*)<\/command-args>/)?.[1]!.trim();
+  return args ? `${name} ${args}` : name;
+}
+
+/**
+ * A command claude ran itself rather than sent to the model as a prompt, such as `/clear`, `/model` or `/compact`.
+ * Claude writes one with the command's name first, where a command sent to the model opens with `<command-message>` (claude 2.1.302's templates); across one machine's transcripts (2026-10-22), 164 commands of the one kind as user records, each right after a `<local-command-caveat>` record, and 323 of the other, with no third shape.
+ */
+function isLocalCommand(text: string): boolean {
+  return text.startsWith('<command-name>');
+}
+
+/**
+ * The command line of a command claude ran itself, from the user record that holds it or from the `local_command` system record claude writes some in instead (135 on that machine, most of them `/rename`); '' for any other record.
+ */
+function localCommandLine(record: Record<string, unknown>): string {
+  const text = record.type === 'system' && record.subtype === 'local_command' && typeof record.content === 'string' ? record.content.trim() : sentText(record);
+  return isLocalCommand(text) ? commandLabel(text) : '';
+}
+
+/** Claude Code's own records, written into the user's turn: a local command's caveat and output, a reminder, a task notification, `!` bash mode, whether or not its tag carries attributes (`<agent-message from="…">`). */
+const PLUMBING = /^<[a-z][a-z-]*(\s[^>]*)?>/;
+
+/**
+ * What a user record sent, tags and all; '' for one that sent nothing: a meta record (a skill's expanded body, a reminder, a message from another session), a compaction summary, an interruption, a tool's result alone, and Claude Code's own plumbing.
+ * A slash command is kept, though it opens with a tag too.
+ */
+function sentText(record: Record<string, unknown>): string {
+  if (record.type !== 'user' || record.isMeta === true || record.isCompactSummary === true) return '';
+  const text = extractUserText(record);
+  if (text.includes('<command-name>')) return text;
+  return PLUMBING.test(text) || isInterruptMarker(record) ? '' : text;
+}
+
+/**
+ * The prompt a user record holds, as the session list reads a session's first one, which names a session Claude has not: what was typed, or a slash command sent to the model as its command line without the slash, which reads better as a name (`review 35676`); '' for anything else, a command claude ran itself included.
+ * So a session one `/clear` has just started has none until something is typed in it.
+ */
+export function promptOf(record: Record<string, unknown>): string {
+  const text = sentText(record);
+  if (!text.includes('<command-name>')) return text;
+  return isLocalCommand(text) ? '' : commandLabel(text).replace(/^\//, '');
+}
+
+/** Pull display text out of a user event, whether content is a string or an array of blocks. */
+export function extractUserText(event: Record<string, unknown>): string {
+  const message = event.message as { content?: unknown } | undefined;
+  const content = message?.content;
+  if (typeof content === 'string') return content.trim();
+  if (Array.isArray(content)) {
+    const text = (content as ({ type?: unknown; text?: unknown } | null)[])
+      .filter((b): b is { type: string; text: string } => typeof b?.text === 'string' && b.type === 'text')
+      .map((b) => b.text)
+      .join(' ')
+      .trim();
+    return text;
+  }
+  return '';
+}
+
+/**
+ * The record claude writes when Ctrl+C or Esc interrupts a turn, a user record saying exactly one of these: the first during a tool or at its permission prompt, the second while claude was writing (both measured on claude 2.1.289).
+ * No hook reports an interrupt, so this record is the only sign of one.
+ */
+const INTERRUPT_MARKERS = new Set(['[Request interrupted by user for tool use]', '[Request interrupted by user]']);
+
+export function isInterruptMarker(record: Record<string, unknown>): boolean {
+  return record.type === 'user' && INTERRUPT_MARKERS.has(extractUserText(record));
+}
+
+/**
+ * The words a refused tool call's result starts with, written when a permission prompt of the session's own is turned down, with feedback or without (measured on claude 2.1.289); a subagent's prompt gets other words, in its own transcript.
+ * Without feedback an interrupt marker follows and the turn ends; with feedback none does, and claude carries on.
+ * By claude's source the same words are written for a running tool you interrupt, which the marker follows too.
+ */
+const REFUSAL = "The user doesn't want to proceed with this tool use.";
+
+export function isRefusal(record: Record<string, unknown>): boolean {
+  if (record.type !== 'user') return false;
+  const content = (record.message as { content?: unknown } | undefined)?.content;
+  return Array.isArray(content) && (content as ({ type?: unknown; content?: unknown } | null)[]).some((block) => block?.type === 'tool_result' && typeof block.content === 'string' && block.content.startsWith(REFUSAL));
+}
+
+/** The statuses claude's notice of a piece of background work gives an end, out of the four its own instructions name; `blocked`, the fourth, does not say the work has ended, so it is not counted. */
+const ENDED_TASK = new Set(['completed', 'failed', 'killed']);
+
+/**
+ * The id of the background work a record says has ended, or null.
+ * Claude queues a `<task-notification>` naming the work's id and how it ended, and for work stopped from its task list that queued notice is all there is: no turn starts and no hook fires (measured on claude 2.1.289 for a shell and a monitor; a subagent stopped that way starts a turn).
+ * The id is the one `Stop` lists the work under.
+ */
+export function endedTaskId(record: Record<string, unknown>): string | null {
+  if (record.type !== 'queue-operation' || record.operation !== 'enqueue' || typeof record.content !== 'string') return null;
+  if (!record.content.startsWith('<task-notification>')) return null;
+  const id = /<task-id>([^<]+)<\/task-id>/.exec(record.content)?.[1];
+  const status = /<status>([^<]+)<\/status>/.exec(record.content)?.[1];
+  return id && status && ENDED_TASK.has(status) ? id : null;
+}
+
+/**
+ * The background work a record says was started, by the id and the type `Stop` lists it under, or null.
+ * Three kinds are read, each from its tool result in the shape claude 2.1.289 was measured to write, and named as its `Stop` named it: a shell (`backgroundTaskId`), a subagent sent off in the background (`isAsync` and `status: "async_launched"`, its id `agentId`), and a monitor on a command (`taskId` with `timeoutMs` and `persistent`, listed as a `shell`).
+ * Other tools' results carry a `taskId` too, a workflow's and a remote agent's among them, which is why a monitor is known by all three of its fields; no other kind was measured, so none is read.
+ * A monitor on a websocket writes the same result, by claude's source, and its `Stop` calls it a `monitor`: it is read as a shell, so only the tooltip's count of it is off, since the result alone cannot tell the two apart.
+ */
+export function startedTask(record: Record<string, unknown>): { id: string; type: string } | null {
+  if (record.type !== 'user') return null;
+  const result = record.toolUseResult as Record<string, unknown> | null | undefined;
+  if (!result || typeof result !== 'object') return null;
+  if (typeof result.backgroundTaskId === 'string') return { id: result.backgroundTaskId, type: 'shell' };
+  if (result.isAsync === true && result.status === 'async_launched' && typeof result.agentId === 'string') return { id: result.agentId, type: 'subagent' };
+  if (typeof result.taskId === 'string' && typeof result.timeoutMs === 'number' && typeof result.persistent === 'boolean') return { id: result.taskId, type: 'shell' };
+  return null;
+}
+
+// --- Reading what was appended ---
+
+/** Where a read of one transcript has got to, for a reader that reads only what was appended since. */
+export interface TranscriptCursor {
+  offset: number;
+  /**
+   * The bytes after the last newline: a line claude has not finished writing.
+   * Bytes rather than text, since a read can end inside a multi-byte character.
+   */
+  carry: Buffer;
+}
+
+/** How much is read at a time, so a 50 MB transcript is read in pieces with the main process handed back between them. */
+const CHUNK_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Read what was appended to the transcript at `file` since the cursor, handing each record to `onRecord`.
+ * A file shorter than what was already read is not the same file any more, so the cursor goes back to the start, after `onRestart` has dropped whatever the reader built from the old one.
+ * `scope` names the reader in the log.
+ */
+export async function readAppended(
+  file: string,
+  cursor: TranscriptCursor,
+  onRecord: (record: Record<string, unknown>) => void,
+  onRestart: () => void,
+  scope: string,
+  chunkBytes = CHUNK_BYTES,
+): Promise<void> {
+  let handle;
+  try {
+    handle = await fs.open(file, 'r');
+  } catch (error) {
+    const failure = fsFailure(error);
+    if (failure) logOnce('warn', scope, `cannot read ${file}: ${failure}`);
+    return;
+  }
+  try {
+    const { size } = await handle.stat();
+    if (size < cursor.offset) {
+      cursor.offset = 0;
+      cursor.carry = Buffer.alloc(0);
+      onRestart();
+    }
+    while (cursor.offset < size) {
+      const chunk = Buffer.alloc(Math.min(chunkBytes, size - cursor.offset));
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, cursor.offset);
+      if (bytesRead === 0) break;
+      cursor.offset += bytesRead;
+      const bytes = cursor.carry.length > 0 ? Buffer.concat([cursor.carry, chunk.subarray(0, bytesRead)]) : chunk.subarray(0, bytesRead);
+      const end = bytes.lastIndexOf(0x0a);
+      if (end < 0) {
+        cursor.carry = Buffer.from(bytes);
+        continue;
+      }
+      // A newline byte never occurs inside a multi-byte UTF-8 character, so cutting at the last one leaves whole characters on both sides.
+      for (const line of bytes.subarray(0, end).toString('utf8').split('\n')) {
+        const record = parseRecord(line);
+        if (record) onRecord(record);
+      }
+      cursor.carry = Buffer.from(bytes.subarray(end + 1));
+    }
+  } catch (error) {
+    logOnce('warn', scope, `cannot read ${file}: ${fsFailure(error) ?? 'it disappeared while being read'}`);
+  } finally {
+    await handle.close();
+  }
+}
+
+function parseRecord(line: string): Record<string, unknown> | null {
+  if (!line.trim()) return null;
+  let record: unknown;
+  try {
+    record = JSON.parse(line);
+  } catch {
+    return null;
+  }
+  return record !== null && typeof record === 'object' ? (record as Record<string, unknown>) : null;
+}
+
+// --- The history: a session's requests and what came back ---
+
+/**
+ * The fold's state, record by record: every exchange so far, and a slash command waiting for its answer.
+ * A slash command sent to the model is a request only once claude answers it, so it waits here until an assistant record arrives, and is dropped if the user sends something else first; a command claude runs itself is a request at once (`localCommandLine`).
+ * It waits across reads as well, since the answer can land in the next read of a file claude is still writing.
+ */
+export interface HistoryFold {
+  exchanges: Exchange[];
+  /** Each exchange's parent record in the transcript's tree, index for index, so the next request can tell whether it replaces the last. */
+  parents: (string | null)[];
+  /** The latest exchange hanging off each parent record, so a request can find the one it replaces or rewinds past. */
+  byParent: Map<string, number>;
+  /**
+   * Every record folded, by uuid, with its parent: the tree the rewinds are told from, and what a record written again is known by.
+   * After a compaction Claude Code writes much of the conversation into the file a second time, under the same uuids; folding the copies drew each of those requests, and claude's messages, twice.
+   */
+  records: Map<string, string | null>;
+  /** The first exchange changed before the last since the reader last looked, by a rewind or by claude's reply going on under a request a command claude ran itself has followed; null when none was. */
+  changedFrom: number | null;
+  pending: { exchange: Exchange; parent: string | null } | null;
+  /** The exchange claude's reply goes to: the last request that is not a command claude ran itself, which nothing answers; null before there is one. */
+  answering: number | null;
+}
+
+export function newFold(): HistoryFold {
+  return { exchanges: [], parents: [], byParent: new Map(), records: new Map(), changedFrom: null, pending: null, answering: null };
+}
+
+/** A tool call as the history shows it: its name, and apart from it, on one line, the one input that says what it acted on. */
+function toolPart(part: { name?: unknown; input?: unknown }): ReplyPart {
+  const name = typeof part.name === 'string' ? part.name : 'tool';
+  const input = (part.input ?? {}) as Record<string, unknown>;
+  const main = [input.file_path, input.notebook_path, input.path, input.command, input.pattern, input.url, input.query, input.description].find(
+    (value): value is string => typeof value === 'string' && value.trim() !== '',
+  );
+  // Its first line as written, not trimmed: a pattern's trailing space is part of what was searched for.
+  const first = main?.split('\n').find((line) => line.trim() !== '') ?? '';
+  return { kind: 'tool', name, detail: first.length > 120 ? `${first.slice(0, 119)}…` : first };
+}
+
+/** Where the frame Claude Code hands a subagent's report back in ends: a preface, this line, then the report with every line indented two spaces. */
+const REPORT_FOLLOWS = 'The report follows:\n';
+
+/** A subagent's report as it reads, cut from its frame; a body without the frame's marker is kept whole rather than cut where the frame is guessed to end. */
+function reportText(body: string): string {
+  const at = body.indexOf(REPORT_FOLLOWS);
+  if (at < 0) return body.trimEnd();
+  const lines = body.slice(at + REPORT_FOLLOWS.length).split('\n');
+  return lines
+    .map((line) => (line.startsWith('  ') ? line.slice(2) : line))
+    .join('\n')
+    .trimEnd();
+}
+
+function exchangeOf(record: Record<string, unknown>, request: string, kind: Exchange['kind']): Exchange {
+  return {
+    id: typeof record.uuid === 'string' ? record.uuid : '',
+    time: typeof record.timestamp === 'string' ? record.timestamp : '',
+    request,
+    kind,
+    replaced: false,
+    rewound: false,
+    parts: [],
+  };
+}
+
+function parentOf(record: Record<string, unknown>): string | null {
+  return typeof record.parentUuid === 'string' ? record.parentUuid : null;
+}
+
+/**
+ * Add a request.
+ * One that hangs off the same parent as an earlier one went back to before it:
+ * - the one just before is REPLACED — claude stopped and the request sent again, or edited and resent;
+ * - one further back, with every request since following on from it, is REWOUND past, and all of those with it — claude's rewind.
+ * A same-parent request further back that the ones since do not all descend from is left unmarked: nothing on the machine this was written on was like that once records written twice were skipped, so there is no case to say what it means.
+ */
+function push(fold: HistoryFold, exchange: Exchange, parent: string | null, answered = true): void {
+  const last = fold.exchanges.length - 1;
+  const earlier = parent === null ? undefined : fold.byParent.get(parent);
+  if (earlier === last && last >= 0) fold.exchanges[last]!.replaced = true;
+  else if (earlier !== undefined) rewind(fold, earlier, last);
+  fold.exchanges.push(exchange);
+  fold.parents.push(parent);
+  if (parent !== null) fold.byParent.set(parent, fold.exchanges.length - 1);
+  if (answered) fold.answering = fold.exchanges.length - 1;
+}
+
+/**
+ * The exchange a part of claude's reply goes to: the one it is answering, so a `/rename` or a `/login` in the middle of a turn does not take the rest of it, or for a `<synthetic>` record, Claude Code's own line such as "No response requested.", the last one, whatever it is.
+ * One before the last is marked changed, since a read otherwise sends again only the last one (`readFrom`).
+ */
+function replyTo(fold: HistoryFold, synthetic: boolean): Exchange | undefined {
+  const at = synthetic ? fold.exchanges.length - 1 : fold.answering;
+  if (at === null || at < 0) return undefined;
+  if (at < fold.exchanges.length - 1) fold.changedFrom = Math.min(fold.changedFrom ?? at, at);
+  return fold.exchanges[at];
+}
+
+/** Mark exchange `from` and every one up to `last` rewound, when each of them followed on from `from`. */
+function rewind(fold: HistoryFold, from: number, last: number): void {
+  const root = fold.exchanges[from]!.id;
+  for (let k = from + 1; k <= last; k++) if (!descends(fold, fold.exchanges[k]!.id, root)) return;
+  for (let k = from; k <= last; k++) fold.exchanges[k]!.rewound = true;
+  fold.changedFrom = Math.min(fold.changedFrom ?? from, from);
+}
+
+/** Whether record `uuid` follows on from record `ancestor`, up the parent links; a compaction cuts them, so nothing after one descends from anything before it. */
+function descends(fold: HistoryFold, uuid: string, ancestor: string): boolean {
+  let at: string | null | undefined = uuid;
+  for (let steps = 0; at && steps <= fold.records.size; steps++) {
+    if (at === ancestor) return true;
+    at = fold.records.get(at);
+  }
+  return false;
+}
+
+/** A waiting slash command becomes a request: claude is answering it. */
+function promote(fold: HistoryFold): void {
+  if (!fold.pending) return;
+  push(fold, fold.pending.exchange, fold.pending.parent);
+  fold.pending = null;
+}
+
+/** Whether a user record carries a tool's result: a request inside it was sent while that tool ran. */
+function carriesToolResult(record: Record<string, unknown>): boolean {
+  const content = (record.message as { content?: unknown } | undefined)?.content;
+  return Array.isArray(content) && content.some((part) => (part as { type?: unknown } | null)?.type === 'tool_result');
+}
+
+/**
+ * Fold one transcript record into the history.
+ * A request is what the user sent: a typed prompt (with or without a pasted image), one sent while a tool ran, one queued while claude worked (a `queued_command` attachment, which is not a user record at all), a slash command claude answered, and a command claude ran itself, such as `/model` or `/compact`.
+ * Not a request: tool results, meta records (a skill's expanded body, a message from another session, a subagent's hand-back, whose report is a part of the reply instead), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing.
+ * The rule and the counts behind it are in docs/architecture/history.md § In-session history.
+ */
+export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): void {
+  // A record written again is the one already folded, with its bookkeeping (git branch, version) brought up to date: the first copy stands.
+  if (typeof record.uuid === 'string') {
+    if (fold.records.has(record.uuid)) return;
+    fold.records.set(record.uuid, parentOf(record));
+  }
+  if (record.isSidechain === true) return;
+  if (record.type === 'attachment') {
+    const attachment = record.attachment as { type?: unknown; prompt?: unknown; isMeta?: unknown; origin?: { handback?: unknown; name?: unknown; body?: unknown } } | undefined;
+    if (attachment?.type !== 'queued_command' || typeof attachment.prompt !== 'string' || !attachment.prompt.trim()) return;
+    // Queued means claude was working, so a command still waiting is the thing it was working on.
+    promote(fold);
+    // A subagent's report is part of claude's reply, where it came back; before the first request there is nothing for it to be a reply to.
+    const origin = attachment.isMeta === true && attachment.origin?.handback === true ? attachment.origin : undefined;
+    if (origin) {
+      const name = typeof origin.name === 'string' ? origin.name.trim() : '';
+      if (typeof origin.body === 'string' && origin.body.trim()) replyTo(fold, false)?.parts.push({ kind: 'report', agent: name || null, text: reportText(origin.body) });
+      return;
+    }
+    // Claude Code's own records are queued the same way — a task notification, anything else it marks meta — and are no more a request here than when they come as a user record.
+    if (attachment.isMeta === true || PLUMBING.test(attachment.prompt.trim())) return;
+    push(fold, exchangeOf(record, attachment.prompt.trim(), 'busy'), parentOf(record));
+    return;
+  }
+  if (record.type === 'assistant') {
+    promote(fold);
+    const message = record.message as { content?: unknown; model?: unknown } | undefined;
+    const content = message?.content;
+    if (!Array.isArray(content)) return;
+    // Before the first request there is nothing for it to be a reply to.
+    const last = replyTo(fold, message?.model === '<synthetic>');
+    if (!last) return;
+    // In the order claude wrote them, each message its own part, with the tool calls where they came: that is how claude itself shows a reply.
+    // A message's id is its record's uuid and its place among that record's messages, stable across reads and copied by a fork, so a pin on it holds.
+    const uuid = typeof record.uuid === 'string' ? record.uuid : '';
+    const time = typeof record.timestamp === 'string' ? record.timestamp : '';
+    let messages = 0;
+    for (const part of content as ({ type?: unknown; text?: unknown; name?: unknown; input?: unknown } | null)[]) {
+      if (part?.type === 'text' && typeof part.text === 'string' && part.text.trim()) {
+        last.parts.push({ kind: 'text', id: uuid ? `${uuid}:${messages++}` : '', time, text: part.text });
+      } else if (part?.type === 'tool_use') {
+        last.parts.push(toolPart(part));
+      }
+    }
+    return;
+  }
+  // Something the user did, though nothing answers it, and nothing sent to the model, so a command waiting for claude's answer goes on waiting.
+  const local = localCommandLine(record);
+  if (local) {
+    // Claude sometimes writes the line as typed first, `/compact` before compacting and the command after it (37 of 74 there), which is one request.
+    const last = fold.exchanges[fold.exchanges.length - 1];
+    if (last?.kind !== 'command' && last?.request === local) return;
+    push(fold, exchangeOf(record, local, 'command'), parentOf(record), false);
+    return;
+  }
+  const text = sentText(record);
+  if (!text) return;
+  if (text.includes('<command-name>')) {
+    fold.pending = { exchange: exchangeOf(record, commandLabel(text), 'command'), parent: parentOf(record) };
+    return;
+  }
+  fold.pending = null;
+  const busy = carriesToolResult(record) || record.promptSource === 'queued';
+  push(fold, exchangeOf(record, text, busy ? 'busy' : 'typed'), parentOf(record));
+}
+
+/** Where the history of one transcript has been read to. */
+interface Cursor extends TranscriptCursor {
+  /** Changes when the file is read again from the start, so a caller knows that what it holds is stale. */
+  generation: number;
+  fold: HistoryFold;
+  /** One read at a time per file, so two callers never fold the same bytes twice. */
+  queue: Promise<unknown>;
+}
+
+const cursors = new Map<string, Cursor>();
+/** Cursors kept at once, the least recently asked for going first; the largest session's history is about a megabyte. */
+const MAX_CURSORS = 16;
+let generations = 0;
+
+function restart(cursor: Cursor): void {
+  cursor.generation = ++generations;
+  cursor.offset = 0;
+  cursor.carry = Buffer.alloc(0);
+  cursor.fold = newFold();
+}
+
+/** Read what was appended to the file since the cursor's offset, or the whole file again when it shrank. */
+function readOn(file: string, cursor: Cursor, chunkBytes: number): Promise<void> {
+  return readAppended(file, cursor, (record) => foldRecord(cursor.fold, record), () => restart(cursor), 'history', chunkBytes);
+}
+
+/**
+ * The history of the transcript at `file`, for a caller that holds `known` exchanges of `generation`.
+ * The first call reads the whole file; later calls read only what was appended, and where the answer starts is `readFrom`'s rule (src/shared/history.ts).
+ */
+export function readHistory(file: string, known: number, generation: number, chunkBytes = CHUNK_BYTES): Promise<HistorySlice> {
+  let cursor = cursors.get(file);
+  if (cursor) {
+    cursors.delete(file);
+  } else {
+    cursor = { generation: 0, offset: 0, carry: Buffer.alloc(0), fold: newFold(), queue: Promise.resolve() };
+    restart(cursor);
+  }
+  cursors.set(file, cursor);
+  // A Map iterates in insertion order and the one just asked for was re-inserted last, so the first key is the least recently asked for; the loop condition guarantees there is one.
+  while (cursors.size > MAX_CURSORS) cursors.delete(cursors.keys().next().value!);
+
+  const at = cursor;
+  const read = at.queue.then(async () => {
+    await readOn(file, at, chunkBytes);
+    const total = at.fold.exchanges.length;
+    const from = readFrom(known, total, generation === at.generation, at.fold.changedFrom);
+    at.fold.changedFrom = null;
+    const exchanges = at.fold.exchanges.slice(from).map((e) => ({ ...e, parts: e.parts.map((p) => ({ ...p })) }));
+    return { generation: at.generation, from, exchanges, total };
+  });
+  at.queue = read.catch(() => undefined);
+  return read;
+}

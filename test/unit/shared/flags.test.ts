@@ -9,7 +9,7 @@ vi.mock('electron', () => ({
 }));
 vi.mock('node-pty', () => ({ spawn: () => ({}) }));
 
-import { claudeArgs } from '../../../src/main/terminal';
+import { claudeArgs } from '../../../src/main/pty/terminal';
 
 const ok = (input: string): string[] => {
   const parsed = parseLaunchFlags(input);

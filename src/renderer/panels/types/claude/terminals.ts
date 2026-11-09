@@ -849,7 +849,7 @@ async function finishNow(keys: readonly string[]): Promise<void> {
       if (tab.terminalId === null) removed.push(removedTab(tab));
       closeTab(tab.token);
     }
-    // Main's finish took the marks off as it finished (src/main/meta.ts); after the tabs, whose Undo puts the needs-you mark back.
+    // Main's finish took the marks off as it finished (src/main/sessions/meta.ts); after the tabs, whose Undo puts the needs-you mark back.
     for (const key of keys) clearNeedsYou(key, 'finished');
     clearSetAside(keys);
   });

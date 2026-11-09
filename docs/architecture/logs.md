@@ -3,7 +3,7 @@
 ## The log
 
 An installed build is started from a launcher, so it has no stdout: the log is where what a launch did can be read afterwards, on somebody else's machine.
-The main process writes it (`src/main/log.ts`), and the window's own lines reach it through the preload bridge, checked on arrival: a known level, an area that is one short lowercase word so no area can forge a line, text only, cut at 4,000 characters.
+The main process writes it (`src/main/logs/log.ts`), and the window's own lines reach it through the preload bridge, checked on arrival: a known level, an area that is one short lowercase word so no area can forge a line, text only, cut at 4,000 characters.
 
 **One file per launch per date**, in `app.getPath('logs')` — `~/.config/claude-ui/logs` on Linux, `~/Library/Logs/Claude UI` on macOS — named by the local moment it started, `claude-ui-20260928143012.log` ([decided 2026-09-28](../decisions/0023-one-log-file-per-launch-per-date.md)).
 Each opens with a header: its own path, the version, how the app was installed, the OS, the Electron and Chromium versions and, on Linux, the display variables.
@@ -38,7 +38,7 @@ The one exception is a failed start's last five lines, which for a resume that d
 ## The usage record
 
 `usage.log` in `app.getPath('userData')`, beside `meta.json`, is how the app's use is counted over weeks: how many sessions were decided, how often the review was used, and how noisy needs-you is ([decided 2026-11-08](../decisions/0200-the-apps-use-is-recorded-in-a-usage-log.md)).
-`src/main/usage.ts` owns it; each line is a moment as the log writes one (`appendStamped`) and a JSON event:
+`src/main/logs/usage.ts` owns it; each line is a moment as the log writes one (`appendStamped`) and a JSON event:
 - `decide`: one per write of `finish`, `unfinish`, `markSetAside`, `clearSetAside`, `keep` or `unkeep`, named after the write, with the ids it changed (`setAside` and `keep` every id given, since each restamps its moment); `finish`, `unfinish`, `clearSetAside` and `unkeep` that changed nothing give no line.
   The act is the write's, not what you meant: an Undo writes whatever puts things back, so it can show as `finish`, `setAside` or `keep`.
   The two writes nobody decides carry `by`: `"by":"prompt"` on the `clearSetAside` each prompt you send makes, and `"by":"resume"` on the `unfinish` of a finished session resumed in claude.
@@ -46,7 +46,7 @@ The one exception is a failed start's last five lines, which for a resume that d
   A review cut short by quitting or reloading has a start and no end, and a finish of a running tab is written when its claude exits, which can be after the review's end.
 - `needsYou`: per session, the reasons a write `marked`, `settled` with what settled them (`SettledBy`), or `restored` by Undo, by type.
 
-**Recorded in main, where `meta.json` is written** (`update` in `src/main/meta.ts`), after the write has landed, so every surface that decides — the review, the bulk bar, the close toast, a session's menu, a tab's button — is counted without passing a source through; only the two writes nobody decides say what made them.
+**Recorded in main, where `meta.json` is written** (`update` in `src/main/sessions/meta.ts`), after the write has landed, so every surface that decides — the review, the bulk bar, the close toast, a session's menu, a tab's button — is counted without passing a source through; only the two writes nobody decides say what made them.
 The window sends only the review's opening and ending, which `reviewUsageOf` checks on arrival as the log checks the window's lines.
 
 **Not the audit log**: `meta-audit.log` is trimmed by size to trace a lost write over the last few sessions of work; this is kept by time, a year (`USAGE_KEPT_DAYS`), trimmed at each launch.

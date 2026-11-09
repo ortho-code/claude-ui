@@ -75,7 +75,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
   /** How many reads of settings.json main has made, which numbers each, as main's `readSettings` does. */
   let settingsReads = 0;
   const readSettings = (): SettingsView => settingsView(fixture.settings, ++settingsReads, fixture.bundledNeedsYou);
-  /** A pty started, claude's or a shell's, or main's refusal of one in a folder that is not there (`refuseMissing`, src/main/terminal.ts), which it makes before anything is spawned. */
+  /** A pty started, claude's or a shell's, or main's refusal of one in a folder that is not there (`refuseMissing`, src/main/pty/terminal.ts), which it makes before anything is spawned. */
   const start = (cwd: string): Promise<number> => (onDisk(cwd) === 'missing' ? Promise.reject(new Error(`MISSING_CWD:${cwd}`)) : answer(++terminals));
   /** The generation of every fixture transcript's one read: main numbers each read from the start, and the window only ever compares it with the one it holds. */
   const READ = 1;
@@ -229,11 +229,11 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     // Main's own rule (`seededOrder`), so a fixture need not place its projects: the listing's roots seed the order as they seed main's, new ones in front.
     seedProjectOrder: (roots) => answer((fixture.projectOrder = seededOrder(fixture.projectOrder, roots) ?? fixture.projectOrder)),
     moveProject: (repoRoot, move, shown) => answer((fixture.projectOrder = movedProject(fixture.projectOrder, repoRoot, move, shown) ?? fixture.projectOrder)),
-    // Main writes the pairing to its audit log and answers nothing, deciding nothing (`recordClear` in src/main/meta.ts).
+    // Main writes the pairing to its audit log and answers nothing, deciding nothing (`recordClear` in src/main/sessions/meta.ts).
     recordClear: () => answer(undefined),
     pickFolder: () => answer(fixture.pickFolder),
     openExternal: sent,
-    // Main answers for the PRs asked about only, each one's last status by its key (`prKey`, `PrStatuses.ask`, src/main/prstatus.ts), so the fixture keeps them by key too; it also leaves out a PR whose repository is not `owner/name`, which no fixture links.
+    // Main answers for the PRs asked about only, each one's last status by its key (`prKey`, `PrStatuses.ask`, src/main/sessions/prstatus.ts), so the fixture keeps them by key too; it also leaves out a PR whose repository is not `owner/name`, which no fixture links.
     prStatuses: (prs) =>
       answer({
         statuses: Object.fromEntries(

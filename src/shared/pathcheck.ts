@@ -2,7 +2,7 @@ import type { PathBase, PathKind } from './panels';
 
 /**
  * Main's two rules for a path option, pure so that the window's checks answer `checkPath` the way main does: where the value points, and what is wrong with what is there.
- * Main (src/main/config.ts) does the looking — the one part that needs the filesystem — and hands what it found to `pathProblem`.
+ * Main (src/main/config/config.ts) does the looking — the one part that needs the filesystem — and hands what it found to `pathProblem`.
  */
 
 /** What is at a path, as far as a check needs to know: nothing, a folder, a file that may or may not run, or something else (a socket, a device). */

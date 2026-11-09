@@ -7,7 +7,7 @@ import { markNeedsYou, marksFor } from '../../../state/needsyou';
 import { RunGate } from '../../run';
 
 /**
- * Asking main what GitHub says of every PR the sessions link (src/main/prstatus.ts), into the store's `prStatus`.
+ * Asking main what GitHub says of every PR the sessions link (src/main/sessions/prstatus.ts), into the store's `prStatus`.
  * Timed by the gate a panel's runs go through (`RunGate`): an ask whenever the PRs the listing links change, the first listing's included, then each at the delay the answer before it calls for (`nextAsk`).
  * The window regaining focus asks at once, unless the last answer is under a minute old.
  * Each answer also marks the sessions whose PRs changed in a way that needs you, against what was last seen of them (`settleChanges`).

@@ -8,7 +8,7 @@ Those are machine state the app writes, which nobody should edit and nobody woul
 `layouts/` is a directory rather than a single `layout.json` so that named and per-project layouts can be added beside the default instead of by moving it.
 
 Every file in it is JSONC, the format of VS Code's settings: JSON that may also carry comments and trailing commas, so a plain JSON file reads unchanged and a person can say in the file why something is there ([decided 2026-10-07](../decisions/0052-config-files-are-jsonc.md)).
-It is read in one place (`src/main/jsonc.ts`, on `jsonc-parser`), for the settings, the layout and every type's manifest alike.
+It is read in one place (`src/main/config/jsonc.ts`, on `jsonc-parser`), for the settings, the layout and every type's manifest alike.
 That parser reads on past a mistake and hands back what it could make of the rest, which is not what anybody wrote, so any error at all means the file does not parse, and only the first is named, by line and column: the ones after it are mostly its echo.
 
 **A file a person writes is theirs, and the app writes into one of them only: `settings.json`, at a launch that finds none, when Settings saves, and in the one-time moves into it below.**
@@ -16,12 +16,12 @@ Where the app has something of its own to keep beside a person's file, it goes i
 The layout keeps the pair because it is written on every drag, fold and rail click: one file rewritten that often would change a file somebody has open in an editor under them, could not be written while they were halfway through an edit, and would carry this machine's sizes wherever it went.
 The settings are one file ([decided 2026-10-22](../decisions/0105-settings-are-one-file.md)).
 The app's file holds nothing secret, only where a layout was left on this machine, so it may be shared too: "yours" and "the app's" say who writes each, not which one leaves the machine.
-Every write goes through one module (`src/main/appfiles.ts`), which refuses any path but `settings.json` and a `.local.json` inside the folder, so that rule is held by the code rather than by whoever calls it.
+Every write goes through one module (`src/main/config/appfiles.ts`), which refuses any path but `settings.json` and a `.local.json` inside the folder, so that rule is held by the code rather than by whoever calls it.
 A write is an edit of the file's text (`jsonc-parser`'s `modify`), never a rewrite of its value, so whatever a person wrote, comments included, stays: changing a value keeps every comment and the formatting, a key added to an object written on one line spreads that object over several, and a key removed takes along what lies between it and the key before it, such as a comment at the end of that key's line — all three measured, and the last is why a save never removes a key from `settings.json`.
 A file a person has left not parsing, or holding no object, is not written over: the write is refused, saying what is wrong with the file.
 Each write keeps the previous good copy, where there was a file before it, and the file as the outgoing version left it the first time a new version writes, in `backups/config/` under the app's data directory rather than in the folder; which version last wrote each file is kept there beside its copies, since neither file carries a version of its own.
 
-The settings are read by `src/main/settings.ts` by rules main and the window's checks share (`src/shared/settings.ts`): a setting is the value `settings.json` gives it, or the built-in default where it gives none that can be used.
+The settings are read by `src/main/config/settings.ts` by rules main and the window's checks share (`src/shared/settings.ts`): a setting is the value `settings.json` gives it, or the built-in default where it gives none that can be used.
 Settings saves into `settings.json` a setting whose value changed, or whose value in the file is not used, and never a key only to repeat the default; it says once, under its title, where its settings are saved.
 **Settings is in sections** ([decided 2026-11-08](../decisions/0196-settings-in-sections.md)): General, Sessions, Appearance, Version control and Logs, a vertical tab list beside the one on show, every section in one box sized by the window alone, up to a cap and down to a floor, so switching never moves Save under the pointer; a section joins the list once it has something to show.
 A section's name stays pinned while its settings scroll, in the look of the session list's project heading, and a part's name, such as GitHub's in Version control, pins under it in the look of a group's bar.

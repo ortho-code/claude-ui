@@ -397,7 +397,7 @@ export function soundShells(value: unknown): { shells: PanelShells; dropped: num
 
 /**
  * A panel's data with a session started from one of its items: the link, from `startedAt`, and the group it was filed in there, which the next start from this panel in that project offers first.
- * Main's rule, pure, so that the window's checks answer it the way main does; main (`linkSession` in src/main/paneldata.ts) applies it inside its write, which also forgets links to sessions that are gone.
+ * Main's rule, pure, so that the window's checks answer it the way main does; main (`linkSession` in src/main/panels/paneldata.ts) applies it inside its write, which also forgets links to sessions that are gone.
  */
 export function withLink(data: PanelData, sessionId: string, link: Omit<PanelLink, 'startedAt'>, filed: { repoRoot: string; groupId: string | null }, startedAt: string): PanelData {
   return { ...data, sessions: { ...data.sessions, [sessionId]: { ...link, startedAt } }, lastGroup: { ...data.lastGroup, [filed.repoRoot]: filed.groupId } };

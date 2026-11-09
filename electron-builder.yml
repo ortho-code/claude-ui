@@ -13,7 +13,7 @@ directories:
 
 # `npm run build` has to have run first — these are its outputs, not sources.
 # assets/ is here because main.ts loads the window icon from it at runtime.
-# bundled/ holds what the app ships written as a person's own files would be, such as the needs-you categories and types (main/needsyou.ts).
+# bundled/ holds what the app ships written as a person's own files would be, such as the needs-you categories and types (main/status/needsyou.ts).
 files:
   - dist/**
   - assets/**
