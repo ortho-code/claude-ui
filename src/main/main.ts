@@ -81,7 +81,7 @@ import { registerLayoutState } from './panels/layoutstate';
 import { readProcVersion, runsOnWsl } from './platform/platform';
 import { copiedFiles } from './platform/clipboard';
 import { registerPrStatus } from './sessions/prstatus';
-import { withPrLinks } from '../shared/prs';
+import { withPrLinks } from '../shared/sessions/prs';
 import {
   placeWindow,
   maximizedRect,
@@ -97,7 +97,7 @@ import type { Edge, Inset } from './window/bounds';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status/status';
 import { registerSessionsWatcher } from './sessions/watcher';
 import { transcriptChanged } from './status/transcriptends';
-import { NO_TRANSCRIPT } from '../shared/history';
+import { NO_TRANSCRIPT } from '../shared/sessions/history';
 import type { HistoryPin, HistorySlice, NeedsYou, OrderMove, PrSeen, SettledBy, UiState } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;

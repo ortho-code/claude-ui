@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { readJsonc } from '../../../src/main/config/jsonc';
-import { needsYouRegistry, type NeedsYouChange, type NeedsYouRegistry } from '../../../src/shared/needsyou';
-import type { SettingsFileRead } from '../../../src/shared/settings';
+import { needsYouRegistry, type NeedsYouChange, type NeedsYouRegistry } from '../../../src/shared/status/needsyou';
+import type { SettingsFileRead } from '../../../src/shared/config/settings';
 import { settingsFileWith } from './fixture';
 
 /**

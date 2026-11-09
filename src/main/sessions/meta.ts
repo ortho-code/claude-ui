@@ -3,15 +3,15 @@ import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import type { SetAside, NeedsYou, ClosedHow, SettledBy, SettledNeedsYou, OrderMove, GroupState, HistoryPin, PrChange, PrNeedsYouType, PrRole, PrSeen, PrStatus, ScheduledTask, SessionGroup, SessionPr, UiState, Settings } from '../../shared/types';
-import { scheduledTasksOf } from '../../shared/scheduled';
+import { scheduledTasksOf } from '../../shared/status/scheduled';
 import type { PanelState } from '../../shared/panels';
-import { defaultSettings, defaultUi } from '../../shared/defaults';
+import { defaultSettings, defaultUi } from '../../shared/config/defaults';
 import type { WindowBounds } from '../window/bounds';
-import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../shared/grouping';
-import { finishedFrom, cameDue, clearedSetAside, HISTORY_KEPT, keptFrom, markedSetAside, markedWithHistory, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, togglePinned, clearedFinished, unkept, withPrLink } from '../../shared/sessionmarks';
-import { withText } from '../../shared/text';
-import { isPrReason, isPrType, PR_TYPES } from '../../shared/needsyou';
-import { PR_ROLES, prFromUrl, referenceKey } from '../../shared/prs';
+import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../shared/sessions/grouping';
+import { finishedFrom, cameDue, clearedSetAside, HISTORY_KEPT, keptFrom, markedSetAside, markedWithHistory, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, togglePinned, clearedFinished, unkept, withPrLink } from '../../shared/status/sessionmarks';
+import { withText } from '../../shared/helpers/text';
+import { isPrReason, isPrType, PR_TYPES } from '../../shared/status/needsyou';
+import { PR_ROLES, prFromUrl, referenceKey } from '../../shared/sessions/prs';
 import { appendStamped } from '../files/stamp';
 import { goodCopy, writeWithBackups } from '../files/backup';
 import { errorText, fsFailure, log, logOnce } from '../logs/log';
@@ -669,7 +669,7 @@ export function unfinish(ids: string[], by?: 'resume'): Promise<Record<string, n
 }
 
 /**
- * Drop a session from all metadata (used when it is deleted), by the rule the window's checks answer with too (`purgedSession`, src/shared/sessionmarks.ts).
+ * Drop a session from all metadata (used when it is deleted), by the rule the window's checks answer with too (`purgedSession`, src/shared/status/sessionmarks.ts).
  * History pins stay: they are keyed by the request or message, which a fork sibling may still carry, and telling which pins nothing opens any more needs every transcript read — a job for a list of every pin, not for a delete.
  */
 export function purgeSession(id: string): Promise<void> {
@@ -1122,7 +1122,7 @@ export function getProjectOrder(): Promise<string[]> {
 }
 
 /**
- * Give every root a slot and return the order (`seededOrder`, src/shared/grouping.ts, which the window's checks answer with too).
+ * Give every root a slot and return the order (`seededOrder`, src/shared/sessions/grouping.ts, which the window's checks answer with too).
  * An EMPTY order is seeded from `roots` exactly as given (the caller passes them in the order they already appear, so the run that introduced this changed nothing on screen); an existing order gets unknown roots at the FRONT, so a project that shows up later is somewhere you'll see it.
  * One rule: every root in front of an empty order is the roots as given.
  *
@@ -1165,7 +1165,7 @@ function setGroupState(meta: Meta, next: GroupState): GroupState {
   return groupState(meta);
 }
 
-// The rules for each change are in src/shared/grouping.ts.
+// The rules for each change are in src/shared/sessions/grouping.ts.
 export function createGroup(name: string, repoRoot: string | null, sessionId?: string): Promise<GroupState> {
   return update('createGroup', (meta) => setGroupState(meta, createdGroup(groupState(meta), randomUUID(), name, repoRoot, sessionId)));
 }

@@ -1,4 +1,4 @@
-import { dayStart, onDayAt, timeOfDay } from './time';
+import { dayStart, onDayAt, timeOfDay } from '../helpers/time';
 
 /**
  * THE SET-ASIDE CHOICES: the presets in `settings.json` (`setAside`), read, checked and worked out into moments, pure and shared, so the settings' check in main and the choices the window offers read one grammar (docs/architecture/status-cues.md § Status cues).

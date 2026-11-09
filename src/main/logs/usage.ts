@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { app } from 'electron';
-import { sameReason } from '../../shared/sessionmarks';
+import { sameReason } from '../../shared/status/sessionmarks';
 import type { NeedsYou, SettledBy } from '../../shared/types';
 import { errorText, logOnce } from './log';
 import { inTurn } from '../files/queue';

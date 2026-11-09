@@ -1,4 +1,4 @@
-import { prReference } from '../../../../shared/prs';
+import { prReference } from '../../../../shared/sessions/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDanger, confirmDelete, promptText } from '../../../dialogs';
 import { clockLines, clockOf, entityKey, folderName, leaveAction, leaveLabel, relativeTime, sessionLabel, setAsideUntil, unstartableReason, type LeaveAction } from '../../../logic';

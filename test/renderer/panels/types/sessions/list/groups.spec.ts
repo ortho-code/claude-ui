@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { defaultUi } from '../../../../../../src/shared/defaults';
+import { defaultUi } from '../../../../../../src/shared/config/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';

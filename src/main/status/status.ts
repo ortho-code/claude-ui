@@ -8,7 +8,7 @@ import { statusDir, hookScriptPath, statusSettingsFile, shellQuote } from '../pa
 import { errorText, fsFailure, log } from '../logs/log';
 import { writeFileAtomic } from '../files/atomic';
 import { StringDecoder } from 'node:string_decoder';
-import { scheduledTasksOf } from '../../shared/scheduled';
+import { scheduledTasksOf } from '../../shared/status/scheduled';
 import type { ScheduledTask } from '../../shared/types';
 
 const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
@@ -159,7 +159,7 @@ fi
 if [ "$status" = start ] && [ -e "$dir/$sid.json" ]; then
   exit 0
 fi
-# A prompt goes along with its status, so the app can tell yours from a turn claude starts itself, which fires UserPromptSubmit too (startedByClaude, src/shared/scheduled.ts).
+# A prompt goes along with its status, so the app can tell yours from a turn claude starts itself, which fires UserPromptSubmit too (startedByClaude, src/shared/status/scheduled.ts).
 # Taken as the payload holds it, a JSON string's inside, escapes and all, so it is one in the line as well.
 if [ "$status" = busy ] && [ "$(field hook_event_name)" = UserPromptSubmit ]; then
   said="$(printf '%s' "$input" | grep -oE '"prompt"[[:space:]]*:[[:space:]]*"([^"\\\\]|\\\\.)*"' | head -1 | sed -E 's/^"prompt"[[:space:]]*:[[:space:]]*"//; s/"$//')"

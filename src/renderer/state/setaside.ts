@@ -1,5 +1,5 @@
-import { typeIsOn } from '../../shared/needsyou';
-import { cameDue, clearedSetAside, markedSetAside } from '../../shared/sessionmarks';
+import { typeIsOn } from '../../shared/status/needsyou';
+import { cameDue, clearedSetAside, markedSetAside } from '../../shared/status/sessionmarks';
 import { store } from './app';
 
 /**

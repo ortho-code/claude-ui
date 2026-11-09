@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_LOOKS, PALETTE } from '../../../src/shared/looks';
+import { DEFAULT_LOOKS, PALETTE } from '../../../src/shared/status/looks';
 import { lookClass, lookOf, lookRules } from '../../../src/renderer/looks';
 
 describe('lookOf', () => {

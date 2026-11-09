@@ -1,4 +1,4 @@
-import { approvalsRequired, prKey, prReference, referenceKey } from '../../../../shared/prs';
+import { approvalsRequired, prKey, prReference, referenceKey } from '../../../../shared/sessions/prs';
 import type { PrRef, PrSeen, PrStatusRead } from '../../../../shared/types';
 import { entityKey } from '../../../logic';
 import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../prstatus';

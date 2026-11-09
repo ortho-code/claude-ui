@@ -1,4 +1,4 @@
-import { ICONS, type IconName } from '../../shared/icons';
+import { ICONS, type IconName } from '../../shared/helpers/icons';
 import { strokeIcon } from '../svg';
 
 /** An icon as SVG markup, at `size` px, through the one helper every stroked icon in the app is drawn with. */

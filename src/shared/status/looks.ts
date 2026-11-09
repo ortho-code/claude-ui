@@ -3,7 +3,7 @@
  * Pure and shared: main checks `settings.json`'s `strength` and `looks` by it, and the window ranks and draws by it.
  */
 
-import { isIconName, type IconName } from './icons';
+import { isIconName, type IconName } from '../helpers/icons';
 import type { NeedsYouRegistry } from './needsyou';
 
 /** The statuses a hook reports, each an entry of the order. */

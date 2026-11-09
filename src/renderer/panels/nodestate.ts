@@ -1,4 +1,4 @@
-import { keptOver } from '../../shared/kept';
+import { keptOver } from '../../shared/sessions/kept';
 import { NODE_STATE_FIELDS, nodeStateProblem, spelledSize, type NodeState, type PanelState } from '../../shared/panels';
 import { DEFAULT_LAYOUT, pxOf, type ResolvedNode } from './layout';
 import { roundShare } from './sizes';

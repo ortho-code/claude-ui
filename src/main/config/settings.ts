@@ -7,13 +7,13 @@ import { readJsoncFileWithDuplicates } from './jsonc';
 import { errorText, log } from '../logs/log';
 import { getMoved, getSettings as getMetaSettings, markMoved } from '../sessions/meta';
 import { settingsFile, settingsLocalFile } from '../paths';
-import { defaultSettings } from '../../shared/defaults';
-import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/needsyou';
-import { fileEdits, saveRefusal, SETTING_KEYS, settingProblem, settingsInForce, settingsView, valuesOf, type SettingKey, type SettingsChange, type SettingsFileRead, type SettingsSaved, type SettingsView } from '../../shared/settings';
+import { defaultSettings } from '../../shared/config/defaults';
+import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/needsyou';
+import { fileEdits, saveRefusal, SETTING_KEYS, settingProblem, settingsInForce, settingsView, valuesOf, type SettingKey, type SettingsChange, type SettingsFileRead, type SettingsSaved, type SettingsView } from '../../shared/config/settings';
 import type { Settings } from '../../shared/types';
 
 /**
- * The app's preferences, from the config folder: `settings.json`, which you edit and Settings saves into, read by the rules in shared/settings.ts.
+ * The app's preferences, from the config folder: `settings.json`, which you edit and Settings saves into, read by the rules in shared/config/settings.ts.
  * Read afresh whenever asked, a session's start included, so an edit counts from the next session on.
  * A file that does not parse keeps what it last read in force, as the layout file does, so a half-saved edit costs nothing.
  */

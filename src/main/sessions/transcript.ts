@@ -4,7 +4,7 @@
  */
 
 import { promises as fs } from 'node:fs';
-import { readFrom } from '../../shared/history';
+import { readFrom } from '../../shared/sessions/history';
 import type { Exchange, HistorySlice, ReplyPart } from '../../shared/types';
 import { fsFailure, logOnce } from '../logs/log';
 
@@ -441,7 +441,7 @@ function readOn(file: string, cursor: Cursor, chunkBytes: number): Promise<void>
 
 /**
  * The history of the transcript at `file`, for a caller that holds `known` exchanges of `generation`.
- * The first call reads the whole file; later calls read only what was appended, and where the answer starts is `readFrom`'s rule (src/shared/history.ts).
+ * The first call reads the whole file; later calls read only what was appended, and where the answer starts is `readFrom`'s rule (src/shared/sessions/history.ts).
  */
 export function readHistory(file: string, known: number, generation: number, chunkBytes = CHUNK_BYTES): Promise<HistorySlice> {
   let cursor = cursors.get(file);

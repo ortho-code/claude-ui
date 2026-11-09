@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { parseLaunchFlags, isReservedFlag, flagNames } from '../../../src/shared/flags';
+import { parseLaunchFlags, isReservedFlag, flagNames } from '../../../../src/shared/config/flags';
 
 // Only needed for the reserved-list cross-check below, which imports terminal.ts.
 vi.mock('electron', () => ({
@@ -9,7 +9,7 @@ vi.mock('electron', () => ({
 }));
 vi.mock('node-pty', () => ({ spawn: () => ({}) }));
 
-import { claudeArgs } from '../../../src/main/pty/terminal';
+import { claudeArgs } from '../../../../src/main/pty/terminal';
 
 const ok = (input: string): string[] => {
   const parsed = parseLaunchFlags(input);

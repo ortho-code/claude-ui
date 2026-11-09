@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { firesFor, needsYouRegistry, typeIsOn, withChanges } from '../../../src/shared/needsyou';
+import { firesFor, needsYouRegistry, typeIsOn, withChanges } from '../../../../src/shared/status/needsyou';
 
 const category = (id: string, order: number, more: object = {}) => ({ name: `${id}.jsonc`, json: { kind: 'category', id, label: id, order, ...more } });
 const type = (id: string, cat: string, more: object = {}) => ({ name: `${id}.jsonc`, json: { kind: 'type', id, label: id, category: cat, ...more } });

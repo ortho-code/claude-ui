@@ -1,7 +1,7 @@
-import { defaultUi } from '../../shared/defaults';
-import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/needsyou';
+import { defaultUi } from '../../shared/config/defaults';
+import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/needsyou';
 import type { PanelData } from '../../shared/panels';
-import type { SettingsView } from '../../shared/settings';
+import type { SettingsView } from '../../shared/config/settings';
 import type { GroupState, SetAside, NeedsYou, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../logic';
 import { NO_PR_STATUS } from '../prstatus';

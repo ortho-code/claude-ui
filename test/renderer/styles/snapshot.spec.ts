@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { defaultUi } from '../../../src/shared/defaults';
+import { defaultUi } from '../../../src/shared/config/defaults';
 import type { Exchange, UiState } from '../../../src/shared/types';
 import { LAYOUT, runs, withLayout } from '../panels/layout/layout';
 import { type BridgeFixture, CONFIG_ROOT, HOME, PROJECT, session, settingsFileWith } from '../support/fixture';

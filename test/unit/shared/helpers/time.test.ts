@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayStart, onDayAt, timeOfDay } from '../../../src/shared/time';
+import { dayStart, onDayAt, timeOfDay } from '../../../../src/shared/helpers/time';
 
 describe('local days and times of day', () => {
   // Local times: Thursday 29 October 2026, mid-afternoon.

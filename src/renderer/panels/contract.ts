@@ -1,6 +1,6 @@
 import type { LeaveAction, TabButtonMark } from '../logic';
 import type { MenuItem } from '../menu';
-import type { IconName } from '../../shared/icons';
+import type { IconName } from '../../shared/helpers/icons';
 import type { SessionPr } from '../../shared/types';
 import type { PanelSlot } from './layout';
 import type { OptionsDecl } from './options';

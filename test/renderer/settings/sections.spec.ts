@@ -1,4 +1,4 @@
-import type { SettingsFileRead } from '../../../src/shared/settings';
+import type { SettingsFileRead } from '../../../src/shared/config/settings';
 import { settingsFileWith } from '../support/fixture';
 import { expect, test } from '../support/harness';
 import { openSettings } from '../support/settings';

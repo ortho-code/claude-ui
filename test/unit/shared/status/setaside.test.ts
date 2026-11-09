@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parsePreset, presetMoment, presetsProblem, presetWords, setAsideOffers } from '../../../src/shared/setaside';
+import { parsePreset, presetMoment, presetsProblem, presetWords, setAsideOffers } from '../../../../src/shared/status/setaside';
 
 // Wednesday 4 November 2026, 10:30 local time.
 const now = new Date(2026, 10, 4, 10, 30).getTime();

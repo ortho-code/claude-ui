@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pastedPaths } from '../../../src/shared/paste';
+import { pastedPaths } from '../../../../src/shared/helpers/paste';
 
 describe('pastedPaths', () => {
   it('leaves a plain path as it is', () => {

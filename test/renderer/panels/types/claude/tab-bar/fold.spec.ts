@@ -1,4 +1,4 @@
-import { defaultUi } from '../../../../../../src/shared/defaults';
+import { defaultUi } from '../../../../../../src/shared/config/defaults';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { row, tab, tabBarFold, tabBarGroup, tabBarGroupRow, tabBarProject, tabBarRows, tabLabels, tabLabelsIn } from '../../../../support/window';

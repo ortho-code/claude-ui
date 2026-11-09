@@ -1,4 +1,4 @@
-import type { RunningAtLaunch } from '../../../../../../src/shared/settings';
+import type { RunningAtLaunch } from '../../../../../../src/shared/config/settings';
 import type { ClosedHow, TerminalLaunch } from '../../../../../../src/shared/types';
 import { type BridgeFixture, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';

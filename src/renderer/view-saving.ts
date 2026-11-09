@@ -1,5 +1,5 @@
 import type { PanelState } from '../shared/panels';
-import { defaultUi } from '../shared/defaults';
+import { defaultUi } from '../shared/config/defaults';
 import type { UiState } from '../shared/types';
 import { holdLegacyState } from './panels/tree';
 import { restoreTerminalArea, terminalAreaSnapshot } from './panels/types/claude/stored-view';

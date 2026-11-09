@@ -1,13 +1,13 @@
-import { parseLaunchFlags } from '../shared/flags';
-import type { FolderName } from '../shared/folders';
-import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
-import { presetsProblem } from '../shared/setaside';
-import { timeOfDay } from '../shared/time';
-import { defaultSettings } from '../shared/defaults';
-import { changedSettings, fileChanges, languageTag, LEAVE_BUTTON, RUNNING_AT_LAUNCH, sameValue, type ChangedSetting, type LeaveButton, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsChange, type SettingsView } from '../shared/settings';
-import { expandedStrength, NEEDS_YOU, YOUR_TURN_STATUS } from '../shared/looks';
-import type { NeedsYouRegistry } from '../shared/needsyou';
-import { PR_ROLES } from '../shared/prs';
+import { parseLaunchFlags } from '../shared/config/flags';
+import type { FolderName } from '../shared/helpers/folders';
+import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/helpers/log';
+import { presetsProblem } from '../shared/status/setaside';
+import { timeOfDay } from '../shared/helpers/time';
+import { defaultSettings } from '../shared/config/defaults';
+import { changedSettings, fileChanges, languageTag, LEAVE_BUTTON, RUNNING_AT_LAUNCH, sameValue, type ChangedSetting, type LeaveButton, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsChange, type SettingsView } from '../shared/config/settings';
+import { expandedStrength, NEEDS_YOU, YOUR_TURN_STATUS } from '../shared/status/looks';
+import type { NeedsYouRegistry } from '../shared/status/needsyou';
+import { PR_ROLES } from '../shared/sessions/prs';
 import type { PrRole, Settings } from '../shared/types';
 import { element } from './dom';
 import { statusLabel } from './logic';
@@ -179,7 +179,7 @@ const SECTIONS: Section[] = [
   },
 ];
 
-// App preferences, from the config folder: settings.json, which you edit and this dialog saves into (shared/settings.ts), said once under the title.
+// App preferences, from the config folder: settings.json, which you edit and this dialog saves into (shared/config/settings.ts), said once under the title.
 // Under a field, a value of the file's that is not used and why; under the title, over every section, what is wrong with the file as a whole.
 // The sections are a vertical tab list beside the one on show, all in one box of fixed size, so switching never moves Save under the pointer.
 document.body.insertAdjacentHTML(
@@ -739,7 +739,7 @@ function render(view: SettingsView): void {
  *
  * Shares the overlay skin and `runModal`'s behaviour with the other dialogs, but is its own form rather than a call to `promptText`: that one is a transient prompt built per call, this is a fixed screen of sections.
  * One Save for every section: an edit in one stays while another is on show, and a save refused over a field shows that field's section.
- * Saving is validated by the same parser the launcher uses (shared/flags.ts), so what the field accepts and what a session gets can't disagree.
+ * Saving is validated by the same parser the launcher uses (shared/config/flags.ts), so what the field accepts and what a session gets can't disagree.
  * It saves into `settings.json`, writing a setting whose value changed, or whose value in the file is not used (`fileChanges`), so a save that changes nothing leaves a file with no such value as it was.
  */
 export async function openSettings(): Promise<void> {

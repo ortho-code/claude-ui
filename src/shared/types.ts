@@ -354,7 +354,7 @@ export interface WindowChrome {
 }
 
 /**
- * Deliberate preferences, kept apart from UiState on purpose: in the config folder, in `settings.json`, which you edit and Settings saves into (shared/settings.ts).
+ * Deliberate preferences, kept apart from UiState on purpose: in the config folder, in `settings.json`, which you edit and Settings saves into (shared/config/settings.ts).
  *
  * UiState is where you LEFT the app — which project, which folds, how far down the list.
  * This is what you CHOSE, and the two are separated so that a future "reset settings" cannot throw away your place in the app, and so that clearing your place cannot silently undo a choice.
@@ -374,19 +374,19 @@ export interface Settings {
   prStatus: boolean;
   /** What a tab's button does: stop a running session and then close the tab or mark its session finished, close or finish in one press, claude asked to leave first, or no button at all, leaving it to the tab's menu. */
   leaveButton: LeaveButton;
-  /** The choices for setting a session aside, as written (shared/setaside.ts), offered in the order they would come with Whenever last. */
+  /** The choices for setting a session aside, as written (shared/status/setaside.ts), offered in the order they would come with Whenever last. */
   setAside: string[];
   /** The time of day a choice without one comes back at, as `"HH:MM"` in 24 hours; Pick a date… starts at it. */
   setAsideTime: string;
   /** The language the app formats times and dates in, as a BCP 47 tag such as `"en-GB"`, or `""` for the system's; a time field follows it from the next launch, the rest at once. */
   locale: string;
-  /** Which state a session's dot shows when several hold, the first that holds: every status, `needs-you` for the categories not named, and any category named on its own (shared/looks.ts). */
+  /** Which state a session's dot shows when several hold, the first that holds: every status, `needs-you` for the categories not named, and any category named on its own (shared/status/looks.ts). */
   strength: string[];
-  /** How a status, `needs-you`, a category or a type is drawn, by its id, each entry the fields it changes; anything not set is drawn as before (shared/looks.ts). */
+  /** How a status, `needs-you`, a category or a type is drawn, by its id, each entry the fields it changes; anything not set is drawn as before (shared/status/looks.ts). */
   looks: Record<string, Look>;
-  /** What you change of the needs-you categories and types the app ships, by id, each entry the fields it changes, such as `"enabled": false` (shared/needsyou.ts). */
+  /** What you change of the needs-you categories and types the app ships, by id, each entry the fields it changes, such as `"enabled": false` (shared/status/needsyou.ts). */
   needsYou: Record<string, NeedsYouChange>;
-  /** How many approvals a PR needs before it counts as approved, by repository as `owner/name`; a repository not named counts as approved when GitHub says so (shared/prs.ts). */
+  /** How many approvals a PR needs before it counts as approved, by repository as `owner/name`; a repository not named counts as approved when GitHub says so (shared/sessions/prs.ts). */
   approvals: Record<string, number>;
 }
 
@@ -451,11 +451,11 @@ export interface UiState {
 }
 
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
-import type { FolderName } from './folders';
-import type { NeedsYouChange, NeedsYouRegistry } from './needsyou';
-import type { LogLevel } from './log';
-import type { Look } from './looks';
-import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './settings';
+import type { FolderName } from './helpers/folders';
+import type { NeedsYouChange, NeedsYouRegistry } from './status/needsyou';
+import type { LogLevel } from './helpers/log';
+import type { Look } from './status/looks';
+import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './config/settings';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
@@ -556,7 +556,7 @@ export interface ClaudeUiApi {
   /** The sidebar's view state — search, filters, folds, width, scroll — as it was last left. */
   getUiState(): Promise<UiState>;
   setUiState(state: UiState): void;
-  /** The app's preferences: each one in force, and what is wrong with the file (shared/settings.ts). */
+  /** The app's preferences: each one in force, and what is wrong with the file (shared/config/settings.ts). */
   getSettings(): Promise<SettingsView>;
   /**
    * Change the app's preferences, in `settings.json`; resolves to the settings as they then stand.
@@ -624,7 +624,7 @@ export interface ClaudeUiApi {
    * Unknown roots go to the front (a new project should be noticed); the very first call seeds the order from `roots` as given, so nothing jumps on the run that introduces this.
    */
   seedProjectOrder(roots: string[]): Promise<string[]>;
-  /** Reorder one project among the `shown` ones, the projects on screen, stepping over the rest (`movedProject`, src/shared/grouping.ts). */
+  /** Reorder one project among the `shown` ones, the projects on screen, stepping over the rest (`movedProject`, src/shared/sessions/grouping.ts). */
   moveProject(repoRoot: string, move: OrderMove, shown: string[]): Promise<string[]>;
   /**
    * Note, for the record, that `/clear` replaced session `from` with session `to`.

@@ -1,6 +1,6 @@
-import { DEFAULT_STRENGTH, expandedStrength } from '../../shared/looks';
-import { categoryOf, type NeedsYouRegistry } from '../../shared/needsyou';
-import { mutedBySetAside } from '../../shared/sessionmarks';
+import { DEFAULT_STRENGTH, expandedStrength } from '../../shared/status/looks';
+import { categoryOf, type NeedsYouRegistry } from '../../shared/status/needsyou';
+import { mutedBySetAside } from '../../shared/status/sessionmarks';
 import type { SetAside, NeedsYou, SessionGroup, SessionSummary } from '../../shared/types';
 import { displayName, entityKey, inView, isNeeds, projectRootExists, projectsForSwitcher, sessionPart, sessionsByKey, shownState, tabButton, unstartableReason, type NudgeStatus, type Strength, type SwitcherModel, type TabButton, type TabButtonTab } from '../logic';
 import { sameOrder, store, type TabState, type View } from './app';

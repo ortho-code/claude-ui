@@ -1,5 +1,5 @@
 import { OPTION_NAME, typeFolder, type TypeReport } from '../../../shared/panels';
-import { ICON_NAMES, isIconName, type IconName } from '../../../shared/icons';
+import { ICON_NAMES, isIconName, type IconName } from '../../../shared/helpers/icons';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
 import { CWD_OPTION, INTERVAL_OPTION, LIST_WATCH_OPTION, isFixedPath, valueProblem, type OptionDecl } from '../options';
 import { fieldsOf, unknownFields } from '../fields';

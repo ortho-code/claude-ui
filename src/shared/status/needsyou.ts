@@ -4,9 +4,9 @@
  * Pure, so main's reading and the tests check them by the same rules.
  */
 
-import { overriddenById, type FieldCheck } from './overrides';
-import { PR_ROLES } from './prs';
-import type { NeedsYou, PrChange, PrNeedsYouType, PrRole } from './types';
+import { overriddenById, type FieldCheck } from '../config/overrides';
+import { PR_ROLES } from '../sessions/prs';
+import type { NeedsYou, PrChange, PrNeedsYouType, PrRole } from '../types';
 
 /**
  * The PR types, each with the words for its change: the order several found in one answer are named in, strongest first, as "PR #7 checks failed, approved" says them.

@@ -1,5 +1,5 @@
 import type { Locator } from '@playwright/test';
-import { PALETTE } from '../../../src/shared/looks';
+import { PALETTE } from '../../../src/shared/status/looks';
 import { settingsFileWith } from '../support/fixture';
 import { expect, test } from '../support/harness';
 import { openSettings } from '../support/settings';

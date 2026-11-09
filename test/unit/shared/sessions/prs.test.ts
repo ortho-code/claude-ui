@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { approvalsProblem, approvalsRequired, prFromUrl, prKey, roleOf, withPrLinks } from '../../../src/shared/prs';
+import { approvalsProblem, approvalsRequired, prFromUrl, prKey, roleOf, withPrLinks } from '../../../../src/shared/sessions/prs';
 
 describe('withPrLinks', () => {
   const pr = (repository: string, number: number) => ({ repository, number, url: `https://github.com/${repository}/pull/${number}` });

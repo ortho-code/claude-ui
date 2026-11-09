@@ -1,12 +1,12 @@
-import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
-import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
-import { NO_NEEDS_YOU_TYPES } from '../../../src/shared/needsyou';
+import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/sessions/history';
+import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/sessions/grouping';
+import { NO_NEEDS_YOU_TYPES } from '../../../src/shared/status/needsyou';
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
-import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
-import { prKey, withPrLinks } from '../../../src/shared/prs';
-import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/sessionmarks';
-import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
-import { withText } from '../../../src/shared/text';
+import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/helpers/pathcheck';
+import { prKey, withPrLinks } from '../../../src/shared/sessions/prs';
+import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/status/sessionmarks';
+import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/config/settings';
+import { withText } from '../../../src/shared/helpers/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
 import { posix } from './posix';
@@ -95,7 +95,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     onQuitting: on('onQuitting'),
     onClaudeMissing: on('onClaudeMissing'),
     getPinned: () => answer(fixture.pinned),
-    // The marks are main's own rules (src/shared/sessionmarks.ts), kept in the fixture, so a later read answers with what the change left.
+    // The marks are main's own rules (src/shared/status/sessionmarks.ts), kept in the fixture, so a later read answers with what the change left.
     togglePin: (id) => answer((fixture.pinned = togglePinned(fixture.pinned, id))),
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
@@ -189,7 +189,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     setNote: (id, note) => answer((fixture.notes = withText(fixture.notes, id, note))),
     getUiState: () => answer(fixture.uiState),
     setUiState: sent,
-    // Main's rules (src/shared/settings.ts) over the fixture's settings.json in place of main's read of it, numbered as main numbers its reads.
+    // Main's rules (src/shared/config/settings.ts) over the fixture's settings.json in place of main's read of it, numbered as main numbers its reads.
     getSettings: () => answer(readSettings()),
     // Main checks the value, refuses a save of a setting the file names more than once (`saveRefusal`), and writes what `fileChanges` says into settings.json, then reads it again for its answer; a file that does not parse it refuses to write over, as `editAppFile` words it, answering with the file as it reads.
     setSettings: (change) => {
@@ -217,7 +217,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     endWindowResize: sent,
     onWindowMaximized: on('onWindowMaximized'),
     getProjectNames: () => answer(fixture.projectNames),
-    // Where sessions sit is main's own rules too (src/shared/grouping.ts), kept in the fixture the same way; a new group's id is minted here, as main mints it.
+    // Where sessions sit is main's own rules too (src/shared/sessions/grouping.ts), kept in the fixture the same way; a new group's id is minted here, as main mints it.
     setProjectName: (repoRoot, name) => answer((fixture.projectNames = withText(fixture.projectNames, repoRoot, name))),
     getGroupState: () => answer(fixture.groupState),
     createGroup: (name, repoRoot, sessionId) => answer((fixture.groupState = createdGroup(fixture.groupState, crypto.randomUUID(), name, repoRoot, sessionId))),

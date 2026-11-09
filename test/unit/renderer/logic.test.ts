@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_STRENGTH, expandedStrength } from '../../../src/shared/looks';
-import { categoryOf } from '../../../src/shared/needsyou';
+import { DEFAULT_STRENGTH, expandedStrength } from '../../../src/shared/status/looks';
+import { categoryOf } from '../../../src/shared/status/needsyou';
 import type { NeedsYou, PrNeedsYouType, SessionCheckout, SessionSummary } from '../../../src/shared/types';
 import { bundledNeedsYou } from '../../renderer/support/needsyou';
 import {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { defaultUi } from '../../../../src/shared/defaults';
+import { defaultUi } from '../../../../src/shared/config/defaults';
 import type { LayoutReport, PanelState } from '../../../../src/shared/panels';
 import { resolveLayout, type ResolvedNode } from '../../../../src/renderer/panels/layout';
 import { idsIn, readNodeState, stateFromPanelState } from '../../../../src/renderer/panels/nodestate';

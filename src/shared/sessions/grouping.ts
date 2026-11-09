@@ -1,8 +1,8 @@
-import type { GroupState, OrderMove, SessionGroup } from './types';
+import type { GroupState, OrderMove, SessionGroup } from '../types';
 
 /**
  * Main's rules for where sessions sit — the projects in the order you set, and the groups inside a project — pure, so that the window's checks answer them the way main does.
- * Main (src/main/sessions/meta.ts) applies them inside its serialised writes of `meta.json`; a project's name is written with `withText` (src/shared/text.ts).
+ * Main (src/main/sessions/meta.ts) applies them inside its serialised writes of `meta.json`; a project's name is written with `withText` (src/shared/helpers/text.ts).
  * Every group change hands back the WHOLE state, since the registry and the membership only make sense together, and never changes the one it was given.
  */
 

@@ -1,9 +1,9 @@
-import { defaultUi } from '../../../src/shared/defaults';
-import type { FolderName } from '../../../src/shared/folders';
-import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../../src/shared/needsyou';
+import { defaultUi } from '../../../src/shared/config/defaults';
+import type { FolderName } from '../../../src/shared/helpers/folders';
+import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../../src/shared/status/needsyou';
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
-import type { Found } from '../../../src/shared/pathcheck';
-import type { SettingsFileRead } from '../../../src/shared/settings';
+import type { Found } from '../../../src/shared/helpers/pathcheck';
+import type { SettingsFileRead } from '../../../src/shared/config/settings';
 import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, SettledNeedsYou, PrSeen, PrStatus, ScheduledTask, SessionPr, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
@@ -43,7 +43,7 @@ export interface BridgeFixture {
   activeSessionByProject: Record<string, string>;
   activeProject: string | null;
   uiState: UiState;
-  /** `settings.json` as main reads it (shared/settings.ts); a save writes into its `json`. */
+  /** `settings.json` as main reads it (shared/config/settings.ts); a save writes into its `json`. */
   settings: SettingsFileRead;
   windowChrome: WindowChrome;
   /** Whether main says the app runs under WSL; not, unless a check says so, which is the case the window changes nothing for. */

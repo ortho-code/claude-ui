@@ -1,4 +1,4 @@
-import type { PathFunctions } from '../../../src/shared/pathcheck';
+import type { PathFunctions } from '../../../src/shared/helpers/pathcheck';
 
 /**
  * Node's `path.posix.join` and `path.posix.resolve` for the stand-in, which runs in the page where Node's `path` is not, so that `checkPath` is answered by main's own rule (`resolvePathIn`).

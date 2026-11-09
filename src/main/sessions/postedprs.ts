@@ -1,4 +1,4 @@
-import { prFromUrl } from '../../shared/prs';
+import { prFromUrl } from '../../shared/sessions/prs';
 import type { SessionPr } from '../../shared/types';
 
 /**

@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { log, logCrash } from './log';
 import { formatDuration } from '../files/stamp';
-import { LOG_LEVELS, RENDERER_LINE_MAX, type LogLevel } from '../../shared/log';
+import { LOG_LEVELS, RENDERER_LINE_MAX, type LogLevel } from '../../shared/helpers/log';
 
 export interface InstallFacts {
   packaged: boolean;

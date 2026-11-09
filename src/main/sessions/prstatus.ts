@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { ipcMain } from 'electron';
-import { prKey, roleOf } from '../../shared/prs';
+import { prKey, roleOf } from '../../shared/sessions/prs';
 import type { PrRef, PrRole, PrStatus, PrStatusRead } from '../../shared/types';
 import { log } from '../logs/log';
 import { inheritedEnv, shellCommand, terminateGroup } from '../pty/shell';

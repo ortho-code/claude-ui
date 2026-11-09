@@ -6,7 +6,7 @@ import * as readline from 'node:readline';
 import { createReadStream } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { prKey } from '../../shared/prs';
+import { prKey } from '../../shared/sessions/prs';
 import type { SessionCheckout, SessionPr, SessionSummary } from '../../shared/types';
 import { errorText, fsFailure, log, logOnce } from '../logs/log';
 import { postedPrs } from './postedprs';

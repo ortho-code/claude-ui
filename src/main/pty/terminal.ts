@@ -4,7 +4,7 @@ import { existsSync, readlinkSync } from 'node:fs';
 import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from '../status/status';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup } from './shell';
 import { contextEnv } from '../panels/panels';
-import { flagNames, parseLaunchFlags } from '../../shared/flags';
+import { flagNames, parseLaunchFlags } from '../../shared/config/flags';
 import { settingsNow } from '../config/settings';
 import { log } from '../logs/log';
 import { formatDuration } from '../files/stamp';

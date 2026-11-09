@@ -1,7 +1,7 @@
 import type { PanelView } from '../contract';
 import { fieldsOf } from '../fields';
-import { ICON_NAMES, isIconName } from '../../../shared/icons';
-import { prFromUrl } from '../../../shared/prs';
+import { ICON_NAMES, isIconName } from '../../../shared/helpers/icons';
+import { prFromUrl } from '../../../shared/sessions/prs';
 import type { SessionPr } from '../../../shared/types';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
 import { TONES, type Tone } from '../../tone';

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { withText } from '../../../src/shared/text';
+import { withText } from '../../../../src/shared/helpers/text';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with for a note and a project's name; this holds what the window's checks rely on too: a new value, the given one untouched.
 describe('withText', () => {

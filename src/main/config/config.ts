@@ -4,7 +4,7 @@ import { homedir } from 'node:os';
 import * as path from 'node:path';
 import { configRoot, layoutsDir, scriptsDir, typesDir, defaultLayoutFile, defaultLocalLayoutFile } from '../paths';
 import type { LayoutReport, PathBase, PathCheck, PathKind, TypeReport } from '../../shared/panels';
-import { pathProblem, resolvePathIn, type Found } from '../../shared/pathcheck';
+import { pathProblem, resolvePathIn, type Found } from '../../shared/helpers/pathcheck';
 import { ownWrites } from './appfiles';
 import { readJsoncFile } from './jsonc';
 import { readLocalLayout } from '../panels/layoutstate';
@@ -18,7 +18,7 @@ import { fsFailure, log } from '../logs/log';
  */
 
 /**
- * Where a path option points (`resolvePathIn` in src/shared/pathcheck.ts, the rule itself), against this machine's home directory and config folder, joined and resolved by Node's own `path`.
+ * Where a path option points (`resolvePathIn` in src/shared/helpers/pathcheck.ts, the rule itself), against this machine's home directory and config folder, joined and resolved by Node's own `path`.
  * The ONE resolver, used by a panel's check and by the run and the shell start that follow it, so the check and the use cannot disagree about which file or folder was meant.
  */
 export function resolvePath(value: string, base: PathBase): string {

@@ -19,8 +19,8 @@ vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({
 
 // A filter that defaults to on, for the one check that needs one: none does yet, and the rule for a key a file does not have is only seen with one.
 const { defaultsWith } = vi.hoisted(() => ({ defaultsWith: { pinnedOn: false } }));
-vi.mock('../../../../src/shared/defaults', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../src/shared/defaults')>();
+vi.mock('../../../../src/shared/config/defaults', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../src/shared/config/defaults')>();
   return {
     ...actual,
     defaultUi: () => {

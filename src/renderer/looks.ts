@@ -1,11 +1,11 @@
-import { ICONS, isIconName } from '../shared/icons';
-import { NEEDS_YOU, resolvedLooks, type ResolvedLook } from '../shared/looks';
+import { ICONS, isIconName } from '../shared/helpers/icons';
+import { NEEDS_YOU, resolvedLooks, type ResolvedLook } from '../shared/status/looks';
 import { isNeeds } from './logic';
 import type { View } from './state/app';
 import { strokeIcon, svgImage } from './svg';
 
 /**
- * THE LOOKS' STYLESHEET: every status's, category's and type's look, as `settings.json`'s `looks` and the defaults resolve them (shared/looks.ts), written into the page as one stylesheet, a rule per look on its class (`lookClass`).
+ * THE LOOKS' STYLESHEET: every status's, category's and type's look, as `settings.json`'s `looks` and the defaults resolve them (shared/status/looks.ts), written into the page as one stylesheet, a rule per look on its class (`lookClass`).
  * A dot carries its look's class beside its state's (statusdot.ts), so no surface builds anything of its own for a look.
  */
 

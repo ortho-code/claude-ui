@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 
-import { pathProblem, resolvePathIn, type Found } from '../../../src/shared/pathcheck';
-import { posix } from '../../renderer/support/posix';
+import { pathProblem, resolvePathIn, type Found } from '../../../../src/shared/helpers/pathcheck';
+import { posix } from '../../../renderer/support/posix';
 
 const HOME = '/home/someone';
 const CONFIG = '/home/someone/.config/claude-ui/config';

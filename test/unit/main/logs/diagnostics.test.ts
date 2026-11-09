@@ -18,7 +18,7 @@ vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({
 }));
 
 import { describeInstall, logProcessFailures, registerRendererLog, sourceLabel, watchWindow } from '../../../../src/main/logs/diagnostics';
-import { RENDERER_LINE_MAX } from '../../../../src/shared/log';
+import { RENDERER_LINE_MAX } from '../../../../src/shared/helpers/log';
 import type { BrowserWindow } from 'electron';
 
 const facts = { packaged: true, appImage: undefined, execPath: '/opt/Claude UI/claude-ui-app', packageType: null };

@@ -34,6 +34,6 @@ Tagging a version runs CI's checks on it, then builds both on CI and publishes t
 - `src/renderer` — the window UI.
 - `src/renderer/state` — the store the window's surfaces share, and what more than one of them reads from it.
 - `src/renderer/panels` — the layout tree and the panel types: `panels/types/sessions` (the sidebar), `panels/types/claude` (the terminal area), and the others.
-- `src/shared` — types and pure helpers shared by both sides, and main's rules the window's checks answer with.
+- `src/shared` — what both sides use: `types.ts` and `panels.ts` at its root, which every side reads, then `sessions/`, `status/` and `config/` by area, the same as `src/main`, and `helpers/` for small pure helpers; main's rules the window's checks answer with live here too.
 - `test/` — the tests: unit tests in `test/unit/`, mirroring `src/`, the rules every comment and doc keeps in `test/text/`, and the window's checks in `test/renderer/`, filed by the panel or surface they check.
 - `docs/` — architecture and design notes.

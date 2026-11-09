@@ -1,6 +1,6 @@
 import { dialog, ipcMain, shell } from 'electron';
 import { mkdirSync } from 'node:fs';
-import type { FolderName } from '../../shared/folders';
+import type { FolderName } from '../../shared/helpers/folders';
 import { configRoot, logsDir } from '../paths';
 
 const FOLDERS: Record<FolderName, string> = { config: configRoot, logs: logsDir };

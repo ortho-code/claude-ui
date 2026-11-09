@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { overriddenById } from '../../../src/shared/overrides';
+import { overriddenById } from '../../../../src/shared/config/overrides';
 
 const shipped = [
   { id: 'a', kind: 'type', label: 'A', enabled: true },

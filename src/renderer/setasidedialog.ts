@@ -1,6 +1,6 @@
-import { defaultSettings } from '../shared/defaults';
-import { presetMoment, presetWords, setAsideOffers, type Preset } from '../shared/setaside';
-import { dayStart, onDayAt, timeOfDay } from '../shared/time';
+import { defaultSettings } from '../shared/config/defaults';
+import { presetMoment, presetWords, setAsideOffers, type Preset } from '../shared/status/setaside';
+import { dayStart, onDayAt, timeOfDay } from '../shared/helpers/time';
 import type { SetAside } from '../shared/types';
 import { calendar } from './calendar';
 import { momentLabel, setAsideUntil } from './logic';
@@ -11,7 +11,7 @@ import './setasidedialog.css';
 
 /**
  * SET ASIDE…: the one dialog that sets sessions aside, from a session's menu and from the bar of selecting several (docs/architecture/status-cues.md § Status cues).
- * When to come back, from the settings' choices (`setAside`, shared/setaside.ts) in the order they would come, then Pick a date… and Whenever; and where it stands, which is the session's note (decided 2026-11-05), so the line is there to read when the session comes back, after its mark has gone.
+ * When to come back, from the settings' choices (`setAside`, shared/status/setaside.ts) in the order they would come, then Pick a date… and Whenever; and where it stands, which is the session's note (decided 2026-11-05), so the line is there to read when the session comes back, after its mark has gone.
  */
 
 document.body.insertAdjacentHTML(

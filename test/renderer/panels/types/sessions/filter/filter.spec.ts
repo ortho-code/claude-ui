@@ -1,4 +1,4 @@
-import { defaultUi } from '../../../../../../src/shared/defaults';
+import { defaultUi } from '../../../../../../src/shared/config/defaults';
 import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { pixels, token } from '../../../../support/looks';

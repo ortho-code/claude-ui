@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { PALETTE } from '../../../../../src/shared/looks';
+import { PALETTE } from '../../../../../src/shared/status/looks';
 import { session, settingsFileWith } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { pixels } from '../../../support/looks';

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { startedByClaude } from '../../../src/shared/scheduled';
+import { startedByClaude } from '../../../../src/shared/status/scheduled';
 
 // Measured on claude 2.1.310: a background task's end and a cron firing each fire UserPromptSubmit, the first with a <task-notification> prompt, the second with the prompt its Stop listed.
 describe('startedByClaude', () => {

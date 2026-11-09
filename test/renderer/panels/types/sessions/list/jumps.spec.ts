@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { defaultUi } from '../../../../../../src/shared/defaults';
+import { defaultUi } from '../../../../../../src/shared/config/defaults';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test, type App } from '../../../../support/harness';
 import { group, groupHeading, projectHeading, row } from '../../../../support/window';

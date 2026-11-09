@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import type { SettingsFileRead } from '../../../../../../src/shared/settings';
+import type { SettingsFileRead } from '../../../../../../src/shared/config/settings';
 import type { PrStatus, SessionPr, SessionSummary } from '../../../../../../src/shared/types';
 import { session, settingsFileWith } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';

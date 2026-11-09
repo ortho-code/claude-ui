@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import { needsYouRegistry, type NeedsYouFile, type NeedsYouRegistry } from '../../shared/needsyou';
+import { needsYouRegistry, type NeedsYouFile, type NeedsYouRegistry } from '../../shared/status/needsyou';
 import { readJsoncFile } from '../config/jsonc';
 import { log } from '../logs/log';
 

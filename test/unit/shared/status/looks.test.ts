@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_LOOKS, DEFAULT_STRENGTH, PALETTE, expandedStrength, lookIds, looksProblem, resolvedLooks, strengthProblem, type Look } from '../../../src/shared/looks';
-import { withChanges } from '../../../src/shared/needsyou';
-import { bundledNeedsYou } from '../../renderer/support/needsyou';
+import { DEFAULT_LOOKS, DEFAULT_STRENGTH, PALETTE, expandedStrength, lookIds, looksProblem, resolvedLooks, strengthProblem, type Look } from '../../../../src/shared/status/looks';
+import { withChanges } from '../../../../src/shared/status/needsyou';
+import { bundledNeedsYou } from '../../../renderer/support/needsyou';
 
 const registry = bundledNeedsYou();
 const ordered = (...middle: string[]): string[] => ['waiting', 'busy', 'background', ...middle, 'ready', 'closed'];

@@ -16,7 +16,7 @@ What bounds the likeliest runaway, an error thrown on every frame, is that ident
 A failure met on every pass of something that repeats — a transcript that cannot be read, at every listing — is written once per file instead, since other lines come between the repeats.
 
 **Retention** keeps the files of the 7 most recent dates that have a log — dates with one, not calendar days, so two weeks away does not empty the folder — and runs whenever a file starts.
-The numbers live in `src/shared/log.ts`, because Settings states them.
+The numbers live in `src/shared/helpers/log.ts`, because Settings states them.
 
 **A crash log** is a file whose launch did not end with its quit line, or in which a process of the app died: an uncaught exception or unhandled rejection in main, the renderer gone, the GPU process gone.
 It is renamed `…-crash.log` and kept apart, the 20 newest.

@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { defaultUi } from '../../../../src/shared/defaults';
+import { defaultUi } from '../../../../src/shared/config/defaults';
 import type { LayoutReport, NodeState, NodeStateChange, PanelRunRequest, PanelState } from '../../../../src/shared/panels';
 import type { UiState } from '../../../../src/shared/types';
 import { type BridgeFixture, CONFIG_ROOT, HOME, localLayoutWith, noLocalLayout, PROJECT, session } from '../../support/fixture';

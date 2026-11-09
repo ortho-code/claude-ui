@@ -1,5 +1,5 @@
-import { firesFor, typeIsOn } from '../../shared/needsyou';
-import { clearedNeedsYou, markedNeedsYou, settledTypes } from '../../shared/sessionmarks';
+import { firesFor, typeIsOn } from '../../shared/status/needsyou';
+import { clearedNeedsYou, markedNeedsYou, settledTypes } from '../../shared/status/sessionmarks';
 import type { NeedsYou, PrNeedsYouType, PrRole, SettledBy } from '../../shared/types';
 import { store, type View } from './app';
 

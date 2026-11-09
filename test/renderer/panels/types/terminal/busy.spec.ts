@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { defaultUi } from '../../../../../src/shared/defaults';
+import { defaultUi } from '../../../../../src/shared/config/defaults';
 import { PROJECT, session } from '../../../support/fixture';
 import { expect, test, type App } from '../../../support/harness';
 import { newTerminal, panelTab, panelTabAdd, panelTabLabels, panelTabs, row } from '../../../support/window';

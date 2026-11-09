@@ -1,4 +1,4 @@
-import type { ScheduledTask } from './types';
+import type { ScheduledTask } from '../types';
 
 /**
  * The tasks in `list`, each by its prompt, whether it repeats and, for a cron, its schedule in claude's words, and anything without a prompt left out: what claude's `Stop` lists as `session_crons`, once main has found each cron's schedule (src/main/status/status.ts), and what meta keeps of a stopped tab's (src/main/sessions/meta.ts).

@@ -4,8 +4,8 @@ import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
-import { errorText } from '../shared/log';
-import { pastedPaths } from '../shared/paste';
+import { errorText } from '../shared/helpers/log';
+import { pastedPaths } from '../shared/helpers/paste';
 
 /**
  * The xterm every terminal in the window is built from — a tab's `claude` and a panel's shell — and the one place their output and exits are routed.

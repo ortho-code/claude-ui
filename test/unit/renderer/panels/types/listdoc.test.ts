@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ICON_NAMES } from '../../../../../src/shared/icons';
+import { ICON_NAMES } from '../../../../../src/shared/helpers/icons';
 import { readListDocument, type DetailPart } from '../../../../../src/renderer/panels/types/listdoc';
 
 const item = { key: 'org/repo#1', text: 'Fix the login redirect' };

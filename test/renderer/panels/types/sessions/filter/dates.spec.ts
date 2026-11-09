@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { defaultUi } from '../../../../../../src/shared/defaults';
+import { defaultUi } from '../../../../../../src/shared/config/defaults';
 import { session, settingsFileWith, sorted } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { sortedTitles } from '../../../../support/window';

@@ -1,4 +1,4 @@
-import type { PathBase, PathKind } from './panels';
+import type { PathBase, PathKind } from '../panels';
 
 /**
  * Main's two rules for a path option, pure so that the window's checks answer `checkPath` the way main does: where the value points, and what is wrong with what is there.

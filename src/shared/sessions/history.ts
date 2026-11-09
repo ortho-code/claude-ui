@@ -1,4 +1,4 @@
-import type { HistorySlice } from './types';
+import type { HistorySlice } from '../types';
 
 /**
  * The history of a session with no transcript yet, one nothing has been sent in: empty, not an error.

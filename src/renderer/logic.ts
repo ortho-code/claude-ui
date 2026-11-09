@@ -1,9 +1,9 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested.
 // renderer.ts wires these to its state and the DOM.
-import { prReference, referenceKey } from '../shared/prs';
-import type { LeaveButton } from '../shared/settings';
-import { DEFAULT_STRENGTH, expandedStrength, NEEDS_YOU } from '../shared/looks';
-import { isPrReason, NO_NEEDS_YOU_TYPES, PR_TYPES } from '../shared/needsyou';
+import { prReference, referenceKey } from '../shared/sessions/prs';
+import type { LeaveButton } from '../shared/config/settings';
+import { DEFAULT_STRENGTH, expandedStrength, NEEDS_YOU } from '../shared/status/looks';
+import { isPrReason, NO_NEEDS_YOU_TYPES, PR_TYPES } from '../shared/status/needsyou';
 import type { ClosedHow, GroupState, SetAside, NeedsYou, PrNeedsYouType, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
 

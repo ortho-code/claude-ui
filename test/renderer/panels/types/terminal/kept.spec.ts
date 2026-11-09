@@ -1,5 +1,5 @@
 import type { PanelShells } from '../../../../../src/shared/panels';
-import type { Found } from '../../../../../src/shared/pathcheck';
+import type { Found } from '../../../../../src/shared/helpers/pathcheck';
 import { PROJECT, session } from '../../../support/fixture';
 import { expect, test, type App } from '../../../support/harness';
 import { panelTab, panelTabAdd, panelTabLabels } from '../../../support/window';

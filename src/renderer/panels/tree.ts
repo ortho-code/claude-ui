@@ -1,4 +1,4 @@
-import { keptOver } from '../../shared/kept';
+import { keptOver } from '../../shared/sessions/kept';
 import { NODE_STATE_FIELDS, parseSize, spelledSize, withNodeChanges, type LayoutReport, type NodeSize, type NodeState, type NodeStateChange, type PanelState } from '../../shared/panels';
 import { idsIn, readNodeState, stateFromPanelState } from './nodestate';
 import { element } from '../dom';

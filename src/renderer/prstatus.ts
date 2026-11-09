@@ -1,6 +1,6 @@
-import { approvalsRequired, prKey, prReference, type Approvals } from '../shared/prs';
-import { PR_TYPES } from '../shared/needsyou';
-import type { SettingsView } from '../shared/settings';
+import { approvalsRequired, prKey, prReference, type Approvals } from '../shared/sessions/prs';
+import { PR_TYPES } from '../shared/status/needsyou';
+import type { SettingsView } from '../shared/config/settings';
 import type { PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, SessionSummary } from '../shared/types';
 import type { Tone } from './tone';
 

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
-import { PR_TYPES } from '../../../src/shared/needsyou';
+import { PR_TYPES } from '../../../src/shared/status/needsyou';
 import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, verdictOf } from '../../../src/renderer/prstatus';
-import type { Approvals } from '../../../src/shared/prs';
+import type { Approvals } from '../../../src/shared/sessions/prs';
 import type { PrRef, PrSeen, PrStatus, SessionPr } from '../../../src/shared/types';
 
 /** An open PR waiting on nobody: not a draft, approved, its checks passed, no conflict. */

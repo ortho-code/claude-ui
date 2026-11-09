@@ -1,4 +1,4 @@
-import type { PrRole, SessionPr, SessionSummary } from './types';
+import type { PrRole, SessionPr, SessionSummary } from '../types';
 
 /** The approvals each repository needs before a PR counts as approved, by `owner/name`, as `approvals` in settings.json holds them. */
 export type Approvals = Readonly<Record<string, number>>;

@@ -1,12 +1,12 @@
 import { defaultSettings } from './defaults';
 import { parseLaunchFlags } from './flags';
-import { looksProblem, strengthProblem, type Look } from './looks';
-import { withChanges, type NeedsYouChange, type NeedsYouRegistry } from './needsyou';
-import { approvalsProblem } from './prs';
-import { presetsProblem } from './setaside';
-import { timeOfDay } from './time';
-import type { ReadStatus } from './panels';
-import type { Settings } from './types';
+import { looksProblem, strengthProblem, type Look } from '../status/looks';
+import { withChanges, type NeedsYouChange, type NeedsYouRegistry } from '../status/needsyou';
+import { approvalsProblem } from '../sessions/prs';
+import { presetsProblem } from '../status/setaside';
+import { timeOfDay } from '../helpers/time';
+import type { ReadStatus } from '../panels';
+import type { Settings } from '../types';
 
 /**
  * THE SETTINGS IN THE CONFIG FOLDER: `settings.json`, which you edit and Settings saves into, over the built-in default (docs/architecture/config.md § The config folder).

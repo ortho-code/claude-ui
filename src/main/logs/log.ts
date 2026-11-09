@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { appendStamped, localTimestamp } from '../files/stamp';
 import type { ClosedHow } from '../../shared/types';
 // Shared because Settings says how long logs are kept, and the numbers it gives must be the ones used here.
-import { KEEP_CRASH_LOGS, KEEP_LOG_DATES, errorText, type LogLevel } from '../../shared/log';
+import { KEEP_CRASH_LOGS, KEEP_LOG_DATES, errorText, type LogLevel } from '../../shared/helpers/log';
 
 /**
  * The app's log: what a launch did, kept where it can be read afterwards, because an installed build is started from a launcher and has no stdout for any of it to go to.
