@@ -165,14 +165,17 @@ function crowdedIn(file: string, text: string): string[] {
 /** Every file `tracked` lists whose kind paragraphsOf reads, with its text. */
 const trackedProse = (): { file: string; text: string }[] => tracked(/\.(ts|mjs|css|md|yml|sh|toml)$/);
 
+/** Each test reading every tracked file takes about 3 s alone and more than vitest's 5 s default while the whole suite runs beside it. */
+const WHOLE_REPO_MS = 20_000;
+
 describe('prose', () => {
   it('wraps no sentence across lines, in any comment or doc', () => {
     expect(trackedProse().flatMap(({ file, text }) => wrappedIn(file, text))).toEqual([]);
-  });
+  }, WHOLE_REPO_MS);
 
   it('puts no two sentences on one line, in any comment or doc', () => {
     expect(trackedProse().flatMap(({ file, text }) => crowdedIn(file, text))).toEqual([]);
-  });
+  }, WHOLE_REPO_MS);
 
   describe('what counts as two sentences on a line', () => {
     it('a sentence after another, whatever it opens with', () => {
