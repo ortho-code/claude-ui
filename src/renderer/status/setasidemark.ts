@@ -1,6 +1,6 @@
 import type { SetAside } from '../../shared/types';
 import { iconMark, showIconMark } from '../ui/iconmark';
-import { setAsideLabel } from '../rules/logic';
+import { setAsideLabel } from './statelines';
 import { SET_ASIDE_ICON } from '../ui/svg';
 
 /**

@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup } from '../../../ui/dom';
 import { Keyed } from '../../../ui/keyed';
-import type { ProjectTree } from '../../../rules/logic';
+import type { ProjectTree } from '../../../rules/session-list';
 import './drawn.css';
 
 /**

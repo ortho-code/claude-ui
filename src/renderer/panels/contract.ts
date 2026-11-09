@@ -1,4 +1,4 @@
-import type { LeaveAction, TabButtonMark } from '../rules/logic';
+import type { LeaveAction, TabButtonMark } from '../rules/claude';
 import type { MenuItem } from '../ui/menu';
 import type { IconName } from '../../shared/helpers/icons';
 import type { SessionPr } from '../../shared/types';

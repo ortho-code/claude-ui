@@ -1,5 +1,5 @@
 import { iconMark, showIconMark } from '../ui/iconmark';
-import { clockText, type ClockShown } from '../rules/logic';
+import { clockText, type ClockShown } from './clock';
 import { CLOCK_ICON } from '../ui/svg';
 
 /**

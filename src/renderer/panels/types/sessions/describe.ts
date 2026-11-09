@@ -1,5 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
-import { entityKey, setAsideLabel, modelLabel, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/logic';
+import { entityKey, modelLabel, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
+import { setAsideLabel } from '../../../status/statelines';
+import { relativeTime } from '../../../ui/timewords';
 import type { HeaderLine, MenuItem } from '../../../ui/menu';
 import type { Moment } from '../../../ui/moments';
 import type { View } from '../../../state/app';

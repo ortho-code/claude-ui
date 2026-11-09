@@ -1,4 +1,4 @@
-import { relativeTime } from '../../../../rules/logic';
+import { relativeTime } from '../../../../ui/timewords';
 import { PINNED_ICON, strokeIcon } from '../../../../ui/svg';
 import { setTooltip } from '../../../../ui/tooltip';
 import { dragTop, entryAt, grabAt, wheelSteps, type Band, type Entry, type MarkAt } from './marks';

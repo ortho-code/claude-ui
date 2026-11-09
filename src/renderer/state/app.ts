@@ -3,7 +3,7 @@ import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/n
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/config/settings';
 import type { GroupState, SetAside, NeedsYou, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
-import { sameRow, structuralSignature } from '../rules/logic';
+import { sameRow, structuralSignature } from '../rules/sessions';
 import { NO_PR_STATUS } from '../status/prstatus';
 import { createStore } from './store';
 
@@ -247,7 +247,7 @@ export type View<K extends keyof AppState> = Readonly<Pick<AppState, K>>;
 const signatures = new WeakMap<SessionSummary[], string>();
 
 /**
- * Whether two listings draw the same rows: their structural signature (`AFFECTS_ROW` in logic.ts), computed once per listing.
+ * Whether two listings draw the same rows: their structural signature (`AFFECTS_ROW` in rules/sessions.ts), computed once per listing.
  * The sessions slice tells its readers only when this says no, so a transcript merely growing — its `lastActivity` moving — repaints nothing, for every reader alike, while `get` still has the newest listing.
  */
 function sameRows(a: SessionSummary[], b: SessionSummary[]): boolean {

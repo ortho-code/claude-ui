@@ -1,7 +1,8 @@
 import type { SessionSummary, UiState } from '../../../../shared/types';
 import { calendar } from '../../../dialogs/calendar';
 import { byId, fromMarkup } from '../../../ui/dom';
-import { datePresetRange, entityKey, sessionPasses } from '../../../rules/logic';
+import { datePresetRange, sessionPasses } from '../../../rules/session-list';
+import { entityKey } from '../../../rules/sessions';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
 import { isFiltering, searchText } from '../../../state/views';
 import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, svgImage, WORKTREE_ICON } from '../../../ui/svg';

@@ -1,7 +1,7 @@
 import Sortable from 'sortablejs';
 import { element } from './dom';
 import { placeChildren, setMarkup } from './keyed';
-import type { TabButtonMark } from '../rules/logic';
+import type { TabButtonMark } from '../rules/claude';
 import { kebabButton, openMenu, type MenuItem } from './menu';
 import { tabButtonIcon } from './svg';
 import { setTooltip } from './tooltip';

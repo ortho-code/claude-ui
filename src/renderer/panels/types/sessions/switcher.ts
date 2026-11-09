@@ -1,6 +1,7 @@
 import { byId, fromMarkup } from '../../../ui/dom';
 import { Keyed, placeChildren } from '../../../ui/keyed';
-import { elsewhere, rollUpWords, type RollUp, type SwitcherModel } from '../../../rules/logic';
+import { elsewhere, type SwitcherModel } from '../../../rules/session-list';
+import { rollUpWords, type RollUp } from '../../../status/rollup';
 import { markProjectGone } from '../../../status/projectgone';
 import { store, type View } from '../../../state/app';
 import { setProjectOnShow } from '../../../state/project';

@@ -1,4 +1,4 @@
-import type { NudgeStatus } from '../rules/logic';
+import type { NudgeStatus } from '../status/rollup';
 import { store, type AppState } from '../state/app';
 import { badgeClass, sessionDotClass } from '../status/statusdot';
 import { chevronIcon, strokeIcon } from './svg';

@@ -1,6 +1,6 @@
 import { ICONS, isIconName } from '../../shared/helpers/icons';
 import { NEEDS_YOU, resolvedLooks, type ResolvedLook } from '../../shared/status/looks';
-import { isNeeds } from '../rules/logic';
+import { isNeeds } from './shown';
 import type { View } from '../state/app';
 import { strokeIcon, svgImage } from '../ui/svg';
 

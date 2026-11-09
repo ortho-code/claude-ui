@@ -1,6 +1,6 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { promptText } from '../../../dialogs/dialogs';
-import { entityKey, sessionLabel } from '../../../rules/logic';
+import { entityKey, sessionLabel } from '../../../rules/sessions';
 import { newSession } from '../../../dialogs/newsession';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';

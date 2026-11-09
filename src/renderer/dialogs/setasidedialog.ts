@@ -3,7 +3,8 @@ import { presetMoment, presetWords, setAsideOffers, type Preset } from '../../sh
 import { dayStart, onDayAt, timeOfDay } from '../../shared/helpers/time';
 import type { SetAside } from '../../shared/types';
 import { calendar } from './calendar';
-import { momentLabel, setAsideUntil } from '../rules/logic';
+import { setAsideUntil } from '../status/statelines';
+import { momentLabel } from '../ui/timewords';
 import { listen, runModal } from '../ui/modal';
 import { store } from '../state/app';
 import '../ui/pill.css';

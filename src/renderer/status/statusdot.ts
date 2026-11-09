@@ -1,4 +1,6 @@
-import { isNeeds, showsRead, stateLines, type NudgeStatus, type StateLine } from '../rules/logic';
+import type { NudgeStatus } from './rollup';
+import { isNeeds, showsRead } from './shown';
+import { stateLines, type StateLine } from './statelines';
 import { lookClass, lookOf } from './looks';
 import type { View } from '../state/app';
 import { canMarkRead, toggleAck } from '../state/statuses';

@@ -1,5 +1,5 @@
 import type { PanelData } from '../../shared/panels';
-import { projectFor, sessionLabel } from '../rules/logic';
+import { projectFor, sessionLabel } from '../rules/sessions';
 import { openMenu } from '../ui/menu';
 import { askForSession } from '../dialogs/sessiondialog';
 import { showToast } from '../ui/toast';

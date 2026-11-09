@@ -2,7 +2,7 @@ import type { PanelShells } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
 import { confirmDanger, promptText } from '../../dialogs/dialogs';
 import { isQuitting } from '../../window/quitting';
-import { folderName } from '../../rules/logic';
+import { folderName } from '../../rules/sessions';
 import type { MenuItem } from '../../ui/menu';
 import { store } from '../../state/app';
 import { projName } from '../../state/views';

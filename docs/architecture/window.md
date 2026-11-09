@@ -55,7 +55,7 @@ Closed over a filter that is on, the panel folds down to one row of chips, one p
 With nothing on, closing hides it all.
 The count's total is the set the matches were taken from: the same project scope and the same view before the other filters, so the count only ever compares a set with part of itself.
 The finished pill picks that set rather than narrowing it, since the finished view holds only finished sessions and the normal view none, so in the finished view the total is the finished sessions and the count says "finished"; in the normal view it is the number the switcher shows.
-One rule, `inView` in `logic.ts`, decides which set a session is in for the list, the switcher's counts and the total alike.
+One rule, `inView` in `rules/session-list.ts`, decides which set a session is in for the list, the switcher's counts and the total alike.
 
 Folds come in two states, and they are deliberately separate.
 Filtering opens the whole tree so a match inside a folded section is never hidden, and folding from there is a way through the results — shut a project you have already been through — rather than a statement about how the sidebar should look.
@@ -71,7 +71,7 @@ A group is made in one of two places, through one function (`promptNewGroup`): a
 Either way the list then jumps to it, because a new group lands at the top of its project, which can be far from the row or heading it was made from.
 An empty group keeps its heading, which is how a new one is seen, except under a filter, which drops groups with nothing matching; a group made empty then is announced in a toast instead, since there is nothing on screen to jump to.
 
-The nested shape (projects, their groups in order, then the sessions in no group, with pins floated inside whichever section they land in) is computed by a pure function in the renderer's `logic.ts`, so the ordering rules are unit-tested without a DOM.
+The nested shape (projects, their groups in order, then the sessions in no group, with pins floated inside whichever section they land in) is computed by a pure function in the renderer's `rules/session-list.ts` (`buildProjectTree`), so the ordering rules are unit-tested without a DOM.
 A session started from a group's "+" is filed by the ordinary membership write, before its tab is built, so its row's first paint is already inside the group — there is no second, provisional membership anywhere, because the session has its real id from the start.
 
 ## The language

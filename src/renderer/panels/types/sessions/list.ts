@@ -1,6 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { placeChildren } from '../../../ui/keyed';
-import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, groupJumpTargets, projectGoneReason } from '../../../rules/logic';
+import { buildProjectTree, groupJumpTargets, type ProjectTree } from '../../../rules/session-list';
+import { entityKey, projectGoneReason, structuralSignature } from '../../../rules/sessions';
 import { markProjectGone } from '../../../status/projectgone';
 import { onMinute } from '../../../ui/moments';
 import { sameOrder, store, type TabState, type View } from '../../../state/app';
@@ -176,7 +177,7 @@ function allFinishedLine(count: number): string {
 }
 
 /**
- * At each minute's tick, the list drawn again where the order it would draw now differs from the one drawn (docs/architecture/ui-conventions.md § UI conventions): a session's last activity moves its place with nothing in the store telling the list (`AFFECTS_ROW`, logic.ts), and the review gains or loses a session as it crosses its days.
+ * At each minute's tick, the list drawn again where the order it would draw now differs from the one drawn (docs/architecture/ui-conventions.md § UI conventions): a session's last activity moves its place with nothing in the store telling the list (`AFFECTS_ROW`, rules/sessions.ts), and the review gains or loses a session as it crosses its days.
  * Held while the pointer is over the list, the focus is in it, or a menu opened from it is up, since a row must not move from under a press; the next tick tries again, so nothing waits on the pointer leaving.
  * A menu sits on the page's body, out of `:focus-within`'s reach, so it is found by the mark its trigger in the list wears while it is up (`.menu-open`).
  */

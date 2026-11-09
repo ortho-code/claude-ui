@@ -1,6 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup, byId } from '../../../ui/dom';
-import { leaveAction, sessionLabel } from '../../../rules/logic';
+import { leaveAction } from '../../../rules/claude';
+import { sessionLabel } from '../../../rules/sessions';
 import { openMenu } from '../../../ui/menu';
 import { store, type View } from '../../../state/app';
 import { endBulk, tickAll, tickRun, toggleTick } from '../../../state/bulk';

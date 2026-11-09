@@ -2,7 +2,8 @@ import type { SessionSummary } from '../../../../shared/types';
 // Its rows are the card a list panel draws too.
 import { listCard } from '../../../ui/card';
 import { setMarkup } from '../../../ui/keyed';
-import { clockOf, entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/logic';
+import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
+import { clockOf } from '../../../status/clock';
 import { kebabButton } from '../../../ui/menu';
 import { showMoment, type Moment } from '../../../ui/moments';
 import { notLeftMark, showNotLeft } from '../../../status/notleft';
@@ -319,7 +320,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   }
 
   // When it was finished in the finished view, where every session is; when it was active everywhere else.
-  // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, logic.ts).
+  // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, rules/sessions.ts).
   const moment = (shown: SessionSummary, as: RowView): Moment => {
     const own = (flat?.why ? { text: flat.why(shown), at: shown.lastActivity } : null) ?? (finishedView ? finishedMoment(shown, as) : null) ?? activityMoment(shown, as);
     const lead = flat?.lead(shown) ?? null;

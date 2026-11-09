@@ -10,7 +10,7 @@ import type { NeedsYouRegistry } from '../../shared/status/needsyou';
 import { PR_ROLES } from '../../shared/sessions/prs';
 import type { PrRole, Settings } from '../../shared/types';
 import { element } from '../ui/dom';
-import { statusLabel } from '../rules/logic';
+import { statusLabel } from '../status/statelines';
 import { listen, runModal } from '../ui/modal';
 import { stateClass } from '../status/statusdot';
 import { store, type View } from '../state/app';

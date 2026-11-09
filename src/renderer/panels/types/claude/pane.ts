@@ -1,4 +1,4 @@
-import { projectGoneReason, sessionLabel, unstartableReason } from '../../../rules/logic';
+import { projectGoneReason, sessionLabel, unstartableReason } from '../../../rules/sessions';
 import { store, type TabState, type View } from '../../../state/app';
 import { projectGone, tabOnShow, visibleTabs } from '../../../state/views';
 import { setUnavailable, unavailable } from '../../../ui/unavailable';

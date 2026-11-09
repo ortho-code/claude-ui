@@ -3,7 +3,7 @@ import { openSettings } from '../../../dialogs/settings';
 import { store, type View } from '../../../state/app';
 import { switcherModel } from '../../../state/views';
 import { strokeIcon } from '../../../ui/svg';
-import type { NudgeStatus } from '../../../rules/logic';
+import type { NudgeStatus } from '../../../status/rollup';
 import { builtinType, hostOf, tellRail } from '../builtin';
 import './index.css';
 import { switcherEl } from './switcher';

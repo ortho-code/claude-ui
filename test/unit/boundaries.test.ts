@@ -88,11 +88,14 @@ const cases: [file: string, specifier: string, boundary: Boundary | null][] = [
   ['src/renderer/panels/types/claude/x.ts', '../../contract', null],
   ['src/renderer/panels/types/claude/x.ts', '../../../state/store', null],
   ['src/renderer/panels/types/claude/x.ts', '../../../state/sessions', null],
+  ['src/renderer/panels/types/claude/x.ts', '../../../rules/sessions', null],
+  ['src/renderer/panels/types/claude/history/x.ts', '../../../../rules/session-list', null],
   ['src/renderer/panels/types/sessions/x.ts', '../claude/asks', 'apart'],
   ['src/renderer/panels/types/sessions/x.ts', '../claude', 'apart'],
   ['src/renderer/panels/types/sessions/x.ts', '../../types/claude/asks', 'apart'],
   ['src/renderer/panels/types/sessions/x.ts', '../../contract', null],
   ['src/renderer/panels/types/sessions/x.ts', '../../../state/claude', null],
+  ['src/renderer/panels/types/sessions/x.ts', '../../../rules/claude', null],
 ];
 
 describe('the lint boundaries', () => {

@@ -1,7 +1,11 @@
 import { prReference } from '../../../../shared/sessions/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDanger, confirmDelete, promptText } from '../../../dialogs/dialogs';
-import { clockLines, clockOf, entityKey, folderName, leaveAction, leaveLabel, relativeTime, sessionLabel, setAsideUntil, unstartableReason, type LeaveAction } from '../../../rules/logic';
+import { leaveAction, leaveLabel, type LeaveAction } from '../../../rules/claude';
+import { entityKey, folderName, sessionLabel, unstartableReason } from '../../../rules/sessions';
+import { clockLines, clockOf } from '../../../status/clock';
+import { setAsideUntil } from '../../../status/statelines';
+import { relativeTime } from '../../../ui/timewords';
 import { openMenu, type MenuItem } from '../../../ui/menu';
 import { approvalsIn, prDetails, verdictOf } from '../../../status/prstatus';
 import { store, type TabState } from '../../../state/app';

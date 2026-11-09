@@ -1,7 +1,7 @@
 import type { ClaudeUiApi, Exchange, HistoryPin, ReplyPart } from '../../../../../shared/types';
 import { routeLinks } from '../../../../window/external-links';
 import { flash } from '../../../../ui/flash';
-import { relativeTime } from '../../../../rules/logic';
+import { relativeTime } from '../../../../ui/timewords';
 import { showMoment, type Moment } from '../../../../ui/moments';
 import { chevronIcon, PIN_ICON, PINNED_ICON } from '../../../../ui/svg';
 import { setTooltip } from '../../../../ui/tooltip';

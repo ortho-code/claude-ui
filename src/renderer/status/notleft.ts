@@ -1,4 +1,4 @@
-import { notLeftWords, type TabButtonTab } from '../rules/logic';
+import { notLeftWords, type TabButtonTab } from '../rules/claude';
 import './notleft.css';
 
 /**

@@ -2,7 +2,11 @@ import { DEFAULT_STRENGTH, expandedStrength } from '../../shared/status/looks';
 import { categoryOf, type NeedsYouRegistry } from '../../shared/status/needsyou';
 import { mutedBySetAside } from '../../shared/status/sessionmarks';
 import type { SetAside, NeedsYou, SessionGroup, SessionSummary } from '../../shared/types';
-import { displayName, entityKey, inView, isNeeds, projectRootExists, projectsForSwitcher, sessionPart, sessionsByKey, shownState, tabButton, unstartableReason, type NudgeStatus, type Strength, type SwitcherModel, type TabButton, type TabButtonTab } from '../rules/logic';
+import { tabButton, type TabButton, type TabButtonTab } from '../rules/claude';
+import { inView, projectsForSwitcher, type SwitcherModel } from '../rules/session-list';
+import { displayName, entityKey, projectRootExists, sessionsByKey, unstartableReason } from '../rules/sessions';
+import { sessionPart, type NudgeStatus } from '../status/rollup';
+import { isNeeds, shownState, type Strength } from '../status/shown';
 import { sameOrder, store, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */

@@ -1,7 +1,8 @@
 import type { IconName } from '../../../shared/helpers/icons';
 import { optionProblems, optionsOf } from '../options';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
-import { isNeeds, type NudgeStatus } from '../../rules/logic';
+import type { NudgeStatus } from '../../status/rollup';
+import { isNeeds } from '../../status/shown';
 import { lookOf } from '../../status/looks';
 
 /**

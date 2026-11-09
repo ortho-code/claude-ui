@@ -1,4 +1,6 @@
-import { clockOf, clockText, notLeftWords, sessionLabel } from '../../../rules/logic';
+import { notLeftWords } from '../../../rules/claude';
+import { sessionLabel } from '../../../rules/sessions';
+import { clockOf, clockText } from '../../../status/clock';
 import { showAttentionToast } from '../../../window/notifications';
 import type { View } from '../../../state/app';
 import { projName, tabWith } from '../../../state/views';

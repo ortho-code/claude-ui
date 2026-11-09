@@ -1,5 +1,6 @@
 import type { SetAside, PrStatusRead, SessionSummary } from '../../shared/types';
-import { entityKey, relativeTime } from './logic';
+import { relativeTime } from '../ui/timewords';
+import { entityKey } from './sessions';
 import { settledState } from '../status/prstatus';
 
 /**

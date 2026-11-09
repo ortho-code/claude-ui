@@ -1,6 +1,6 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { flash } from '../../../ui/flash';
-import { entityKey } from '../../../rules/logic';
+import { entityKey } from '../../../rules/sessions';
 import { store } from '../../../state/app';
 import { container, currentByKey, groupSections, projectSections, sessionRows } from './drawn';
 import { unfold } from './folding';

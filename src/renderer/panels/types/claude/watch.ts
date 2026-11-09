@@ -1,4 +1,4 @@
-import { sessionLabel } from '../../../rules/logic';
+import { sessionLabel } from '../../../rules/sessions';
 import { store } from '../../../state/app';
 import { tabOnShow } from '../../../state/views';
 import { showToast } from '../../../ui/toast';

@@ -1,7 +1,8 @@
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { ClosedHow, SetAside, NeedsYou, ScheduledTask, SessionSummary } from '../../../../shared/types';
-import { entityKey, hasVisibleOutput, leaveAction, leaveLabel, sessionLabel, sessionsByKey, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../rules/logic';
+import { hasVisibleOutput, leaveAction, leaveLabel, type LeaveAction, type TabButtonMark } from '../../../rules/claude';
+import { entityKey, sessionLabel, sessionsByKey, unstartableReason } from '../../../rules/sessions';
 import { newSession } from '../../../dialogs/newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';

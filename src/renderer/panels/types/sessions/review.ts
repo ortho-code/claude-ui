@@ -1,6 +1,6 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup } from '../../../ui/dom';
-import { entityKey } from '../../../rules/logic';
+import { entityKey } from '../../../rules/sessions';
 import { REVIEW, reviewCount, reviewSections, type ReviewFacts, type ReviewSection } from '../../../rules/review';
 import { store, type View } from '../../../state/app';
 import { endBulk, startReview } from '../../../state/bulk';

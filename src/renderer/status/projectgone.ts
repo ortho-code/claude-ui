@@ -1,5 +1,5 @@
 import { setMarkup } from '../ui/keyed';
-import { projectGoneReason } from '../rules/logic';
+import { projectGoneReason } from '../rules/sessions';
 import { folderGoneIcon } from '../ui/svg';
 import { setTooltip } from '../ui/tooltip';
 import './projectgone.css';

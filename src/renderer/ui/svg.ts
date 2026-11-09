@@ -1,4 +1,4 @@
-import type { TabButtonMark } from '../rules/logic';
+import type { TabButtonMark } from '../rules/claude';
 
 /**
  * Every stroked icon in the app, drawn through one helper.

@@ -1,7 +1,7 @@
 // Its headings are the section heading a list panel draws too.
 import { sectionHeading } from '../../../ui/card';
 import { kebabButton, openMenu, type MenuItem } from '../../../ui/menu';
-import { groupJumpTargets, type GroupJumpTarget } from '../../../rules/logic';
+import { groupJumpTargets, type GroupJumpTarget } from '../../../rules/session-list';
 import { store } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
 import { mutedNeedsYou, strengthNow } from '../../../state/views';

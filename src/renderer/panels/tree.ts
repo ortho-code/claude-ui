@@ -4,7 +4,7 @@ import { idsIn, readNodeState, stateFromPanelState } from './nodestate';
 import { element } from '../ui/dom';
 import { drawFoldChevron, foldChevron } from '../ui/fold-chevron';
 import { installSplitResizer } from '../ui/resizer';
-import { needsShown } from '../rules/logic';
+import { needsShown } from '../status/shown';
 import { badgeClass } from '../status/statusdot';
 // A panel header's count wears the section heading's count pill.
 import '../ui/card.css';
