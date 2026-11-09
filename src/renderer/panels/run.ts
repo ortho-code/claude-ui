@@ -1,6 +1,6 @@
 import type { PanelContext, PanelRunEvent } from '../../shared/panels';
 import { PANEL_CONTROL_VARIABLE, PANEL_TIMEOUT_MS } from '../../shared/panels';
-import { folderName, worktreeAt } from '../logic';
+import { folderName, worktreeAt } from '../rules/logic';
 import type { View } from '../state/app';
 import { pickedFor } from '../state/picks';
 import { tabOnShow } from '../state/views';

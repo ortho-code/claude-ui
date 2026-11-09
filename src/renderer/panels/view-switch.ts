@@ -1,5 +1,5 @@
-import { element } from '../dom';
-import { setTooltip } from '../tooltip';
+import { element } from '../ui/dom';
+import { setTooltip } from '../ui/tooltip';
 import type { PanelView } from './contract';
 import { iconSvg } from './icons';
 

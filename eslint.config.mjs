@@ -59,8 +59,12 @@ export default defineConfig(
   boundary('shared', ['src/shared/**/*.ts']),
   // The whole renderer, which the blocks below narrow for their own files; none narrows the start-up, the tree, or the modules directly under panels/types/.
   boundary('renderer', ['src/renderer/**/*.ts']),
-  boundary('renderer', ['src/renderer/*.ts'], ['src/renderer/renderer.ts', 'src/renderer/view-saving.ts'], {
+  boundary('renderer', ['src/renderer/*.ts'], ['src/renderer/renderer.ts'], {
     regex: '^\\./panels(/|$)',
+    message: 'A service sits below the panels, which draw on it, so it never imports from panels/.',
+  }),
+  boundary('renderer', ['src/renderer/{ui,dialogs,status,window,rules}/**/*.ts'], ['src/renderer/window/view-saving.ts'], {
+    regex: '^\\.\\./panels(/|$)',
     message: 'A service sits below the panels, which draw on it, so it never imports from panels/.',
   }),
   boundary('renderer', ['src/renderer/state/**/*.ts'], [], {

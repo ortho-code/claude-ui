@@ -1,18 +1,18 @@
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { ClosedHow, SetAside, NeedsYou, ScheduledTask, SessionSummary } from '../../../../shared/types';
-import { entityKey, hasVisibleOutput, leaveAction, leaveLabel, sessionLabel, sessionsByKey, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../logic';
-import { newSession } from '../../../newsession';
+import { entityKey, hasVisibleOutput, leaveAction, leaveLabel, sessionLabel, sessionsByKey, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../rules/logic';
+import { newSession } from '../../../dialogs/newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
 import { clearSetAside, markSetAside } from '../../../state/setaside';
 import { clearNeedsYou, markNeedsYou, marks, restoreNeedsYou } from '../../../state/needsyou';
 import { clearNudge, setScheduled } from '../../../state/statuses';
 import { leaveTab, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
-import { bindTerminal, createTerminal, fitTerminal, lastLines } from '../../../terminal';
-import { showToast } from '../../../toast';
-import { fromMarkup } from '../../../dom';
-import { isQuitting, whenQuitting } from '../../../quitting';
+import { bindTerminal, createTerminal, fitTerminal, lastLines } from '../../../ui/terminal';
+import { showToast } from '../../../ui/toast';
+import { fromMarkup } from '../../../ui/dom';
+import { isQuitting, whenQuitting } from '../../../window/quitting';
 import { hostOf } from '../builtin';
 import './terminals.css';
 

@@ -1,7 +1,7 @@
-import { sessionLabel } from '../../../logic';
+import { sessionLabel } from '../../../rules/logic';
 import { store } from '../../../state/app';
 import { tabOnShow } from '../../../state/views';
-import { showToast } from '../../../toast';
+import { showToast } from '../../../ui/toast';
 import { jumpToSession } from './asks';
 import { toastAttention, toastNotLeft } from './attention';
 import { railStatusFollowsTabs } from './index';

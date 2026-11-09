@@ -2,7 +2,7 @@ import type { Exchange } from '../../../../../../src/shared/types';
 import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 
-// An exchange's time says how long ago, and an exchange is drawn once and kept, so it is drawn again as the clock moves (src/renderer/moments.ts).
+// An exchange's time says how long ago, and an exchange is drawn once and kept, so it is drawn again as the clock moves (src/renderer/ui/moments.ts).
 const one = session();
 const TIME = '2026-09-30T08:00:00.000Z';
 const MINUTE = 60_000;

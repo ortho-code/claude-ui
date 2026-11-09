@@ -1,6 +1,6 @@
-import { element } from '../../../dom';
+import { element } from '../../../ui/dom';
 import { store, type Arrangement, type View } from '../../../state/app';
-import { setUnavailable, unavailable } from '../../../unavailable';
+import { setUnavailable, unavailable } from '../../../ui/unavailable';
 import type { PanelHost, PanelView } from '../../contract';
 import { viewButton } from '../../view-switch';
 import { hostOf } from '../builtin';

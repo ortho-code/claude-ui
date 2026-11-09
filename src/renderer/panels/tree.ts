@@ -1,18 +1,18 @@
 import { keptOver } from '../../shared/sessions/kept';
 import { NODE_STATE_FIELDS, parseSize, spelledSize, withNodeChanges, type LayoutReport, type NodeSize, type NodeState, type NodeStateChange, type PanelState } from '../../shared/panels';
 import { idsIn, readNodeState, stateFromPanelState } from './nodestate';
-import { element } from '../dom';
-import { drawFoldChevron, foldChevron } from '../fold-chevron';
-import { installSplitResizer } from '../resizer';
-import { needsShown } from '../logic';
-import { badgeClass } from '../statusdot';
+import { element } from '../ui/dom';
+import { drawFoldChevron, foldChevron } from '../ui/fold-chevron';
+import { installSplitResizer } from '../ui/resizer';
+import { needsShown } from '../rules/logic';
+import { badgeClass } from '../status/statusdot';
 // A panel header's count wears the section heading's count pill.
-import '../card.css';
-import '../badge.css';
+import '../ui/card.css';
+import '../ui/badge.css';
 import './tree.css';
-import { PINNED_BADGE_ICON, WORKTREE_ICON, strokeIcon, type Direction } from '../svg';
-import { copyText } from '../toast';
-import { setTooltip } from '../tooltip';
+import { PINNED_BADGE_ICON, WORKTREE_ICON, strokeIcon, type Direction } from '../ui/svg';
+import { copyText } from '../ui/toast';
+import { setTooltip } from '../ui/tooltip';
 import { iconSvg } from './icons';
 import { optionsOf } from './options';
 import {

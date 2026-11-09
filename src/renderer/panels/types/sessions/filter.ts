@@ -1,15 +1,15 @@
 import type { SessionSummary, UiState } from '../../../../shared/types';
-import { calendar } from '../../../calendar';
-import { byId, fromMarkup } from '../../../dom';
-import { datePresetRange, entityKey, sessionPasses } from '../../../logic';
+import { calendar } from '../../../dialogs/calendar';
+import { byId, fromMarkup } from '../../../ui/dom';
+import { datePresetRange, entityKey, sessionPasses } from '../../../rules/logic';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
 import { isFiltering, searchText } from '../../../state/views';
-import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, svgImage, WORKTREE_ICON } from '../../../svg';
-import { setTooltip } from '../../../tooltip';
+import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, svgImage, WORKTREE_ICON } from '../../../ui/svg';
+import { setTooltip } from '../../../ui/tooltip';
 import { iconSvg } from '../../icons';
 // The filter pill its pills and presets wear, shared with the history's All · Pinned.
-import '../../../pill.css';
-import '../../../popover.css';
+import '../../../ui/pill.css';
+import '../../../ui/popover.css';
 import './filter.css';
 
 /**

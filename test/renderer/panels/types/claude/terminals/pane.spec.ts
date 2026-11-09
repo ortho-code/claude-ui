@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { projectGoneReason } from '../../../../../../src/renderer/logic';
+import { projectGoneReason } from '../../../../../../src/renderer/rules/logic';
 import type { Exchange } from '../../../../../../src/shared/types';
 import { exitAtOnce, exitLater } from '../../../../support/clock';
 import { HOME, PROJECT, session } from '../../../../support/fixture';

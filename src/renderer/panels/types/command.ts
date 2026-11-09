@@ -2,7 +2,7 @@ import type { PanelContext, PanelSource } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
 import './command.css';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
-import { stripAnsi, splitPendingEscape } from '../../ansi';
+import { stripAnsi, splitPendingEscape } from '../../ui/ansi';
 import { CWD_OPTION, INTERVAL_OPTION, WATCH_OPTION, intervalOf, optionsOf } from '../options';
 import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
 import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';

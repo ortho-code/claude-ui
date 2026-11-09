@@ -1,14 +1,14 @@
 import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, typeFolder, type PanelContext, type PanelRunEvent } from '../../../shared/panels';
-import { stripAnsi } from '../../ansi';
+import { stripAnsi } from '../../ui/ansi';
 // Its rows are the session list's cards and its headings the group's bar.
-import { listCard, sectionHeading, setFolded } from '../../card';
-import { element } from '../../dom';
-import { routeLinks } from '../../external-links';
-import { Keyed, placeChildren } from '../../keyed';
-import { language, onLanguageChange } from '../../locale';
-import { kebabButton, type MenuItem } from '../../menu';
-import { ackOnClick, sessionDotClass } from '../../statusdot';
-import { setTooltip } from '../../tooltip';
+import { listCard, sectionHeading, setFolded } from '../../ui/card';
+import { element } from '../../ui/dom';
+import { routeLinks } from '../../window/external-links';
+import { Keyed, placeChildren } from '../../ui/keyed';
+import { language, onLanguageChange } from '../../ui/locale';
+import { kebabButton, type MenuItem } from '../../ui/menu';
+import { ackOnClick, sessionDotClass } from '../../status/statusdot';
+import { setTooltip } from '../../ui/tooltip';
 import type { PanelSlot } from '../layout';
 import { intervalOf, optionsOf } from '../options';
 import type { LinkedSession, MountedPanel, PanelHost, PanelType } from '../contract';
@@ -16,7 +16,7 @@ import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
 import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
 import type { FolderType } from './folder';
 import { DEFAULT_BUTTONS, readListDocument, type DetailPart, type ListAction, type ListDocument, type ListItem, type ListSection, type RowText, type Verb } from './listdoc';
-import '../../tone.css';
+import '../../ui/tone.css';
 import './list.css';
 
 /**

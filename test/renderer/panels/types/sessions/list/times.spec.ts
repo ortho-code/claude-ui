@@ -4,7 +4,7 @@ import { session, settingsFileWith } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { row } from '../../../../support/window';
 
-// A row's time says how long ago, so it is drawn again as the clock moves rather than only when the list is (src/renderer/moments.ts), and its tooltip gives the moment in full.
+// A row's time says how long ago, so it is drawn again as the clock moves rather than only when the list is (src/renderer/ui/moments.ts), and its tooltip gives the moment in full.
 const one = session();
 const ACTIVE = Date.parse(one.lastActivity);
 const MINUTE = 60_000;

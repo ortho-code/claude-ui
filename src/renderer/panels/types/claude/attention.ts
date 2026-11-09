@@ -1,5 +1,5 @@
-import { clockOf, clockText, notLeftWords, sessionLabel } from '../../../logic';
-import { showAttentionToast } from '../../../notifications';
+import { clockOf, clockText, notLeftWords, sessionLabel } from '../../../rules/logic';
+import { showAttentionToast } from '../../../window/notifications';
 import type { View } from '../../../state/app';
 import { projName, tabWith } from '../../../state/views';
 import { hostOf } from '../builtin';

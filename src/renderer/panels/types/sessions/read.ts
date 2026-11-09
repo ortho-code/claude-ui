@@ -1,4 +1,4 @@
-import { fromMarkup } from '../../../dom';
+import { fromMarkup } from '../../../ui/dom';
 import { store, type StoredView } from '../../../state/app';
 import './read.css';
 

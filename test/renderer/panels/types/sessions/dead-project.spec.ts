@@ -1,4 +1,4 @@
-import { projectGoneReason, unstartableReason } from '../../../../../src/renderer/logic';
+import { projectGoneReason, unstartableReason } from '../../../../../src/renderer/rules/logic';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { projectHeading, switcherEntry, tab, tabBarProject, tabLabel } from '../../../support/window';

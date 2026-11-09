@@ -1,7 +1,7 @@
-import { element } from '../../../dom';
+import { element } from '../../../ui/dom';
 import { store, type View } from '../../../state/app';
 import { sessionNudge, strengthNow, visibleTabs } from '../../../state/views';
-import { strongestNudge, type NudgeStatus } from '../../../logic';
+import { strongestNudge, type NudgeStatus } from '../../../rules/logic';
 import { builtinType, hostOf, tellRail } from '../builtin';
 import './index.css';
 import { tabbar, tabbarEdge } from './tab-bar';

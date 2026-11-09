@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { unstartableReason } from '../../../../../../src/renderer/logic';
+import { unstartableReason } from '../../../../../../src/renderer/rules/logic';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { exitAtOnce, exitLater } from '../../../../support/clock';
 import { PROJECT, session } from '../../../../support/fixture';

@@ -1,13 +1,13 @@
 import type { ClaudeUiApi, Exchange, HistoryPin, ReplyPart } from '../../../../../shared/types';
-import { routeLinks } from '../../../../external-links';
-import { flash } from '../../../../flash';
-import { relativeTime } from '../../../../logic';
-import { showMoment, type Moment } from '../../../../moments';
-import { chevronIcon, PIN_ICON, PINNED_ICON } from '../../../../svg';
-import { setTooltip } from '../../../../tooltip';
+import { routeLinks } from '../../../../window/external-links';
+import { flash } from '../../../../ui/flash';
+import { relativeTime } from '../../../../rules/logic';
+import { showMoment, type Moment } from '../../../../ui/moments';
+import { chevronIcon, PIN_ICON, PINNED_ICON } from '../../../../ui/svg';
+import { setTooltip } from '../../../../ui/tooltip';
 import { renderMarkdown } from './markdown';
 // The filter pill its All · Pinned wear, shared with the sidebar's filter.
-import '../../../../pill.css';
+import '../../../../ui/pill.css';
 import './view.css';
 import type { Band } from './marks';
 import { applySlice, emptyModel, replyBlocks, reportLine, requestLabel, toolSummary, type HistoryModel } from './model';

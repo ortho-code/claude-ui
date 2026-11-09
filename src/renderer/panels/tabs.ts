@@ -1,10 +1,10 @@
 import type Sortable from 'sortablejs';
-import { element } from '../dom';
-import { drawFoldChevron, foldChevron, offerRowFold } from '../fold-chevron';
-import { Keyed, placeChildren } from '../keyed';
-import { plusIcon } from '../svg';
-import { buildTab, drawTab, dropSortable, sortableTabs, type TabEls } from '../tab';
-import { setUnavailable, unavailable } from '../unavailable';
+import { element } from '../ui/dom';
+import { drawFoldChevron, foldChevron, offerRowFold } from '../ui/fold-chevron';
+import { Keyed, placeChildren } from '../ui/keyed';
+import { plusIcon } from '../ui/svg';
+import { buildTab, drawTab, dropSortable, sortableTabs, type TabEls } from '../ui/tab';
+import { setUnavailable, unavailable } from '../ui/unavailable';
 import type { PanelTab, PanelTabs } from './contract';
 import './tabs.css';
 

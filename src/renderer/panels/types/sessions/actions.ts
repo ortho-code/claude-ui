@@ -1,9 +1,9 @@
 import { prReference } from '../../../../shared/sessions/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
-import { confirmDanger, confirmDelete, promptText } from '../../../dialogs';
-import { clockLines, clockOf, entityKey, folderName, leaveAction, leaveLabel, relativeTime, sessionLabel, setAsideUntil, unstartableReason, type LeaveAction } from '../../../logic';
-import { openMenu, type MenuItem } from '../../../menu';
-import { approvalsIn, prDetails, verdictOf } from '../../../prstatus';
+import { confirmDanger, confirmDelete, promptText } from '../../../dialogs/dialogs';
+import { clockLines, clockOf, entityKey, folderName, leaveAction, leaveLabel, relativeTime, sessionLabel, setAsideUntil, unstartableReason, type LeaveAction } from '../../../rules/logic';
+import { openMenu, type MenuItem } from '../../../ui/menu';
+import { approvalsIn, prDetails, verdictOf } from '../../../status/prstatus';
 import { store, type TabState } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
 import { applyGroupState, moveSessionsToGroup } from '../../../state/groups';
@@ -11,17 +11,17 @@ import { pickCheckout, pickedFor } from '../../../state/picks';
 import { clearSetAside, markSetAside } from '../../../state/setaside';
 import { clearNeedsYou } from '../../../state/needsyou';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
-import { setAsideDialog } from '../../../setasidedialog';
+import { setAsideDialog } from '../../../dialogs/setasidedialog';
 import { isFiltering, leaveTab, projName, projectGroups, sessionById, sessionStarting, tabWith, unopenableReason } from '../../../state/views';
-import { copyText, showToast } from '../../../toast';
+import { copyText, showToast } from '../../../ui/toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
 import { sessionHeader } from './describe';
 import { currentByKey, renderedSections } from './drawn';
 import { fullRead } from './read';
 import { revealGroup, revealSession } from './reveal';
-import '../../../tone.css';
-import '../../../prstatus.css';
+import '../../../ui/tone.css';
+import '../../../status/prstatus.css';
 
 /**
  * THE SESSION LIST'S MENUS AND THE WRITES THEY MAKE: a session's options and its pin, finish and delete; a group's and a project's options, their moves and renames, and a new group.

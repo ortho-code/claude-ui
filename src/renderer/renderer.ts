@@ -1,14 +1,14 @@
 // The bundle's stylesheets come in the order of these imports: what every module draws with, then the services', then the panel tree's and the panel types' own, each module's beside it.
 import './base.css';
 // The services the sidebar's list draws with are imported here for their stylesheets' place in that order, ahead of every panel.
-import './menu';
-import { hideToast, showToast } from './toast';
-import './notifications';
-import './dialogs';
-import { watchSettings } from './settings';
-import './projectgone';
-import { startChrome } from './chrome';
-import './flash';
+import './ui/menu';
+import { hideToast, showToast } from './ui/toast';
+import './window/notifications';
+import './dialogs/dialogs';
+import { watchSettings } from './dialogs/settings';
+import './status/projectgone';
+import { startChrome } from './window/chrome';
+import './ui/flash';
 import { initTree, loadLayout, startPanels, treeContextChanged, treeSessionsChanged } from './panels/tree';
 import { WHERE_SLICES, whereOf } from './panels/run';
 import { history, paneFollows } from './panels/types/claude/pane';
@@ -19,7 +19,7 @@ import { fullRead } from './panels/types/sessions/read';
 import { forgetDeletedGroupFolds, restoreListScroll } from './panels/types/sessions/stored-view';
 import { claudeAnswers } from './panels/types/claude/asks';
 import { sessionsAnswers } from './panels/types/sessions/asks';
-import { persistUi, restoreUiState, startSavingUi } from './view-saving';
+import { persistUi, restoreUiState, startSavingUi } from './window/view-saving';
 import { store, withEntry } from './state/app';
 import { tabWith } from './state/views';
 import { startedByClaude } from '../shared/status/scheduled';
@@ -27,9 +27,9 @@ import { clearSetAside, watchDueSetAside } from './state/setaside';
 import { clearNeedsYou, watchSwitchedOff } from './state/needsyou';
 import type { NeedsYouRegistry } from '../shared/status/needsyou';
 import { setScheduled, setStatus } from './state/statuses';
-import { installTooltips } from './tooltip';
-import { startLooks } from './looks';
-import { askPlatform, routeTerminals } from './terminal';
+import { installTooltips } from './ui/tooltip';
+import { startLooks } from './status/looks';
+import { askPlatform, routeTerminals } from './ui/terminal';
 
 // A disk change fired: re-read sessions; the store tells the list and the tabs only when the structure actually changed (a new/removed session, a rename, or a new branch becoming the tip).
 // Statuses and pins arrive on their own channels, so we don't refetch them here.

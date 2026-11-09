@@ -1,10 +1,10 @@
-import { setFolded } from '../../../card';
-import { fromMarkup } from '../../../dom';
-import { setMarkup } from '../../../keyed';
+import { setFolded } from '../../../ui/card';
+import { fromMarkup } from '../../../ui/dom';
+import { setMarkup } from '../../../ui/keyed';
 import { store, type View } from '../../../state/app';
 import { foldedGroups, foldedProjects, foldsWith } from '../../../state/folds';
-import { strokeIcon } from '../../../svg';
-import { setUnavailable, unavailable } from '../../../unavailable';
+import { strokeIcon } from '../../../ui/svg';
+import { setUnavailable, unavailable } from '../../../ui/unavailable';
 import { groupSections, projectSections, renderedSections } from './drawn';
 import './folding.css';
 

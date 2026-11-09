@@ -1,5 +1,5 @@
 import type { GroupState, SessionSummary } from '../../shared/types';
-import { entityKey } from '../logic';
+import { entityKey } from '../rules/logic';
 import { store } from './app';
 
 /**

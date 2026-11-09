@@ -1,7 +1,7 @@
 import { approvalsRequired, prKey, prReference, referenceKey } from '../../../../shared/sessions/prs';
 import type { PrRef, PrSeen, PrStatusRead } from '../../../../shared/types';
-import { entityKey } from '../../../logic';
-import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../prstatus';
+import { entityKey } from '../../../rules/logic';
+import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../status/prstatus';
 import { store, type View } from '../../../state/app';
 import { markNeedsYou, marksFor } from '../../../state/needsyou';
 import { RunGate } from '../../run';

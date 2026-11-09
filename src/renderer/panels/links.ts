@@ -1,11 +1,11 @@
 import type { PanelData } from '../../shared/panels';
-import { projectFor, sessionLabel } from '../logic';
-import { openMenu } from '../menu';
-import { askForSession } from '../sessiondialog';
-import { showToast } from '../toast';
+import { projectFor, sessionLabel } from '../rules/logic';
+import { openMenu } from '../ui/menu';
+import { askForSession } from '../dialogs/sessiondialog';
+import { showToast } from '../ui/toast';
 import { store, withEntry } from '../state/app';
 import { canMarkRead } from '../state/statuses';
-import { statusText } from '../statusdot';
+import { statusText } from '../status/statusdot';
 import { dotStatus, projName, projectGroups, sessionRunning, shownRead, switcherModel, tabWith } from '../state/views';
 import type { Asks, LinkedSession, SessionRequest } from './contract';
 

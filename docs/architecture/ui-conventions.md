@@ -188,7 +188,7 @@ The whole terminal area is one now: it is hidden while another panel of its grou
 
 **A hidden terminal's scrollbar goes to the top while its lines stay put.**
 While a terminal's box is hidden the browser drops its scroll element to the top, and xterm 5 records that without scrolling its lines, so it came back drawing its last lines under a scrollbar at the top (seen 2026-10-30, measured 2026-11-08).
-Every fit, the shells' and the claude tabs', goes through `fitTerminal` (`src/renderer/terminal.ts`), which scrolls the terminal a line away and back after the fit, and that scroll of its own makes xterm put the bar back where its lines are.
+Every fit, the shells' and the claude tabs', goes through `fitTerminal` (`src/renderer/ui/terminal.ts`), which scrolls the terminal a line away and back after the fit, and that scroll of its own makes xterm put the bar back where its lines are.
 
 **A padded box fits the terminal too big.**
 `FitAddon` takes the room a terminal has from the computed height and width of the element xterm opens in, less the padding of xterm's own element and the scrollbar's width, but not that element's own padding, and with every box `border-box` its computed size counts that padding.

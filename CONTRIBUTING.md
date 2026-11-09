@@ -31,9 +31,9 @@ Tagging a version runs CI's checks on it, then builds both on CI and publishes t
 
 - `src/main` — the Electron main process: `main.ts` starts the app and `paths.ts` decides where its data lives; the rest is by area, the same areas as the architecture notes: `sessions/` (reading Claude Code's sessions, the app's metadata about them, their PRs), `status/` (the status hooks and the needs-you types), `pty/` (the pseudo-terminals claude and the shells run in), `panels/`, `config/` (the config folder and settings), `logs/` (the log and the usage record), `window/`, `platform/`, and `files/` (how the app writes its own files).
 - `src/preload` — the bridge the renderer uses to reach the main process.
-- `src/renderer` — the window UI.
+- `src/renderer` — the window UI: `renderer.ts` starts it, `ui/` holds the building blocks every surface draws (menus, tooltips, the terminal view, a tab), `dialogs/` the dialogs and Settings, `status/` a session's dots and marks, `window/` the window's own parts, and `rules/` the pure rules the rest asks; everything in those folders sits below the panels and never imports from them.
 - `src/renderer/state` — the store the window's surfaces share, and what more than one of them reads from it.
-- `src/renderer/panels` — the layout tree and the panel types: `panels/types/sessions` (the sidebar), `panels/types/claude` (the terminal area), and the others.
+- `src/renderer/panels` — the layout tree and the panel types: `panels/types/sessions` (the sidebar), `panels/types/claude` (the Claude tabs), and the others.
 - `src/shared` — what both sides use: `types.ts` and `panels.ts` at its root, which every side reads, then `sessions/`, `status/` and `config/` by area, the same as `src/main`, and `helpers/` for small pure helpers; main's rules the window's checks answer with live here too.
 - `test/` — the tests: unit tests in `test/unit/`, mirroring `src/`, the rules every comment and doc keeps in `test/text/`, and the window's checks in `test/renderer/`, filed by the panel or surface they check.
 - `docs/` — architecture and design notes.

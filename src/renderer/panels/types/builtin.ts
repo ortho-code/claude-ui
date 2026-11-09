@@ -1,8 +1,8 @@
 import type { IconName } from '../../../shared/helpers/icons';
 import { optionProblems, optionsOf } from '../options';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
-import { isNeeds, type NudgeStatus } from '../../logic';
-import { lookOf } from '../../looks';
+import { isNeeds, type NudgeStatus } from '../../rules/logic';
+import { lookOf } from '../../status/looks';
 
 /**
  * The app's own surfaces as panels: `sessions` is the whole sidebar (switcher, actions, filter, list, in types/sessions/) and `claude` is the terminal area (tab bar and terminals, in types/claude/).

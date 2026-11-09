@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { resolveContext, endLabel, folderOf, runFailed, RunGate, placement, readControl, runKey, runContext, whereOf } from '../../../../src/renderer/panels/run';
-import { newSession } from '../../../../src/renderer/newsession';
+import { newSession } from '../../../../src/renderer/dialogs/newsession';
 import type { SessionSummary } from '../../../../src/shared/types';
 import type { TabState } from '../../../../src/renderer/state/app';
 

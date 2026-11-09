@@ -1,7 +1,7 @@
 import { categoryOf } from '../../shared/status/needsyou';
 import { prKey } from '../../shared/sessions/prs';
 import type { ClosedHow, SetAside, NeedsYou, PrRole, PrStatus } from '../../shared/types';
-import { asksForYou, sessionLabel } from '../logic';
+import { asksForYou, sessionLabel } from '../rules/logic';
 import { store, type AppState, type View } from '../state/app';
 import { sessionNudge, sessionRunning, switcherPool, tabWith } from '../state/views';
 

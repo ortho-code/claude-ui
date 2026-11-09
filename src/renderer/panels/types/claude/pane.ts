@@ -1,13 +1,13 @@
-import { projectGoneReason, sessionLabel, unstartableReason } from '../../../logic';
+import { projectGoneReason, sessionLabel, unstartableReason } from '../../../rules/logic';
 import { store, type TabState, type View } from '../../../state/app';
 import { projectGone, tabOnShow, visibleTabs } from '../../../state/views';
-import { setUnavailable, unavailable } from '../../../unavailable';
-import { element, fromMarkup } from '../../../dom';
+import { setUnavailable, unavailable } from '../../../ui/unavailable';
+import { element, fromMarkup } from '../../../ui/dom';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
 import { activateTab, isOnShow, terminalOf, terminalsEl } from './terminals';
 // Its Resume, in its own actions and in the history's note.
-import '../../../decisive-button.css';
+import '../../../ui/decisive-button.css';
 import './pane.css';
 
 /**

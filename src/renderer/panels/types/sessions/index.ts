@@ -1,9 +1,9 @@
-import { element, fromMarkup } from '../../../dom';
-import { openSettings } from '../../../settings';
+import { element, fromMarkup } from '../../../ui/dom';
+import { openSettings } from '../../../dialogs/settings';
 import { store, type View } from '../../../state/app';
 import { switcherModel } from '../../../state/views';
-import { strokeIcon } from '../../../svg';
-import type { NudgeStatus } from '../../../logic';
+import { strokeIcon } from '../../../ui/svg';
+import type { NudgeStatus } from '../../../rules/logic';
 import { builtinType, hostOf, tellRail } from '../builtin';
 import './index.css';
 import { switcherEl } from './switcher';

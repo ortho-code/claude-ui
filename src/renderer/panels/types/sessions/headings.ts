@@ -1,14 +1,14 @@
 // Its headings are the section heading a list panel draws too.
-import { sectionHeading } from '../../../card';
-import { kebabButton, openMenu, type MenuItem } from '../../../menu';
-import { groupJumpTargets, type GroupJumpTarget } from '../../../logic';
+import { sectionHeading } from '../../../ui/card';
+import { kebabButton, openMenu, type MenuItem } from '../../../ui/menu';
+import { groupJumpTargets, type GroupJumpTarget } from '../../../rules/logic';
 import { store } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
 import { mutedNeedsYou, strengthNow } from '../../../state/views';
 import { pressHeadingBox, rowsUnder, tickBox } from './bulk';
-import { folderIcon, layersIcon } from '../../../svg';
-import { copyText } from '../../../toast';
-import { setTooltip } from '../../../tooltip';
+import { folderIcon, layersIcon } from '../../../ui/svg';
+import { copyText } from '../../../ui/toast';
+import { setTooltip } from '../../../ui/tooltip';
 import { deleteGroupById, groupMoveItems, projectMoveItems, promptNewGroup, renameGroupById, renameProject, withMoves } from './actions';
 import { newSessionInGroupItem, newSessionItems, newSessionSplit } from './controls';
 import { container, jumpTrees, type GroupSectionEls, type ProjectSectionEls, type FlatSectionEls } from './drawn';

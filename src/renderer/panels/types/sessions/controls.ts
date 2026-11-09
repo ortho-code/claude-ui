@@ -1,9 +1,9 @@
-import { openMenu, type MenuItem } from '../../../menu';
+import { openMenu, type MenuItem } from '../../../ui/menu';
 import { store } from '../../../state/app';
 import { projectGroups } from '../../../state/views';
-import { chevronIcon, plusIcon } from '../../../svg';
-import { setTooltip } from '../../../tooltip';
-import { unavailable } from '../../../unavailable';
+import { chevronIcon, plusIcon } from '../../../ui/svg';
+import { setTooltip } from '../../../ui/tooltip';
+import { unavailable } from '../../../ui/unavailable';
 import { hostOf } from '../builtin';
 import { projectFacts } from './drawn';
 import './controls.css';

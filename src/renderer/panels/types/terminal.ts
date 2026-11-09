@@ -1,12 +1,12 @@
 import type { PanelShells } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
-import { confirmDanger, promptText } from '../../dialogs';
-import { isQuitting } from '../../quitting';
-import { folderName } from '../../logic';
-import type { MenuItem } from '../../menu';
+import { confirmDanger, promptText } from '../../dialogs/dialogs';
+import { isQuitting } from '../../window/quitting';
+import { folderName } from '../../rules/logic';
+import type { MenuItem } from '../../ui/menu';
 import { store } from '../../state/app';
 import { projName } from '../../state/views';
-import { bindTerminal, createTerminal, fitTerminal, unbindTerminal, type TerminalView } from '../../terminal';
+import { bindTerminal, createTerminal, fitTerminal, unbindTerminal, type TerminalView } from '../../ui/terminal';
 import './terminal.css';
 import { CWD_OPTION, isFixedPath, optionsOf, type OptionDecl } from '../options';
 import type { MountedPanel, PanelHost, PanelTab, PanelType, Where } from '../contract';

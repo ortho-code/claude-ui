@@ -1,6 +1,6 @@
 import type { ScheduledTask } from '../../shared/types';
 import { store, withEntry, withMember, type View } from './app';
-import { isNeeds } from '../logic';
+import { isNeeds } from '../rules/logic';
 import { dotStatus } from './views';
 
 /** The writes to a session's status and its mark read, which both surfaces make: a status event, a click on a dot, a tab that closes. */

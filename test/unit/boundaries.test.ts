@@ -59,7 +59,13 @@ const cases: [file: string, specifier: string, boundary: Boundary | null][] = [
   ['src/renderer/x.ts', './state/store', null],
   ['src/renderer/x.ts', '../shared/panels', null],
   ['src/renderer/renderer.ts', './panels/tree', null],
-  ['src/renderer/view-saving.ts', './panels/tree', null],
+  ['src/renderer/ui/x.ts', '../panels/tree', 'service'],
+  ['src/renderer/dialogs/x.ts', '../panels', 'service'],
+  ['src/renderer/rules/x.ts', '../panels/tree', 'service'],
+  ['src/renderer/status/x.ts', '../state/store', null],
+  ['src/renderer/ui/x.ts', '../../shared/panels', null],
+  ['src/renderer/ui/x.ts', '../../main/config', 'process'],
+  ['src/renderer/window/view-saving.ts', '../panels/tree', null],
 
   // So does the store.
   ['src/renderer/state/x.ts', '../panels/tree', 'state'],

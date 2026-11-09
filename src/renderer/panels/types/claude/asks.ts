@@ -1,12 +1,12 @@
 import type { SessionSummary } from '../../../../shared/types';
-import { promptText } from '../../../dialogs';
-import { entityKey, sessionLabel } from '../../../logic';
-import { newSession } from '../../../newsession';
+import { promptText } from '../../../dialogs/dialogs';
+import { entityKey, sessionLabel } from '../../../rules/logic';
+import { newSession } from '../../../dialogs/newsession';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
 import { setProjectOnShow } from '../../../state/project';
 import { projName, sessionById, tabWith, unopenableReason } from '../../../state/views';
-import { showToast } from '../../../toast';
+import { showToast } from '../../../ui/toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
 import { activateTab, finishSessions, closeTabs, createTab, pressLeave, startTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';

@@ -1,4 +1,4 @@
-import { tickedRun } from '../ticks';
+import { tickedRun } from '../ui/ticks';
 import { store } from './app';
 
 /**

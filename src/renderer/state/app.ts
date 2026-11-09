@@ -3,8 +3,8 @@ import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/n
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/config/settings';
 import type { GroupState, SetAside, NeedsYou, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
-import { sameRow, structuralSignature } from '../logic';
-import { NO_PR_STATUS } from '../prstatus';
+import { sameRow, structuralSignature } from '../rules/logic';
+import { NO_PR_STATUS } from '../status/prstatus';
 import { createStore } from './store';
 
 /**

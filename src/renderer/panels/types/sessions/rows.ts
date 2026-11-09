@@ -1,29 +1,29 @@
 import type { SessionSummary } from '../../../../shared/types';
 // Its rows are the card a list panel draws too.
-import { listCard } from '../../../card';
-import { setMarkup } from '../../../keyed';
-import { clockOf, entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
-import { kebabButton } from '../../../menu';
-import { showMoment, type Moment } from '../../../moments';
-import { notLeftMark, showNotLeft } from '../../../notleft';
-import { approvalsIn, prMark } from '../../../prstatus';
-import { setAsideMark, showSetAside } from '../../../setasidemark';
-import { scheduledMark, showScheduled } from '../../../scheduledmark';
+import { listCard } from '../../../ui/card';
+import { setMarkup } from '../../../ui/keyed';
+import { clockOf, entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/logic';
+import { kebabButton } from '../../../ui/menu';
+import { showMoment, type Moment } from '../../../ui/moments';
+import { notLeftMark, showNotLeft } from '../../../status/notleft';
+import { approvalsIn, prMark } from '../../../status/prstatus';
+import { setAsideMark, showSetAside } from '../../../status/setasidemark';
+import { scheduledMark, showScheduled } from '../../../status/scheduledmark';
 import { store, type View } from '../../../state/app';
 import { tabWith } from '../../../state/views';
-import { ackOnClick, applyStatus } from '../../../statusdot';
-import { NOTE_ICON, PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
-import { showToast } from '../../../toast';
-import { TONES } from '../../../tone';
-import { setTooltip } from '../../../tooltip';
+import { ackOnClick, applyStatus } from '../../../status/statusdot';
+import { NOTE_ICON, PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../ui/svg';
+import { showToast } from '../../../ui/toast';
+import { TONES } from '../../../ui/tone';
+import { setTooltip } from '../../../ui/tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor, unfinishFor } from './actions';
 import { pressRowInBulk, tickBox } from './bulk';
 import { activityMoment, finishedMoment } from './describe';
 import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
-import '../../../tone.css';
-import '../../../prstatus.css';
-import '../../../badge.css';
+import '../../../ui/tone.css';
+import '../../../status/prstatus.css';
+import '../../../ui/badge.css';
 import './rows.css';
 
 /**

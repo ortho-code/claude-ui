@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { FIELD_KINDS, KINDS, MANIFEST_FIELDS, MANIFEST_OPTION_KINDS, OPTION_FIELDS, checkManifest } from '../../../../../src/renderer/panels/types/folder';
 import { CUTS, LIST_FIELDS, LIVE_FIELDS, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
-import { TONES } from '../../../../../src/renderer/tone';
+import { TONES } from '../../../../../src/renderer/ui/tone';
 import { CONTROL_NAMES } from '../../../../../src/renderer/panels/run';
 import { SNAPSHOT_FIELDS } from '../../../../../src/renderer/panels/snapshot';
 

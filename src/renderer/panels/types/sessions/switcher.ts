@@ -1,17 +1,17 @@
-import { byId, fromMarkup } from '../../../dom';
-import { Keyed, placeChildren } from '../../../keyed';
-import { elsewhere, rollUpWords, type RollUp, type SwitcherModel } from '../../../logic';
-import { markProjectGone } from '../../../projectgone';
+import { byId, fromMarkup } from '../../../ui/dom';
+import { Keyed, placeChildren } from '../../../ui/keyed';
+import { elsewhere, rollUpWords, type RollUp, type SwitcherModel } from '../../../rules/logic';
+import { markProjectGone } from '../../../status/projectgone';
 import { store, type View } from '../../../state/app';
 import { setProjectOnShow } from '../../../state/project';
 import { listedProjects, strengthNow, switcherModel } from '../../../state/views';
-import { badgeClass, stateClass } from '../../../statusdot';
-import { chevronIcon } from '../../../svg';
-import { setTooltip } from '../../../tooltip';
+import { badgeClass, stateClass } from '../../../status/statusdot';
+import { chevronIcon } from '../../../ui/svg';
+import { setTooltip } from '../../../ui/tooltip';
 import { hostOf } from '../builtin';
-import '../../../card.css';
-import '../../../menu-row.css';
-import '../../../popover.css';
+import '../../../ui/card.css';
+import '../../../ui/menu-row.css';
+import '../../../ui/popover.css';
 import './switcher.css';
 
 /**

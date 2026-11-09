@@ -4,7 +4,7 @@ import { ICON_NAMES, isIconName } from '../../../shared/helpers/icons';
 import { prFromUrl } from '../../../shared/sessions/prs';
 import type { SessionPr } from '../../../shared/types';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
-import { TONES, type Tone } from '../../tone';
+import { TONES, type Tone } from '../../ui/tone';
 
 /**
  * The list document a `list` type's script prints on stdout, and its check.
