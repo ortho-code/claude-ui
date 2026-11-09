@@ -17,6 +17,23 @@ export interface WindowBounds {
   maximized: boolean;
 }
 
+/**
+ * Stored window bounds, or null if there is nothing trustworthy there.
+ * All four numbers are required together, because a partial rectangle is not a position — half of one would place the window somewhere nobody asked for.
+ * `Number.isFinite` rather than a `typeof` check: JSON can hold `null`, and a NaN or Infinity that reached the file would come back out as an unopenable window rather than as an error.
+ */
+export function parseBounds(raw: unknown): WindowBounds | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const b = raw as Record<string, unknown>;
+  const numbers = ['x', 'y', 'width', 'height'].map((key) => b[key]);
+  if (!numbers.every((n) => typeof n === 'number' && Number.isFinite(n))) return null;
+  const [x, y, width, height] = numbers as [number, number, number, number];
+  // A zero or negative size is damage, not a preference.
+  // Placement handles a size that is merely too SMALL by clamping it; this rejects the ones that are not sizes at all.
+  if (width <= 0 || height <= 0) return null;
+  return { x, y, width, height, maximized: b.maximized === true };
+}
+
 /** A display's usable area (`Display.workArea`: the screen minus panels and docks). */
 export interface Rect {
   x: number;

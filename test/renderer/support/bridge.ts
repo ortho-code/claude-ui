@@ -229,7 +229,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     // Main's own rule (`seededOrder`), so a fixture need not place its projects: the listing's roots seed the order as they seed main's, new ones in front.
     seedProjectOrder: (roots) => answer((fixture.projectOrder = seededOrder(fixture.projectOrder, roots) ?? fixture.projectOrder)),
     moveProject: (repoRoot, move, shown) => answer((fixture.projectOrder = movedProject(fixture.projectOrder, repoRoot, move, shown) ?? fixture.projectOrder)),
-    // Main writes the pairing to its audit log and answers nothing, deciding nothing (`recordClear` in src/main/sessions/meta.ts).
+    // Main writes the pairing to its audit log and answers nothing, deciding nothing (`recordClear` in src/main/sessions/metastore.ts).
     recordClear: () => answer(undefined),
     pickFolder: () => answer(fixture.pickFolder),
     openExternal: sent,

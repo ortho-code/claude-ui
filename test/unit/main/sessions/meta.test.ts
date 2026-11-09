@@ -1,21 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
+import { auditLines, metaDir, useMetaDir, writeMetaFile } from './metafixture';
 
-// meta.ts stores its JSON under app.getPath('userData'); point that at a fresh temp dir per test.
-// getVersion feeds the appVersion stamp and the version-change backup, so tests can move it.
-vi.mock('electron', () => ({
-  app: { getPath: () => process.env.TEST_USERDATA, getVersion: () => process.env.TEST_APPVERSION ?? '1.0.0' },
-}));
-
-// What meta.ts says about recovering its file, captured; the log's own helpers are the real ones.
-const { logged } = vi.hoisted(() => ({ logged: [] as string[] }));
-vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../../../src/main/logs/log')>()),
-  log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
-  logOnce: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
-}));
+vi.mock('electron', async () => (await import('./metafixture')).electronStub);
 
 // A filter that defaults to on, for the one check that needs one: none does yet, and the rule for a key a file does not have is only seen with one.
 const { defaultsWith } = vi.hoisted(() => ({ defaultsWith: { pinnedOn: false } }));
@@ -33,6 +21,9 @@ vi.mock('../../../../src/shared/config/defaults', async (importOriginal) => {
 import {
   getPinned,
   togglePin,
+  getActiveSession,
+  getActiveSessionByProject,
+  setActiveSession,
   getHistoryPins,
   toggleHistoryPin,
   getFinished,
@@ -41,20 +32,8 @@ import {
   purgeSession,
   getOpenSessions,
   getRunningSessions,
-  getNeedsYou,
-  getNeedsYouHistory,
-  restoreNeedsYou,
-  markNeedsYou,
-  getSetAside,
-  markSetAside,
-  clearSetAside,
-  setAsideCameDue,
-  getKept,
-  keep,
-  unkeep,
   getPrLinks,
   addPrLink,
-  clearNeedsYou,
   getPrSeen,
   setPrSeen,
   getScheduledWhenStopped,
@@ -62,16 +41,6 @@ import {
   setScheduledWhenStopped,
   getActiveProject,
   setActiveProject,
-  migrateToSessionKeys,
-  getGroupState,
-  createGroup,
-  renameGroup,
-  deleteGroup,
-  moveSessionsToGroup,
-  moveGroup,
-  getProjectOrder,
-  seedProjectOrder,
-  moveProject,
   getNotes,
   setNote,
   getWindowBounds,
@@ -81,27 +50,10 @@ import {
   getSettings,
   getMoved,
   markMoved,
-  recordClear,
-  settleNeedsYouTypes,
 } from '../../../../src/main/sessions/meta';
+import { getNeedsYou, getSetAside, markNeedsYou, markSetAside } from '../../../../src/main/status/marks';
 
-let dir: string;
-
-beforeEach(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-ui-meta-'));
-  process.env.TEST_USERDATA = dir;
-  delete process.env.TEST_APPVERSION; // back to the default 1.0.0 unless a test moves it
-});
-
-async function writeMetaFile(contents: unknown): Promise<void> {
-  await fs.writeFile(path.join(dir, 'meta.json'), JSON.stringify(contents));
-}
-
-/** The audit log's lines so far, one per write of meta.json: how a check counts the writes a call made. */
-async function auditLines(): Promise<string[]> {
-  const text = await fs.readFile(path.join(dir, 'meta-audit.log'), 'utf8').catch(() => '');
-  return text.split('\n').filter(Boolean);
-}
+useMetaDir();
 
 describe('pins', () => {
   it('toggles a pin on and off', async () => {
@@ -189,7 +141,7 @@ describe('finish', () => {
     await writeMetaFile({ version: 3, archived: { a: 5 } });
     expect(await getFinished()).toEqual({ a: 5 });
     await finish(['b']);
-    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    const raw = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
     expect(raw.archived).toBeUndefined();
     expect(raw.finished).toEqual({ a: 5, b: expect.any(Number) });
   });
@@ -219,7 +171,7 @@ describe('running sessions', () => {
     await setOpenSessions(['a', 'b'], ['b', 'gone']);
     expect(await getOpenSessions()).toEqual(['a', 'b']);
     expect(await getRunningSessions()).toEqual(['b']);
-    expect(await fs.readFile(path.join(dir, 'meta-audit.log'), 'utf8')).toContain('setOpenSessions open=["a","b"] running=["b"]');
+    expect(await fs.readFile(path.join(metaDir(), 'meta-audit.log'), 'utf8')).toContain('setOpenSessions open=["a","b"] running=["b"]');
   });
 
   it('are none in a file written before they were kept, and a value that is no id is dropped', async () => {
@@ -227,169 +179,6 @@ describe('running sessions', () => {
     expect(await getRunningSessions()).toEqual([]);
     await writeMetaFile({ version: 3, openSessions: ['a'], runningSessions: ['a', 7] });
     expect(await getRunningSessions()).toEqual(['a']);
-  });
-});
-
-describe('sessions that need you', () => {
-  it('are marked with every reason and since when, one of a kind replacing the last, and taken off one session at a time', async () => {
-    expect(await getNeedsYou()).toEqual({});
-    await markNeedsYou(['a', 'b'], [{ type: 'app.was-running', at: 1, how: 'ended' }]);
-    await markNeedsYou(['a'], [{ type: 'app.reminder', at: 2 }]);
-    await markNeedsYou(['a'], [{ type: 'app.was-running', at: 3, how: 'quit' }]);
-    expect(await getNeedsYou()).toEqual({
-      a: [
-        { type: 'app.reminder', at: 2 },
-        { type: 'app.was-running', at: 3, how: 'quit' },
-      ],
-      b: [{ type: 'app.was-running', at: 1, how: 'ended' }],
-    });
-    await clearNeedsYou('a', 'cleared');
-    expect(Object.keys(await getNeedsYou())).toEqual(['b']);
-  });
-
-  // Kept per session, not per tab: a mark outlives the tabs being written again, as every launch writes them.
-  it('stay through the open tabs being written', async () => {
-    await markNeedsYou(['a'], [{ type: 'app.was-running', at: 1, how: 'quit' }]);
-    await setOpenSessions(['b'], []);
-    expect(Object.keys(await getNeedsYou())).toEqual(['a']);
-  });
-
-  it('are taken off by a finish, and forgotten by a delete', async () => {
-    await markNeedsYou(['a', 'b'], [{ type: 'app.was-running', at: 1, how: 'quit' }]);
-    await finish(['a']);
-    await purgeSession('b');
-    expect(await getNeedsYou()).toEqual({});
-  });
-
-  it('are none in a file written before they were kept, and a reason this build does not fire or without what it needs is dropped', async () => {
-    await writeMetaFile({ version: 3 });
-    expect(await getNeedsYou()).toEqual({});
-    await writeMetaFile({
-      version: 3,
-      needsYou: {
-        a: [{ type: 'app.was-running', at: 5, how: 'quit' }],
-        b: [{ type: 'claude.asks', at: 5 }],
-        c: [{ type: 'app.reminder' }],
-        d: 'yes',
-        e: [
-          { type: 'app.reminder', at: 7 },
-          { type: 'nonsense', at: 8 },
-          { type: 'app.was-running', at: 8, how: 'sometime' },
-          { type: 'pr.merged', at: 8 },
-        ],
-        f: [{ type: 'pr.checks-failed', at: 9, pr: 'acme/app#7' }],
-      },
-    });
-    expect(await getNeedsYou()).toEqual({ a: [{ type: 'app.was-running', at: 5, how: 'quit' }], e: [{ type: 'app.reminder', at: 7 }], f: [{ type: 'pr.checks-failed', at: 9, pr: 'acme/app#7' }] });
-  });
-
-  // Before reasons had types (decided 2026-11-06): how the app closed was the reason itself, and a PR's changes one reason holding them all.
-  it('read the form from before reasons had types, a PR reason as a reason per change, and drop one this build cannot read', async () => {
-    await writeMetaFile({
-      version: 3,
-      needsYou: {
-        a: [{ reason: 'ended', at: 1 }, { reason: 'reminder', at: 2 }, { reason: 'pr', at: 5, pr: 'acme/app#7', changes: ['checks failed', 'approved'] }],
-        b: [{ reason: 'pr', at: 5, changes: ['merged'] }],
-        c: [{ reason: 'pr', at: 5, pr: 'acme/app#7', changes: ['merged', 'nonsense'] }],
-        d: [{ reason: 'pr', at: 5, pr: 'acme/app#7', changes: [] }],
-        e: [{ reason: 'nonsense', at: 5 }, { reason: 'ended' }],
-      },
-    });
-    expect(await getNeedsYou()).toEqual({
-      a: [
-        { type: 'app.was-running', at: 1, how: 'ended' },
-        { type: 'app.reminder', at: 2 },
-        { type: 'pr.checks-failed', at: 5, pr: 'acme/app#7' },
-        { type: 'pr.approved', at: 5, pr: 'acme/app#7' },
-      ],
-    });
-  });
-
-  // A file from before a session kept every reason holds one reason per session.
-  it('read a single reason, as an older file holds it, as a list of one', async () => {
-    await writeMetaFile({ version: 3, needsYou: { a: { reason: 'quit', at: 5 }, b: { reason: 'nonsense', at: 5 } } });
-    expect(await getNeedsYou()).toEqual({ a: [{ type: 'app.was-running', at: 5, how: 'quit' }] });
-  });
-
-  it('keep what settled each reason, by what and when, in the same write that takes it off, and put back by Undo leave none', async () => {
-    const quit = { type: 'app.was-running' as const, at: 1, how: 'quit' as const };
-    await markNeedsYou(['a', 'b'], [quit]);
-    await markNeedsYou(['a'], [{ type: 'app.was-running', at: 2, how: 'ended' }]);
-    await clearNeedsYou('a', 'prompt');
-    await finish(['b']);
-    const history = await getNeedsYouHistory();
-    expect(history).toEqual({
-      a: [
-        { type: 'app.was-running', at: 2, how: 'ended', settled: expect.any(Number), by: 'prompt' },
-        { ...quit, settled: expect.any(Number), by: 'replaced' },
-      ],
-      b: [{ ...quit, settled: expect.any(Number), by: 'finished' }],
-    });
-    await restoreNeedsYou('b', [quit]);
-    expect(await getNeedsYou()).toEqual({ b: [quit] });
-    expect(Object.keys(await getNeedsYouHistory())).toEqual(['a']);
-    await purgeSession('a');
-    expect(await getNeedsYouHistory()).toEqual({});
-  });
-
-  it('read a history entry only with a reason, the moment it was settled and what settled it, and keep the newest twenty', async () => {
-    const entry = (at: number, more: object = {}) => ({ type: 'app.reminder', at, settled: at, by: 'cleared', ...more });
-    await writeMetaFile({
-      version: 3,
-      needsYouHistory: { a: [entry(1), entry(2, { by: 'nonsense' }), entry(3, { settled: 'then' }), entry(4, { type: 'nonsense' })], b: 'yes', c: Array.from({ length: 25 }, (_, i) => entry(i)) },
-    });
-    const history = await getNeedsYouHistory();
-    expect(history.a).toEqual([{ type: 'app.reminder', at: 1, settled: 1, by: 'cleared' }]);
-    expect(Object.keys(history).sort()).toEqual(['a', 'c']);
-    expect(history.c).toHaveLength(20);
-  });
-
-  // A key a build does not know goes through `extra` untouched, which is how a build from before the history keeps it, so going back a build and forward again loses none of it.
-  it('stay in the file through a write, and so does a key the build does not know', async () => {
-    const raw = { version: 3, needsYouHistory: { a: [{ type: 'app.reminder', at: 1, settled: 2, by: 'cleared' }] }, someLaterKey: { x: 1 } };
-    await writeMetaFile(raw);
-    await togglePin('z');
-    const written = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
-    expect(written.needsYouHistory).toEqual(raw.needsYouHistory);
-    expect(written.someLaterKey).toEqual({ x: 1 });
-  });
-
-  // The reader of the build before reasons had types, as it was: what a build gone back to reads of what this one wrote.
-  const olderReader = (raw: Record<string, unknown[]>): Record<string, unknown[]> =>
-    Object.fromEntries(
-      Object.entries(raw).flatMap(([id, entry]) => {
-        const reasons = entry.flatMap((item) => {
-          const { reason, at, pr, changes } = item as Record<string, unknown>;
-          if (!['quit', 'ended', 'unknown', 'reminder', 'pr'].includes(reason as string) || typeof at !== 'number') return [];
-          if (reason !== 'pr') return [{ reason, at }];
-          const known = Array.isArray(changes) && changes.length > 0 && changes.every((change) => ['checks failed', 'merge conflict', 'changes requested', 'merged', 'closed', 'approved', 'reopened'].includes(change as string));
-          return typeof pr === 'string' && known ? [{ reason, at, pr, changes }] : [];
-        });
-        return reasons.length > 0 ? [[id, reasons]] : [];
-      }),
-    );
-
-  it('are written so that a build from before reasons had types reads every one, and what it writes back reads as the same reasons', async () => {
-    const reasons = [
-      { type: 'app.was-running' as const, at: 1, how: 'unknown' as const },
-      { type: 'app.reminder' as const, at: 2 },
-      { type: 'pr.checks-failed' as const, at: 3, pr: 'acme/app#7' },
-      { type: 'pr.approved' as const, at: 3, pr: 'acme/app#7' },
-      { type: 'pr.reopened' as const, at: 4, pr: 'acme/app#8' },
-    ];
-    await markNeedsYou(['a'], reasons);
-    const older = olderReader(JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8')).needsYou);
-    expect(older).toEqual({
-      a: [
-        { reason: 'unknown', at: 1 },
-        { reason: 'reminder', at: 2 },
-        { reason: 'pr', at: 3, pr: 'acme/app#7', changes: ['checks failed'] },
-        { reason: 'pr', at: 3, pr: 'acme/app#7', changes: ['approved'] },
-        { reason: 'pr', at: 4, pr: 'acme/app#8', changes: ['reopened'] },
-      ],
-    });
-    await writeMetaFile({ version: 3, needsYou: older });
-    expect(await getNeedsYou()).toEqual({ a: reasons });
   });
 });
 
@@ -459,107 +248,6 @@ describe('the PRs the app linked sessions to', () => {
   });
 });
 
-describe('the keep stamps', () => {
-  it('stamp several sessions in one write, are taken off, stay through a finish and go with a delete', async () => {
-    const before = await auditLines();
-    await keep(['a', 'b'], 5);
-    expect(await getKept()).toEqual({ a: 5, b: 5 });
-    await unkeep(['b']);
-    expect(await getKept()).toEqual({ a: 5 });
-    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['keep', 'unkeep']);
-    await finish(['a']);
-    expect(await getKept()).toEqual({ a: 5 });
-    await purgeSession('a');
-    expect(await getKept()).toEqual({});
-  });
-
-  it('are none in a file written before they were kept, and a stamp that is no moment is dropped', async () => {
-    await writeMetaFile({ version: 3 });
-    expect(await getKept()).toEqual({});
-    await writeMetaFile({ version: 3, kept: { a: 5, b: 'monday', c: null } });
-    expect(await getKept()).toEqual({ a: 5 });
-  });
-});
-
-describe('the later marks', () => {
-  it('are kept per session from the time given, replaced by a new one, and taken off', async () => {
-    await markSetAside(['a'], null, 5);
-    await markSetAside(['b'], 100, 5);
-    await markSetAside(['b'], 200, 6);
-    expect(await getSetAside()).toEqual({ a: { due: null, at: 5 }, b: { due: 200, at: 6 } });
-    await clearSetAside(['a']);
-    expect(await getSetAside()).toEqual({ b: { due: 200, at: 6 } });
-  });
-
-  it('are marked and taken off for several sessions in one write each', async () => {
-    const before = await auditLines();
-    await markSetAside(['a', 'b', 'c'], 100, 5);
-    expect(await getSetAside()).toEqual({ a: { due: 100, at: 5 }, b: { due: 100, at: 5 }, c: { due: 100, at: 5 } });
-    await clearSetAside(['a', 'c']);
-    expect(await getSetAside()).toEqual({ b: { due: 100, at: 5 } });
-    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['markSetAside', 'clearSetAside']);
-  });
-
-  it('stay through the open tabs being written, are taken off by a finish, and forgotten by a delete', async () => {
-    await markSetAside(['a'], null);
-    await markSetAside(['b'], null);
-    await setOpenSessions([], []);
-    expect(Object.keys(await getSetAside())).toEqual(['a', 'b']);
-    await finish(['a']);
-    await purgeSession('b');
-    expect(await getSetAside()).toEqual({});
-  });
-
-  it('come due as needing you, keeping a reason the session already had', async () => {
-    await markNeedsYou(['a'], [{ type: 'app.was-running', at: 5, how: 'quit' }]);
-    await markSetAside(['a', 'b'], 100, 10);
-    await markSetAside(['c'], 300, 10);
-    await setAsideCameDue(150);
-    expect(await getSetAside()).toEqual({ c: { due: 300, at: 10 } });
-    expect(await getNeedsYou()).toEqual({ a: [{ type: 'app.was-running', at: 5, how: 'quit' }], b: [{ type: 'app.reminder', at: 100 }] });
-  });
-
-  it('are none in a file written before they were kept, and an entry without a time or with a day that is not one is dropped', async () => {
-    await writeMetaFile({ version: 3 });
-    expect(await getSetAside()).toEqual({});
-    await writeMetaFile({ version: 3, setAside: { a: { due: null, at: 5 }, b: { due: 9, at: 5 }, c: { due: 'monday', at: 5 }, d: { due: null }, e: 'yes' } });
-    expect(await getSetAside()).toEqual({ a: { due: null, at: 5 }, b: { due: 9, at: 5 } });
-  });
-
-  // Pause gave way to the set-aside mark, so nothing a file from before set aside is lost.
-  it('take in the tabs a file from before paused, whenever, keeping a mark one already has, and the next write drops the paused list', async () => {
-    await writeMetaFile({ version: 3, openSessions: ['a', 'b'], pausedSessions: ['a', 'b', 7], setAside: { b: { due: 9, at: 5 } } });
-    expect(await getSetAside()).toEqual({ a: { due: null, at: expect.any(Number) }, b: { due: 9, at: 5 } });
-    await setOpenSessions(['a', 'b'], []);
-    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
-    expect(raw.pausedSessions).toBeUndefined();
-    expect(raw.setAside).toEqual({ a: { due: null, at: expect.any(Number) }, b: { due: 9, at: 5 } });
-    // Written once, the mark is the file's own, so a read no longer makes it again.
-    expect(await getSetAside()).toEqual(raw.setAside);
-  });
-
-  // They were stored as `later` before the act was called Set aside.
-  it('read from the key they were stored under before, and the next write keeps them under the new one only', async () => {
-    await writeMetaFile({ version: 3, later: { a: { due: 9, at: 5 } } });
-    expect(await getSetAside()).toEqual({ a: { due: 9, at: 5 } });
-    await markSetAside(['b'], null, 6);
-    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
-    expect(raw.later).toBeUndefined();
-    expect(raw.setAside).toEqual({ a: { due: 9, at: 5 }, b: { due: null, at: 6 } });
-  });
-
-  it('prefer the new key once both are there', async () => {
-    await writeMetaFile({ version: 3, later: { a: { due: 9, at: 5 } }, setAside: { b: { due: null, at: 6 } } });
-    expect(await getSetAside()).toEqual({ b: { due: null, at: 6 } });
-  });
-
-  // Its pause still waited for claude to leave at the quit, and pause never started or marked such a tab at launch.
-  it('do not take a tab a file from before listed as paused and running as running', async () => {
-    await writeMetaFile({ version: 3, openSessions: ['a', 'b'], runningSessions: ['a', 'b'], pausedSessions: ['a'] });
-    expect(await getRunningSessions()).toEqual(['b']);
-  });
-});
-
 describe('what was scheduled when a tab stopped', () => {
   const tock = { prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' };
 
@@ -588,138 +276,6 @@ describe('what was scheduled when a tab stopped', () => {
   });
 });
 
-describe('recordClear', () => {
-  // Data collection only: nothing reads this back.
-  // Nothing in either transcript links a cleared session to its predecessor, so the log is the only account that they are connected.
-  it('writes the pairing to the audit log, named or not', async () => {
-    await recordClear('old-a', 'new-a', 'Named');
-    await recordClear('old-b', 'new-b', '');
-    const log = await fs.readFile(path.join(dir, 'meta-audit.log'), 'utf8');
-    expect(log).toContain('clear old-a -> new-a title="Named"');
-    expect(log).toContain('clear old-b -> new-b');
-  });
-
-  // It is a lineage note, not a change to anything stored — so it must not rewrite meta.json to say so.
-  it('leaves the stored state untouched', async () => {
-    await togglePin('s1');
-    const before = await fs.readFile(path.join(dir, 'meta.json'), 'utf8');
-    await recordClear('old', 'new', 'Named');
-    expect(await fs.readFile(path.join(dir, 'meta.json'), 'utf8')).toBe(before);
-  });
-});
-
-describe('migrateToSessionKeys', () => {
-  it('remaps conversation keys to session ids across pins, tabs and archive, then is idempotent', async () => {
-    await writeMetaFile({
-      pinned: ['conv1'],
-      openSessions: ['conv1', 'conv2'],
-      archived: { conv2: 123 },
-      version: 2,
-    });
-    await migrateToSessionKeys(new Map([['conv1', 'sess1'], ['conv2', 'sess2']]));
-    expect(await getPinned()).toEqual(['sess1']);
-    expect(await getOpenSessions()).toEqual(['sess1', 'sess2']);
-    expect(await getFinished()).toEqual({ sess2: 123 });
-    // Already at version 3: a second run must not remap again.
-    await migrateToSessionKeys(new Map([['sess1', 'other']]));
-    expect(await getPinned()).toEqual(['sess1']);
-  });
-
-  it('passes through id keys and keys naming no known session (covers a v1 file too)', async () => {
-    await writeMetaFile({ pinned: ['sess-already-id', 'gone-from-disk'], openSessions: [], version: 1 });
-    await migrateToSessionKeys(new Map([['conv1', 'sess1']]));
-    expect(await getPinned()).toEqual(['sess-already-id', 'gone-from-disk']);
-  });
-});
-
-describe('corruption safety', () => {
-  it('recovers from the backup when the main file is corrupted, and preserves the corrupt copy', async () => {
-    await togglePin('conv1'); // first write: creates meta.json
-    await setActiveProject('/x'); // second write: backs up the good meta.json to meta.json.bak
-    // Simulate a write truncated by a crash.
-    await fs.writeFile(path.join(dir, 'meta.json'), '{ "pinned": ["conv1"');
-    // The read falls back to the backup instead of silently resetting.
-    expect(await getPinned()).toEqual(['conv1']);
-    // The unparseable content is preserved for recovery, not discarded.
-    const files = await fs.readdir(dir);
-    expect(files.some((f) => f.startsWith('meta.json.corrupt-'))).toBe(true);
-  });
-
-  it('recovers from the backup when the main file is missing', async () => {
-    await togglePin('conv1');
-    await setActiveProject('/x'); // creates meta.json.bak holding pinned: [conv1]
-    await fs.rm(path.join(dir, 'meta.json'));
-    expect(await getPinned()).toEqual(['conv1']);
-  });
-
-  it('keeps the previous good copy in .bak and never leaves a temp file behind', async () => {
-    await togglePin('conv1');
-    await togglePin('conv2'); // backs up the {pinned:[conv1]} state before writing conv2
-    const bak = JSON.parse(await fs.readFile(path.join(dir, 'meta.json.bak'), 'utf8'));
-    expect(bak.pinned).toEqual(['conv1']);
-    expect((await fs.readdir(dir)).some((f) => f.endsWith('.tmp'))).toBe(false);
-  });
-
-  // "My pins and tabs are gone" starts here, so the log says which copy the app went on with.
-  describe('what the log says', () => {
-    beforeEach(() => {
-      logged.length = 0;
-    });
-
-    it('nothing on a first run, with no file and no backup', async () => {
-      await getPinned();
-      expect(logged).toEqual([]);
-    });
-
-    it('that a missing file was recovered from the backup', async () => {
-      await togglePin('conv1');
-      await setActiveProject('/x');
-      await fs.rm(path.join(dir, 'meta.json'));
-      logged.length = 0;
-      await getPinned();
-      expect(logged).toEqual([`warn meta ${path.join(dir, 'meta.json')} is missing, using the backup`]);
-    });
-
-    it('that a corrupt file was kept, and which copy replaced it', async () => {
-      await togglePin('conv1');
-      await setActiveProject('/x');
-      await fs.writeFile(path.join(dir, 'meta.json'), '{ "pinned": ["conv1"');
-      logged.length = 0;
-      await getPinned();
-      const kept = (await fs.readdir(dir)).find((f) => f.startsWith('meta.json.corrupt-'));
-      expect(logged).toHaveLength(1);
-      expect(logged[0]).toMatch(new RegExp(`^error meta ${path.join(dir, 'meta.json')} does not parse \\(.+\\), kept as ${kept}, recovered from the backup$`));
-    });
-
-    it('that a write failed, as well as rejecting it', async () => {
-      await togglePin('conv1');
-      // A directory where the temp file goes makes the write itself fail.
-      await fs.mkdir(path.join(dir, 'meta.json.tmp'));
-      logged.length = 0;
-      await expect(togglePin('conv2')).rejects.toThrow();
-      expect(logged).toEqual([expect.stringMatching(new RegExp(`^error meta ${path.join(dir, 'meta.json')} not saved: EISDIR`))]);
-    });
-  });
-});
-
-describe('write serialization', () => {
-  it('serializes concurrent writes so the last logical change wins (no stale overwrite)', async () => {
-    // Fired together, these race in readMeta/writeMeta; without serialization a stale write can win.
-    await Promise.all([
-      setOpenSessions(['a'], []),
-      setOpenSessions(['a', 'b'], []),
-      setOpenSessions(['a', 'b', 'c'], []),
-    ]);
-    expect(await getOpenSessions()).toEqual(['a', 'b', 'c']);
-  });
-
-  it('does not lose one field when different ops race (read-modify-write stays atomic)', async () => {
-    await Promise.all([togglePin('p1'), setOpenSessions(['o1'], [])]);
-    expect(await getPinned()).toEqual(['p1']);
-    expect(await getOpenSessions()).toEqual(['o1']);
-  });
-});
-
 describe('active project', () => {
   it('defaults to null and round-trips a project and back to All', async () => {
     expect(await getActiveProject()).toBeNull();
@@ -743,194 +299,46 @@ describe('active project', () => {
   });
 });
 
-describe('session groups', () => {
-  it('prepends a new group so it lands at the top of its project', async () => {
-    expect(await getGroupState()).toEqual({ groups: [], groupOf: {} });
-    await createGroup('Perf pass', '/repo');
-    const { groups } = await createGroup('Custom groups', '/repo');
-    expect(groups.map((g) => g.name)).toEqual(['Custom groups', 'Perf pass']);
-    expect(groups.every((g) => g.repoRoot === '/repo')).toBe(true);
+describe('active session', () => {
+  it('is none at first, and remembers the session to return to, overall and in its own project', async () => {
+    expect(await getActiveSession()).toBeNull();
+    expect(await getActiveSessionByProject()).toEqual({});
+    await setOpenSessions(['a', 'b'], []);
+    await setActiveSession('a', '/p');
+    await setActiveSession('b', '/q');
+    expect(await getActiveSession()).toBe('b');
+    expect(await getActiveSessionByProject()).toEqual({ '/p': 'a', '/q': 'b' });
   });
 
-  it('creates and moves a session in one step (the row menu\'s "New group…")', async () => {
-    const { groups, groupOf } = await createGroup('Perf pass', '/repo', 's1');
-    expect(groupOf).toEqual({ s1: groups[0].id });
+  it('forgets a session whose tab is no longer open, overall and in its project', async () => {
+    await setOpenSessions(['a', 'b'], []);
+    await setActiveSession('a', '/p');
+    await setActiveSession('b', '/q');
+    await setOpenSessions(['a'], []);
+    expect(await getActiveSession()).toBeNull();
+    expect(await getActiveSessionByProject()).toEqual({ '/p': 'a' });
   });
 
-  it('ignores a blank name on create and on rename', async () => {
-    expect((await createGroup('   ', '/repo')).groups).toEqual([]);
-    const { groups } = await createGroup('Perf pass', '/repo');
-    const renamed = await renameGroup(groups[0].id, '  ');
-    expect(renamed.groups[0].name).toBe('Perf pass');
-    expect((await renameGroup(groups[0].id, ' Perf ')).groups[0].name).toBe('Perf');
-  });
-
-  it('moves a session between groups rather than adding it to both', async () => {
-    const a = (await createGroup('A', '/repo')).groups[0];
-    const b = (await createGroup('B', '/repo')).groups[0];
-    await moveSessionsToGroup(['s1'], a.id);
-    const { groupOf } = await moveSessionsToGroup(['s1'], b.id);
-    expect(groupOf).toEqual({ s1: b.id });
-  });
-
-  it('moves several sessions in one write, from whichever groups they were in', async () => {
-    const a = (await createGroup('A', '/repo')).groups[0];
-    const b = (await createGroup('B', '/repo')).groups[0];
-    await moveSessionsToGroup(['s1'], a.id);
-    const before = await auditLines();
-    expect((await moveSessionsToGroup(['s1', 's2'], b.id)).groupOf).toEqual({ s1: b.id, s2: b.id });
-    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['moveSessionsToGroup']);
-  });
-
-  it('takes a session out of every group with a null target, and ignores an unknown group', async () => {
-    const a = (await createGroup('A', '/repo')).groups[0];
-    await moveSessionsToGroup(['s1'], a.id);
-    expect((await moveSessionsToGroup(['s1'], null)).groupOf).toEqual({});
-    expect((await moveSessionsToGroup(['s1'], 'no-such-group')).groupOf).toEqual({});
-  });
-
-  it('deletes a group, ungrouping its members and leaving other groups alone', async () => {
-    const doomed = (await createGroup('Doomed', '/repo')).groups[0];
-    const keeper = (await createGroup('Keeper', '/repo')).groups[0];
-    await moveSessionsToGroup(['s1'], doomed.id);
-    await moveSessionsToGroup(['s2'], keeper.id);
-    const { groups, groupOf } = await deleteGroup(doomed.id);
-    expect(groups.map((g) => g.name)).toEqual(['Keeper']);
-    expect(groupOf).toEqual({ s2: keeper.id }); // s1 is ungrouped, not deleted
-  });
-
-  it('drops a deleted session\'s membership', async () => {
-    const a = (await createGroup('A', '/repo')).groups[0];
-    await moveSessionsToGroup(['s1'], a.id);
-    await purgeSession('s1');
-    expect((await getGroupState()).groupOf).toEqual({});
-  });
-
-  it('defaults the fields for a meta.json written before groups existed', async () => {
-    await writeMetaFile({ pinned: ['p1'], version: 3 });
-    expect(await getGroupState()).toEqual({ groups: [], groupOf: {} });
-    expect(await getPinned()).toEqual(['p1']);
-  });
-
-  it('drops malformed groups and memberships pointing at a group that is gone', async () => {
-    await writeMetaFile({
-      groups: [{ id: 'g1', name: 'Real', repoRoot: '/repo' }, { id: 'g2', name: 42 }],
-      groupOf: { s1: 'g1', s2: 'g2', s3: 'vanished', s4: 7 },
-      version: 3,
-    });
-    const { groups, groupOf } = await getGroupState();
-    expect(groups.map((g) => g.id)).toEqual(['g1']);
-    expect(groupOf).toEqual({ s1: 'g1' });
-  });
-});
-
-describe('moveGroup', () => {
-  // Three in /a with one of /b wedged between them, so a move that leaked outside its own project would be visible in the result rather than passing by luck.
-  async function seed(): Promise<string[]> {
-    await createGroup('a3', '/a');
-    await createGroup('b1', '/b');
-    await createGroup('a2', '/a');
-    await createGroup('a1', '/a');
-    const { groups } = await getGroupState();
-    expect(groups.map((g) => g.name)).toEqual(['a1', 'a2', 'b1', 'a3']);
-    return groups.filter((g) => g.repoRoot === '/a').map((g) => g.id);
-  }
-
-  it('moves within its own project and leaves other projects in place', async () => {
-    const [, , a3] = await seed();
-    const { groups } = await moveGroup(a3, 'top');
-    // a3 leads /a's groups; b1 has not budged from the slot it held.
-    expect(groups.filter((g) => g.repoRoot === '/a').map((g) => g.name)).toEqual(['a3', 'a1', 'a2']);
-    expect(groups.map((g) => g.name)).toEqual(['a3', 'a1', 'b1', 'a2']);
-  });
-
-  it('steps one place at a time, skipping over another project\'s group', async () => {
-    const [a1] = await seed();
-    const down = await moveGroup(a1, 'down');
-    expect(down.groups.filter((g) => g.repoRoot === '/a').map((g) => g.name)).toEqual(['a2', 'a1', 'a3']);
-    const up = await moveGroup(a1, 'up');
-    expect(up.groups.filter((g) => g.repoRoot === '/a').map((g) => g.name)).toEqual(['a1', 'a2', 'a3']);
-  });
-
-  it('sends a group to the end of its own project, not the end of the registry', async () => {
-    const [a1] = await seed();
-    const { groups } = await moveGroup(a1, 'bottom');
-    expect(groups.filter((g) => g.repoRoot === '/a').map((g) => g.name)).toEqual(['a2', 'a3', 'a1']);
-    expect(groups.map((g) => g.name)).toEqual(['a2', 'a3', 'b1', 'a1']);
-  });
-
-  it('ignores a move that would fall off either end, and an unknown id', async () => {
-    const [a1, , a3] = await seed();
-    expect((await moveGroup(a1, 'up')).groups.map((g) => g.name)).toEqual(['a1', 'a2', 'b1', 'a3']);
-    expect((await moveGroup(a3, 'down')).groups.map((g) => g.name)).toEqual(['a1', 'a2', 'b1', 'a3']);
-    expect((await moveGroup('nope', 'top')).groups.map((g) => g.name)).toEqual(['a1', 'a2', 'b1', 'a3']);
-  });
-
-  it('survives a reload, so the order is really persisted', async () => {
-    const [, , a3] = await seed();
-    await moveGroup(a3, 'top');
-    expect((await getGroupState()).groups.map((g) => g.name)).toEqual(['a3', 'a1', 'b1', 'a2']);
-  });
-});
-
-describe('projectOrder', () => {
-  it('seeds from the order given, so the first run changes nothing on screen', async () => {
-    expect(await getProjectOrder()).toEqual([]);
-    expect(await seedProjectOrder(['/c', '/a', '/b'])).toEqual(['/c', '/a', '/b']);
-    expect(await getProjectOrder()).toEqual(['/c', '/a', '/b']);
-  });
-
-  it('puts a project first seen later at the front, keeping the rest put', async () => {
-    await seedProjectOrder(['/a', '/b']);
-    expect(await seedProjectOrder(['/a', '/b', '/new'])).toEqual(['/new', '/a', '/b']);
-  });
-
-  it('keeps the slot of a project that is absent for a while', async () => {
-    await seedProjectOrder(['/a', '/b', '/c']);
-    // /b contributes no sessions this time (all deleted, say) and must not lose its place.
-    expect(await seedProjectOrder(['/a', '/c'])).toEqual(['/a', '/b', '/c']);
-    expect(await seedProjectOrder(['/a', '/b', '/c'])).toEqual(['/a', '/b', '/c']);
-  });
-
-  it('moves a project to either end and one step at a time', async () => {
-    const all = ['/a', '/b', '/c'];
-    await seedProjectOrder(all);
-    expect(await moveProject('/c', 'top', all)).toEqual(['/c', '/a', '/b']);
-    expect(await moveProject('/c', 'down', all)).toEqual(['/a', '/c', '/b']);
-    expect(await moveProject('/c', 'up', all)).toEqual(['/c', '/a', '/b']);
-    expect(await moveProject('/c', 'bottom', all)).toEqual(['/a', '/b', '/c']);
-  });
-
-  it('moves among the projects shown, stepping over the rest', async () => {
-    await seedProjectOrder(['/a', '/gone', '/b']);
-    expect(await moveProject('/a', 'down', ['/a', '/b'])).toEqual(['/gone', '/b', '/a']);
-  });
-
-  it('ignores a move off either end and an unseen project', async () => {
-    const all = ['/a', '/b'];
-    await seedProjectOrder(all);
-    expect(await moveProject('/a', 'up', all)).toEqual(['/a', '/b']);
-    expect(await moveProject('/b', 'down', all)).toEqual(['/a', '/b']);
-    expect(await moveProject('/nope', 'top', all)).toEqual(['/a', '/b']);
-  });
-
-  it('survives a reload', async () => {
-    await seedProjectOrder(['/a', '/b']);
-    await moveProject('/b', 'top', ['/a', '/b']);
-    expect(await getProjectOrder()).toEqual(['/b', '/a']);
+  it('keeps a project\'s session when cleared overall, and drops a stored entry that is no id', async () => {
+    await setActiveSession('a', '/p');
+    await setActiveSession(null);
+    expect(await getActiveSession()).toBeNull();
+    expect(await getActiveSessionByProject()).toEqual({ '/p': 'a' });
+    await writeMetaFile({ version: 3, activeSessionByProject: { '/p': 'a', '/q': 7 } });
+    expect(await getActiveSessionByProject()).toEqual({ '/p': 'a' });
   });
 });
 
 describe('the live strip\'s stored keys', () => {
   it('are not read, and leave the file at the next write', async () => {
     await writeMetaFile({ footerExpanded: false, ui: { footerExpanded: false, stripExpanded: false, stripHiddenProjects: ['/a'] }, version: 3 });
-    const before = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    const before = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
     expect(before.ui.stripHiddenProjects).toEqual(['/a']);
     const ui = await getUiState();
     expect(Object.keys(ui)).not.toContain('stripExpanded');
     expect(Object.keys(ui)).not.toContain('stripHiddenProjects');
     await setUiState(ui);
-    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    const raw = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
     expect(raw.footerExpanded).toBeUndefined();
     expect(raw.ui.footerExpanded).toBeUndefined();
     expect(raw.ui.stripExpanded).toBeUndefined();
@@ -1179,89 +587,6 @@ describe('notes', () => {
   });
 });
 
-// A meta file can be read by a build that is not the one that wrote it: versions get skipped, and an older build can be installed over a newer one.
-describe('across app versions', () => {
-  const readMetaFile = async (): Promise<Record<string, unknown>> =>
-    JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
-
-  it('stamps the writing version into the file', async () => {
-    process.env.TEST_APPVERSION = '0.2.0';
-    await togglePin('s1');
-    expect((await readMetaFile()).appVersion).toBe('0.2.0');
-  });
-
-  it('keeps a stamped copy of the file the previous version left behind', async () => {
-    process.env.TEST_APPVERSION = '0.1.0';
-    await togglePin('kept-by-0.1.0');
-
-    process.env.TEST_APPVERSION = '0.2.0';
-    await togglePin('added-by-0.2.0');
-
-    // The rolling .bak is overwritten by the very next write; this one is not, which is the point.
-    const snapshot = JSON.parse(await fs.readFile(path.join(dir, 'meta.json.0.1.0.bak'), 'utf8'));
-    expect(snapshot.pinned).toEqual(['kept-by-0.1.0']);
-    expect(snapshot.appVersion).toBe('0.1.0');
-    expect((await readMetaFile()).appVersion).toBe('0.2.0');
-  });
-
-  it('takes only one snapshot per version, not one per write', async () => {
-    process.env.TEST_APPVERSION = '0.1.0';
-    await togglePin('a');
-    process.env.TEST_APPVERSION = '0.2.0';
-    await togglePin('b');
-    const first = await fs.readFile(path.join(dir, 'meta.json.0.1.0.bak'), 'utf8');
-    await togglePin('c');
-    // A second snapshot would capture 0.2.0's own writes and destroy the pre-upgrade state.
-    expect(await fs.readFile(path.join(dir, 'meta.json.0.1.0.bak'), 'utf8')).toBe(first);
-  });
-
-  it('records a downgrade in the audit log, so a rollback is visible', async () => {
-    process.env.TEST_APPVERSION = '0.3.0';
-    await togglePin('a');
-    process.env.TEST_APPVERSION = '0.2.0'; // someone was handed an older build
-    await togglePin('b');
-    const log = await fs.readFile(path.join(dir, 'meta-audit.log'), 'utf8');
-    expect(log).toContain('DOWNGRADE 0.3.0 -> 0.2.0');
-  });
-
-  it('preserves keys it does not know, so an older build cannot drop a newer one\'s data', async () => {
-    // What a future version might add, written by a build that understands it.
-    await writeMetaFile({ pinned: ['s1'], version: 3, appVersion: '9.0.0', somethingNew: { a: 1 } });
-    // This build has never heard of `somethingNew`, and rewrites the file for an unrelated reason.
-    await togglePin('s2');
-    const after = await readMetaFile();
-    expect(after.somethingNew).toEqual({ a: 1 });
-    expect(after.pinned).toEqual(['s1', 's2']);
-    // The container itself is an implementation detail and must not leak into the file.
-    expect('extra' in after).toBe(false);
-  });
-});
-
-// The audit log grows by one line per meta write and is bounded by size.
-// It is tested because the bound has failed silently once already: it used to be triggered only when a startup marker was written elsewhere, so removing that marker left the file growing forever with nothing to notice.
-describe('audit log', () => {
-  const auditFile = (): string => path.join(dir, 'meta-audit.log');
-
-  it('records one line per write', async () => {
-    await togglePin('s1');
-    await togglePin('s2');
-    const lines = (await fs.readFile(auditFile(), 'utf8')).split('\n').filter(Boolean);
-    expect(lines).toHaveLength(2);
-    expect(lines[1]).toContain('togglePin');
-  });
-
-  it('trims itself once it passes the size cap, and keeps the NEWEST lines', async () => {
-    // Seed well past the 256KB cap.
-    // The content does not matter, only that the next real write finds an oversized file; `marker` proves the survivors are the tail, not the head.
-    await fs.writeFile(auditFile(), `${'x'.repeat(300 * 1024)}\nmarker-last\n`);
-    await togglePin('s1');
-    const text = await fs.readFile(auditFile(), 'utf8');
-    expect(text.length).toBeLessThan(256 * 1024);
-    expect(text).toContain('marker-last');
-    expect(text).toContain('togglePin');
-  });
-});
-
 describe('the live filter, renamed from running', () => {
   it('adopts the value stored under the old key', async () => {
     await writeMetaFile({ ui: { filters: { running: true } }, version: 3 });
@@ -1276,7 +601,7 @@ describe('the live filter, renamed from running', () => {
   it('stops writing the old key back out', async () => {
     await writeMetaFile({ ui: { filters: { running: true } }, version: 3 });
     await setUiState(await getUiState());
-    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    const raw = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
     expect(raw.ui.filters.running).toBeUndefined();
     expect(raw.ui.filters.live).toBe(true);
   });
@@ -1296,7 +621,7 @@ describe('the finished filter, renamed from archived', () => {
   it('stops writing the old key back out', async () => {
     await writeMetaFile({ ui: { filters: { archived: true } }, version: 3 });
     await setUiState(await getUiState());
-    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    const raw = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
     expect(raw.ui.filters.archived).toBeUndefined();
     expect(raw.ui.filters.finished).toBe(true);
   });
@@ -1316,7 +641,7 @@ describe('the set-aside filter, renamed from later', () => {
   it('stops writing the old key back out', async () => {
     await writeMetaFile({ ui: { filters: { later: true } }, version: 3 });
     await setUiState(await getUiState());
-    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    const raw = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
     expect(raw.ui.filters.later).toBeUndefined();
     expect(raw.ui.filters.setAside).toBe(true);
   });
@@ -1327,7 +652,7 @@ describe('the paused filter, which gave way to the set-aside one', () => {
     await writeMetaFile({ ui: { filters: { paused: true } }, version: 3 });
     expect((await getUiState()).filters.setAside).toBe(false);
     await setUiState(await getUiState());
-    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    const raw = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
     expect(raw.ui.filters.paused).toBeUndefined();
   });
 });
@@ -1353,73 +678,5 @@ describe('a filter a stored file has no value for', () => {
     } finally {
       defaultsWith.pinnedOn = false;
     }
-  });
-});
-
-describe('the usage record', () => {
-  /** The usage record's events so far, without their moments. */
-  async function usage(): Promise<unknown[]> {
-    const text = await fs.readFile(path.join(dir, 'usage.log'), 'utf8').catch(() => '');
-    return text
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => JSON.parse(line.slice(line.indexOf(' ') + 1)) as unknown);
-  }
-
-  it('takes a line per decision, of the sessions it changed, and none for a decision that changed nothing', async () => {
-    await finish(['a', 'b']);
-    await finish(['a', 'c']);
-    await unfinish(['b', 'x']);
-    await markSetAside(['d'], null, 1);
-    await clearSetAside(['d', 'x']);
-    await keep(['e'], 1);
-    await unkeep(['e', 'x']);
-    await unfinish(['x']);
-    await clearSetAside(['x']);
-    await unkeep(['x']);
-    expect(await usage()).toEqual([
-      { kind: 'decide', act: 'finish', ids: ['a', 'b'] },
-      { kind: 'decide', act: 'finish', ids: ['c'] },
-      { kind: 'decide', act: 'unfinish', ids: ['b'] },
-      { kind: 'decide', act: 'setAside', ids: ['d'] },
-      { kind: 'decide', act: 'clearSetAside', ids: ['d'] },
-      { kind: 'decide', act: 'keep', ids: ['e'] },
-      { kind: 'decide', act: 'unkeep', ids: ['e'] },
-    ]);
-  });
-
-  it('names what wrote a decision you did not take: a prompt clearing a set-aside mark, a resume unfinishing', async () => {
-    await finish(['a']);
-    await markSetAside(['b'], null, 1);
-    await unfinish(['a'], 'resume');
-    await clearSetAside(['b'], 'prompt');
-    expect((await usage()).slice(2)).toEqual([
-      { kind: 'decide', act: 'unfinish', ids: ['a'], by: 'resume' },
-      { kind: 'decide', act: 'clearSetAside', ids: ['b'], by: 'prompt' },
-    ]);
-  });
-
-  it('takes a line per session whose needs-you reasons a write marked, settled or put back, with what settled them', async () => {
-    const closed = { type: 'app.was-running', at: 1, how: 'quit' } as const;
-    await markNeedsYou(['a', 'b'], [closed]);
-    await markNeedsYou(['a'], [{ type: 'app.was-running', at: 2, how: 'ended' }]);
-    await clearNeedsYou('a', 'prompt');
-    await restoreNeedsYou('a', [closed]);
-    await finish(['a']);
-    await settleNeedsYouTypes(['app.was-running']);
-    await markSetAside(['c'], 5, 1);
-    await setAsideCameDue(10);
-    await clearNeedsYou('x', 'cleared');
-    expect((await usage()).filter((event) => (event as { kind: string }).kind === 'needsYou')).toEqual([
-      { kind: 'needsYou', act: 'marked', id: 'a', types: ['app.was-running'] },
-      { kind: 'needsYou', act: 'marked', id: 'b', types: ['app.was-running'] },
-      { kind: 'needsYou', act: 'settled', id: 'a', types: ['app.was-running'], by: 'replaced' },
-      { kind: 'needsYou', act: 'marked', id: 'a', types: ['app.was-running'] },
-      { kind: 'needsYou', act: 'settled', id: 'a', types: ['app.was-running'], by: 'prompt' },
-      { kind: 'needsYou', act: 'restored', id: 'a', types: ['app.was-running'] },
-      { kind: 'needsYou', act: 'settled', id: 'a', types: ['app.was-running'], by: 'finished' },
-      { kind: 'needsYou', act: 'settled', id: 'b', types: ['app.was-running'], by: 'off' },
-      { kind: 'needsYou', act: 'marked', id: 'c', types: ['app.reminder'] },
-    ]);
   });
 });
