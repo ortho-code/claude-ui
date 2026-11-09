@@ -8,6 +8,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 
 ## Unreleased
 
+## 0.4.0 — 2026-11-09
+
 ### Added
 
 - A filter for sessions whose folder is gone, next to the other filter pills — the set to clean up, or to put folders back for.
