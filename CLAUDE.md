@@ -76,6 +76,7 @@ Check a change against `docs/principles.md`, and where it would go against a pri
   The reasoning belongs in `docs/architecture/`, which is where someone goes to understand the code — a changelog is read while deciding whether to update.
   A version's section is what `release.yml` publishes as its release notes, extracted by matching `^## <version>`, so the `###` subsections pass through untouched.
   An empty section fails the release rather than publishing one that says nothing.
+  A release is cut with the `release` skill (`/release <version>`), which first checks the notes, the docs and the text in the code against the code since the last tag.
   `UPGRADING.md` lists ONLY versions that need an action, newest first, so its headings are the answer to "which releases need something from me" — a version absent from it installs straight over the last.
   Symfony's file-per-version (`UPGRADE-6.1.md`) was considered and rejected at this size: it splits because it maintains several branches at once and each guide runs to hundreds of lines.
   SPLIT WHEN EITHER OF THOSE BECOMES TRUE — one version's notes outgrow a screen, or two release lines are maintained together — and not before.
