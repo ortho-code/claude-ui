@@ -1,7 +1,7 @@
 # The launcher refuses a session whose folder is gone
 
 - **Date:** 2026-09-22
-- **Area:** [A session whose folder is gone](../architecture/terminal.md#a-session-whose-folder-is-gone)
+- **Area:** [A session whose folder is gone](../architecture/claude.md#a-session-whose-folder-is-gone)
 
 ## Decision
 

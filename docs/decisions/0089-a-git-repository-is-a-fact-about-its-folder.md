@@ -1,7 +1,7 @@
 # Whether a project is a git repository is answered by every session there
 
 - **Date:** 2026-10-20
-- **Area:** [A session's menu holds everything about it](../architecture/terminal.md#a-sessions-menu-holds-everything-about-it)
+- **Area:** [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it)
 
 ## Decision
 

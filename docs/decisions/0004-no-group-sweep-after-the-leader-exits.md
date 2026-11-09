@@ -1,7 +1,7 @@
 # The process group is not swept again after its leader exits
 
 - **Date:** 2026-09-22
-- **Area:** [Stopping a session is a request: claude may answer it with a question](../architecture/terminal.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question)
+- **Area:** [Stopping a session is a request: claude may answer it with a question](../architecture/claude.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question)
 
 ## Decision
 

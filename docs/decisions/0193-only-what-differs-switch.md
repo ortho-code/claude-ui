@@ -1,7 +1,7 @@
 # What differs from the defaults is a switch, not a section
 
 - **Date:** 2026-11-08
-- **Area:** [The config folder](../architecture/panels.md#the-config-folder)
+- **Area:** [The config folder](../architecture/config.md#the-config-folder)
 
 ## Decision
 

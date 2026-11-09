@@ -1,6 +1,6 @@
-# Embedded terminal
+# Claude tabs
 
-## Embedded terminal
+## Claude tabs
 
 `@xterm/xterm` in the renderer, backed by `node-pty` in the main process running the real `claude` binary.
 `node-pty` is a native module and must be rebuilt against Electron's ABI.

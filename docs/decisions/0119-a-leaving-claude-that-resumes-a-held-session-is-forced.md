@@ -1,7 +1,7 @@
 # A leaving claude that resumes a held session is forced too
 
 - **Date:** 2026-10-28
-- **Area:** [A resumed session is the session it was](../architecture/terminal.md#a-resumed-session-is-the-session-it-was)
+- **Area:** [A resumed session is the session it was](../architecture/claude.md#a-resumed-session-is-the-session-it-was)
 
 ## Decision
 

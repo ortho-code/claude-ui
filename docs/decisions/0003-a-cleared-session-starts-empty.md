@@ -1,7 +1,7 @@
 # A cleared session is a session with nothing in it
 
 - **Date:** 2026-09-22
-- **Area:** [A cleared session is a new session](../architecture/terminal.md#a-cleared-session-is-a-new-session)
+- **Area:** [A cleared session is a new session](../architecture/claude.md#a-cleared-session-is-a-new-session)
 
 ## Decision
 

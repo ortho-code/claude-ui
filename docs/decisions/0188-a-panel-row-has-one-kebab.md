@@ -1,7 +1,7 @@
 # A panel's row that names a session has one kebab
 
 - **Date:** 2026-11-08
-- **Area:** [A session's menu holds everything about it](../architecture/terminal.md#a-sessions-menu-holds-everything-about-it)
+- **Area:** [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it)
 
 ## Decision
 

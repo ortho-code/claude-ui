@@ -1,7 +1,7 @@
 # Each session keeps the history of its needs-you reasons
 
 - **Date:** 2026-11-06
-- **Area:** [Tab lifecycle: a tab can exist without a process](../architecture/terminal.md#tab-lifecycle-a-tab-can-exist-without-a-process)
+- **Area:** [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process)
 
 ## Decision
 

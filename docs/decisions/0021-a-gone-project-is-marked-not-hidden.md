@@ -1,7 +1,7 @@
 # A project whose folder is gone is marked, not hidden
 
 - **Date:** 2026-09-28
-- **Area:** [A session whose folder is gone](../architecture/terminal.md#a-session-whose-folder-is-gone)
+- **Area:** [A session whose folder is gone](../architecture/claude.md#a-session-whose-folder-is-gone)
 
 ## Decision
 

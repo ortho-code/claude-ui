@@ -4,7 +4,7 @@ import { expect, test } from '../support/harness';
 import { CONFIG_ROOT, noLocalLayout, settingsFileWith } from '../support/fixture';
 import { openSettings } from '../support/settings';
 
-// The launch flags in Settings (docs/architecture/panels.md § The config folder): saved into settings.json, which the dialog says once under its title, with only a value of the file's that is not used said under the field.
+// The launch flags in Settings (docs/architecture/config.md § The config folder): saved into settings.json, which the dialog says once under its title, with only a value of the file's that is not used said under the field.
 const file = (json: unknown): SettingsFileRead => settingsFileWith('settings.json', json);
 const broken: SettingsFileRead = { name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null };
 /** The one save Settings sent, with these flags: a save sends every setting, the others as they were left, which here is the default. */

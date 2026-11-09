@@ -18,7 +18,7 @@ What it holds to, and what a change to it is checked against, is in [docs/princi
 ## What it does
 
 - **A session list read from `~/.claude`**, grouped by project and into groups of your own, with search, filters, notes and pins, and a Recent view of everything by last activity ([Sessions](docs/guide/sessions.md)).
-- **Tabs with the real `claude` CLI** in an embedded terminal, several sessions running at once, restored at the next launch ([Tabs and the terminal](docs/guide/sessions.md#tabs-and-the-terminal)).
+- **Tabs with the real `claude` CLI** in an embedded terminal, several sessions running at once, restored at the next launch ([Claude tabs](docs/guide/sessions.md#claude-tabs)).
 - **A status dot per session**: busy, ready, waiting for you or working in the background, and a mark when a session needs you, such as a PR of yours merged or a reminder you set ([Status and what needs you](docs/guide/status.md)).
 - **Forks and worktrees**, started from the app and followed when a session moves into one ([Forks and worktrees](docs/guide/sessions.md#forks-and-worktrees)).
 - **The PRs a session links**, coloured by what GitHub says of them ([Pull requests](docs/guide/sessions.md#pull-requests)).

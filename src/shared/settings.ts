@@ -9,7 +9,7 @@ import type { ReadStatus } from './panels';
 import type { Settings } from './types';
 
 /**
- * THE SETTINGS IN THE CONFIG FOLDER: `settings.json`, which you edit and Settings saves into, over the built-in default (docs/architecture/panels.md § The config folder).
+ * THE SETTINGS IN THE CONFIG FOLDER: `settings.json`, which you edit and Settings saves into, over the built-in default (docs/architecture/config.md § The config folder).
  * Pure and shared: main reads the file and answers with this, and the window's checks answer with the same rules rather than a copy of them.
  */
 

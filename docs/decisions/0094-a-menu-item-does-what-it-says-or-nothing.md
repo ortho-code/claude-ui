@@ -1,7 +1,7 @@
 # A menu item does what it says or nothing
 
 - **Date:** 2026-10-21
-- **Area:** [A session's menu holds everything about it](../architecture/terminal.md#a-sessions-menu-holds-everything-about-it)
+- **Area:** [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it)
 
 ## Decision
 

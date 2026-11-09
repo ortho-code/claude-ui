@@ -19,7 +19,7 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
   A project whose folder is gone says so too, in the project switcher, on its heading and in the tab bar.
 - Projects can be renamed.
 
-## Tabs and the terminal
+## Claude tabs
 
 - Each open session has a tab with an embedded terminal running the real `claude` CLI: a click resumes it (`claude --resume`), and new sessions start there too, named when you fork one or create a worktree.
 - Several sessions are open at once; drag a tab to reorder, and open tabs cluster by group in the tab bar, where a group's name takes you to the group in the list.

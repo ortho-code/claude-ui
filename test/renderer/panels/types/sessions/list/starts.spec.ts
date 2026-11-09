@@ -3,7 +3,7 @@ import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { group, groupHeading, row, tab, tabs, titlesIn } from '../../../../support/window';
 
-// The ways the session list starts a session other than a row's own click (docs/architecture/terminal.md § Tab lifecycle): a sibling from the siblings menu, a fork from a row's options, a session in a new worktree from the project's "+", and either from a group's.
+// The ways the session list starts a session other than a row's own click (docs/architecture/claude.md § Tab lifecycle): a sibling from the siblings menu, a fork from a row's options, a session in a new worktree from the project's "+", and either from a group's.
 const parent = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'The parent', isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000a2'] });
 const sibling = session({ id: '00000000-0000-4000-8000-0000000000a2', title: 'Its sibling', isSibling: true, siblingIds: [parent.id], lastActivity: '2026-09-30T07:00:00.000Z' });
 const fixture = {

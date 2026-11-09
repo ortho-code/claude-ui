@@ -1,7 +1,7 @@
 # A press that asks to see the list brings it into view
 
 - **Date:** 2026-11-08
-- **Area:** [A session's menu holds everything about it](../architecture/terminal.md#a-sessions-menu-holds-everything-about-it)
+- **Area:** [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it)
 
 ## Decision
 

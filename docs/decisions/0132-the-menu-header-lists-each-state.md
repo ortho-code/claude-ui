@@ -1,7 +1,7 @@
 # The menu's header lists each state a session is in
 
 - **Date:** 2026-10-28
-- **Area:** [A session's menu holds everything about it](../architecture/terminal.md#a-sessions-menu-holds-everything-about-it)
+- **Area:** [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it)
 
 ## Decision
 

@@ -1,7 +1,7 @@
 # A shared panel type folder needs no trust step
 
 - **Date:** 2026-09-29
-- **Area:** [The config folder](../architecture/panels.md#the-config-folder)
+- **Area:** [The config folder](../architecture/config.md#the-config-folder)
 
 ## Decision
 

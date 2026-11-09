@@ -1,7 +1,7 @@
 # A tab's width cap grows by its kebab
 
 - **Date:** 2026-10-08
-- **Area:** [Tab lifecycle: a tab can exist without a process](../architecture/terminal.md#tab-lifecycle-a-tab-can-exist-without-a-process)
+- **Area:** [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process)
 
 ## Decision
 

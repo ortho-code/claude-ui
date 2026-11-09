@@ -5,7 +5,7 @@ import { expect, test } from '../../../support/harness';
 import { row as sessionRow, tab } from '../../../support/window';
 import { bootList, row, type PrintedList } from './list';
 
-// A row naming a session carries that session's menu behind its ⋮, the row's own actions beyond its buttons under the menu's header (docs/panel-types.md § An item, docs/architecture/terminal.md § A session's menu holds everything about it).
+// A row naming a session carries that session's menu behind its ⋮, the row's own actions beyond its buttons under the menu's header (docs/panel-types.md § An item, docs/architecture/claude.md § A session's menu holds everything about it).
 
 const OTHER = `${HOME}/projects/other`;
 // In another project than the one on show, so going to it can be told from opening its tab where you are.

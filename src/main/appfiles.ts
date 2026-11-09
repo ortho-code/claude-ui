@@ -9,7 +9,7 @@ import { configBackupsDir, configRoot, settingsFile } from './paths';
 import { inTurn } from './queue';
 
 /**
- * THE FILES THE APP WRITES in the config folder, and the one way they are written: its own, whose names end in `.local.json`, such as where you left a layout, and `settings.json`, which Settings saves into (docs/architecture/panels.md § The config folder).
+ * THE FILES THE APP WRITES in the config folder, and the one way they are written: its own, whose names end in `.local.json`, such as where you left a layout, and `settings.json`, which Settings saves into (docs/architecture/config.md § The config folder).
  * Every other file a person writes there is theirs and the app never writes it.
  * This module is the only writer of files into the config folder (config.ts makes its folders) and refuses any other path, so that rule is held here rather than by every caller.
  * A write is an edit of the file's text rather than a rewrite of its value, so whatever a person added by hand, comments included, stays where it was.

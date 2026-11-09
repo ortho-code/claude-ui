@@ -1,7 +1,7 @@
 # A shared settings file needs no trust step
 
 - **Date:** 2026-10-05
-- **Area:** [The config folder](../architecture/panels.md#the-config-folder)
+- **Area:** [The config folder](../architecture/config.md#the-config-folder)
 
 ## Decision
 

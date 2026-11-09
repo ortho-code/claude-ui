@@ -1,7 +1,7 @@
 # Config files are JSONC
 
 - **Date:** 2026-10-07
-- **Area:** [The config folder](../architecture/panels.md#the-config-folder)
+- **Area:** [The config folder](../architecture/config.md#the-config-folder)
 
 ## Decision
 

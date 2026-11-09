@@ -3,7 +3,7 @@ import { PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { group, row, tabLabels, titlesIn } from '../../../../support/window';
 
-// `/clear` ends a session and starts another in the same terminal, under an id Claude Code picks: the tab, which its token names, takes the new session over (docs/architecture/terminal.md § Tab lifecycle).
+// `/clear` ends a session and starts another in the same terminal, under an id Claude Code picks: the tab, which its token names, takes the new session over (docs/architecture/claude.md § Tab lifecycle).
 // A cleared session is a new one, so it starts as the "+" button's blank, keeps the group its predecessor was in, and the pairing is recorded, since nothing else can observe it.
 const one = session();
 const next = '00000000-0000-4000-8000-0000000000cc';

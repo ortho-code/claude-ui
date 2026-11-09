@@ -1,7 +1,7 @@
 # Marking restored sessions is the needs-you type's, not the launch setting's
 
 - **Date:** 2026-11-06
-- **Area:** [Tab lifecycle: a tab can exist without a process](../architecture/terminal.md#tab-lifecycle-a-tab-can-exist-without-a-process)
+- **Area:** [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process)
 
 ## Decision
 

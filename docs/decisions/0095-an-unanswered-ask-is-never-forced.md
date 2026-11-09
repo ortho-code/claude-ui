@@ -1,7 +1,7 @@
 # The app never forces a session because an ask went unanswered
 
 - **Date:** 2026-10-21
-- **Area:** [Stopping a session is a request: claude may answer it with a question](../architecture/terminal.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question)
+- **Area:** [Stopping a session is a request: claude may answer it with a question](../architecture/claude.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question)
 
 ## Decision
 

@@ -51,7 +51,7 @@ Claude's idle notice (above) does not end it either: claude sends it while a she
 Every other notification, such as a permission prompt or a question, still writes waiting over it.
 Its dot is busy's spinning ring around a small core of ready's green: the turn is done, and work goes on.
 
-**A session marked as needing you shows it where claude says nothing more pressing** ([§ Tab lifecycle](terminal.md#tab-lifecycle-a-tab-can-exist-without-a-process) for when it is marked and what settles it).
+**A session marked as needing you shows it where claude says nothing more pressing** ([§ Tab lifecycle](claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) for when it is marked and what settles it).
 **Which state a dot shows is one list, the strength order** (`strength` in `settings.json`, `shared/looks.ts`; [decided 2026-11-06](../decisions/0173-a-dots-state-is-picked-by-one-strength-order.md)): every status and the needs-you categories, the dot showing the first that holds, a reason by its category's place.
 `needs-you` in the list stands for every category it does not name, in Now's order, so a category added later has a place in a list written before it; a category may be named on its own anywhere, such as Back to work over busy.
 Your turn has no place of its own, its two types being the statuses `waiting` and `ready` themselves.
@@ -147,7 +147,7 @@ A quit forces every claude out, after which a cron came back and a `/loop` wakeu
 A session running at a quit comes back (marked as needing you, by default) with a muted clock if it had crons.
 Main does not wait for that write, and nothing holds the quit for it: it normally lands while the quit waits for the sessions it ended to go, which, with a session running, is at least one 50 ms look (`untilGone`) and usually longer.
 The cost of no news: a claude too old to list its tasks in `Stop` would keep a restarted tab's muted clock until it goes (claude 2.1.302 lists them).
-The session's menu says it too, in the clock's own words ([§ A session's menu holds everything about it](terminal.md#a-sessions-menu-holds-everything-about-it)).
+The session's menu says it too, in the clock's own words ([§ A session's menu holds everything about it](claude.md#a-sessions-menu-holds-everything-about-it)).
 
 **A subagent's events arrive as the session's, and once its turn has ended they are not the session working.**
 Hooks fired inside a subagent carry the session's own id, told apart by `agent_id`, so a background subagent's tool call wrote busy over a session that was ready, and the dot went ready, busy and ready again with nobody doing anything.
@@ -184,7 +184,7 @@ A transcript records which model *answered*, never which one was chosen, so `/mo
 The renderer prefers it over the transcript's and keeps it **in memory only**: every switch in a session this app runs lands there, so it can never be staler than the file, and after a restart the transcript's own last answer is the right source again.
 
 **`SessionStart` is mostly identity, not state.**
-Its session id is what the terminal is running *now*, which is the only way to follow a `/clear` or claude's own `/resume` ([§ A resumed session is the session it was](terminal.md#a-resumed-session-is-the-session-it-was)).
+Its session id is what the terminal is running *now*, which is the only way to follow a `/clear` or claude's own `/resume` ([§ A resumed session is the session it was](claude.md#a-resumed-session-is-the-session-it-was)).
 For every source but `compact` the script writes the terminal's token and the source to `<id>.start`, a file of its own as a model switch's is, which main passes on and the renderer applies to the tab.
 It also writes an identity-only marker into the status file, never shown as a dot, and refuses to overwrite an existing status file there — these files seed the dots at launch, and the event also fires mid-session, where a real status is worth keeping.
 That refusal is why the start has a file of its own: `/resume` goes on in a session that has a status already, and the tab would otherwise hear of it only with the session's next status, such as its next prompt.

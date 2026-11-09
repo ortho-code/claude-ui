@@ -1,7 +1,7 @@
 # The app chooses the session id
 
 - **Date:** 2026-09-22
-- **Area:** [The app chooses the session id](../architecture/terminal.md#the-app-chooses-the-session-id)
+- **Area:** [The app chooses the session id](../architecture/claude.md#the-app-chooses-the-session-id)
 
 ## Decision
 

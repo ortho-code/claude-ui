@@ -1,7 +1,7 @@
 # The tab bar's project labels are in full text colour
 
 - **Date:** 2026-09-28
-- **Area:** [A session whose folder is gone](../architecture/terminal.md#a-session-whose-folder-is-gone)
+- **Area:** [A session whose folder is gone](../architecture/claude.md#a-session-whose-folder-is-gone)
 
 ## Decision
 

@@ -1,7 +1,7 @@
 # A launch with no settings file writes one with every default
 
 - **Date:** 2026-10-22
-- **Area:** [The config folder](../architecture/panels.md#the-config-folder)
+- **Area:** [The config folder](../architecture/config.md#the-config-folder)
 
 ## Decision
 

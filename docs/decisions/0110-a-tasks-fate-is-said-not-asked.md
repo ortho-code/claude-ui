@@ -1,7 +1,7 @@
 # What becomes of a scheduled task is said, not asked at a stop
 
 - **Date:** 2026-10-24
-- **Area:** [Stopping a session is a request: claude may answer it with a question](../architecture/terminal.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question)
+- **Area:** [Stopping a session is a request: claude may answer it with a question](../architecture/claude.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question)
 
 ## Decision
 

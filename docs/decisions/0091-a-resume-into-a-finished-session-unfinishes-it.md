@@ -1,7 +1,7 @@
 # A resume into a finished session makes it unfinished
 
 - **Date:** 2026-10-20
-- **Area:** [A resumed session is the session it was](../architecture/terminal.md#a-resumed-session-is-the-session-it-was)
+- **Area:** [A resumed session is the session it was](../architecture/claude.md#a-resumed-session-is-the-session-it-was)
 
 ## Decision
 

@@ -5,7 +5,7 @@ import { overrun, token } from '../../../../support/looks';
 import { clickAcross } from '../../../../support/press';
 import { project, projectHeading, row, tabLabel, tabs } from '../../../../support/window';
 
-// A row says what its session's tab is doing (docs/architecture/terminal.md § Tab lifecycle): `open` while it has a tab, `cold` while that tab has no claude behind it, and `active-session` for the tab on show.
+// A row says what its session's tab is doing (docs/architecture/claude.md § Tab lifecycle): `open` while it has a tab, `cold` while that tab has no claude behind it, and `active-session` for the tab on show.
 // Accent means a live session, nowhere else, so the cold bar is muted where the live one is accent.
 const one = session();
 const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Another session' });

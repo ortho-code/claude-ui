@@ -1,7 +1,7 @@
 # A failed start leaves its tab cold
 
 - **Date:** 2026-10-07
-- **Area:** [Tab lifecycle: a tab can exist without a process](../architecture/terminal.md#tab-lifecycle-a-tab-can-exist-without-a-process)
+- **Area:** [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process)
 
 ## Decision
 

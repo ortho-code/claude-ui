@@ -1,7 +1,7 @@
 # A close's toast also offers Finished and Set aside
 
 - **Date:** 2026-11-05
-- **Area:** [A session's menu holds everything about it](../architecture/terminal.md#a-sessions-menu-holds-everything-about-it)
+- **Area:** [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it)
 
 ## Decision
 

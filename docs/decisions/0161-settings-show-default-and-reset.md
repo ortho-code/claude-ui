@@ -1,7 +1,7 @@
 # Settings shows the default and a Reset under a changed setting
 
 - **Date:** 2026-11-04
-- **Area:** [The config folder](../architecture/panels.md#the-config-folder)
+- **Area:** [The config folder](../architecture/config.md#the-config-folder)
 
 ## Decision
 

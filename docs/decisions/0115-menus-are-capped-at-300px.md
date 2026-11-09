@@ -1,7 +1,7 @@
 # Every menu is capped at 300px, its first line cut and the rest wrapped
 
 - **Date:** 2026-10-27
-- **Area:** [A session's menu holds everything about it](../architecture/terminal.md#a-sessions-menu-holds-everything-about-it)
+- **Area:** [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it)
 
 ## Decision
 
