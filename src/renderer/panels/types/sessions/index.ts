@@ -1,5 +1,5 @@
 import { element, fromMarkup } from '../../../ui/dom';
-import { openSettings } from '../../../dialogs/settings';
+import { openSettings } from '../../../dialogs/settings/settings';
 import { store, type View } from '../../../state/app';
 import { switcherModel } from '../../../state/views';
 import { strokeIcon } from '../../../ui/svg';

@@ -5,7 +5,7 @@ import './ui/menu';
 import { hideToast, showToast } from './ui/toast';
 import './window/notifications';
 import './dialogs/dialogs';
-import { watchSettings } from './dialogs/settings';
+import { watchSettings } from './dialogs/settings/settings';
 import './status/projectgone';
 import { startChrome } from './window/chrome';
 import './ui/flash';

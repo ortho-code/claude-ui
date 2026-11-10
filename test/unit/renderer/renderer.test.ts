@@ -20,7 +20,7 @@ const ORDER = [
   'src/renderer/ui/modal.css',
   'src/renderer/ui/decisive-button.css',
   'src/renderer/dialogs/dialogs.css',
-  'src/renderer/dialogs/settings.css',
+  'src/renderer/dialogs/settings/settings.css',
   'src/renderer/status/projectgone.css',
   'src/renderer/window/chrome.css',
   'src/renderer/ui/flash.css',
