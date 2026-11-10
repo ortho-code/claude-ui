@@ -9,7 +9,8 @@ import { projName, sessionById, tabWith, unopenableReason } from '../../../state
 import { showToast } from '../../../ui/toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
-import { activateTab, finishSessions, closeTabs, createTab, pressLeave, startTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';
+import { activateTab, finishSessions, closeTabs, createTab, pressLeave, startTab, switchWorkspaceTerminal } from './terminals';
+import type { TabLaunch } from './tabstate';
 
 /**
  * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, finish one with its tabs, and follow the project chosen.

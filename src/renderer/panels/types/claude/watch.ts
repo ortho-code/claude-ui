@@ -7,7 +7,8 @@ import { toastAttention, toastNotLeft } from './attention';
 import { railStatusFollowsTabs } from './index';
 import { history, paneFollows } from './pane';
 import { renderTabBar, tabBarFollowsStatuses } from './tab-bar';
-import { adoptReplacement, promptSubmitted, reconcileOpenTabs, scheduledReported } from './terminals';
+import { promptSubmitted, reconcileOpenTabs, scheduledReported } from './terminals';
+import { adoptReplacement } from './adopt';
 
 /**
  * What the terminal area follows, in the store and from main, registered by renderer.ts beside the sidebar's (docs/architecture/processes.md § The store): its rules, which set state as they are told, before any repaint, then its repaints; and its part of what main sends, which renderer.ts's one handler per event calls ahead of the app's own.

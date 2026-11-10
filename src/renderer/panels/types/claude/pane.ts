@@ -5,7 +5,8 @@ import { setUnavailable, unavailable } from '../../../ui/unavailable';
 import { element, fromMarkup } from '../../../ui/dom';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
-import { activateTab, isOnShow, terminalOf, terminalsEl } from './terminals';
+import { activateTab } from './terminals';
+import { isOnShow, terminalOf, terminalsEl } from './tabstate';
 // Its Resume, in its own actions and in the history's note.
 import '../../../ui/decisive-button.css';
 import './pane.css';

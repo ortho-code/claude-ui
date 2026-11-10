@@ -19,7 +19,9 @@ import { layersIcon, SIBLING_ICON, WORKTREE_ICON } from '../../../ui/svg';
 import { buildTab, drawTab, dropSortable, sortableTabs, type TabEls } from '../../../ui/tab';
 import { setTooltip } from '../../../ui/tooltip';
 import { hostOf } from '../builtin';
-import { activateTab, persistOpenTabs, pressTabButton, tabOf, terminalOf } from './terminals';
+import { activateTab, pressTabButton } from './terminals';
+import { persistOpenTabs } from './opentabs';
+import { tabOf, terminalOf } from './tabstate';
 import './tab-bar.css';
 
 /**

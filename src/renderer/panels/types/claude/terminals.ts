@@ -1,86 +1,23 @@
-import type { Terminal } from '@xterm/xterm';
-import type { FitAddon } from '@xterm/addon-fit';
-import type { ClosedHow, SetAside, NeedsYou, ScheduledTask, SessionSummary } from '../../../../shared/types';
+import type { SetAside, NeedsYou, ScheduledTask, SessionSummary } from '../../../../shared/types';
 import { hasVisibleOutput, leaveAction, leaveLabel, type LeaveAction, type TabButtonMark } from '../../../rules/claude';
-import { entityKey, sessionLabel, sessionsByKey, unstartableReason } from '../../../rules/sessions';
-import { newSession } from '../../../dialogs/newsession';
+import { entityKey, sessionLabel, unstartableReason } from '../../../rules/sessions';
 import { store, type TabState, type View } from '../../../state/app';
-import { moveSessionToGroupById } from '../../../state/groups';
 import { clearSetAside, markSetAside } from '../../../state/setaside';
-import { clearNeedsYou, markNeedsYou, marks, restoreNeedsYou } from '../../../state/needsyou';
-import { clearNudge, setScheduled } from '../../../state/statuses';
+import { clearNeedsYou, restoreNeedsYou } from '../../../state/needsyou';
+import { clearNudge } from '../../../state/statuses';
 import { leaveTab, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, fitTerminal, lastLines } from '../../../ui/terminal';
 import { showToast } from '../../../ui/toast';
-import { fromMarkup } from '../../../ui/dom';
-import { isQuitting, whenQuitting } from '../../../window/quitting';
+import { isQuitting } from '../../../window/quitting';
 import { hostOf } from '../builtin';
+import { persistOpenTabs } from './opentabs';
+import { clearStopTimers, isOnShow, keptWhenGone, remembered, setTab, stopTimers, tabOf, terminalOf, terminals, terminalsEl, type TabLaunch } from './tabstate';
 import './terminals.css';
-
-/** Where the tabs' terminals go: built here, and placed by the pane (pane.ts) under the tab bar. */
-export const terminalsEl = fromMarkup(`<div id="terminals"></div>`);
 
 /**
  * The terminal area's tabs and their life: built cold, started when selected, stopped back to cold or closed, and claude's output and exit while it runs.
- * With them the workspace switch, which keeps the tab on show inside the project on show, and which tabs to reopen at the next launch.
+ * With them the workspace switch, which keeps the tab on show inside the project on show.
  */
-
-/**
- * A tab's terminal, under its token: the xterm and its element, and what only the tab's own lifecycle reads.
- * The tab's data is the store's (`TabState`); a tab is addressed by its token, and each step reads the data as it is at that moment.
- */
-interface TabTerminal {
-  term: Terminal;
-  fitAddon: FitAddon;
-  el: HTMLElement;
-  // When claude was launched, to tell a real exit from a failed-to-start one.
-  startedAt: number;
-  // Bumped on each activation, so a workspace switch can restore a project's most-recent tab.
-  activatedSeq: number;
-}
-
-/**
- * The arguments that apply only to a session's FIRST start, and to nothing else.
- * A resume needs none of them — the session already exists and carries its own name, worktree and history — which is why they are passed in rather than kept on the tab.
- */
-export interface TabLaunch {
-  /**
-   * The session to resume FROM: a fork's parent.
-   * A plain resume needs nothing here, since a tab resumes its own session.
-   */
-  resumeFrom?: string;
-  /** Copy the resumed session rather than continue it (`--fork-session`). */
-  fork?: boolean;
-  /** The session's display name (`--name`). */
-  name?: string;
-  /** A new git worktree to start in (`-w`): a name, or `''` to let claude pick one. */
-  worktree?: string;
-  /** The session's first prompt, which claude runs as it starts. */
-  prompt?: string;
-}
-
-/** Every open tab's terminal, by token; the store's `tabs` says which are open and in what order. */
-const terminals = new Map<string, TabTerminal>();
-
-/** A tab's terminal: every open tab has one, from the moment it is built until it is removed. */
-export function terminalOf(token: string): TabTerminal {
-  return terminals.get(token)!;
-}
-
-/** A tab's data as it is now, or undefined once it has been closed — which a step that awaited has to ask again. */
-export function tabOf(token: string): TabState | undefined {
-  return store.get().tabs.find((t) => t.token === token);
-}
-
-/** Change one tab's data: a new entry in place of the old, so everyone who draws it is told. */
-function setTab(token: string, patch: Partial<Omit<TabState, 'token'>>): void {
-  store.set({ tabs: store.get().tabs.map((t) => (t.token === token ? { ...t, ...patch } : t)) });
-}
-
-/** Whether the tab is the one on show, as a handler asks it. */
-export function isOnShow(token: string): boolean {
-  return token === store.get().activeTab;
-}
 
 // Keep open tabs' sessions in sync with the freshly-read listing: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
 // Always adopt the fresh summary (cheap, and keeps a tab's data from going stale); the store tells whoever draws the tabs only when something a tab shows moved, which is the rows' own question (`sameTabs`, on `sameRow`) — a list of fields kept here once compared only the title and first message, and left a mid-session worktree move or a new sibling off the tab until the next unrelated change.
@@ -96,111 +33,13 @@ export function reconcileOpenTabs(view: View<'sessions' | 'tabs'>): void {
 }
 
 let activationSeq = 0;
-// Where you were, per project and overall.
-// Seeded from meta at restore and kept current as you switch, so returning to a project lands where you left it even across a restart — `activatedSeq` alone cannot do that, since it resets to 0 when tabs are rebuilt.
-let activeByProject: Record<string, string> = {};
-let lastActiveKey: string | null = null;
-let restoring = false;
-
-/**
- * The open tabs and which of them run, for the next launch.
- * Written when a tab opens, closes or moves, when its process starts, and when its process goes: a stop leaves the tab cold, an exit of its own removes it, and one within its first moments, a failed start, leaves it cold too.
- * A session still being stopped has its process until claude has gone, so it is written as running until then.
- */
-export function persistOpenTabs(): void {
-  // Once the app is quitting, every terminal is ended and each pty's exit closes its tab: those closes must not persist an empty open-tabs list over the real one, which would wipe the tabs to restore next launch.
-  if (restoring || isQuitting()) return;
-  const { tabs } = store.get();
-  const keyOf = tabKeys();
-  window.claudeUi.setOpenSessions(
-    tabs.map(keyOf),
-    tabs.filter((tab) => tab.terminalId !== null).map(keyOf),
-  );
-  writeScheduledWhenStopped();
-}
-
-/**
- * Each tab's key for the next launch: its session's entity key, immutable, so a restart always finds it again.
- * A session with no transcript yet is not in the map; its own id stands in, and restore drops it, which is right — there is nothing on disk to reopen.
- */
-function tabKeys(): (tab: TabState) => string {
-  const idToKey = new Map(store.get().sessions.map((s) => [s.id, entityKey(s)]));
-  return (tab) => idToKey.get(tab.session.id) ?? tab.session.id;
-}
-
-/** What the tabs keep of their sessions' tasks, beside the open tabs, in a write of its own, which main keeps for the open tabs only. */
-function writeScheduledWhenStopped(): void {
-  const keyOf = tabKeys();
-  window.claudeUi.setScheduledWhenStopped(Object.fromEntries(store.get().tabs.flatMap((tab) => (tab.scheduledWhenStopped ? [[keyOf(tab), [...tab.scheduledWhenStopped]]] : []))));
-}
-
-export async function restoreOpenTabs(): Promise<void> {
-  restoring = true;
-  /** The tabs to start once restored: those whose sessions were running when the app closed, when Settings says to start them. */
-  const resume: string[] = [];
-  /** The sessions to mark as needing you: those that were running when the app closed, unless Settings says to leave them with the others. */
-  const marked: string[] = [];
-  let closedHow: ClosedHow = 'unknown';
-  try {
-    // The running list is read here, before the write below replaces it with what runs now, which is nothing yet.
-    const [sessions, openKeys, activeKey, byProject, runningKeys, scheduledByKey, settings, lastClosed] = await Promise.all([
-      window.claudeUi.listSessions(),
-      window.claudeUi.getOpenSessions(),
-      window.claudeUi.getActiveSession(),
-      window.claudeUi.getActiveSessionByProject(),
-      window.claudeUi.getRunningSessions(),
-      window.claudeUi.getScheduledWhenStopped(),
-      window.claudeUi.getSettings(),
-      window.claudeUi.getLastClosed(),
-    ]);
-    closedHow = lastClosed;
-    activeByProject = { ...byProject };
-    lastActiveKey = activeKey;
-    const tips = sessionsByKey(sessions);
-    const atLaunch = settings.runningSessionsAtLaunch.value;
-    // Restore the tabs COLD — no claude process each.
-    // Starting them all was costing 20 processes at ~437 MB on this machine, spawned whether or not any was used, plus 20 CLI cold starts on every launch.
-    // A tab starts when you select it, or below if it was running when the app closed and Settings says to start it: only what was in use costs a process.
-    // One change for every tab and the one selected, so whoever draws the tabs draws them once rather than once per tab.
-    store.batch(() => {
-      let toActivate: string | null = null;
-      for (const key of openKeys) {
-        const session = tips.get(key);
-        // Not a finished one, which is put away rather than resumed (`unopenableReason`): the list has read the finished ones by now, and the tab is dropped from what is kept.
-        if (!session || store.get().finished.has(key)) continue;
-        const wasRunning = runningKeys.includes(key);
-        // What it said was scheduled when its claude went, which it goes on saying until a claude started on it reports.
-        const token = buildTab(session, scheduledByKey[key] ?? null);
-        if (key === activeKey) toActivate = token;
-        // One that was running comes back marked as needing you, unless `needsYou` in settings.json switches that type off (`app.was-running`): what was in hand needs you at launch, and stays marked until your next prompt there, started or not.
-        if (wasRunning && marks('app.was-running')) marked.push(key);
-        if (wasRunning && atLaunch === 'start') resume.push(token);
-      }
-      // Its claude has gone, so what its status file last said is forgotten, as a tab going cold forgets it (`coolTab`): after an end without a quit the file still holds it, and a busy or a waiting from then would hide the mark.
-      for (const key of marked) clearNudge(key);
-      markNeedsYou(marked, [{ type: 'app.was-running', at: Date.now(), how: closedHow }]);
-      // Land where you left off — SELECTED but not started here; it starts below with the others if it was running and Settings says to start them.
-      // Without a remembered tab we open on none rather than guessing.
-      if (toActivate) activateTab(toActivate, false);
-    });
-  } finally {
-    restoring = false;
-    persistOpenTabs();
-  }
-  // Each in its own tab, the one on show and those out of sight alike.
-  // A tab whose folder has gone stays cold, saying why once selected, rather than putting up a toast per tab at launch.
-  for (const token of resume) {
-    const tab = tabOf(token);
-    if (tab && !unstartableReason(tab.session)) void startTab(token);
-  }
-}
 
 /**
  * Build a tab WITHOUT a process: real DOM, a real Terminal, no claude.
  * `terminalId` stays null until startTab fills it in, which is what lets tabs be restored cold — 20 restored tabs used to mean 20 `claude --resume` processes at ~437 MB each, spawned whether or not you looked at any of them.
  * The xterm instance stays eager on purpose: an empty one costs almost nothing next to a process, and keeping it non-null confines this to the handful of places that use terminalId.
  */
-function buildTab(session: SessionSummary, scheduledWhenStopped: readonly ScheduledTask[] | null = null): string {
+export function buildTab(session: SessionSummary, scheduledWhenStopped: readonly ScheduledTask[] | null = null): string {
   const token = crypto.randomUUID();
 
   const el = document.createElement('div');
@@ -362,9 +201,9 @@ export function activateTab(token: string, start = true): void {
   } else window.claudeUi.resizeTerminal(tab.terminalId, terminal.term.cols, terminal.term.rows);
   terminal.term.focus();
   // Remembered twice: overall (where to reopen at launch) and for this project (where to return to when you switch back to it).
-  lastActiveKey = entityKey(tab.session);
-  activeByProject[tab.session.repoRoot] = lastActiveKey;
-  window.claudeUi.setActiveSession(lastActiveKey, tab.session.repoRoot);
+  remembered.last = entityKey(tab.session);
+  remembered.byProject[tab.session.repoRoot] = remembered.last;
+  window.claudeUi.setActiveSession(remembered.last, tab.session.repoRoot);
 }
 
 // Full workspace switch: bring the active terminal in line with the current scope (a project, or All).
@@ -379,7 +218,7 @@ export function switchWorkspaceTerminal(repoRoot: string | null): void {
     // Selecting a cold tab is harmless — it is STARTING one that a workspace switch must never do, or browsing projects in the switcher would spawn a session per project you glanced at.
     // Hence activateTab(..., false) either way: it only suppresses the start, which a running tab does not need anyway.
     const running = scoped.filter((t) => t.terminalId !== null);
-    const rememberedKey = repoRoot ? activeByProject[repoRoot] : lastActiveKey;
+    const rememberedKey = repoRoot ? remembered.byProject[repoRoot] : remembered.last;
     const seq = (t: TabState): number => terminalOf(t.token).activatedSeq;
     const target = running.length
       ? running.reduce((best, t) => (seq(t) > seq(best) ? t : best))
@@ -411,7 +250,7 @@ new ResizeObserver(() => fitActive()).observe(terminalsEl);
 // Idempotent (a user close and the terminal's own exit can both fire).
 // It does not touch the terminal process; callers terminate it when they need to.
 // `settles` is whether its going settles what its session needed you for: every removal but claude's own exit with an error, a crash, which you did not do (`onTabExit`).
-function removeTab(token: string, settles = true): void {
+export function removeTab(token: string, settles = true): void {
   const tab = tabOf(token);
   if (!tab) return;
   clearStopTimers(token);
@@ -446,14 +285,6 @@ const FORCE_AFTER_MS = 1000;
  * Past most exits, so an ordinary one says nothing: of the 49 exits after an ask the app's logs held to 2026-10-23, half had gone by 1.43 s, 95 % by 2.98 s, and the slowest took 6.6 s.
  */
 const NOT_LEFT_AFTER_MS = 3000;
-
-/** Each stopping tab's pending steps, its control becoming a force and its saying claude has not left, so a stop that ends, is called off or is forced takes them with it. */
-const stopTimers = new Map<string, ReturnType<typeof setTimeout>[]>();
-
-function clearStopTimers(token: string): void {
-  for (const timer of stopTimers.get(token) ?? []) clearTimeout(timer);
-  stopTimers.delete(token);
-}
 
 /**
  * Ask a live tab's claude to leave, and wait for the exit, however long it takes: `onExit` says whether the tab goes with it or stays cold.
@@ -500,7 +331,7 @@ function forceStop(token: string): void {
  * End a tab's claude without asking it, keeping the tab, cold: for a claude that must not go on, which an ask it ignores would leave running.
  * The tab says it is stopping until the exit lands, as any stop does, and the exit cools it.
  */
-function forceOutAtOnce(token: string): void {
+export function forceOutAtOnce(token: string): void {
   if (tabOf(token)?.terminalId == null) return;
   clearStopTimers(token);
   // A stop already past its ask, so the force is the one every stop ends in.
@@ -547,7 +378,7 @@ export function pressLeave(token: string, action: LeaveAction, mark?: TabButtonM
  * Not once its claude has been forced out (`forced`): that claude is being ended whatever it reports.
  * Answers the tab as it was when its leave was called off, or null when there was none to call off.
  */
-function stopCalledOff(token: string): TabState | null {
+export function stopCalledOff(token: string): TabState | null {
   const tab = tabOf(token);
   if (!tab?.stopping || tab.forced) return null;
   clearStopTimers(token);
@@ -578,22 +409,6 @@ export function scheduledReported(id: string): void {
   });
   persistOpenTabs();
 }
-
-/**
- * What a tab keeps of its session's tasks once its claude has gone, by a stop or a quit: what comes back when the session is opened again, its crons, since a `/loop` wakeup ends with the session (`afterStop`); null for none.
- * A claude that went before it reported at all leaves what the tab already kept from the stop before, which is still all that is known.
- */
-function keptWhenGone(tab: TabState): TabState['scheduledWhenStopped'] {
-  const live = store.get().scheduledTasks.get(tab.session.id);
-  const kept = live ? live.filter((task) => task.cron !== null) : tab.scheduledWhenStopped;
-  return kept && kept.length > 0 ? kept : null;
-}
-
-// A quit forces every claude out, and the exits it causes write nothing (`persistOpenTabs`), so each tab still running keeps what its stop would have kept, written as the window hears of the quit, which main tells it before it ends any.
-whenQuitting(() => {
-  for (const tab of store.get().tabs) if (tab.terminalId !== null) setTab(tab.token, { scheduledWhenStopped: keptWhenGone(tab) });
-  writeScheduledWhenStopped();
-});
 
 /** Turn a tab that has just lost its process into a cold one. */
 function coolTab(token: string): void {
@@ -866,91 +681,6 @@ function finishAtExit(key: string): void {
   if (isQuitting()) return;
   if (store.get().tabs.some((t) => entityKey(t.session) === key)) return;
   void finishNow([key]);
-}
-
-/**
- * A claude's start or a status event named the session a tab now runs: when that is another session than the tab's, the tab takes it over.
- * `source` is why, as claude's SessionStart says: only `clear` makes it a new session, and '' (a status event, which does not say) is taken as an existing one, since a clear's part done to one would move it out of its group.
- * Answers the tab already running that session when the take-over was undone for it (`adoptResumed`), for the caller to bring on show; else null.
- */
-export function adoptReplacement(tabToken: string, id: string, source: string): TabState | null {
-  // A tab's session can be REPLACED under it: `/clear` ends the session and starts a fresh one in the same terminal, under an id Claude Code chooses rather than one the app passed as `--session-id`, and claude's own `/resume` goes on in another session that already exists, under that session's id.
-  // The token is what ties the two together — without this the tab would keep pointing at the session that just ended, and resuming it later would reopen the wrong history.
-  const owner = tabOf(tabToken);
-  if (!owner || owner.session.id === id) return null;
-  // A claude forced out asks nothing more of the tab while it goes, a report still on its way included: the tab keeps the session it ran, whatever that claude went on in.
-  if (owner.forced) return null;
-  if (source !== 'clear') return adoptResumed(owner, id);
-  const previous = owner.session;
-  const replaced = previous.id;
-  // A CLEARED SESSION IS A NEW SESSION, so it starts from the same blank the "+" button does rather than from its predecessor's row.
-  // Carrying the old object forward was the app's own half of the copied-title problem: it kept the title, the first message and the sibling marks of a conversation this session does not have.
-  // The folder is all that genuinely survives — it is the same terminal, in the same place.
-  // Everything that draws the tab follows: the bar names the new session, its stand-in row is the open one, and the history on show follows it, since a cleared session has a transcript of its own.
-  // A clear while claude was asked to leave is going on working, as a prompt is: the leave is off.
-  stopCalledOff(owner.token);
-  // What the tab kept from its claude's last stop was the cleared session's, so it goes with it.
-  setTab(owner.token, { session: blankAfter(previous, id), scheduledWhenStopped: null });
-  // No claude of the app's runs the cleared session now, so what it had scheduled is not shown for it, though nothing will say its list emptied.
-  setScheduled(replaced, []);
-  // Nor does a tab hold it, which settles what it needed you for, as a close does; the new session needs nothing yet.
-  clearNeedsYou(entityKey(previous), 'moved');
-  // The stand-in is a blank; the TITLE on disk is Claude's, and is left alone.
-  // Claude Code copies the cleared session's name into the new transcript, and a title from Claude is a session's name before anything else — so a named session goes on showing that name, exactly as `claude --resume` lists it.
-  // Overriding it would mean this app and the CLI disagreeing about what a session is called.
-  // The pairing is recorded because nothing else can observe it: neither transcript points at the other, and the connection exists only in this moment.
-  void window.claudeUi.recordClear(replaced, id, previous.title);
-  persistOpenTabs();
-  // A group says where this WORK lives, and clearing a session does not move the work — so the replacement joins the group its predecessor was in, rather than the tab visibly dropping out of its section.
-  // The predecessor keeps its own membership: it is still a real session, and still that group's history.
-  // Only the group carries over.
-  // A pin and a note are about one CONVERSATION, and that conversation still has its own row to hold them.
-  const group = store.get().groupState.groupOf[replaced];
-  if (group) void moveSessionToGroupById(id, group);
-  return null;
-}
-
-/**
- * A tab whose claude went on in a session that already exists, by its own `/resume`: the tab takes it as it is, its row, title, group and pin, with nothing carried from the session before.
- * Finishing is this app's and claude cannot see it, so the session can be a finished one: it is made unfinished, since the app runs no finished session, and a toast says so, since nobody pressed Unfinished.
- * Another tab can hold the session too: one with no claude behind it goes, since this tab is the session's now; one running it is left alone and the take-over undone, this tab's claude forced out and the tab kept on the session it ran before, and that tab is answered.
- */
-function adoptResumed(owner: TabState, id: string): TabState | null {
-  // claude lets a second claude resume a session another runs, and the two then branch its transcript, each turn hanging off the same message, so a later resume drops one of them (measured on claude 2.1.302).
-  // No hook can refuse a `/resume` (SessionStart cannot block, and neither UserPromptSubmit nor UserPromptExpansion fires for it, measured), so this is the closest to refusing it: the claude that switched is forced out as soon as the app hears of it, before any turn of its own unless one was submitted first.
-  const other = store.get().tabs.find((t) => t.token !== owner.token && t.session.id === id);
-  if (other && (other.terminalId !== null || other.starting)) {
-    // Forced, not asked: in the app such a claude was seen to ignore the Ctrl-C an ask sends (three times out of three, 2026-10-20, cause unknown), and the two of those forced went within a second; it has nothing of its own to finish.
-    // Once: a report from it while it goes asks nothing more (`forced`, above).
-    // A claude you had asked to leave went on working too, so that leave is off, and it is forced all the same, since it is a second claude in the session either way.
-    stopCalledOff(owner.token);
-    forceOutAtOnce(owner.token);
-    return other;
-  }
-  // Its row where another tab or the listing has it; else the blank, until the listing reads it (`reconcileOpenTabs`).
-  const session = sessionById(id) ?? blankAfter(owner.session, id);
-  // A resume while claude was asked to leave is going on working, as after a clear.
-  stopCalledOff(owner.token);
-  // What the tab kept from its claude's last stop was the session it left, as after a clear.
-  setTab(owner.token, { session, scheduledWhenStopped: null });
-  // The session it left runs in no claude of the app's now, as after a clear, and no tab holds it, which settles what it needed you for.
-  setScheduled(owner.session.id, []);
-  clearNeedsYou(entityKey(owner.session), 'moved');
-  // After the take-over, so the session's status, which is this tab's now, stays (`removeTab`).
-  if (other) removeTab(other.token);
-  persistOpenTabs();
-  const key = entityKey(session);
-  if (!store.get().finished.has(key)) return null;
-  void window.claudeUi.unfinish([key], 'resume').then((finished) => {
-    store.set({ finished: new Map(Object.entries(finished)) });
-    showToast(`"${sessionLabel(session)}" was finished; resuming it in claude made it unfinished`);
-  }, () => showToast(`"${sessionLabel(session)}" is finished and running; make it unfinished from the finished sessions`));
-  return null;
-}
-
-/** The "+" button's blank for session `id`, in the folder of the session a tab ran before it: the same terminal, in the same place. */
-function blankAfter(previous: SessionSummary, id: string): SessionSummary {
-  return newSession(id, { cwd: previous.cwd, repoRoot: previous.repoRoot, isRepo: previous.isRepo, worktree: previous.worktree });
 }
 
 function onTabData(token: string, data: string): void {

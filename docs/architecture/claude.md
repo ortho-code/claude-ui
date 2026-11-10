@@ -148,7 +148,7 @@ A file that still lists paused tabs, `pausedSessions` ([decided 2026-10-29](../d
 A tab loses the mark when its session's process arrives, and gets it back if that start fails within its first moments; a start that is refused or throws never had a process, so the mark stays.
 The mark is written whenever it changes, with the rest.
 
-The code is in `src/renderer/panels/types/claude/terminals.ts`: each tab's terminal, its life from built to closed, the workspace switch, the fit of the tab on show to the terminal area, and the open tabs kept for the next launch.
+The code is in `src/renderer/panels/types/claude/`: `terminals.ts` holds a tab's life from built to closed, the workspace switch and the fit of the tab on show to the terminal area; `tabstate.ts` each tab's terminal; `opentabs.ts` and `restore.ts` the open tabs kept for the next launch and their restore; `adopt.ts` a tab taking over the session its claude went on in.
 
 ### Stopping a session is a request: claude may answer it with a question
 
