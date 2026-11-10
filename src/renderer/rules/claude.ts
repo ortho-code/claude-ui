@@ -179,6 +179,6 @@ export function notLeftWords(tab: TabButtonTab): string | null {
  */
 export function hasVisibleOutput(data: string): boolean {
   const [complete] = splitPendingEscape(data);
-  // eslint-disable-next-line no-control-regex
+  // eslint-disable-next-line no-control-regex -- what is left once the escapes are gone is control characters, which are what this removes
   return stripAnsi(complete).replace(/[\x00-\x1f\x7f]/g, '').trim().length > 0;
 }

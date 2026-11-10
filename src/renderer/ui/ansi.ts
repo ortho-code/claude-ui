@@ -13,7 +13,7 @@
 // One alternation, longest shapes first so a string escape is consumed whole rather than as an ESC plus text.
 // The two-byte form excludes the introducers of the other two (`[`, `]`, `P`, `X`, `^`, `_`) as its final byte, so a CSI or string escape cut off right after its introducer reads as incomplete rather than as a complete short one.
 const ESCAPES =
-  // eslint-disable-next-line no-control-regex
+  // eslint-disable-next-line no-control-regex -- terminal escapes start with ESC and end strings with BEL, so the pattern has to name those control characters
   /\x1b\[[0-?]*[ -/]*[@-~]|\x1b[\]P_^X][^\x07\x1b]*(?:\x07|\x1b\\|(?=\x1b))|\x1b(?:[ -/]+[0-~]|[0-OQ-WY-Z\\`-~])/g;
 const ESCAPE_AT_START = new RegExp(`^(?:${ESCAPES.source})`);
 
