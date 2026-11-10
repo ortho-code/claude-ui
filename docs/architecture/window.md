@@ -3,7 +3,7 @@
 ## The window's own chrome — built, and currently switched off
 
 **The app uses the system's window frame today.**
-What follows is a complete alternative that exists in the code behind a single flag, `OWN_CHROME` in `main.ts`, and is turned off.
+What follows is a complete alternative that exists in the code behind a single flag, `OWN_CHROME` in `src/main/window/chrome.ts`, and is turned off.
 
 It works, and it was turned off for one reason: dragging the window is visibly steppy.
 The gesture is the app's own, so every move is a round trip to the compositor, and it cannot be made smooth — handing the drag back to the compositor is smooth, but brings a double-click-to-maximize that draws the window offset from where it hit-tests and cannot be suppressed.

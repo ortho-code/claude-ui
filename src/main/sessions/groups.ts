@@ -1,3 +1,4 @@
+import { ipcMain } from 'electron';
 import { randomUUID } from 'node:crypto';
 import type { GroupState, OrderMove } from '../../shared/types';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../shared/sessions/grouping';
@@ -90,4 +91,23 @@ export function moveGroup(id: string, move: OrderMove): Promise<GroupState> {
 /** Move sessions into a group, or out of any group with a null `groupId`, in one write. */
 export function moveSessionsToGroup(sessionIds: string[], groupId: string | null): Promise<GroupState> {
   return update('moveSessionsToGroup', (meta) => setGroupState(meta, sessionIds.reduce((state, id) => withSessionInGroup(state, id, groupId), groupState(meta))));
+}
+
+/** The window's reads and writes of the projects' names and order, and of the groups. */
+export function registerGroupsIpc(): void {
+  ipcMain.handle('meta:getProjectNames', () => getProjectNames());
+  ipcMain.handle('meta:setProjectName', (_event, repoRoot: string, name: string) => setProjectName(repoRoot, name));
+  ipcMain.handle('meta:getGroupState', () => getGroupState());
+  ipcMain.handle('meta:createGroup', (_event, name: string, repoRoot: string | null, sessionId?: string) =>
+    createGroup(name, repoRoot, sessionId),
+  );
+  ipcMain.handle('meta:renameGroup', (_event, id: string, name: string) => renameGroup(id, name));
+  ipcMain.handle('meta:deleteGroup', (_event, id: string) => deleteGroup(id));
+  ipcMain.handle('meta:moveGroup', (_event, id: string, move: OrderMove) => moveGroup(id, move));
+  ipcMain.handle('meta:getProjectOrder', () => getProjectOrder());
+  ipcMain.handle('meta:seedProjectOrder', (_event, roots: string[]) => seedProjectOrder(roots));
+  ipcMain.handle('meta:moveProject', (_event, repoRoot: string, move: OrderMove, shown: string[]) => moveProject(repoRoot, move, shown));
+  ipcMain.handle('meta:moveSessionsToGroup', (_event, sessionIds: string[], groupId: string | null) =>
+    moveSessionsToGroup(sessionIds, groupId),
+  );
 }

@@ -1,3 +1,4 @@
+import { ipcMain } from 'electron';
 import type { NeedsYou, SetAside, SettledBy, SettledNeedsYou } from '../../shared/types';
 import { cameDue, clearedSetAside, keptFrom, markedSetAside, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes, unkept } from '../../shared/status/sessionmarks';
 import { needsYouUsage } from '../logs/usage';
@@ -97,5 +98,39 @@ export function unkeep(ids: string[]): Promise<void> {
   return update('unkeep', (meta, usage) => {
     usage.push(...decided('unkeep', ids.filter((id) => id in meta.kept)));
     meta.kept = unkept(meta.kept, ids);
+  });
+}
+
+/** The window's reads and writes of the needs-you, set-aside and keep marks. */
+export function registerMarksIpc(): void {
+  ipcMain.handle('meta:getNeedsYou', () => getNeedsYou());
+  ipcMain.on('meta:settleNeedsYouTypes', (_event, types: string[]) => {
+    void settleNeedsYouTypes(types);
+  });
+  ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reasons: NeedsYou[]) => {
+    void markNeedsYou(ids, reasons);
+  });
+  ipcMain.on('meta:clearNeedsYou', (_event, id: string, by: SettledBy) => {
+    void clearNeedsYou(id, by);
+  });
+  ipcMain.on('meta:restoreNeedsYou', (_event, id: string, reasons: NeedsYou[]) => {
+    void restoreNeedsYou(id, reasons);
+  });
+  ipcMain.handle('meta:getSetAside', () => getSetAside());
+  ipcMain.handle('meta:getKept', () => getKept());
+  ipcMain.on('meta:keep', (_event, ids: string[], at?: number) => {
+    void keep(ids, at);
+  });
+  ipcMain.on('meta:unkeep', (_event, ids: string[]) => {
+    void unkeep(ids);
+  });
+  ipcMain.on('meta:markSetAside', (_event, ids: string[], due: number | null, at?: number) => {
+    void markSetAside(ids, due, at);
+  });
+  ipcMain.on('meta:clearSetAside', (_event, ids: string[], by: unknown) => {
+    void clearSetAside(ids, by === 'prompt' ? by : undefined);
+  });
+  ipcMain.on('meta:setAsideCameDue', (_event, now: number, remind: boolean) => {
+    void setAsideCameDue(now, remind);
   });
 }

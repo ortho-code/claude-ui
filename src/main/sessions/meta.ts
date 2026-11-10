@@ -1,3 +1,4 @@
+import { ipcMain } from 'electron';
 import type { HistoryPin, PrSeen, ScheduledTask, SessionPr, UiState } from '../../shared/types';
 import { finishedFrom, clearedSetAside, purgedSession, settledNeedsYou, togglePinned, clearedFinished, withPrLink } from '../../shared/status/sessionmarks';
 import { withText } from '../../shared/helpers/text';
@@ -5,7 +6,7 @@ import type { WindowBounds } from '../window/bounds';
 import { normalizeUi } from '../window/uistate';
 import { scheduledBySession } from '../status/storedmarks';
 import { needsYouUsage } from '../logs/usage';
-import { decided, readMeta, serialize, update, type MetaSettings } from './metastore';
+import { decided, readMeta, recordClear, serialize, update, type MetaSettings } from './metastore';
 import { prSeenOf } from './storedprs';
 
 export function getPinned(): Promise<string[]> {
@@ -226,5 +227,48 @@ export function getMoved(): Promise<string[]> {
 export function markMoved(name: string): Promise<void> {
   return update(`moved ${name}`, (meta) => {
     if (!meta.moved.includes(name)) meta.moved.push(name);
+  });
+}
+
+/** The window's reads and writes of what is kept per session, the tabs, the window's place and the sidebar's state. */
+export function registerMetaIpc(): void {
+  ipcMain.handle('meta:recordClear', (_event, from: string, to: string, title: string) => recordClear(from, to, title));
+  ipcMain.handle('meta:getPinned', () => getPinned());
+  ipcMain.handle('meta:togglePin', (_event, id: string) => togglePin(id));
+  ipcMain.handle('meta:getHistoryPins', () => getHistoryPins());
+  ipcMain.handle('meta:toggleHistoryPin', (_event, id: string, pin: Pick<HistoryPin, 'kind' | 'session' | 'text' | 'time'>) => toggleHistoryPin(id, pin));
+  ipcMain.handle('meta:getFinished', () => getFinished());
+  ipcMain.handle('meta:finish', (_event, ids: string[]) => finish(ids));
+  ipcMain.handle('meta:unfinish', (_event, ids: string[], by: unknown) => unfinish(ids, by === 'resume' ? by : undefined));
+  ipcMain.handle('meta:getOpenSessions', () => getOpenSessions());
+  ipcMain.handle('meta:getActiveSession', () => getActiveSession());
+  ipcMain.handle('meta:getActiveSessionByProject', () => getActiveSessionByProject());
+  ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: string) => {
+    void setActiveSession(id, repoRoot);
+  });
+  ipcMain.handle('meta:getRunningSessions', () => getRunningSessions());
+  ipcMain.handle('meta:getPrSeen', () => getPrSeen());
+  ipcMain.on('meta:setPrSeen', (_event, seen: PrSeen) => {
+    void setPrSeen(seen);
+  });
+  ipcMain.on('meta:linkSessionPr', (_event, id: unknown, url: unknown) => {
+    if (typeof id === 'string' && typeof url === 'string') void addPrLink(id, url);
+  });
+  ipcMain.handle('meta:getScheduledWhenStopped', () => getScheduledWhenStopped());
+  ipcMain.on('meta:setScheduledWhenStopped', (_event, bySession: Record<string, unknown>) => {
+    void setScheduledWhenStopped(bySession);
+  });
+  ipcMain.on('meta:setOpenSessions', (_event, ids: string[], running: string[]) => {
+    void setOpenSessions(ids, running);
+  });
+  ipcMain.handle('meta:getActiveProject', () => getActiveProject());
+  ipcMain.on('meta:setActiveProject', (_event, folder: string | null) => {
+    void setActiveProject(folder);
+  });
+  ipcMain.handle('meta:getNotes', () => getNotes());
+  ipcMain.handle('meta:setNote', (_event, id: string, note: string) => setNote(id, note));
+  ipcMain.handle('meta:getUiState', () => getUiState());
+  ipcMain.on('meta:setUiState', (_event, state: UiState) => {
+    void setUiState(state);
   });
 }

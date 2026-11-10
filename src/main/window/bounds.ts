@@ -1,7 +1,7 @@
 /**
  * Where the window should open, given what was stored and which screens exist right now.
  *
- * Kept apart from main.ts and free of any electron import, because the interesting part is geometry against a display layout that has changed since the window was last closed — a monitor unplugged, a laptop docked, WSLg handing out a different desktop size — and that is precisely the situation you cannot reproduce by hand on the machine you are developing on.
+ * Kept apart from the window's own code (geometry.ts) and free of any electron import, because the interesting part is geometry against a display layout that has changed since the window was last closed — a monitor unplugged, a laptop docked, WSLg handing out a different desktop size — and that is precisely the situation you cannot reproduce by hand on the machine you are developing on.
  * Pure input, pure output, so the awkward cases are tests instead of a window that opens somewhere you cannot see it.
  */
 

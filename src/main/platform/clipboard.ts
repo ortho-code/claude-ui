@@ -1,6 +1,8 @@
+import { ipcMain } from 'electron';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { errorText, log } from '../logs/log';
+import { readProcVersion, runsOnWsl } from './platform';
 
 /**
  * The files copied in Windows, for a paste under WSL that brought no text (docs/architecture/panels.md § The `terminal` type).
@@ -88,4 +90,12 @@ export async function copiedFiles(runner: Run = run): Promise<string[]> {
     }
   }
   return linuxPaths;
+}
+
+/** Whether the app runs under WSL, and the files copied in Windows, which only there are on Windows' side alone. */
+export function registerClipboardIpc(): void {
+  // Decided once: what the window's terminals do with Ctrl+V depends on it (docs/architecture/panels.md § The `terminal` type).
+  const wsl = runsOnWsl(process.platform, process.env, readProcVersion);
+  ipcMain.handle('app:wsl', () => wsl);
+  ipcMain.handle('clipboard:copiedFiles', () => (wsl ? copiedFiles() : []));
 }
