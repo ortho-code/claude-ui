@@ -1,16 +1,14 @@
 import { keptOver } from '../../shared/sessions/kept';
-import { NODE_STATE_FIELDS, parseSize, spelledSize, withNodeChanges, type LayoutReport, type NodeSize, type NodeState, type NodeStateChange, type PanelState } from '../../shared/panels';
-import { idsIn, readNodeState, stateFromPanelState } from './nodestate';
+import { spelledSize, type LayoutReport, type NodeSize, type NodeStateChange } from '../../shared/panels';
 import { element } from '../ui/dom';
 import { drawFoldChevron, foldChevron } from '../ui/fold-chevron';
 import { installSplitResizer } from '../ui/resizer';
-import { needsShown } from '../status/shown';
 import { badgeClass } from '../status/statusdot';
 // A panel header's count wears the section heading's count pill.
 import '../ui/card.css';
 import '../ui/badge.css';
 import './tree.css';
-import { PINNED_BADGE_ICON, WORKTREE_ICON, strokeIcon, type Direction } from '../ui/svg';
+import { PINNED_BADGE_ICON, WORKTREE_ICON, type Direction } from '../ui/svg';
 import { copyText } from '../ui/toast';
 import { setTooltip } from '../ui/tooltip';
 import { iconSvg } from './icons';
@@ -26,7 +24,7 @@ import {
   type ResolvedNode,
   type ResolvedSplit,
 } from './layout';
-import { dragTargets, flexFor, sizesAfterDrag, withOverrides, type FlexChild } from './sizes';
+import { dragTargets, flexFor, sizesAfterDrag, type FlexChild } from './sizes';
 import { claudeType } from './types/claude';
 import { sessionsType } from './types/sessions';
 import { folderTypes } from './types/folder';
@@ -35,9 +33,11 @@ import { SNAPSHOT_SLICES, snapshotText } from './snapshot';
 import { store } from '../state/app';
 import { HeaderTabs } from './tabs';
 import { viewButton } from './view-switch';
-import type { Asks, MountedPanel, PanelHost, PanelStatus, PanelType, PanelView, Where } from './contract';
+import type { Asks, MountedPanel, PanelHost, PanelType, PanelView, Where } from './contract';
 import { commandType } from './types/command';
 import { terminalType } from './types/terminal';
+import { actionButton, drawFullScreenButton, header, notesLine, problemList, showStatus, tabsHeader } from './headers';
+import { foldedNow, initTreeState, keep, sizesOf, stateFileNotesNow, stateNotesOf, stateOf, takeState } from './treestate';
 
 /**
  * The window, drawn from the layout tree: nested rows and columns of groups, each group showing one panel, with the app's own sidebar and terminal area as two of the panels.
@@ -117,11 +117,6 @@ interface Place {
   toggleFold: (() => void) | null;
 }
 
-const REFRESH_ICON = strokeIcon(14, '<path d="M12.8 8.6A4.8 4.8 0 1 1 11.6 4.5" /><path d="M12.9 2.8v2.6h-2.6" />');
-// Four corners pointing out, and back in: apart from the window's maximize square (chrome.ts), since a panel filling the window is not the window changing size.
-const FULL_SCREEN_ICON = strokeIcon(14, '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" />');
-const BACK_TO_LAYOUT_ICON = strokeIcon(14, '<path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5" />');
-
 let host: TreeHost;
 let app: HTMLElement;
 /** The tree on screen: the last good read, or the default layout until there is one. */
@@ -129,22 +124,6 @@ let tree: ResolvedNode;
 const mounted = new Map<string, Mounted>();
 /** The keys of the panels the last render put on show, as opposed to mounted behind another or folded away. */
 let onShow = new Set<string>();
-/**
- * This machine's sizes, folds and picks, by node id, as the app's file beside the layout keeps them (nodestate.ts), each over the field of that name in the layout file.
- * What the window changes it changes here at once and has main keep there (`keep`); a read of that file replaces it only when somebody other than the app wrote it.
- */
-let nodeState: Record<string, NodeState> = {};
-/** What is wrong with that file: under the node a note is about, and for the file as a whole under the window. */
-let stateNotes: Record<string, string[]> = {};
-let stateFileNotes: string[] = [];
-/** Whether a read of that file has been taken in, which is when an id it holds can be judged against the layout. */
-let stateRead = false;
-/** The tree's state from before, as `meta.json` kept it, until the first read moves it into that file. */
-let legacy: { state: PanelState; sidebarWidth: number | null } | null = null;
-/** The splits whose sizes from that file are set aside, so the log says so once per change rather than at every draw. */
-let setAside = new Set<string>();
-/** The toast that file put up while it does not parse, so a good read takes down that one and never another. */
-let stateToasted: string | null = null;
 /** Whether panels may be shown, which is when they first run. */
 let live = false;
 /** The toast the tree last put up, so a good read takes down that one and never anybody else's. */
@@ -169,6 +148,7 @@ function queueRender(): void {
 /** Draw the default layout now, before the first paint, and follow the layout file from here on. */
 export function initTree(treeHost: TreeHost): void {
   host = { ...treeHost, asks: leavingFullScreen(treeHost.asks) };
+  initTreeState(() => tree, host);
   app = document.getElementById('app')!;
   const view = resolveLayout(
     { configRoot: '', file: '', status: 'missing', error: null, json: null, types: [], local: { file: '', status: 'missing', error: null, json: null, byApp: false, stateMoved: true } },
@@ -283,79 +263,6 @@ export function treeSessionsChanged(): void {
   });
 }
 
-/**
- * The tree's state as `meta.json` kept it before the config folder, held until the first read of the layout moves it into the app's file beside it, once (`takeState`).
- * `legacySidebarWidth` is the sidebar's width from before the sidebar was a node in the tree, which goes the same way (`stateFromPanelState`).
- */
-export function holdLegacyState(state: PanelState, legacySidebarWidth: number | null): void {
-  legacy = { state, sidebarWidth: legacySidebarWidth };
-}
-
-/**
- * Take in a read of the app's file beside the layout: a toast while it does not parse, and its state in place of the window's unless the app itself wrote what it holds, since the window's own is then as new or newer.
- * The first read also moves the state `meta.json` kept, if it has not moved yet, worked out against `root` since only the tree knows which node is which; main makes the move once and not over a file that already holds something.
- */
-function takeState(local: LayoutReport['local'], root: ResolvedNode): void {
-  const message = local.status === 'unparsable' ? `${fileName(local.file)}: ${local.error ?? 'it could not be read'}` : null;
-  if (message !== stateToasted) {
-    if (stateToasted !== null) host.hideToast(stateToasted);
-    if (message !== null) host.showToast(message, true);
-    stateToasted = message;
-  }
-  // The window's state stands while the file does not parse; the app will not write over it either (appfiles.ts).
-  if (local.status === 'unparsable') return;
-  if (local.byApp && stateRead) return;
-  const read = readNodeState(local.json, fileName(local.file));
-  nodeState = read.state;
-  stateNotes = read.notes;
-  stateFileNotes = read.fileNotes;
-  stateRead = true;
-  if (local.stateMoved) {
-    legacy = null;
-    return;
-  }
-  const moved = legacy ? stateFromPanelState(root, legacy.state, legacy.sidebarWidth, window.innerWidth) : {};
-  legacy = null;
-  if (Object.keys(nodeState).length === 0) nodeState = moved;
-  void window.claudeUi.moveLayoutState(moved).then(({ refused }) => {
-    if (refused !== null) host.showToast(refused);
-  });
-}
-
-/**
- * Keep what the window changed: in its own state at once, and in the app's file beside the layout through main.
- * An id the layout no longer has is dropped on the way, since what was kept for it is only a size, a fold or a pick (decision 4.3); judged only once the file has been read, never against the default layout drawn before it.
- */
-function keep(changes: NodeStateChange[]): void {
-  const ids = idsIn(tree);
-  const stale = stateRead ? Object.entries(nodeState).flatMap(([id, state]) => (ids.has(id) ? [] : NODE_STATE_FIELDS.filter((field) => state[field] !== undefined).map((field) => ({ id, field, value: null })))) : [];
-  const all = [...stale, ...changes];
-  nodeState = withNodeChanges(nodeState, all);
-  void window.claudeUi.setLayoutState(all).then(({ refused }) => {
-    if (refused !== null) host.showToast(refused);
-  });
-}
-
-/** A group's fold as it stands: the window's, else the file's. */
-const foldedNow = (group: ResolvedGroup): boolean => nodeState[group.id]?.folded ?? group.folded;
-
-/**
- * A split's children's sizes as they stand, the app's over the file's, unless the guard sets the app's aside (`withOverrides`), which the log says once per change.
- * `dragging` holds the sizes of a drag under way, over both.
- */
-function sizesOf(split: ResolvedSplit, visible: ResolvedNode[], dragging: Record<string, NodeSize> = {}): (NodeSize | null)[] {
-  const overrides = Object.fromEntries(split.children.map((child) => [child.id, dragging[child.id] ?? parseSize(nodeState[child.id]?.size) ?? undefined]));
-  const { sizes, dropped } = withOverrides(split.children, overrides);
-  if (dropped !== setAside.has(split.id)) {
-    setAside = new Set(setAside);
-    if (dropped) {
-      setAside.add(split.id);
-      window.claudeUi.log('info', 'layout', `the sizes dragged to in ${split.id} would leave a child without a size no room, so the file's sizes are shown`);
-    } else setAside.delete(split.id);
-  }
-  return visible.map((child) => sizes[split.children.indexOf(child)]!);
-}
-
 function apply(next: LayoutReport): void {
   const found = folderTypes(next.types, BUILTIN_TYPES);
   const view = resolveLayout(next, found.types, found.notes);
@@ -395,10 +302,11 @@ function render(): void {
   onShow = new Set();
   const root = renderNode(tree, { axis: null, edge: 'start', folded: false, toggleFold: null });
   // What is wrong with the app's file as a whole, under the window, as a file-wide problem of the layout's is.
-  if (stateFileNotes.length === 0) app.replaceChildren(root);
+  const fileNotes = stateFileNotesNow();
+  if (fileNotes.length === 0) app.replaceChildren(root);
   else {
     const wrap = element('div', 'split-wrap');
-    wrap.append(root, notesLine(stateFileNotes));
+    wrap.append(root, notesLine(fileNotes));
     app.replaceChildren(wrap);
   }
   for (const [el, top, left] of scrolled) {
@@ -491,7 +399,7 @@ function renderSplit(split: ResolvedSplit): HTMLElement {
     style.flex = '1 1 0';
     style.minWidth = style.minHeight = '';
   }
-  const notes = [...split.notes, ...(stateNotes[split.id] ?? [])];
+  const notes = [...split.notes, ...stateNotesOf(split.id)];
   if (notes.length === 0) return box;
   const wrap = element('div', 'split-wrap');
   wrap.append(box, notesLine(notes));
@@ -542,7 +450,7 @@ function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLEleme
   setTooltip(handle, 'Drag to resize, double-click to reset');
   handle.addEventListener('dblclick', (event) => {
     if (event.target instanceof Element && event.target.closest('button')) return;
-    const kept = split.children.filter((child) => nodeState[child.id]?.size !== undefined);
+    const kept = split.children.filter((child) => stateOf(child.id)?.size !== undefined);
     if (kept.length === 0) return;
     keep(kept.map((child) => ({ id: child.id, field: 'size', value: null })));
     render();
@@ -609,7 +517,7 @@ function toggleFold(_split: ResolvedSplit, visible: ResolvedNode[], _nodes: HTML
  * Every slot is reachable from the rail, so nothing — the terminal included — can be stranded behind another.
  */
 function shownSlot(group: ResolvedGroup, slots: PanelSlot[]): PanelSlot {
-  return slots.find((slot) => slot.key === nodeState[group.id]?.active) ?? slots.find((slot) => slot.key === group.active) ?? slots[0]!;
+  return slots.find((slot) => slot.key === stateOf(group.id)?.active) ??slots.find((slot) => slot.key === group.active) ?? slots[0]!;
 }
 
 function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
@@ -644,7 +552,7 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   }
   // Shown even while it says it cannot run, so a check that passes later runs it where it stands.
   if (!place.folded && shown.problems.length === 0) onShow.add(shown.key);
-  const notes = [...group.notes, ...(stateNotes[group.id] ?? []), ...slots.flatMap((slot) => [...slot.notes, ...(mounted.get(slot.key)?.notes ?? []), ...(mounted.get(slot.key)?.viewNotes ?? [])])];
+  const notes = [...group.notes, ...stateNotesOf(group.id), ...slots.flatMap((slot) => [...slot.notes, ...(mounted.get(slot.key)?.notes ?? []), ...(mounted.get(slot.key)?.viewNotes ?? [])])];
   if (notes.length > 0) content.append(notesLine(notes));
 
   const rail = filling ? null : switcher(group, slots, shown, place);
@@ -745,7 +653,7 @@ function mountedFor(slot: PanelSlot): Mounted {
   // The entry as the layout says it now, not as it was when the panel mounted: an edit of its `view` alone does not mount it afresh.
   const entryView = (): string | null => (mounted.get(slot.key)?.slot ?? slot).view;
   // The view picked on this machine, else the entry's; the switch marks it when the panel offers it, else the panel's first.
-  const pickedView = (): string | null => nodeState[slot.key]?.view ?? entryView();
+  const pickedView = (): string | null => stateOf(slot.key)?.view ?? entryView();
   // The views the panel last said it offers, which a pick is kept against, and what its views say of its entry, held here while it is still mounting, as its other reports are (`said`), so a note said from its mount is not lost.
   let offeredNow: PanelView[] = [];
   let viewNotesNow: string[] = [];
@@ -861,71 +769,4 @@ function mountedFor(slot: PanelSlot): Mounted {
   const entry: Mounted = { panel, slot, viewNotes: viewNotesNow, view: pickedView, viewTold: pickedView(), signature: signatureOf(slot), busy, end, views, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder, fullScreenButton, ...said };
   mounted.set(slot.key, entry);
   return entry;
-}
-
-/**
- * The rail dot, in the status dot's own states: `waiting` and `needs` in their looks, `needs` in the look of `look` where the panel names one, `failed` for a run that did not end well.
- * Any look draws here as a filled dot of its colour, never its icon or ring (looks.ts): an icon on an icon's corner would read as neither.
- */
-function showStatus(badge: HTMLElement, status: PanelStatus, look?: string): void {
-  badge.className = badgeClass(status === 'wait' ? 'waiting' : status === 'needs' ? (look === undefined ? 'needs' : needsShown(look)) : status === 'fail' ? 'failed' : null);
-  badge.hidden = status === null;
-}
-
-/** The header's one button, in the compact box: the header takes the tab bar's density, and a standard box made it taller than a header without one. */
-function actionButton(label: string): HTMLButtonElement {
-  const button = element('button', 'icon-btn compact');
-  button.type = 'button';
-  button.setAttribute('aria-label', label);
-  setTooltip(button, label);
-  button.innerHTML = REFRESH_ICON;
-  return button;
-}
-
-/** The full-screen button as it stands: pressed, saying the way back, while its panel fills the window. */
-function drawFullScreenButton(button: HTMLButtonElement, on: boolean): void {
-  const label = on ? 'Back to the layout' : 'Full screen';
-  if (button.getAttribute('aria-label') === label) return;
-  button.innerHTML = on ? BACK_TO_LAYOUT_ICON : FULL_SCREEN_ICON;
-  button.setAttribute('aria-label', label);
-  button.setAttribute('aria-pressed', String(on));
-  setTooltip(button, label);
-}
-
-function header(title: string, controls: HTMLElement[] = []): HTMLElement {
-  const row = element('div', 'panel-header');
-  const heading = element('span', 'panel-title');
-  heading.textContent = title;
-  setTooltip(heading, title);
-  row.append(heading, ...controls);
-  return row;
-}
-
-/** A header whose panel has tabs: the tabs where the title would be, then its controls, and the tabs' fold on its bottom line (panels/tabs.ts). */
-function tabsHeader(tabs: HeaderTabs, controls: HTMLElement[]): HTMLElement {
-  const row = element('div', 'panel-header with-tabs');
-  row.append(tabs.el, ...controls, tabs.foldButton);
-  return row;
-}
-
-/** A panel or node that cannot be drawn says why, one sentence per line, where its content would be. */
-function problemList(problems: string[]): HTMLElement {
-  const box = element('div', 'panel-problems');
-  for (const problem of problems) {
-    const line = element('p');
-    line.textContent = problem;
-    box.appendChild(line);
-  }
-  return box;
-}
-
-/** What the app did in the file's place, or does not honour yet, under the node it is about. */
-function notesLine(notes: string[]): HTMLElement {
-  const box = element('div', 'panel-note');
-  for (const note of notes) {
-    const line = element('div');
-    line.textContent = note;
-    box.appendChild(line);
-  }
-  return box;
 }

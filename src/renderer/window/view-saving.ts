@@ -1,7 +1,7 @@
 import type { PanelState } from '../../shared/panels';
 import { defaultUi } from '../../shared/config/defaults';
 import type { UiState } from '../../shared/types';
-import { holdLegacyState } from '../panels/tree';
+import { holdLegacyState } from '../panels/treestate';
 import { restoreTerminalArea, terminalAreaSnapshot } from '../panels/types/claude/stored-view';
 import { followListScroll, restoreSidebar, sidebarSnapshot } from '../panels/types/sessions/stored-view';
 import { store, type StoredView } from '../state/app';
@@ -9,7 +9,7 @@ import { store, type StoredView } from '../state/app';
 /**
  * THE VIEW THAT SURVIVES A RESTART: the sidebar's part (sessions/stored-view.ts) and the terminal area's (claude/stored-view.ts), saved in the one shape `meta.json` keeps, and put back at start-up.
  * Search, filters, folds, width and scroll are one answer to one question — put the window back the way it was — so they are snapshotted, stored and restored together rather than as a setting each.
- * The layout tree's sizes, folds and picks are not here any more: they are this machine's, in the app's file beside the layout (panels/tree.ts), and what `meta.json` kept of them is handed to the tree to move there once, and written back as it was read, so an older build still finds it.
+ * The layout tree's sizes, folds and picks are not here any more: they are this machine's, in the app's file beside the layout (panels/treestate.ts), and what `meta.json` kept of them is handed to the tree to move there once, and written back as it was read, so an older build still finds it.
  * renderer.ts wires it: a watcher of the view's slices and the start-up order; the list's scroll it follows itself, from the moment it starts saving.
  */
 
