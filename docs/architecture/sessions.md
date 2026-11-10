@@ -4,7 +4,7 @@
 
 `src/main/sessions/sessions.ts` walks `~/.claude/projects/*/*.jsonl`.
 Each `.jsonl` is one session transcript with one JSON event per line.
-For each file it streams the lines to pull the working directory and the first prompt without loading the whole file, counts the events, and takes last activity from the file mtime.
+For each file `summary.ts` streams the lines to pull the working directory and the first prompt without loading the whole file, and takes last activity from the newest message's time, or the file's mtime when no message has one.
 The renderer groups the results by working directory.
 
 **A session's name is Claude's, or its first prompt**: its custom title, else the title Claude generated, else its first prompt, else `New: <folder>` after the folder it runs in (`sessionLabel`), on every surface ([decided 2026-10-22](../decisions/0101-an-untitled-session-is-named-by-its-first-prompt.md)).
