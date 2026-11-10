@@ -98,8 +98,6 @@ export function correctFramePlacement(win: BrowserWindow, wanted: { x: number; y
  * `setBounds` to the work area has neither problem — bounds and content agree, and it lands where it says.
  * So the window never enters the native maximized state at all, and the flag is ours.
  * Why is in docs/architecture/window.md § The window's own chrome; this is not a preference and should not be "simplified" back to `maximize()`.
- *
- * The frame offset this file used to cancel by polling (the window manager adding its title bar to every position it was given) went with the frame: it was a property of the decoration, and a frameless window lands exactly where it asks.
  */
 let maximized = false;
 /**
