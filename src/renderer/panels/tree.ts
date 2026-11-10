@@ -3,16 +3,13 @@ import { spelledSize, type LayoutReport, type NodeSize, type NodeStateChange } f
 import { element } from '../ui/dom';
 import { drawFoldChevron, foldChevron } from '../ui/fold-chevron';
 import { installSplitResizer } from '../ui/resizer';
-import { badgeClass } from '../status/statusdot';
 // A panel header's count wears the section heading's count pill.
 import '../ui/card.css';
 import '../ui/badge.css';
 import './tree.css';
-import { PINNED_BADGE_ICON, WORKTREE_ICON, type Direction } from '../ui/svg';
-import { copyText } from '../ui/toast';
+import type { Direction } from '../ui/svg';
 import { setTooltip } from '../ui/tooltip';
 import { iconSvg } from './icons';
-import { optionsOf } from './options';
 import {
   fileName,
   foldEdge,
@@ -28,15 +25,11 @@ import { dragTargets, flexFor, sizesAfterDrag, type FlexChild } from './sizes';
 import { claudeType } from './types/claude';
 import { sessionsType } from './types/sessions';
 import { folderTypes } from './types/folder';
-import { linkedSessions, pickSession, sessionNamed, startSession } from './links';
-import { SNAPSHOT_SLICES, snapshotText } from './snapshot';
-import { store } from '../state/app';
-import { HeaderTabs } from './tabs';
-import { viewButton } from './view-switch';
-import type { Asks, MountedPanel, PanelHost, PanelType, PanelView, Where } from './contract';
+import { mountPanel, type MountContext, type Mounted } from './mount';
+import type { Asks, PanelType, Where } from './contract';
 import { commandType } from './types/command';
 import { terminalType } from './types/terminal';
-import { actionButton, drawFullScreenButton, header, notesLine, problemList, showStatus, tabsHeader } from './headers';
+import { drawFullScreenButton, header, notesLine, problemList, tabsHeader } from './headers';
 import { foldedNow, initTreeState, keep, sizesOf, stateFileNotesNow, stateNotesOf, stateOf, takeState } from './treestate';
 
 /**
@@ -68,42 +61,6 @@ export interface TreeHost {
   hideToast(message: string): void;
   /** One route for every panel, the built-ins included: a panel's ask IS the answer of the built-in that owns it. */
   asks: Asks;
-}
-
-/** A panel on screen, and the marks it reports through — made once with it, so a rebuilt header or rail shows the same marks rather than orphaning them. */
-interface Mounted {
-  panel: MountedPanel;
-  /** Its entry as the layout says it now, which an edit that does not mount the panel afresh (its `view`, its title) still changes. */
-  slot: PanelSlot;
-  /** What is wrong with its entry's `view` that only its views show, for its group's note line. */
-  viewNotes: string[];
-  /** The view picked for it as its host answers it now (`PanelHost.view`), and as the panel was last told of it, at its mount or by `viewChanged`. */
-  view: () => string | null;
-  viewTold: string | null;
-  /** Its type and declared parameters: a change to either mounts it afresh, a change to anything else (title, icon) does not. */
-  signature: string;
-  busy: HTMLElement;
-  end: HTMLElement;
-  /** The switch between the views it offers, empty and hidden with fewer than two. */
-  views: HTMLElement;
-  /** Its tabs, drawn in its header in place of its title, while it says it has them (`setTabs`). */
-  tabs: HeaderTabs | null;
-  action: HTMLButtonElement | null;
-  /** The dot on its rail icon (P8). */
-  badge: HTMLElement;
-  /** The count it reports, twice, since one element cannot stand in two places: beside the header's title, and on its rail icon. */
-  count: HTMLElement;
-  railCount: HTMLElement;
-  /** The count as last reported, for the rail's label, which says it whole where the badge cannot. */
-  countValue: number | null;
-  /** The folder it looks in, beside its title, while it names one (`setFolder`). */
-  folder: HTMLElement;
-  /** Why the panel says it cannot run, as it last reported: drawn in its place, with `alert` on its rail icon. */
-  problems: string[];
-  /** What the panel says about itself that does not stop it, for its group's note line. */
-  notes: string[];
-  /** Its full-screen button, in the header the tree draws, or in a bare panel's own bar (`PanelHost.fullScreenButton`). */
-  fullScreenButton: HTMLButtonElement;
 }
 
 /**
@@ -619,154 +576,20 @@ function mountedFor(slot: PanelSlot): Mounted {
     existing.slot = slot;
     return existing;
   }
-  const type = types[slot.type!]!;
-  const busy = element('span', 'nudge running');
-  busy.hidden = true;
-  const end = element('span', 'panel-end');
-  // Per entry, since what the button would do can depend on the options; a terminal has none.
-  const label = type.bare ? null : type.actionLabel ? type.actionLabel(optionsOf(slot.entry)) : 'Refresh';
-  const action = label === null ? null : actionButton(label);
-  const fullScreenButton = element('button', 'icon-btn full-screen-toggle');
-  fullScreenButton.type = 'button';
-  // A bare panel's own bar sizes it with its other buttons; the tree's header takes the compact box its Refresh has.
-  if (!type.bare) fullScreenButton.classList.add('compact');
-  fullScreenButton.addEventListener('click', () => setFullScreen(fullScreen === slot.key ? null : slot.key));
-  drawFullScreenButton(fullScreenButton, false);
-  const badge = element('span', badgeClass(null));
-  badge.hidden = true;
-  const count = element('span', 'panel-count');
-  const railCount = element('span', 'rail-count');
-  count.hidden = railCount.hidden = true;
-  // The folder it looks in: the worktree mark and the checkout's name, in the badge a session row wears, and the star of a pin while that checkout was picked for the session rather than followed.
-  const folder = element('span', 'panel-folder');
-  const folderIcon = element('span', 'badge-icon');
-  folderIcon.innerHTML = WORKTREE_ICON;
-  const folderName = element('span', 'badge-text');
-  const folderPicked = element('span', 'badge-icon panel-folder-picked');
-  folderPicked.innerHTML = PINNED_BADGE_ICON;
-  folder.append(folderIcon, folderName, folderPicked);
-  folder.hidden = true;
-  // The switch between the panel's views, drawn again only when what it would say changes, so a press on one of its buttons survives a run that offers the same views.
-  const views = element('span', 'panel-views');
-  views.hidden = true;
-  let viewsSaid = '';
-  // The entry as the layout says it now, not as it was when the panel mounted: an edit of its `view` alone does not mount it afresh.
-  const entryView = (): string | null => (mounted.get(slot.key)?.slot ?? slot).view;
-  // The view picked on this machine, else the entry's; the switch marks it when the panel offers it, else the panel's first.
-  const pickedView = (): string | null => stateOf(slot.key)?.view ?? entryView();
-  // The views the panel last said it offers, which a pick is kept against, and what its views say of its entry, held here while it is still mounting, as its other reports are (`said`), so a note said from its mount is not lost.
-  let offeredNow: PanelView[] = [];
-  let viewNotesNow: string[] = [];
-  // Kept as a group's pick is: only where it differs from what the entry says, or from the panel's first when the entry says nothing.
-  // The panel made the pick itself, so it is not told of it again (`viewChanged`).
-  const keepPick = (id: string): void => {
-    keep([{ id: slot.key, field: 'view', value: keptOver(id, entryView() ?? offeredNow[0]?.id ?? id) }]);
-    const current = mounted.get(slot.key);
-    if (current) current.viewTold = pickedView();
-    showViews(offeredNow);
-  };
-  const showViews = (offered: PanelView[]): void => {
-    offeredNow = offered;
-    const shown = offered.find(({ id }) => id === pickedView())?.id ?? offered[0]?.id;
-    // An entry naming a view its list does not offer is said under the group, as an icon this build does not have is; only the list's views can tell.
-    const named = entryView();
-    const notes = named !== null && offered.length > 0 && !offered.some(({ id }) => id === named) ? [`view "${named}" on ${slot.key} is not one of the views its list offers (${offered.map(({ id }) => id).join(', ')}); its first is shown until another is picked.`] : [];
-    viewNotesNow = notes;
-    const current = mounted.get(slot.key);
-    if (current && current.viewNotes.join('\n') !== notes.join('\n')) {
-      current.viewNotes = notes;
-      queueRender();
-    }
-    const now = JSON.stringify([offered, shown]);
-    if (now === viewsSaid) return;
-    viewsSaid = now;
-    views.hidden = offered.length < 2;
-    views.replaceChildren(
-      ...(offered.length < 2
-        ? []
-        : offered.map((view) =>
-            viewButton(view, view.id === shown, () => {
-              keepPick(view.id);
-              mounted.get(slot.key)?.panel.refresh();
-            }),
-          )),
-    );
-  };
-  // What the panel reports about itself, held here so a report made while it is still mounting is not lost; a change re-renders, since both the panel's place and its rail icon draw from it.
-  const said = { problems: [] as string[], notes: [] as string[] };
-  const report = (field: keyof typeof said, lines: string[]): void => {
-    if (lines.join('\n') === said[field].join('\n')) return;
-    said[field] = lines;
-    const current = mounted.get(slot.key);
-    if (current) current[field] = lines;
-    queueRender();
-  };
-  // Built on the first call that has tabs and kept from then on, so a panel that says none for a while and then some again keeps its tabs' elements; only having tabs or not changes the header, which a render draws.
-  let headerTabs: HeaderTabs | null = null;
-  /** The tabs as on show in the header now, null while the panel says it has none. */
-  let tabsOn: HeaderTabs | null = null;
-  const panelHost: PanelHost = {
-    where: () => host.where(),
-    view: pickedView,
-    setViews: showViews,
-    pickView: keepPick,
-    setTabs: (tabs) => {
-      if (tabs) {
-        headerTabs ??= new HeaderTabs();
-        headerTabs.draw(tabs);
-      }
-      const now = tabs ? headerTabs : null;
-      if (now === tabsOn) return;
-      tabsOn = now;
-      const current = mounted.get(slot.key);
-      if (current) current.tabs = now;
-      queueRender();
-    },
-    setBusy: (on) => {
-      busy.hidden = !on;
-    },
-    setEnd: (label) => {
-      end.textContent = label;
-    },
-    setStatus: (status, look) => showStatus(badge, status, look),
-    setCount: (value) => {
-      const current = mounted.get(slot.key);
-      if (current?.countValue === value) return;
-      if (current) current.countValue = value;
-      count.hidden = railCount.hidden = value === null;
-      count.textContent = value === null ? '' : String(value);
-      // Two digits at most under a 24px icon; the rail's label, rebuilt by the render below, says the number whole.
-      railCount.textContent = value === null ? '' : value > 99 ? '99+' : String(value);
-      queueRender();
-    },
-    setProblems: (problems) => report('problems', problems),
-    setNotes: (notes) => report('notes', notes),
-    // In place, as the count is: the element stands in the header whatever it says.
-    setFolder: (named) => {
-      folder.hidden = named === null;
-      if (!named) return;
-      folder.classList.toggle('main', !named.worktree);
-      folderIcon.hidden = !named.worktree;
-      folderName.textContent = named.name;
-      folderPicked.hidden = !named.picked;
-      setTooltip(folder, named.picked ? `${named.path}\nPicked from the session's worktree list; Follow the session there lets go` : named.path);
-    },
-    // The session links are remembered under the panel's own entry key.
-    startSession: (request) => void startSession(slot.key, request, host.asks),
-    linkedSessions: (itemKey) => linkedSessions(slot.key, itemKey),
-    session: sessionNamed,
-    pickSession: (anchor, sessions) => pickSession(anchor, sessions, host.asks),
-    copyText: (text, confirmation) => void copyText(text, confirmation),
-    sessionsSnapshot: snapshotText,
-    watchSessions: (listener) => store.watch(SNAPSHOT_SLICES, listener),
-    fullScreenButton,
-    bringIntoView: () => bringIntoView(slot.key),
-    ...host.asks,
-  };
-  const panel = type.mount(slot, panelHost);
-  action?.addEventListener('click', () => panel.refresh());
-  // A panel that said its tabs while it was mounting has them from the start.
-  const entry: Mounted = { panel, slot, viewNotes: viewNotesNow, view: pickedView, viewTold: pickedView(), signature: signatureOf(slot), busy, end, views, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder, fullScreenButton, ...said };
+  const entry = mountPanel(slot, mounting);
   mounted.set(slot.key, entry);
   return entry;
 }
+
+/** What a panel's mount asks of the tree. */
+const mounting: MountContext = {
+  get host() {
+    return host;
+  },
+  typeOf: (name) => types[name]!,
+  signatureOf,
+  entry: (key) => mounted.get(key),
+  queueRender,
+  toggleFullScreen: (key) => setFullScreen(fullScreen === key ? null : key),
+  bringIntoView,
+};
