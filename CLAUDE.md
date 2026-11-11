@@ -35,6 +35,8 @@ Check a change against `docs/principles.md`, and where it would go against a pri
   Keep them as two entries (see `docs/architecture/build-and-checks.md` § Build).
 - `npm run lint` is ESLint with type-aware rules, and CI runs it.
   Why each rule is off or tuned is written beside it in `eslint.config.mjs`.
+- A change that takes a file past `max-lines` splits that file first, along the areas of `docs/architecture/`, as a commit of its own that changes no behaviour, before the change itself goes in.
+  Put a reason at the file's top instead only when its parts truly belong together, and say so in the commit proposal; never name a new file for no concept (`logic`, `utils`).
 - Before a commit, run the checks that can reach what changed, one after the other, and all pass; choose them from the change itself, not from the folder it sits in.
   The widest each folder can need is in docs/architecture/build-and-checks.md § Which checks a change needs; a small change runs less.
   Code always gets `npm run build` and `npm run lint`; a change to comments alone in a script starts with `npm run comments:prove`, and one the proof fails is a change to code.

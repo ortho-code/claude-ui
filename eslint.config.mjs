@@ -77,6 +77,9 @@ export default defineConfig(
   }),
   boundary('renderer', ['src/renderer/panels/types/claude/**/*.ts'], [], { regex: '^(\\.\\./)+sessions(/|$)|(^|/)types/sessions(/|$)', message: BUILTINS_APART }),
   boundary('renderer', ['src/renderer/panels/types/sessions/**/*.ts'], [], { regex: '^(\\.\\./)+claude(/|$)|(^|/)types/claude(/|$)', message: BUILTINS_APART }),
+  // A file past this many lines of code is split along the areas it serves, or says at its top why it belongs together (`eslint-disable max-lines -- <why>`), so growing past it is a choice someone wrote down rather than drift (decision 0203).
+  { files: ['src/**/*.ts'], rules: { 'max-lines': ['error', { max: 500, skipBlankLines: true, skipComments: true }] } },
+  { files: ['test/**/*.ts'], rules: { 'max-lines': ['error', { max: 700, skipBlankLines: true, skipComments: true }] } },
   {
     files: ['**/*.test.ts'],
     extends: [vitest.configs.recommended],

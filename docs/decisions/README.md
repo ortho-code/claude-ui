@@ -207,3 +207,4 @@ The architecture notes describe the app as it is now and link here for the reaso
 | [0200](0200-the-apps-use-is-recorded-in-a-usage-log.md) | 2026-11-08 | The app's use is recorded in a usage log | [The usage record](../architecture/logs.md#the-usage-record) |
 | [0201](0201-the-sidebar-has-no-live-strip.md) | 2026-11-08 | The sidebar has no live strip | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
 | [0202](0202-the-switcher-counts-what-asks-for-you-elsewhere.md) | 2026-11-08 | The switcher counts what asks for you elsewhere | [Status cues](../architecture/status-cues.md#status-cues) |
+| [0203](0203-a-file-past-its-size-is-split-or-says-why-not.md) | 2026-11-11 | A file past its size is split, or says why not | [Build](../architecture/build-and-checks.md#build) |
