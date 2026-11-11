@@ -46,12 +46,21 @@ export function rankedReasons(reasons: readonly NeedsYou[], strength: Strength):
  * What a session's dot shows of its claude's status and its needs-you reasons, one rule for its dot and for every roll-up: the first in the strength order that holds, a reason by its category, the strongest category's newest reason (decided 2026-11-06).
  * With the default order that is the mark where claude says nothing more pressing: busy and background show over it, since claude is then working, and waiting does, since claude then asks you something; ready, closed and no status at all give way to it.
  * A status the order does not know shows as itself where no reason does, so a state nobody named still reads in its tooltip.
+ * Reasons their set-aside mark mutes (`muted`) give way to any status claude reports (`mutedGivesWay`).
  */
-export function shownState(status: string | undefined, reasons: readonly NeedsYou[], strength: Strength): string | undefined {
+export function shownState(status: string | undefined, reasons: readonly NeedsYou[], strength: Strength, muted = false): string | undefined {
+  if (mutedGivesWay(status, muted)) return status;
   const strongest = rankedReasons(reasons, strength)[0];
   if (strongest === undefined) return status;
   const reason = needsShown(strongest.type);
   return rankOf(reason, strength) < rankOf(status, strength) ? reason : status;
+}
+
+/**
+ * Whether reasons their set-aside mark mutes give way to claude's status, whatever the order says: they read as read, so claude's status, a turn that finished included, shows over them, dimmed only by its own read mark; closed or no status leaves the dot to the order, which by default shows the muted reason, dimmed (decided 2026-11-11).
+ */
+export function mutedGivesWay(status: string | undefined, muted: boolean): status is string {
+  return muted && status !== undefined && status !== 'closed';
 }
 
 /**

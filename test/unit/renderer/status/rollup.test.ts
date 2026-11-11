@@ -25,10 +25,10 @@ describe('nudgeOf', () => {
 });
 
 describe('the default strength order', () => {
-  // Today's rules before the order was yours, kept here as what the default must answer exactly (decided 2026-11-06).
+  // Today's rules before the order was yours, kept here as what the default must answer exactly (decided 2026-11-06), with a muted mark giving way to any status but closed (decided 2026-11-11).
   const dotBefore = (status: string | undefined, marked: boolean): string | undefined => (status === 'busy' || status === 'background' || status === 'waiting' ? status : marked ? 'needs' : status);
   const partBefore = (status: string | undefined, marked: boolean, muted: boolean, acked: boolean): string | null => {
-    const shown = dotBefore(status, marked);
+    const shown = muted && status !== undefined && status !== 'closed' ? status : dotBefore(status, marked);
     const read = acked || (muted && shown === 'needs');
     if (shown === 'waiting' || shown === 'needs' || shown === 'ready') return read ? null : shown;
     return shown === 'busy' || shown === 'background' ? 'busy' : null;
@@ -96,9 +96,11 @@ describe('rollUpWords', () => {
 });
 
 describe('sessionPart', () => {
-  it('rolls a muted needs-you mark up as read, as its dot shows it, and claude working or asking over it as itself', () => {
+  it('rolls a muted needs-you mark up as read, as its dot shows it, and claude working, asking or at its prompt over it as itself', () => {
     expect(sessionPart('ready', [wasRunning], false, false, APP_ORDER)).toBe('needs:app.was-running');
-    expect(sessionPart('ready', [wasRunning], true, false, APP_ORDER)).toBeNull();
+    expect(sessionPart('ready', [wasRunning], true, false, APP_ORDER)).toBe('ready');
+    expect(sessionPart('ready', [wasRunning], true, true, APP_ORDER)).toBeNull();
+    expect(sessionPart('closed', [wasRunning], true, false, APP_ORDER)).toBeNull();
     expect(sessionPart(undefined, [wasRunning], true, false, APP_ORDER)).toBeNull();
     expect(sessionPart('waiting', [wasRunning], true, false, APP_ORDER)).toBe('waiting');
     expect(sessionPart('busy', [wasRunning], true, false, APP_ORDER)).toBe('busy');

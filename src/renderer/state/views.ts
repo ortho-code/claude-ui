@@ -78,9 +78,9 @@ export function strengthNow(view: View<'settings' | 'needsYouTypes'>): Strength 
  * What a session's own dot shows, wherever one stands for one session: what its tab says (`tabDot`), where it says anything, since the last report then describes a claude that has gone or is going; otherwise the first in the strength order of its status as its hooks last reported it and its needs-you reasons (`shownState`).
  * A roll-up reads the status and the reasons itself (`sessionNudge`).
  */
-export function dotStatus(id: string, view: View<'statuses' | 'tabs' | 'needsYou' | 'settings' | 'needsYouTypes'>): string | undefined {
+export function dotStatus(id: string, view: View<'statuses' | 'tabs' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): string | undefined {
   const tab = tabWith(id, view);
-  return (tab && tabDot(tab)) ?? shownState(view.statuses.get(id), view.needsYou.get(id) ?? [], strengthNow(view));
+  return (tab && tabDot(tab)) ?? shownState(view.statuses.get(id), view.needsYou.get(id) ?? [], strengthNow(view), mutedNeedsYou(view).has(id));
 }
 
 /**

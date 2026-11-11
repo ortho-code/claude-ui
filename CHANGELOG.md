@@ -22,6 +22,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 ### Fixed
 
 - A review or comment a session posts inside a shell `if …; then` or a loop's `do` now links its PR to the session.
+- A session set aside after it was marked as needing you shows claude ready when its turn ends, and counts in the project switcher, instead of only its dimmed mark.
 
 ## 0.4.0 — 2026-11-09
 

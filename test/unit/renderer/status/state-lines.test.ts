@@ -149,6 +149,10 @@ describe('stateLines', () => {
     expect(texts({ status: 'busy', reasons: [wasRunning], muted: true })).toEqual(['Busy', 'Needs you — was running when the app quit (read)']);
   });
 
+  it('leads with the status a muted reason gives way to, unread', () => {
+    expect(texts({ status: 'ready', reasons: [wasRunning], muted: true })).toEqual(['Ready', 'Needs you — was running when the app quit (read)']);
+  });
+
   it('never marks a stop on its way read, since its claude is leaving', () => {
     expect(texts({ tab: 'stopping', acked: true })).toEqual(['Stopping — waiting for claude to leave']);
   });

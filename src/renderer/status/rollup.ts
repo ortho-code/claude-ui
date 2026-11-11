@@ -39,10 +39,10 @@ export function asksForYou(nudge: NudgeStatus): boolean {
 
 /**
  * A session's part in a roll-up, by the rule its dot follows: what it shows (`shownState`), muted to nothing once read, and a needs-you mark its set-aside mark mutes (`mutedBySetAside`) is read wherever the dot shows it, so it rolls up as nothing too (decided 2026-10-29).
- * Claude working or asking shows over the mark, and so still counts.
+ * Claude's status shows over a muted mark (`mutedGivesWay`), and so still counts.
  */
 export function sessionPart(status: string | undefined, reasons: readonly NeedsYou[], muted: boolean, acked: boolean, strength: Strength): NudgeStatus {
-  return nudgeOf(shownState(status, reasons, strength), acked, muted);
+  return nudgeOf(shownState(status, reasons, strength, muted), acked, muted);
 }
 
 /** What several sessions add up to: how many ask for you, how many are at work, and the nudge that speaks for them (`strongestNudge`). */

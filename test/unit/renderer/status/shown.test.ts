@@ -30,6 +30,11 @@ describe('shownState', () => {
     expect(shownState('compacting', [wasRunning], APP_ORDER)).toBe('needs:app.was-running');
   });
 
+  it('shows any status but closed over a reason its set-aside mark mutes, and the muted reason where there is none', () => {
+    for (const status of ['ready', 'busy', 'waiting', 'compacting']) expect(shownState(status, [wasRunning], APP_ORDER, true), `${status} muted`).toBe(status);
+    for (const status of ['closed', undefined]) expect(shownState(status, [wasRunning], APP_ORDER, true), `${status} muted`).toBe('needs:app.was-running');
+  });
+
   it('places a reason of a category not known yet at needs-you, as before the categories are read', () => {
     expect(shownState('ready', [wasRunning], DEFAULT_RANKING)).toBe('needs:app.was-running');
     expect(shownState('busy', [wasRunning], DEFAULT_RANKING)).toBe('busy');
