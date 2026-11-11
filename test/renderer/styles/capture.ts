@@ -65,7 +65,8 @@ function install(controls: string): Installed {
     if (i === 0) keys.push('body');
     else if (el.id) keys.push(`#${el.id}`);
     else {
-      const slot = `${keys[indexOf.get(el.parentElement!)!]} > ${el.tagName.toLowerCase()}${[...el.classList].sort().map((name) => `.${name}`).join('')}`;
+      // A dot inside a class name, which a look's class carries from its id, is escaped, so the compare can tell it from the dot that starts a class.
+      const slot = `${keys[indexOf.get(el.parentElement!)!]} > ${el.tagName.toLowerCase()}${[...el.classList].sort().map((name) => `.${name.replace(/\./g, '\\.')}`).join('')}`;
       const n = (seen.get(slot) ?? 0) + 1;
       seen.set(slot, n);
       keys.push(n === 1 ? slot : `${slot}:${n}`);

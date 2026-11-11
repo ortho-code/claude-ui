@@ -47,6 +47,7 @@ Something kept on purpose says so in a `fallow-ignore` comment with its reason, 
 
 Every test is under `test/`, so `src/` is only what ships.
 `npm test` is the unit tests: vitest, in `test/unit/`, which mirrors `src/` folder for folder, fast enough to run all the time.
+The tools the checks are made with have theirs in `test/unit/tools/`, such as the style compare's reading of a capture.
 It also runs the rules every comment and doc keeps, in `test/text/`, which test no module and so mirror nothing; `npm run test:text` runs them alone, in seconds.
 `npm run test:renderer` checks the window itself: it builds, then Playwright loads the built `dist/renderer` in a headless Chromium, a fresh page per check, with nothing on screen and no main process (`test/renderer/`).
 It is kept out of `npm test` so that one stays fast; CI runs both, and a failed check leaves a trace to download from the run.
