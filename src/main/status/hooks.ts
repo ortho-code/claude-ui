@@ -1,11 +1,19 @@
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { statusDir, hookScriptPath, statusSettingsFile, shellQuote } from '../paths';
+import { statusDir, hookScriptPath, statusSettingsFile } from '../paths';
 import { fsFailure, log } from '../logs/log';
 import { writeFileAtomic } from '../files/atomic';
 
 const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+
+/**
+ * Quote a path for the single shell command string that claude runs a hook through.
+ * macOS makes this necessary: `~/Library/Application Support/...` contains a space, so an unquoted path would reach the hook as two arguments and simply not run.
+ */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
 
 export { statusSettingsFile };
 

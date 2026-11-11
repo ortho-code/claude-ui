@@ -80,11 +80,3 @@ export const settingsLocalFile = path.join(configRoot, 'settings.local.json');
  * Outside the config folder, so that folder holds only what a person writes and the app's `.local.json` files, and a checkout of it shows no stray copies.
  */
 export const configBackupsDir = path.join(configDir, 'backups', 'config');
-
-/**
- * Quote a path for the single shell command string that claude runs a hook through.
- * macOS makes this necessary: `~/Library/Application Support/...` contains a space, so an unquoted path would reach the hook as two arguments and simply not run.
- */
-export function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, "'\\''")}'`;
-}
