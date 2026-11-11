@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, markedWithHistory, mutedBySetAside, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, HISTORY_KEPT, togglePinned, clearedFinished, unkept, withoutSession, withPrLink, type SessionMarks } from '../../../../src/shared/status/sessionmarks';
 
-// Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
+// Main's own tests (test/unit/main/sessions/meta.test.ts and status/marks.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
 describe('togglePinned', () => {
   it('adds a pin at the end and removes it again, keeping the order of the rest', () => {

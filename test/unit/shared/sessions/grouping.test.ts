@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { createdGroup, movedGroup, movedProject, moveTarget, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../../src/shared/sessions/grouping';
 import type { GroupState } from '../../../../src/shared/types';
 
-// Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time something changes, the given one untouched.
+// Main's own tests (test/unit/main/sessions/groups.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time something changes, the given one untouched.
 const state = (): GroupState => ({
   groups: [
     { id: 'a1', name: 'A one', repoRoot: '/a' },
