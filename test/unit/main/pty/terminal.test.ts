@@ -353,6 +353,7 @@ describe('stopping a session', () => {
     expect(proc.options.cwd).toBe(process.cwd());
     expect(proc.options.env).toMatchObject({
       COLORTERM: 'truecolor',
+      FORCE_HYPERLINK: '1',
       CLAUDE_UI_PROJECT_ROOT: '/repo',
       CLAUDE_UI_CWD: process.cwd(),
       CLAUDE_UI_SESSION_ID: 'sess-1',
@@ -365,6 +366,12 @@ describe('stopping a session', () => {
     const { proc } = await start();
     expect(proc.args.slice(0, 3)).toEqual(['-l', '-i', '-c']);
     expect(proc.options.env.CLAUDE_UI).toBe('1');
+  });
+
+  // Nothing xterm sets names a terminal claude recognises as taking hyperlinks, and without them it breaks a long address over rows of which only the first opens, and only its own piece.
+  it("tells a session's claude that the terminal takes hyperlinks and truecolor", async () => {
+    const { proc } = await start();
+    expect(proc.options.env).toMatchObject({ COLORTERM: 'truecolor', FORCE_HYPERLINK: '1' });
   });
 
   it('refuses to start a panel shell in a folder that is not there', async () => {

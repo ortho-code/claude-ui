@@ -335,11 +335,18 @@ The header says nothing of an exit, as it did with one shell (`exited N`), since
 **The same pty path as a session.**
 `terminal.ts` has one spawn for both — the terminals map, the data and exit routing, the stop escalation and the quit sweep — with the claude-specific argument building and the plain-shell start as two callers of it.
 A panel's shell is therefore stopped and swept by the same escalation as a session, asked with `SIGHUP` where a session is asked with `SIGTERM`, since an interactive bash, zsh or dash ignores `SIGTERM` ([§ Stopping a session is a request](claude.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question)), and nothing about it is a second implementation of a process the app runs.
-It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` as a session does, and NOT `CLAUDE_UI=1`: a `claude` started by hand in it must not report as one of the app's sessions.
+It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` and `FORCE_HYPERLINK=1` as a session does, and NOT `CLAUDE_UI=1`: a `claude` started by hand in it must not report as one of the app's sessions.
 
 **One xterm, one router.**
 The renderer's `terminal.ts` builds every xterm in the window (the font tokens, the neutral foreground, the canvas fallback, clickable links, what Ctrl+V does) and routes every terminal's output and exit to whichever sink bound its id, a tab or a panel.
 The tab's claude-specific key handling — Ctrl+Enter and Shift+Enter as newline, Ctrl+Z refused, Ctrl+C twice to close — stays with the tab, handed to `createTerminal` rather than attached to the xterm, since xterm holds one key handler and a second would replace the shared one.
+
+**Links open whole, and show where they go.**
+A long address claude prints in plain text is broken over rows by claude itself, not wrapped by xterm, so a finder that reads the text sees only the first row's piece.
+`FORCE_HYPERLINK=1` tells claude, and any other program that reads it, that the terminal takes hyperlinks (OSC 8): claude then sends each link as one, its whole address repeated on every row it breaks it over, so a press on any piece opens all of it; a `hyperlinks` setting in claude's own settings still wins.
+Without it, claude sends hyperlinks only when the app inherited a variable naming a terminal it knows, as from Windows Terminal or VS Code, since nothing xterm sets names one.
+xterm's link handler opens such a link in the OS browser, and main opens http(s) only; the http(s) addresses found in plain text open the same way.
+Hovering either kind shows its address in the app's tooltip, since a program's link shows text of its own choosing.
 
 **Ctrl+V pastes under WSL, and only there** ([decided 2026-10-21](../decisions/0096-ctrl-v-pastes-under-wsl-only.md)).
 xterm sends Ctrl+V on as `^V`, and claude reads that as "paste an image": under WSL it looks for an image before it falls back to the text, through xclip or wl-paste where there is one and then `powershell.exe`, whose call took ten seconds the first time it was measured.

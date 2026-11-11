@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
 import { errorText } from '../../shared/helpers/log';
 import { pastedPaths } from '../../shared/helpers/paste';
+import { hideTooltip, showTooltipAt } from './tooltip';
 
 /**
  * The xterm every terminal in the window is built from — a tab's `claude` and a panel's shell — and the one place their output and exits are routed.
@@ -84,8 +85,35 @@ export function lastLines(term: Terminal, count: number): string[] {
   return lines;
 }
 
+/** Open a link the terminal holds in the OS browser, through main, which opens http(s) only. */
+function openLink(_event: MouseEvent, uri: string): void {
+  window.claudeUi.openExternal(uri);
+}
+
 /**
- * An xterm opened in `container`, sized to it by the fit addon, drawn on canvas where that works, with http(s) links clickable.
+ * Show where a link goes, under the row the mouse is on: a link a program sends (OSC 8) shows text of its own choosing, which need not be its address.
+ * The rows are no elements to anchor to, so the row is worked out from the screen's height and its number of rows.
+ */
+function showLinkTarget(term: Terminal, event: MouseEvent, uri: string): void {
+  const screen = term.element?.querySelector('.xterm-screen')?.getBoundingClientRect();
+  if (!screen) return;
+  const rowHeight = screen.height / term.rows;
+  const row = Math.floor((event.clientY - screen.top) / rowHeight);
+  showTooltipAt(uri, new DOMRect(event.clientX, screen.top + row * rowHeight, 0, rowHeight));
+}
+
+/**
+ * Both kinds: the links a program sends (OSC 8), and the http(s) addresses found in plain text.
+ * A program's link opens whole from any row it was broken over, since each row's piece carries the whole address; an address found in plain text joins only rows xterm itself wrapped.
+ */
+function makeLinksClickable(term: Terminal): void {
+  const hover = (event: MouseEvent, uri: string): void => showLinkTarget(term, event, uri);
+  term.options.linkHandler = { activate: openLink, hover, leave: hideTooltip };
+  term.loadAddon(new WebLinksAddon(openLink, { hover, leave: hideTooltip }));
+}
+
+/**
+ * An xterm opened in `container`, sized to it by the fit addon, drawn on canvas where that works, with links clickable.
  * `container` may be padded: the terminal fills it inside its padding, given a definite height, as both callers' containers have.
  * `keys` is the caller's own say over a key, asked after the keys every terminal takes for itself, and answered as xterm's custom key handler is: false keeps the key from the terminal.
  * It is passed here rather than attached by the caller, because xterm holds one handler and a second would replace the first.
@@ -149,8 +177,7 @@ export function createTerminal(container: HTMLElement, keys?: (event: KeyboardEv
     window.claudeUi.log('warn', 'xterm', `canvas renderer failed, this terminal draws with the DOM renderer instead: ${errorText(error)}`);
   }
 
-  // Make http(s) URLs clickable; open them in the OS browser via the main process.
-  term.loadAddon(new WebLinksAddon((_event, uri) => window.claudeUi.openExternal(uri)));
+  makeLinksClickable(term);
 
   return { term, fitAddon };
 }

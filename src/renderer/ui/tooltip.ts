@@ -23,8 +23,7 @@ function ensureTip(): HTMLDivElement {
 
 // Prefer below the target; flip above if it would overflow the bottom.
 // Center on the target horizontally, clamped into the viewport.
-function position(el: HTMLDivElement, target: HTMLElement): void {
-  const r = target.getBoundingClientRect();
+function position(el: HTMLDivElement, r: DOMRect): void {
   const tw = el.offsetWidth;
   const th = el.offsetHeight;
   let top = r.bottom + GAP;
@@ -37,11 +36,14 @@ function position(el: HTMLDivElement, target: HTMLElement): void {
 
 function show(target: HTMLElement): void {
   const text = target.getAttribute('data-tooltip');
-  if (!text) return;
+  if (text) showText(text, target.getBoundingClientRect());
+}
+
+function showText(text: string, anchor: DOMRect): void {
   const el = ensureTip();
   el.textContent = text;
   el.hidden = false;
-  position(el, target);
+  position(el, anchor);
 }
 
 function hide(): void {
@@ -85,6 +87,18 @@ export function installTooltips(): void {
   document.addEventListener('click', hide, true);
   window.addEventListener('scroll', hide, true);
 }
+
+/**
+ * Show `text` beside `anchor`, after the same delay as a hovered element's, for something drawn rather than an element of its own, such as a link on a terminal's canvas.
+ * It goes as any tooltip does, on a click, a scroll or a change of focus, or on `hideTooltip`.
+ */
+export function showTooltipAt(text: string, anchor: DOMRect): void {
+  window.clearTimeout(showTimer);
+  currentTarget = null;
+  showTimer = window.setTimeout(() => showText(text, anchor), SHOW_DELAY);
+}
+
+export { hide as hideTooltip };
 
 // Set or clear an element's tooltip.
 // Empty/undefined removes the attribute so it never shows a blank tip and closest() can fall through to a tooltipped ancestor.

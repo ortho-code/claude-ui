@@ -142,10 +142,15 @@ function forceOut(id: number): void {
   terminateGroup(proc.pid, () => terminals.has(id), shells.has(id) ? 'SIGHUP' : 'SIGTERM');
 }
 
-/** What anything in a pty gets: the inherited environment, advertising 24-bit colour so claude emits its full TUI styling (e.g. the select-menu highlight) instead of a degraded fallback; the frontend xterm renders truecolor fine. */
+/**
+ * What anything in a pty gets: the inherited environment, advertising what the frontend xterm draws.
+ * 24-bit colour, so claude emits its full TUI styling (e.g. the select-menu highlight) instead of a degraded fallback.
+ * Hyperlinks (OSC 8), so claude sends a link as one, which opens whole from every row it breaks it over; nothing xterm sets names a terminal claude recognises as taking them, and claude's own `hyperlinks` setting still wins.
+ */
 function ptyEnv(): Record<string, string> {
   const env = inheritedEnv();
   env.COLORTERM = 'truecolor';
+  env.FORCE_HYPERLINK = '1';
   return env;
 }
 
