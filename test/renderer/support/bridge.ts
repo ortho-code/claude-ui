@@ -98,7 +98,12 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     // The marks are main's own rules (src/shared/status/sessionmarks.ts), kept in the fixture, so a later read answers with what the change left.
     togglePin: (id) => answer((fixture.pinned = togglePinned(fixture.pinned, id))),
     getHistoryPins: () => answer(fixture.historyPins),
-    toggleHistoryPin: unmodelled('toggleHistoryPin'),
+    // Main's toggle (`toggleHistoryPin` in src/main/sessions/meta.ts) for a pin the window sends whole: it goes, or comes with when it was pinned.
+    toggleHistoryPin: (id, pin) => {
+      if (id in fixture.historyPins) delete fixture.historyPins[id];
+      else fixture.historyPins[id] = { ...pin, pinnedAt: Date.now() };
+      return answer({ ...fixture.historyPins });
+    },
     getFinished: () => answer(fixture.finished),
     // Main's finish takes each session's needs-you and set-aside marks off in the same write, its reasons going to its history as finished.
     finish: (ids) => {
