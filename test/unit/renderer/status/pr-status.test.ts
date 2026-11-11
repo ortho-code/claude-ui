@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { PR_TYPES } from '../../../../src/shared/status/needs-you';
-import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, verdictOf } from '../../../../src/renderer/status/pr-status';
+import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, verdictOf, withNames } from '../../../../src/renderer/status/pr-status';
 import type { Approvals } from '../../../../src/shared/sessions/prs';
 import type { PrRef, PrSeen, PrStatus, SessionPr } from '../../../../src/shared/types';
 
@@ -287,6 +287,14 @@ describe('prDetails', () => {
     expect(details({ state: 'closed', role: null })).toEqual(['closed']);
   });
 
+  it('names who a PR not yours is by, in place of "someone else’s", with "reviewing" for one you review', () => {
+    const jan = { login: 'jan', name: 'Jan Jansen' };
+    expect(details({ state: 'closed', role: 'other', author: jan })).toEqual(['by Jan Jansen', 'closed']);
+    expect(details({ state: 'closed', role: 'reviewing', author: jan })).toEqual(['by Jan Jansen', 'reviewing', 'closed']);
+    expect(details({ state: 'closed', role: 'other', author: { login: 'renovate', name: null } })).toEqual(['by renovate', 'closed']);
+    expect(details({ state: 'closed', role: 'own', author: jan })).toEqual(['closed']);
+  });
+
   it('counts an open PR’s approvals against its repository’s number, and alone without one', () => {
     expect(details(open({ review: 'changes-requested', approvals: 1 }), TWO)).toEqual(['changes requested', '1 of 2 approvals']);
     expect(details(open({ review: 'review-required', approvals: 0 }), TWO)).toEqual(['review required', '0 of 2 approvals']);
@@ -299,6 +307,24 @@ describe('prDetails', () => {
   it('says nothing while main could not ask, or for a PR it has no status for', () => {
     expect(prDetails(pr, { statuses: { 'acme/app#1': open() }, problem: 'gh was not found' }, GITHUB_DECIDES)).toEqual([]);
     expect(prDetails(pr, NO_PR_STATUS, GITHUB_DECIDES)).toEqual([]);
+  });
+});
+
+describe('withNames', () => {
+  it('takes each PR’s title and author from the statuses that give them, keeping what the others were last called', () => {
+    const jan = { login: 'jan', name: null };
+    const before = new Map([
+      ['acme/app#1', { title: 'Old title', author: jan }],
+      ['acme/app#2', { title: 'Kept' }],
+    ]);
+    const statuses: Record<string, PrStatus> = { 'acme/app#1': { state: 'merged', role: 'own', title: 'New title' }, 'acme/app#2': { state: 'merged', role: 'own' }, 'acme/app#3': { state: 'closed', role: null, author: jan } };
+    expect(withNames(before, statuses)).toEqual(
+      new Map([
+        ['acme/app#1', { title: 'New title', author: jan }],
+        ['acme/app#2', { title: 'Kept' }],
+        ['acme/app#3', { author: jan }],
+      ]),
+    );
   });
 });
 

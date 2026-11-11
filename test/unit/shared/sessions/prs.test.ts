@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { approvalsProblem, approvalsRequired, prFromUrl, prKey, roleOf, withPrLinks } from '../../../../src/shared/sessions/prs';
+import { approvalsProblem, approvalsRequired, prFromUrl, prKey, prName, roleOf, spansRepositories, withPrLinks } from '../../../../src/shared/sessions/prs';
 
 describe('withPrLinks', () => {
   const pr = (repository: string, number: number) => ({ repository, number, url: `https://github.com/${repository}/pull/${number}` });
@@ -34,6 +34,29 @@ describe('prKey', () => {
   it('tells PRs apart without regard to their repository’s capitals', () => {
     expect(prKey({ repository: 'ScientaNL/Scienta', number: 5 })).toBe(prKey({ repository: 'scientanl/scienta', number: 5 }));
     expect(prKey({ repository: 'acme/app', number: 5 })).not.toBe(prKey({ repository: 'acme/app', number: 6 }));
+  });
+});
+
+describe('prName', () => {
+  const pr = { repository: 'acme/app', number: 7 };
+
+  it('names a PR by its number and title, its repository in front where asked, and its number alone without a title', () => {
+    expect(prName(pr, 'Scheduler tick per host', false)).toBe('#7 · Scheduler tick per host');
+    expect(prName(pr, 'Scheduler tick per host', true)).toBe('acme/app#7 · Scheduler tick per host');
+    expect(prName(pr, undefined, false)).toBe('#7');
+    expect(prName(pr, '', true)).toBe('acme/app#7');
+  });
+
+  it('cuts a title longer than the cut, with an ellipsis, and leaves one that fits', () => {
+    expect(prName(pr, 'abcdef', false, 4)).toBe('#7 · abc…');
+    expect(prName(pr, 'abcd', false, 4)).toBe('#7 · abcd');
+  });
+});
+
+describe('spansRepositories', () => {
+  it('is true only for PRs in more than one repository, whatever their capitals', () => {
+    expect(spansRepositories([{ repository: 'acme/app' }, { repository: 'Acme/App' }])).toBe(false);
+    expect(spansRepositories([{ repository: 'acme/app' }, { repository: 'acme/site' }])).toBe(true);
   });
 });
 

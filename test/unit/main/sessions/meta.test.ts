@@ -205,6 +205,14 @@ describe('what was last seen of the PRs', () => {
     expect(await getPrSeen()).toEqual({ 'acme/app#7': { state: 'closed', role: null } });
   });
 
+  it('keeps what a PR is called and who opened it, and drops either where it is not of its shape', async () => {
+    const author = { login: 'jan', name: null };
+    await setPrSeen({ 'acme/app#7': { state: 'merged', role: 'own', title: 'Scheduler tick per host', author } });
+    expect(await getPrSeen()).toEqual({ 'acme/app#7': { state: 'merged', role: 'own', title: 'Scheduler tick per host', author } });
+    await writeMetaFile({ version: 3, prSeen: { 'acme/app#8': { state: 'closed', role: 'own', title: 8, author: { name: 'Jan' } } } });
+    expect(await getPrSeen()).toEqual({ 'acme/app#8': { state: 'closed', role: 'own' } });
+  });
+
   // As a build before roles kept them.
   it('reads a status kept without the role and review fields as not knowing them', async () => {
     await writeMetaFile({ version: 3, prSeen: { 'acme/app#7': { state: 'open', draft: false, review: 'approved', checks: null, conflict: false } } });

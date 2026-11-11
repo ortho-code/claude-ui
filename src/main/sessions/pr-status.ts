@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { ipcMain } from 'electron';
 import { prKey, roleOf } from '../../shared/sessions/prs';
-import type { PrRef, PrRole, PrStatus, PrStatusRead } from '../../shared/types';
+import type { PrNames, PrRef, PrRole, PrStatus, PrStatusRead } from '../../shared/types';
 import { log } from '../logs/log';
 import { inheritedEnv, shellCommand, terminateGroup } from '../pty/shell';
 
@@ -27,9 +27,12 @@ const ROLE_FIELDS = 'viewerDidAuthor viewerLatestReview{state commit{oid}} viewe
  */
 const REVIEWERS = 20;
 
+/** What a PR is called and who opened it, asked of every PR; a person's name comes only through `User`, since a bot has none. */
+const NAME_FIELDS = 'title author{login ...on User{name}}';
+
 /** Every field the colour, the approvals and your review need, for a PR known to be open. */
-const FULL_FIELDS = `state isDraft reviewDecision mergeable commits(last:1){nodes{commit{statusCheckRollup{state}}}} headRefOid latestOpinionatedReviews(first:${REVIEWERS},writersOnly:true){nodes{id state}} ${ROLE_FIELDS}`;
-const STATE_FIELDS = `state ${ROLE_FIELDS}`;
+const FULL_FIELDS = `state isDraft reviewDecision mergeable commits(last:1){nodes{commit{statusCheckRollup{state}}}} headRefOid latestOpinionatedReviews(first:${REVIEWERS},writersOnly:true){nodes{id state}} ${ROLE_FIELDS} ${NAME_FIELDS}`;
+const STATE_FIELDS = `state ${ROLE_FIELDS} ${NAME_FIELDS}`;
 
 /**
  * The most PRs one request asks, by how much it asks of each.
@@ -200,16 +203,27 @@ function newCommitsOf(node: Record<string, unknown>): boolean | null {
   return typeof reviewed === 'string' && typeof node.headRefOid === 'string' ? reviewed !== node.headRefOid : null;
 }
 
-/** A PR's status from GitHub's node asked every field; a PR that has merged or closed since it was last asked carries its state and your role alone. */
+/** A PR's title and author from GitHub's node, each left out where GitHub gave none; an author that is not a person has no name. */
+function namesFrom(node: Record<string, unknown>): PrNames {
+  const names: PrNames = {};
+  if (typeof node.title === 'string') names.title = node.title;
+  const author = node.author;
+  if (isObject(author) && typeof author.login === 'string') names.author = { login: author.login, name: typeof author.name === 'string' && author.name !== '' ? author.name : null };
+  return names;
+}
+
+/** A PR's status from GitHub's node asked every field; a PR that has merged or closed since it was last asked carries its state, your role and its names alone. */
 export function statusOf(node: unknown): PrStatus | null {
   const state = stateOf(node);
   if (state === null || !isObject(node)) return null;
   const role = roleFrom(node);
-  if (state !== 'open') return { state, role };
+  const names = namesFrom(node);
+  if (state !== 'open') return { ...names, state, role };
   const last: unknown = isObject(node.commits) && Array.isArray(node.commits.nodes) ? node.commits.nodes[0] : null;
   const rollup = isObject(last) && isObject(last.commit) && isObject(last.commit.statusCheckRollup) ? last.commit.statusCheckRollup : null;
   const reviews = opinionatedReviews(node);
   return {
+    ...names,
     state,
     role,
     draft: node.isDraft === true,

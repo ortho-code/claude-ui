@@ -46,7 +46,7 @@ export function whereOf(session: SessionSummary, view: View<'activeProject' | 'p
  */
 export function sessionHeader(
   session: SessionSummary,
-  view: View<'projectNames' | 'groupState' | 'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'switchedModel' | 'notes' | 'finished' | 'settings' | 'needsYouTypes'>,
+  view: View<'projectNames' | 'groupState' | 'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'switchedModel' | 'notes' | 'finished' | 'settings' | 'needsYouTypes' | 'prNames'>,
 ): MenuItem {
   const where = [projName(session.repoRoot, view), groupNameOf(session, view)].filter(Boolean).join(' · ');
   const note = view.notes.get(entityKey(session))?.split('\n')[0];

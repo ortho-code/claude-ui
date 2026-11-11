@@ -1,4 +1,4 @@
-import type { PrRole, PrSeen, PrStatus, SessionPr } from '../../shared/types';
+import type { PrNames, PrRole, PrSeen, PrStatus, SessionPr } from '../../shared/types';
 import { PR_ROLES, prFromUrl, referenceKey } from '../../shared/sessions/prs';
 
 /** What may stand in each part of an open PR's status, null among them (`PrStatus`). */
@@ -14,6 +14,15 @@ const unknownIfMissing = (value: unknown): unknown => (value === undefined ? nul
 /** Whether a stored value is a field's value or null, by the check for its value. */
 const valueOrNull = (value: unknown, check: (value: unknown) => boolean): boolean => value === null || check(value);
 
+/** A PR's title and author as they were stored, each left out where it is missing or not of its shape. */
+function prNamesOf(fields: Record<string, unknown>): PrNames {
+  const names: PrNames = {};
+  if (typeof fields.title === 'string') names.title = fields.title;
+  const author = fields.author as Record<string, unknown> | null | undefined;
+  if (typeof author === 'object' && author !== null && typeof author.login === 'string' && valueOrNull(author.name, (value) => typeof value === 'string')) names.author = { login: author.login, name: author.name as string | null };
+  return names;
+}
+
 /**
  * A PR's status as it was stored, null for one this build cannot read.
  * A field a build before it did not store is read as not known, so a status kept then still reads.
@@ -24,13 +33,14 @@ function prStatusOf(raw: unknown): PrStatus | null {
   const { state, draft, review, checks, conflict } = fields;
   const [role, approvals, newCommits, reviewAsked, changesRequested] = [fields.role, fields.approvals, fields.newCommits, fields.reviewAsked, fields.changesRequested].map(unknownIfMissing);
   if (!valueOrNull(role, (value) => PR_ROLES.includes(value as PrRole))) return null;
-  if (state === 'merged' || state === 'closed') return { state, role: role as PrRole | null };
+  const names = prNamesOf(fields);
+  if (state === 'merged' || state === 'closed') return { ...names, state, role: role as PrRole | null };
   if (state !== 'open' || typeof draft !== 'boolean' || !PR_PARTS.review.includes(review) || !PR_PARTS.checks.includes(checks) || !PR_PARTS.conflict.includes(conflict)) return null;
   const counts = valueOrNull(approvals, (value) => Number.isInteger(value) && (value as number) >= 0);
   const flags = [newCommits, reviewAsked].every((flag) => valueOrNull(flag, (value) => typeof value === 'boolean'));
   const ids = valueOrNull(changesRequested, (value) => Array.isArray(value) && value.every((id) => typeof id === 'string'));
   if (!counts || !flags || !ids) return null;
-  return { state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked, changesRequested } as PrStatus;
+  return { ...names, state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked, changesRequested } as PrStatus;
 }
 
 /** The stored PR links, each read back from its page (`prFromUrl`), so one whose address is not shaped like a GitHub pull request page is dropped, and a session left with none with it. */

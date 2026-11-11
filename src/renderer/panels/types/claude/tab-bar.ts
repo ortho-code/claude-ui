@@ -11,7 +11,7 @@ import { statusLabel } from '../../../status/state-lines';
 import { notLeftMark, showNotLeft } from '../../../status/not-left';
 import { markProjectGone } from '../../../status/project-gone';
 import { store, type TabState, type View } from '../../../state/app';
-import { projName, projectGone, projectGroups, sessionNudge, statusChanges, strengthNow, tabButtonOf, visibleTabs } from '../../../state/views';
+import { projName, projectGone, projectGroups, sessionNudge, statusChanges, strengthNow, tabButtonOf, visibleTabs, type StatusView } from '../../../state/views';
 import { setAsideMark, showSetAside } from '../../../status/set-aside-mark';
 import { scheduledMark, showScheduled } from '../../../status/scheduled-mark';
 import { ackOnClick, applyStatus, badgeClass } from '../../../status/status-dot';
@@ -58,7 +58,7 @@ function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.ge
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups gets an indented row beneath it behind the same rail the sidebar uses.
 // A project view drops the project label (everything shown belongs to it) but keeps the group rows.
 /** What the tab bar draws from the store. */
-type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab' | 'tabBarExpanded' | 'settings' | 'needsYouTypes'>;
+type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab' | 'tabBarExpanded' | 'settings' | 'needsYouTypes' | 'prNames'>;
 
 export function renderTabBar(view: TabBarView): void {
   // The library owns the bar's tabs while one is dragged — it moves them, and puts its copy of the dragged one in its row — so a redraw then would undo the drag under the pointer; the drop draws what was held (`sortableFor`).
@@ -142,7 +142,7 @@ function drawFold(expanded: boolean, hidden: readonly TabState[], view: View<'st
  * A status or a mark read changed: the bar draws again when one of its tabs' dots is among those that changed since it last followed them (`before`).
  * A watcher the terminal area registers (watch.ts).
  */
-export function tabBarFollowsStatuses(view: TabBarView, before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): void {
+export function tabBarFollowsStatuses(view: TabBarView, before: StatusView): void {
   const ids = statusChanges(before, view);
   if (view.tabs.some((t) => ids.has(t.session.id))) renderTabBar(view);
 }
@@ -291,7 +291,7 @@ function buildSessionTab(token: string): SessionTabEls {
 }
 
 /** Draw a session's tab as it is now: its state, its dot, its marks, its name, and its button's step. */
-function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'projectNames' | 'tabs' | 'activeTab' | 'settings' | 'needsYouTypes'>): HTMLElement {
+function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'projectNames' | 'tabs' | 'activeTab' | 'settings' | 'needsYouTypes' | 'prNames'>): HTMLElement {
   const { tab: els, dot, markGroup, siblingMark, worktreeMark, clock, setAside: setAside, notLeft } = tabEls.draw(tab.token, buildSessionTab);
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
   const unstartable = unstartableReason(tab.session);

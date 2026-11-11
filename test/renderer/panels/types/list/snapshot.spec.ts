@@ -30,14 +30,14 @@ const more = {
   groupState: { groups: [{ id: 'g1', name: 'Reviews', repoRoot: PROJECT }], groupOf: { [asked.id]: 'g1' } },
   // Already seen as it is, so the first answer marks nothing new.
   prSeen: { 'acme/app#1': MERGED, 'acme/app#2': { ...REVIEWED, changesRequested: ['PRR_b'] } },
-  prStatuses: { 'acme/app#1': MERGED, 'acme/app#2': { ...REVIEWED, changesRequested: ['PRR_b'] } },
+  prStatuses: { 'acme/app#1': MERGED, 'acme/app#2': { ...REVIEWED, changesRequested: ['PRR_b'], title: 'Scheduler tick per host', author: { login: 'jan', name: null } } },
   history: { [asked.id]: [], [quiet.id]: [], [shelved.id]: [] },
 };
 const LIST: PrintedList = { version: 1, sections: [{ items: [{ key: 'one', text: 'One' }] }] };
 
 const snapshotOf = async (app: App, index: number): Promise<SessionsSnapshot> => JSON.parse((await runs(app, 'changes'))[index].sessions ?? 'null') as SessionsSnapshot;
 
-// A PR's status is given without the ids of the reviews asking for changes.
+// A PR's status is given without the ids of the reviews asking for changes, and its title and author beside it.
 test('a run is given every session not finished, by id, with its title, project, group, status, read mark, whether it asks and runs, needs-you and set-aside marks and PRs', async ({ app, page }) => {
   await bootList(app, page, LIST, { more });
   // Pressed until GitHub's answer, which the first run may come before, is in the snapshot.
@@ -54,8 +54,8 @@ test('a run is given every session not finished, by id, with its title, project,
       // A status the docs do not name, such as the marker a starting claude sends, is no status.
       { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, asks: false, running: false, needsYou: [], setAside: SET_ASIDE, prs: [] },
       { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, asks: true, running: false, needsYou: [{ ...REASON, category: 'finish-up' }], setAside: null, prs: [
-          { ...asked.prs[0], status: MERGED },
-          { ...asked.prs[1], status: REVIEWED },
+          { ...asked.prs[0], title: null, author: null, status: MERGED },
+          { ...asked.prs[1], title: 'Scheduler tick per host', author: { login: 'jan', name: null }, status: REVIEWED },
         ],
       },
     ],

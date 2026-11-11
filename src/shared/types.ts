@@ -161,12 +161,25 @@ export interface SessionPr {
  */
 export type PrRole = 'own' | 'reviewing' | 'other';
 
+/** Who opened a PR: their GitHub login, and the name they set on their profile, null where they set none or are not a person, such as a bot. */
+export interface PrAuthor {
+  login: string;
+  name: string | null;
+}
+
+/** What a PR is called and who opened it, each absent where it is not known: GitHub left it out, or the status was kept by a build that did not ask it. */
+export interface PrNames {
+  title?: string;
+  author?: PrAuthor;
+}
+
 /**
  * What GitHub says of a PR a session links.
- * A merged or closed PR carries its state and your role alone, since nothing else about it changes how the app shows it.
+ * A merged or closed PR carries its state, your role and its names alone, since nothing else about it changes how the app shows it.
  * A field that is null is not known: GitHub left it out, or the status was kept by a build that did not ask it.
  */
-export type PrStatus =
+export type PrStatus = PrNames &
+  (
   | { state: 'merged' | 'closed'; role: PrRole | null }
   | {
       state: 'open';
@@ -186,7 +199,8 @@ export type PrStatus =
       reviewAsked: boolean | null;
       /** The ids of the latest reviews that ask for changes, one per reviewer with write access. */
       changesRequested: string[] | null;
-    };
+    }
+  );
 
 /** A PR as GitHub is asked about it. */
 export type PrRef = Pick<SessionPr, 'repository' | 'number'>;

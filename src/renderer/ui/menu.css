@@ -54,6 +54,12 @@
   row-gap: 1px;
 }
 
+/* The label wraps too, as its detail does, so a name too long for a menu at most 300px wide, such as a PR's title, is all there. */
+.menu-row.two-line > .menu-item-label {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 /* Muted and smaller, as a header's lines under its name are, and wrapping, so what it says is all there in a menu at most 300px wide. */
 .menu-item-detail {
   grid-column: 2;

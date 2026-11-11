@@ -156,6 +156,21 @@ describe('statusOf', () => {
     expect(statusOf({ state: 'CLOSED' })).toEqual({ state: 'closed', role: null });
   });
 
+  it('reads the title and the author, a person’s name where they set one, open, merged or closed', () => {
+    const named = { ...OPEN_NODE, title: 'Scheduler tick per host', author: { login: 'jan', name: 'Jan Jansen' } };
+    expect(statusOf(named)).toEqual({ ...OPEN_STATUS, title: 'Scheduler tick per host', author: { login: 'jan', name: 'Jan Jansen' } });
+    expect(statusOf({ ...named, state: 'MERGED' })).toEqual({ state: 'merged', role: 'own', title: 'Scheduler tick per host', author: { login: 'jan', name: 'Jan Jansen' } });
+  });
+
+  // GitHub gives a bot no `name`, as `... on User` leaves it out, a person who set none an empty one, and a deleted account as a null author.
+  it('reads an author with no name as their login alone, and leaves out what GitHub did not give', () => {
+    expect(statusOf({ ...OPEN_NODE, author: { login: 'renovate' } })).toMatchObject({ author: { login: 'renovate', name: null } });
+    expect(statusOf({ ...OPEN_NODE, author: { login: 'jan', name: '' } })).toMatchObject({ author: { login: 'jan', name: null } });
+    const unnamed = statusOf({ ...OPEN_NODE, author: null, title: null });
+    expect(unnamed).not.toHaveProperty('author');
+    expect(unnamed).not.toHaveProperty('title');
+  });
+
   it('is null for a PR GitHub did not find, or a state it does not name', () => {
     expect(statusOf(null)).toBeNull();
     expect(statusOf({ state: 'DRAFT' })).toBeNull();

@@ -62,6 +62,15 @@ test('a linked PR merging marks every session that links it, with a tab or witho
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.prSeen?.['acme/app#7'])).toEqual({ state: 'merged', role: 'own' });
 });
 
+test("a needs-you line names its PR's title, the tab's dot as the row's, once GitHub has given it", async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot(fixture);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  await gitHubSays(page, { 'acme/app#7': { state: 'merged', role: 'own', title: 'Scheduler tick per host' }, 'acme/app#8': open() });
+  await nextAsk(page);
+  for (const dot of [row(page, closed.title).locator('.nudge'), tab(page, cold.title).locator('.nudge')]) await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — PR #7 · Scheduler tick per host — merged');
+});
+
 test('a PR two sessions spell with other capitals is asked once, and its change marks both', async ({ app, page }) => {
   await page.clock.install();
   const shouted = session({ id: '00000000-0000-4000-8000-0000000000f5', title: 'Shouted', prs: [pr(7, 'Acme/App')] });

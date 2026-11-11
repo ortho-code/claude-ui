@@ -8,6 +8,11 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 
 ## Unreleased
 
+### Added
+
+- A linked PR shows its title beside its number, in its list and on a needs-you line, and search finds a session by words of it.
+  A PR that is not yours says who opened it.
+
 ### Fixed
 
 - A review or comment a session posts inside a shell `if …; then` or a loop's `do` now links its PR to the session.

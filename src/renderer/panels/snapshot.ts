@@ -1,6 +1,6 @@
 import { categoryOf } from '../../shared/status/needs-you';
 import { prKey } from '../../shared/sessions/prs';
-import type { ClosedHow, SetAside, NeedsYou, PrRole, PrStatus } from '../../shared/types';
+import type { ClosedHow, SetAside, NeedsYou, PrAuthor, PrNames, PrRole, PrStatus } from '../../shared/types';
 import { sessionLabel } from '../rules/sessions';
 import { asksForYou } from '../status/rollup';
 import { store, type AppState, type View } from '../state/app';
@@ -48,18 +48,28 @@ export interface SnapshotSession {
   needsYou: readonly SnapshotReason[];
   /** Until when it is set aside, null for whenever; null when it is not set aside. */
   setAside: SetAside | null;
-  prs: { repository: string; number: number; url: string; status: SnapshotPrStatus | null }[];
+  prs: SnapshotPr[];
+}
+
+/** A PR a session links, as the file gives it: its title and author as GitHub last gave them, null before it has, and what GitHub last said of it. */
+export interface SnapshotPr {
+  repository: string;
+  number: number;
+  url: string;
+  title: string | null;
+  author: PrAuthor | null;
+  status: SnapshotPrStatus | null;
 }
 
 /** Every field of a session in the file, each once: a record, so a field added to `SnapshotSession` cannot be left out of the list docs/panel-types.md is held to. */
 const FIELDS: Record<keyof SnapshotSession, true> = { id: true, title: true, project: true, group: true, status: true, read: true, asks: true, running: true, needsYou: true, setAside: true, prs: true };
 export const SNAPSHOT_FIELDS = Object.keys(FIELDS);
 
-/** What GitHub says of a PR, as the file gives it: the status without what only the app's own comparison reads, the ids of the reviews asking for changes. */
-export type SnapshotPrStatus = { state: 'merged' | 'closed'; role: PrRole | null } | Omit<Extract<PrStatus, { state: 'open' }>, 'changesRequested'>;
+/** What GitHub says of a PR, as the file gives it: the status without what only the app's own comparison reads, the ids of the reviews asking for changes, and without its names, which the PR itself carries (`SnapshotPr`). */
+export type SnapshotPrStatus = { state: 'merged' | 'closed'; role: PrRole | null } | Omit<Extract<PrStatus, { state: 'open' }>, 'changesRequested' | keyof PrNames>;
 
 function snapshotPrStatus(status: PrStatus): SnapshotPrStatus {
-  if (status.state !== 'open') return status;
+  if (status.state !== 'open') return { state: status.state, role: status.role };
   const { state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked } = status;
   return { state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked };
 }
@@ -70,7 +80,7 @@ export interface SessionsSnapshot {
 }
 
 /** The slices the snapshot is made of: what a panel that watches sessions is told about. */
-export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'needsYouTypes', 'setAside', 'groupState', 'prStatus', 'settings'] as const satisfies readonly (keyof AppState)[];
+export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'needsYouTypes', 'setAside', 'groupState', 'prStatus', 'prNames', 'settings'] as const satisfies readonly (keyof AppState)[];
 
 /** Every session not finished, as the switcher counts them, each once, by id, so the same sessions in a new order are the same snapshot. */
 function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.get()): SessionsSnapshot {
@@ -97,7 +107,8 @@ function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.g
         setAside: view.setAside.get(id) ?? null,
         prs: session.prs.map((pr) => {
           const status = view.prStatus.statuses[prKey(pr)];
-          return { repository: pr.repository, number: pr.number, url: pr.url, status: status === undefined ? null : snapshotPrStatus(status) };
+          const names = view.prNames.get(prKey(pr));
+          return { repository: pr.repository, number: pr.number, url: pr.url, title: names?.title ?? null, author: names?.author ?? null, status: status === undefined ? null : snapshotPrStatus(status) };
         }),
       };
     })

@@ -1,6 +1,6 @@
 import { sessionLabel } from '../../../rules/sessions';
 import { store } from '../../../state/app';
-import { tabOnShow } from '../../../state/views';
+import { STATUS_SLICES, tabOnShow } from '../../../state/views';
 import { showToast } from '../../../ui/toast';
 import { jumpToSession } from './asks';
 import { toastAttention, toastNotLeft } from './attention';
@@ -41,9 +41,9 @@ export const claudeWatch = {
     // A task claude scheduled for a tab's session, or one gone, draws its clock: it changes at most once a turn.
     // And the setting for a stopped tab's button.
     // And a set-aside mark, which a tab draws beside its clock.
-    store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'scheduledTasks', 'setAside', 'settings'], renderTabBar, { reads: ['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'finished', 'needsYouTypes'] });
-    // And a status, the work behind one, or a mark read of one of its tabs' sessions, which its fold's dot follows too, a set-aside mark, which can mute what its dot shows, and the needs-you categories, which place a reason in the strength order.
-    store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'settings', 'needsYouTypes'], tabBarFollowsStatuses, { reads: ['sessions', 'scheduledTasks', 'finished', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded'] });
+    store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'scheduledTasks', 'setAside', 'settings'], renderTabBar, { reads: ['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'finished', 'needsYouTypes', 'prNames'] });
+    // And a status, the work behind one, or a mark read of one of its tabs' sessions, which its fold's dot follows too, a set-aside mark, which can mute what its dot shows, the needs-you categories, which place a reason in the strength order, and the PRs' titles, which a dot's tooltip names.
+    store.watch(STATUS_SLICES, tabBarFollowsStatuses, { reads: ['sessions', 'scheduledTasks', 'finished', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded'] });
     // The terminal area's rail icon waits while a tab on show waits for you, by the strength order.
     store.watch(['activeProject', 'tabs', 'statuses', 'acked', 'needsYou', 'setAside', 'settings', 'needsYouTypes'], railStatusFollowsTabs);
     // The pane shows the tab on show, or says why there is none, which turns on the listing and the project on show too.

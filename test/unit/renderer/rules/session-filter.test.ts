@@ -85,6 +85,13 @@ describe('sessionPasses', () => {
     expect(sessionPasses(session(bare), { ...base, text: '35996' })).toBe(false);
   });
 
+  it("matches words of a linked PR's title, once it is known", () => {
+    const linked = session({ title: 'Untitled', firstMessage: '', cwd: '/repo', prs: [{ repository: 'ScientaNL/scienta', number: 35996, url: 'https://github.com/ScientaNL/scienta/pull/35996' }] });
+    const prNames = new Map([['scientanl/scienta#35996', { title: 'Scheduler tick per host' }]]);
+    expect(sessionPasses(linked, { ...base, text: 'tick per host', prNames })).toBe(true);
+    expect(sessionPasses(linked, { ...base, text: 'tick per host' })).toBe(false);
+  });
+
   it("matches a group name only on that group's own members", () => {
     const groupNames = new Map([['other', 'Terminal work']]);
     expect(sessionPasses(session({ id: 's1' }), { ...base, text: 'terminal', groupNames })).toBe(false);

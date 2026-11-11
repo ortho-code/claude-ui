@@ -1,4 +1,4 @@
-import { referenceKey } from '../../shared/sessions/prs';
+import { prName, prOfReference, referenceKey, SHORT_TITLE, spansRepositories } from '../../shared/sessions/prs';
 import { isPrReason, PR_TYPES } from '../../shared/status/needs-you';
 import type { ClosedHow, NeedsYou, PrNeedsYouType, SetAside } from '../../shared/types';
 import { momentLabel } from '../ui/time-words';
@@ -27,6 +27,9 @@ const WAS_RUNNING: Record<ClosedHow, string> = {
   unknown: 'Needs you — was running when the app last closed',
 };
 
+/** A PR's title by its reference (`prReference`), undefined while it is not known. */
+export type PrTitles = (reference: string) => string | undefined;
+
 /** One line of what a session's dot can show: what it says, and the state it says it of, a status or a reason (`NeedsShown`, a PR's line by its strongest), for the dot drawn beside it. */
 export interface StateLine {
   text: string;
@@ -35,11 +38,12 @@ export interface StateLine {
 
 /**
  * A session's reasons as they are listed, in its dot's tooltip and its menu's header alike, each where the strength order puts its category, and within one newest first (decided 2026-11-06, in place of a rank of their own).
- * A PR is named by its number, "PR #35777 merged", and with its repository, "PR acme/app#35777 merged", only where the reasons name PRs in more than one; the changes one answer found, a reason each at the same moment, are named together on one line, in the same order, "PR #7 checks failed, approved", and the line goes where its first does.
+ * A PR is named by its number and its title, cut to `SHORT_TITLE` (`prName`), "PR #35777 · Scheduler tick per host — merged", and with its repository, "PR acme/app#35777 · … — merged", only where the reasons name PRs in more than one; the changes one answer found, a reason each at the same moment, are named together on one line, in the same order, "PR #7 · … — checks failed, approved", and the line goes where its first does.
+ * `titles` gives a PR's title by its reference, undefined while it is not known, when the line names its number alone, "PR #35777 merged".
  */
-export function needsYouLines(reasons: readonly NeedsYou[], strength: Strength): StateLine[] {
-  const prs = new Set(reasons.filter(isPrReason).map((reason) => referenceKey(reason.pr)));
-  const repositories = new Set([...prs].map((pr) => pr.slice(0, pr.lastIndexOf('#'))));
+export function needsYouLines(reasons: readonly NeedsYou[], strength: Strength, titles: PrTitles): StateLine[] {
+  const prs = reasons.filter(isPrReason).map((reason) => prOfReference(reason.pr));
+  const withRepository = spansRepositories(prs);
   const answers = new Map<string, { pr: string; types: PrNeedsYouType[] }>();
   const lines: { key: string; reason: NeedsYou }[] = [];
   for (const reason of rankedReasons(reasons, strength)) {
@@ -58,7 +62,11 @@ export function needsYouLines(reasons: readonly NeedsYou[], strength: Strength):
   return lines.map(({ key, reason }) => {
     const state = needsShown(reason.type);
     const answer = answers.get(key);
-    if (answer) return { text: `Needs you — PR ${repositories.size > 1 ? answer.pr : answer.pr.slice(answer.pr.lastIndexOf('#'))} ${answer.types.map((type) => PR_TYPES[type]).join(', ')}`, state };
+    if (answer) {
+      const title = titles(answer.pr);
+      // A dash only after a title, to set its words apart from what changed.
+      return { text: `Needs you — PR ${prName(prOfReference(answer.pr), title, withRepository, SHORT_TITLE)}${title ? ' —' : ''} ${answer.types.map((type) => PR_TYPES[type]).join(', ')}`, state };
+    }
     if (reason.type === 'app.was-running') return { text: WAS_RUNNING[reason.how], state };
     if (reason.type === 'app.reminder') return { text: `Needs you — reminder for ${momentLabel(reason.at)}`, state };
     return { text: `Needs you — ${reason.type}`, state };
@@ -83,9 +91,9 @@ export interface DotStates {
  * The read mark marks what the dot shows read, all its reasons where it shows one, and a muted reason is read wherever it is.
  * A status the order does not know goes after the rest and says itself, so a state nobody named still reads (`statusLabel`).
  */
-export function stateLines(states: DotStates, strength: Strength): (StateLine & { read: boolean })[] {
+export function stateLines(states: DotStates, strength: Strength, titles: PrTitles): (StateLine & { read: boolean })[] {
   const shown = states.tab ?? shownState(states.status, states.reasons, strength);
-  const reasons = needsYouLines(states.reasons, strength);
+  const reasons = needsYouLines(states.reasons, strength, titles);
   const status = states.status === undefined ? [] : [{ text: statusLabel(states.status, states.background), state: states.status }];
   const ranked = [...status, ...reasons].sort((a, b) => rankOf(a.state, strength) - rankOf(b.state, strength));
   const lines = [...(states.tab === undefined ? [] : [{ text: statusLabel(states.tab, []), state: states.tab }]), ...ranked];

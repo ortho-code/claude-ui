@@ -1,5 +1,5 @@
-import { prReference } from '../../shared/sessions/prs';
-import type { SessionSummary } from '../../shared/types';
+import { prKey, prReference } from '../../shared/sessions/prs';
+import type { PrNames, SessionSummary } from '../../shared/types';
 import { entityKey, unstartableReason, worktreeMarkState } from './sessions';
 
 // The [from, to] window for a date preset, rolling from `now`.
@@ -58,6 +58,8 @@ export interface FilterCriteria {
   notes?: ReadonlyMap<string, string>;
   /** Session key -> its group's name, so typing a group name surfaces everything in it. */
   groupNames?: ReadonlyMap<string, string>;
+  /** PR key (`prKey`) -> what it is called, so typing part of a PR's title finds the sessions that link it. */
+  prNames?: ReadonlyMap<string, PrNames>;
 }
 
 /**
@@ -92,8 +94,8 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   const note = c.notes?.get(key) ?? '';
   // The group name matches every session in that group, which is what makes typing one a way to reach it — the group headings themselves are not searchable, only the rows under them.
   const group = c.groupNames?.get(key) ?? '';
-  // A PR by the reference its menus show, so its number finds the session that linked it.
-  const prs = session.prs.map(prReference).join(' ');
+  // A PR by its full reference and its title, so its number or words of its title find the session that linked it.
+  const prs = session.prs.map((pr) => `${prReference(pr)} ${c.prNames?.get(prKey(pr))?.title ?? ''}`).join(' ');
   return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id} ${note} ${group} ${prs}`
     .toLowerCase()
     .includes(c.text.toLowerCase());

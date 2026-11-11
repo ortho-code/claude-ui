@@ -48,8 +48,9 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 
 ## Pull requests
 
-- The PRs a session links, as Claude Code records them in its transcript, those it posted a review or comment on with a `gh` command naming the PR's repository, and the one a panel row's `session` action names with `pr`: a badge on its row that lists them, an entry in its options, and each opening its page in the browser; a filter finds the sessions with one, and search finds a session by a PR's number.
-- The badge takes the colour of what GitHub says of them — changes requested, failing checks or a merge conflict, ready to merge, all merged or closed — asked with `gh`, and each PR GitHub has answered for is listed with its state, its approvals, and whether it is yours, one you review or someone else's.
+- The PRs a session links, as Claude Code records them in its transcript, those it posted a review or comment on with a `gh` command naming the PR's repository, and the one a panel row's `session` action names with `pr`: a badge on its row that lists them, an entry in its options, and each opening its page in the browser; a filter finds the sessions with one, and search finds a session by a PR's number or words of its title.
+- Each PR is listed by its number and title, with its repository under it, or in front of the number where the session links PRs in several; until GitHub has given a title, by its number alone, and from launch by the title it last gave.
+- The badge takes the colour of what GitHub says of them — changes requested, failing checks or a merge conflict, ready to merge, all merged or closed — asked with `gh`, and each PR GitHub has answered for is listed with its state, its approvals, and, where it is not yours, who opened it and whether you review it.
 - Ready to merge waits for the approvals a repository needs where you set a number ([Settings](settings.md)); your own PR needs you for its checks, conflicts, change requests and approvals, and one you review for new commits since your review and your review asked again.
 
 ## Finishing, setting aside and the review

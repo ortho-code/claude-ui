@@ -1,7 +1,7 @@
 import { approvalsRequired, prKey, prReference, referenceKey } from '../../../../shared/sessions/prs';
 import type { PrRef, PrSeen, PrStatusRead } from '../../../../shared/types';
 import { entityKey } from '../../../rules/sessions';
-import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../status/pr-status';
+import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, withNames } from '../../../status/pr-status';
 import { store, type View } from '../../../state/app';
 import { markNeedsYou, marksFor } from '../../../state/needs-you';
 import { RunGate } from '../../run';
@@ -11,6 +11,7 @@ import { RunGate } from '../../run';
  * Timed by the gate a panel's runs go through (`RunGate`): an ask whenever the PRs the listing links change, the first listing's included, then each at the delay the answer before it calls for (`nextAsk`).
  * The window regaining focus asks at once, unless the last answer is under a minute old.
  * Each answer also marks the sessions whose PRs changed in a way that needs you, against what was last seen of them (`settleChanges`).
+ * What each PR is called comes into the store's `prNames` from what was last seen, as soon as that is read, and then from each answer.
  * An ask overtaken by a later one before main answered is dropped, so an older answer never lands over a newer one.
  * Only while the setting allows it (`Settings.prStatus`), which is not known before the settings are read: until then, and while it is off, an ask asks nothing and leaves no status, so a launch with it off never runs `gh`; turning it on asks at once.
  */
@@ -49,7 +50,7 @@ async function ask(number: number): Promise<void> {
   }
   if (!gate.isLatest(number)) return;
   answeredAt = Date.now();
-  store.set({ prStatus: read });
+  store.set({ prStatus: read, prNames: withNames(store.get().prNames, read.statuses) });
   gate.ended(number, nextAsk(prs, read));
   if (known) settleChanges(prs, read);
 }
@@ -64,6 +65,8 @@ function readSeen(): Promise<void> {
   seenRead ??= window.claudeUi.getPrSeen().then(
     (stored) => {
       seen = stored;
+      // An answer that came first named its PRs already, and what it said is newer.
+      if (stored !== null) store.set({ prNames: withNames(withNames(new Map(), stored), store.get().prStatus.statuses) });
     },
     (error: unknown) => {
       seenRead = undefined;
@@ -127,6 +130,7 @@ async function forgetSeen(): Promise<void> {
     () => true,
     () => false,
   );
+  store.set({ prNames: new Map() });
   if (known && seen !== null && Object.keys(seen).length === 0) return;
   seen = {};
   seenRead = Promise.resolve();

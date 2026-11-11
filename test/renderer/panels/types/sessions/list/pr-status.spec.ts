@@ -223,8 +223,8 @@ test("each PR in a mark's list and in a tab's options says its state on a line u
   await mark(page, failing.title).click();
   await expect(items(page)).toHaveCount(2);
   expect(await lines(items(page))).toEqual([
-    ['ScientaNL/demo#12', 'checks failed'],
-    ['ScientaNL/demo#7', 'merged'],
+    ['#12', 'ScientaNL/demo · checks failed'],
+    ['#7', 'ScientaNL/demo · merged'],
   ]);
   expect(await dotColours(items(page))).toEqual([await token(page, '--failed'), await token(page, '--muted')]);
   await mark(page, failing.title).click();
@@ -234,8 +234,8 @@ test("each PR in a mark's list and in a tab's options says its state on a line u
   const submenu = items(page, '.kebab-menu.submenu');
   await expect(submenu).toHaveCount(2);
   expect(await lines(submenu)).toEqual([
-    ['ScientaNL/demo#12', 'checks failed'],
-    ['ScientaNL/demo#7', 'merged'],
+    ['#12', 'ScientaNL/demo · checks failed'],
+    ['#7', 'ScientaNL/demo · merged'],
   ]);
   expect(await dotColours(submenu)).toEqual([await token(page, '--failed'), await token(page, '--muted')]);
 });
@@ -266,8 +266,8 @@ test("a PR's list item names someone else's PR by your role, and counts an open 
   await mark(page, theirs.title).click();
   await expect(items(page)).toHaveCount(2);
   expect(await lines(items(page))).toEqual([
-    ['ScientaNL/demo#9', 'reviewing · changes requested · 1 of 2 approvals'],
-    ['ScientaNL/demo#10', 'someone else’s · merged'],
+    ['#9', 'ScientaNL/demo · reviewing · changes requested · 1 of 2 approvals'],
+    ['#10', 'ScientaNL/demo · someone else’s · merged'],
   ]);
   // Neither line is cut: the longest still fits the menu's width, the line under the reference wrapping where it would not.
   const cut = await items(page).evaluateAll((buttons) => buttons.flatMap((button) => [...button.querySelectorAll<HTMLElement>('.menu-item-label, .menu-item-detail')]).filter((line) => line.scrollWidth > line.clientWidth).length);
@@ -276,19 +276,80 @@ test("a PR's list item names someone else's PR by your role, and counts an open 
 
   await mark(page, ready.title).click();
   await expect(items(page)).toHaveCount(1);
-  expect(await lines(items(page))).toEqual([['ScientaNL/demo#4', 'review required · 1 of 2 approvals']]);
+  expect(await lines(items(page))).toEqual([['#4', 'ScientaNL/demo · review required · 1 of 2 approvals']]);
 });
 
-test('a PR with no status is listed by its reference alone, with a hollow dot', async ({ app, page }) => {
+test('a PR with no status is listed by its number and repository alone, with a hollow dot', async ({ app, page }) => {
   await app.boot({ ...states, prStatuses: {} });
   await mark(page, failing.title).click();
-  await expect(items(page)).toHaveText(['ScientaNL/demo#12', 'ScientaNL/demo#7']);
+  await expect(items(page)).toHaveCount(2);
+  expect(await lines(items(page))).toEqual([
+    ['#12', 'ScientaNL/demo'],
+    ['#7', 'ScientaNL/demo'],
+  ]);
   await expect(items(page).locator('.nudge')).toHaveClass(['nudge single', 'nudge single']);
 });
 
 test('while main could not ask GitHub, every PR is listed as one with no status, whatever statuses come with the problem', async ({ app, page }) => {
   await app.boot({ ...states, prProblem: 'gh was not found' });
   await mark(page, failing.title).click();
-  await expect(items(page)).toHaveText(['ScientaNL/demo#12', 'ScientaNL/demo#7']);
+  await expect(items(page)).toHaveCount(2);
+  expect(await lines(items(page))).toEqual([
+    ['#12', 'ScientaNL/demo'],
+    ['#7', 'ScientaNL/demo'],
+  ]);
   await expect(items(page).locator('.nudge')).toHaveClass(['nudge single', 'nudge single']);
+});
+
+const jan = { login: 'jan', name: 'Jan Jansen' };
+const titled = marked('7', 'Titled PRs', 21, 22);
+const titledFixture = {
+  sessions: [titled],
+  history: { [titled.id]: [] },
+  prStatuses: {
+    'scientanl/demo#21': { ...open(), title: 'Scheduler tick per host' },
+    'scientanl/demo#22': { state: 'merged', role: 'reviewing', title: `A title long enough to wrap in a menu ${'that is at most 300px wide '.repeat(2)}`.trim(), author: jan },
+  } satisfies Record<string, PrStatus>,
+};
+
+test("a PR is listed by its number and title, a long one wrapping rather than cut, and one not yours by who opened it", async ({ app, page }) => {
+  await app.boot(titledFixture);
+  await mark(page, titled.title).click();
+  await expect(items(page)).toHaveCount(2);
+  await expect(items(page).first().locator('.menu-item-label')).toHaveText('#21 · Scheduler tick per host');
+  expect(await lines(items(page))).toEqual([
+    ['#21 · Scheduler tick per host', 'ScientaNL/demo · review required'],
+    [`#22 · ${titledFixture.prStatuses['scientanl/demo#22'].title}`, 'ScientaNL/demo · by Jan Jansen · reviewing · merged'],
+  ]);
+  const cut = await items(page).evaluateAll((buttons) => buttons.flatMap((button) => [...button.querySelectorAll<HTMLElement>('.menu-item-label')]).filter((line) => line.scrollWidth > line.clientWidth).length);
+  expect(cut).toBe(0);
+  const heights = await items(page).locator('.menu-item-label').evaluateAll((labels) => labels.map((label) => label.getBoundingClientRect().height));
+  // The long title takes more than the one line the short one does.
+  expect(heights[1]).toBeGreaterThan(1.5 * heights[0]);
+});
+
+test('a PR keeps the repository in front of its number where the session links PRs in several', async ({ app, page }) => {
+  const spread = session({ id: '00000000-0000-4000-8000-0000000000f8', title: 'Two repositories', prs: [pr(21), { repository: 'ScientaNL/site', number: 3, url: 'https://github.com/ScientaNL/site/pull/3' }] });
+  await app.boot({ ...titledFixture, sessions: [spread], history: { [spread.id]: [] } });
+  await mark(page, spread.title).click();
+  await expect(items(page)).toHaveCount(2);
+  expect(await lines(items(page))).toEqual([
+    ['ScientaNL/demo#21 · Scheduler tick per host', 'review required'],
+    ['ScientaNL/site#3', null],
+  ]);
+});
+
+test('a PR is named by the title last seen from launch on, before GitHub answers', async ({ app, page }) => {
+  await app.boot({ ...titledFixture, prStatuses: {}, prSeen: { 'scientanl/demo#21': { ...open(), title: 'Seen before' } } });
+  await mark(page, titled.title).click();
+  await expect(items(page).first().locator('.menu-item-label')).toHaveText('#21 · Seen before');
+});
+
+test("typing words of a linked PR's title finds its session", async ({ app, page }) => {
+  await app.boot({ ...titledFixture, sessions: [titled, none], history: { [titled.id]: [], [none.id]: [] } });
+  await expect(row(page, none.title)).toBeVisible();
+  await page.locator('#filter-toggle').click();
+  await page.locator('#search').fill('tick per host');
+  await expect(row(page, none.title)).toBeHidden();
+  await expect(row(page, titled.title)).toBeVisible();
 });

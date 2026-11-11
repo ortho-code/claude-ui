@@ -1,4 +1,4 @@
-import type { PrRole, SessionPr, SessionSummary } from '../types';
+import type { PrAuthor, PrRole, SessionPr, SessionSummary } from '../types';
 
 /** The approvals each repository needs before a PR counts as approved, by `owner/name`, as `approvals` in settings.json holds them. */
 export type Approvals = Readonly<Record<string, number>>;
@@ -34,11 +34,40 @@ export function roleOf(authored: boolean, reviewed: boolean, asked: boolean): Pr
 }
 
 /**
- * A PR's full reference, `owner/repo#number`, as the session spells it: what the app shows for one and what search matches.
- * One function for both, so what is shown is what is searched; what tells two PRs apart is `prKey`.
+ * A PR's full reference, `owner/repo#number`, as the session spells it: what a needs-you reason keeps, and what search matches beside its title.
+ * What tells two PRs apart is `prKey`; how one is shown is `prName`.
  */
 export function prReference(pr: Pick<SessionPr, 'repository' | 'number'>): string {
   return `${pr.repository}#${pr.number}`;
+}
+
+/** The PR a reference names (`prReference`), as a needs-you reason keeps one: its repository is everything before the last `#`. */
+export function prOfReference(reference: string): Pick<SessionPr, 'repository' | 'number'> {
+  const at = reference.lastIndexOf('#');
+  return { repository: reference.slice(0, at), number: Number(reference.slice(at + 1)) };
+}
+
+/** The longest a PR's title runs on a line that names it among other words, such as the needs-you line, before it is cut. */
+export const SHORT_TITLE = 60;
+
+/**
+ * How a PR is named wherever it is shown: `#36773 · Scheduler tick per host`, with `owner/repo` before the number where `withRepository`, and the number alone while its title is not known.
+ * A title longer than `cut` is cut there, with an ellipsis.
+ */
+export function prName(pr: Pick<SessionPr, 'repository' | 'number'>, title: string | undefined, withRepository: boolean, cut = Infinity): string {
+  const number = withRepository ? prReference(pr) : `#${pr.number}`;
+  if (title === undefined || title === '') return number;
+  return `${number} · ${title.length > cut ? `${title.slice(0, cut - 1).trimEnd()}…` : title}`;
+}
+
+/** Whether `prs` name more than one repository, without regard to its capitals: where a PR is named with its repository (`prName`). */
+export function spansRepositories(prs: readonly Pick<SessionPr, 'repository'>[]): boolean {
+  return new Set(prs.map((pr) => pr.repository.toLowerCase())).size > 1;
+}
+
+/** How a PR's author is named: the name they set, else their login. */
+export function authorName(author: PrAuthor): string {
+  return author.name ?? author.login;
 }
 
 /**

@@ -41,7 +41,8 @@ describe('statusLabel', () => {
 });
 
 describe('needsYouLines', () => {
-  const texts = (reasons: NeedsYou[], strength = APP_ORDER): string[] => needsYouLines(reasons, strength).map((line) => line.text);
+  const untitled = (): undefined => undefined;
+  const texts = (reasons: NeedsYou[], strength = APP_ORDER, titles: (reference: string) => string | undefined = untitled): string[] => needsYouLines(reasons, strength, titles).map((line) => line.text);
 
   it('says why a session needs you, by how the app closed while it ran', () => {
     expect(texts([wasRunning])).toEqual(['Needs you — was running when the app quit']);
@@ -74,7 +75,7 @@ describe('needsYouLines', () => {
       { type: 'pr.approved', at: 1, pr: 'acme/app#7' },
     ];
     expect(texts(reasons)).toEqual(['Needs you — PR #7 approved, reopened']);
-    expect(needsYouLines(reasons, APP_ORDER)[0]?.state).toBe('needs:pr.approved');
+    expect(needsYouLines(reasons, APP_ORDER, untitled)[0]?.state).toBe('needs:pr.approved');
   });
 
   it('follows an order of your own', () => {
@@ -106,6 +107,16 @@ describe('needsYouLines', () => {
     expect(texts(reasons)).toEqual(['Needs you — PR #1 checks failed', 'Needs you — PR #1 approved']);
   });
 
+  it("names a PR by its title where it is known, cut on a long one, set apart from what changed", () => {
+    const titles = (reference: string): string | undefined => ({ 'acme/app#1': 'Scheduler tick per host', 'acme/app#2': 'A'.repeat(80) })[reference];
+    const reasons: NeedsYou[] = [
+      { type: 'pr.merged', at: 3, pr: 'acme/app#1' },
+      { type: 'pr.merged', at: 2, pr: 'acme/app#2' },
+      { type: 'pr.merged', at: 1, pr: 'acme/app#3' },
+    ];
+    expect(texts(reasons, APP_ORDER, titles)).toEqual([`Needs you — PR #1 · Scheduler tick per host — merged`, `Needs you — PR #2 · ${'A'.repeat(59)}… — merged`, 'Needs you — PR #3 merged']);
+  });
+
   it('lists reasons of one category newest first', () => {
     const reminder: NeedsYou = { type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() };
     expect(texts([reminder, { ...wasRunning, at: reminder.at + 1 }])).toEqual(['Needs you — was running when the app quit', 'Needs you — reminder for Mon 2 Nov, 09:00']);
@@ -115,7 +126,7 @@ describe('needsYouLines', () => {
 
 describe('stateLines', () => {
   const states = (over: Partial<DotStates>): DotStates => ({ tab: undefined, status: undefined, background: [], reasons: [], acked: false, muted: false, ...over });
-  const texts = (over: Partial<DotStates>, strength = APP_ORDER): string[] => stateLines(states(over), strength).map((line) => line.text);
+  const texts = (over: Partial<DotStates>, strength = APP_ORDER): string[] => stateLines(states(over), strength, () => undefined).map((line) => line.text);
 
   it('lists every state, the one the dot shows first', () => {
     expect(texts({ status: 'busy', reasons: [wasRunning] })).toEqual(['Busy', 'Needs you — was running when the app quit']);

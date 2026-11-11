@@ -1,7 +1,7 @@
-import { approvalsRequired, prKey, prReference, type Approvals } from '../../shared/sessions/prs';
+import { approvalsRequired, authorName, prKey, prReference, type Approvals } from '../../shared/sessions/prs';
 import { PR_TYPES } from '../../shared/status/needs-you';
 import type { SettingsView } from '../../shared/config/settings';
-import type { PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, SessionSummary } from '../../shared/types';
+import type { PrNames, PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, SessionSummary } from '../../shared/types';
 import type { Tone } from '../ui/tone';
 
 /** Main's answer before it has given one: no status for any PR, and nothing gone wrong. */
@@ -215,8 +215,28 @@ export function approvalsIn(settings: SettingsView | null): Approvals {
   return settings?.approvals.value ?? {};
 }
 
+/** `names` with what each of `statuses` says a PR is called and who opened it, by its key, where it says so. */
+export function withNames(names: ReadonlyMap<string, PrNames>, statuses: Readonly<Record<string, PrStatus>>): Map<string, PrNames> {
+  const next = new Map(names);
+  for (const [key, { title, author }] of Object.entries(statuses)) {
+    if (title === undefined && author === undefined) continue;
+    next.set(key, { ...next.get(key), ...(title === undefined ? {} : { title }), ...(author === undefined ? {} : { author }) });
+  }
+  return next;
+}
+
 /** How your role on a PR reads, null for your own, which is most of them and so says nothing (decided 2026-11-06), or one not known. */
 const ROLE_WORDS: Record<PrRole, string | null> = { own: null, reviewing: 'reviewing', other: 'someone else’s' };
+
+/**
+ * Who a PR is by and your role on it, as its menu item says them: "by Jan Jansen · reviewing", or "by Jan Jansen" for someone else's, where its author is known; your own says nothing.
+ * Without a known author, the role alone (`ROLE_WORDS`).
+ */
+function ownerWords(status: PrStatus): string[] {
+  if (status.role === null || status.role === 'own') return [];
+  if (status.author === undefined) return [ROLE_WORDS[status.role]].filter((words): words is string => words !== null);
+  return [`by ${authorName(status.author)}`, ...(status.role === 'reviewing' ? ['reviewing'] : [])];
+}
 
 /** An open PR's approvals: `1 of 2 approvals` where its repository needs a number, `1 approval` or `2 approvals` where not, and nothing for none without a number, or a count not known. */
 function approvalWords(status: OpenStatus, required: number | null): string | null {
@@ -227,15 +247,14 @@ function approvalWords(status: OpenStatus, required: number | null): string | nu
   return count === 1 ? '1 approval' : `${count} approvals`;
 }
 
-/** What a PR's menu item says after its reference, in order: your role where it is not yours, its state (`verdictOf`), and an open PR's approvals; nothing while main could not ask GitHub. */
+/** What a PR's menu item says under its name, in order: who it is by and your role where it is not yours (`ownerWords`), its state (`verdictOf`), and an open PR's approvals; nothing while main could not ask GitHub. */
 export function prDetails(pr: PrRef, read: PrStatusRead, approvals: Approvals): string[] {
   const status = knownStatus(pr, read);
   if (status === null) return [];
   const required = approvalsRequired(approvals, pr.repository);
-  const role = status.role === null ? null : ROLE_WORDS[status.role];
   const { words } = prVerdict(status, required);
   const counted = status.state === 'open' ? approvalWords(status, required) : null;
-  return [role, words, counted].filter((part): part is string => part !== null);
+  return [...ownerWords(status), words, counted].filter((part): part is string => part !== null);
 }
 
 /** The mark for `prs` from main's answer: their roll-up tone, and the PRs that set it counted by state, `1 with failing checks`; when main could not ask GitHub, `normal`, saying why. */

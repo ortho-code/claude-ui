@@ -142,7 +142,7 @@ A row keeps a session's title and dot current between runs through a live value 
 | `running` | Whether a tab holds it with its claude running, whatever claude last said: false for a session without a tab, or whose claude has gone. |
 | `needsYou` | Why it is marked as needing you, a reason each, and empty when it is not (below). |
 | `setAside` | Its set-aside mark, `{ "due", "at" }`: when it comes back as needing you, `null` for whenever, and when it was set, both as epoch milliseconds; `null` when it is not set aside. |
-| `prs` | The PRs it links, each `{ "repository", "number", "url", "status" }`, `repository` as `owner/name`; `status` is what GitHub last said of it (below), `null` until GitHub has answered for that PR, which one it cannot be asked about never does. |
+| `prs` | The PRs it links, each `{ "repository", "number", "url", "title", "author", "status" }`, `repository` as `owner/name`; `title` is its title and `author` who opened it, `{ "login", "name" }` with `name` `null` for someone who set none or a bot, each as GitHub last gave it and `null` before it has; `status` is what GitHub last said of it (below), `null` until GitHub has answered for that PR, which one it cannot be asked about never does. |
 
 A reason in `needsYou` has a `type`, the `category` that type belongs to, and `at`, when it was marked, in epoch milliseconds; `category` is `null` for a type the app has no category for.
 The categories are `your-turn`, `back-to-work`, `ready-to-merge`, `look-again`, `reminders` and `finish-up`, in that order.
@@ -163,7 +163,7 @@ The categories are `your-turn`, `back-to-work`, `ready-to-merge`, `look-again`, 
 
 A PR's type names its PR in `pr`, `owner/name#number`.
 A PR's type marks a session only for your roles on the PR its file lists ([What needs you](guide/status.md#what-needs-you)): as shipped, failing checks, a conflict, changes requested and approved for your own PRs, new commits since your review and your review asked for a PR you review, and the rest for every role.
-Several changes found in one look at a PR are a reason each, with the same `at`, such as `pr.checks-failed` and `pr.approved` together; the app names them on one line, "PR #7 checks failed, approved".
+Several changes found in one look at a PR are a reason each, with the same `at`, such as `pr.checks-failed` and `pr.approved` together; the app names them on one line, "PR #7 · Its title — checks failed, approved".
 Claude asking you something or being ready are types too, `claude.asks` and `claude.ready` in `your-turn`, but they are never in `needsYou`: `status` and `read` say them.
 
 `needsYou` lists every reason, also those a set-aside mark set after them puts aside: the app shows a session as needing you only while a reason's `at` is after its set-aside mark's `at`, or it is not set aside.

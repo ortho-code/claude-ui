@@ -1,4 +1,4 @@
-import { prReference } from '../../../../shared/sessions/prs';
+import { prKey, prName, spansRepositories } from '../../../../shared/sessions/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDanger, confirmDelete, promptText } from '../../../dialogs/dialogs';
 import { leaveAction, leaveLabel, type LeaveAction } from '../../../rules/claude';
@@ -58,17 +58,19 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   });
 }
 
-// The PRs a session's transcript links, by their full reference, oldest first, each opening its page in the browser.
-// Each led by a dot in its ink, with what GitHub last said on a line under it (`verdictOf`, `prDetails`), since the reference and the words together outrun a menu's width; a PR with no status has the hollow dot of one thing with nothing to report (base.css's `.nudge.single`), and no words.
+// The PRs a session's transcript links, by their number and title (`prName`), oldest first, each opening its page in the browser.
+// The repository goes before the number where the session's PRs name several, and leads the line under it otherwise.
+// Each led by a dot in its ink, with what GitHub last said on that line (`verdictOf`, `prDetails`), since the name and the words together outrun a menu's width; a PR with no status has the hollow dot of one thing with nothing to report (base.css's `.nudge.single`), and no words.
 // Shared by the PR mark and the kebab submenu.
 function prMenuItems(session: SessionSummary): MenuItem[] {
-  const { prStatus, settings } = store.get();
+  const { prStatus, prNames, settings } = store.get();
   const approvals = approvalsIn(settings);
+  const withRepository = spansRepositories(session.prs);
   return session.prs.map((pr) => {
     const { tone, words } = verdictOf(pr, prStatus, approvals);
-    const details = prDetails(pr, prStatus, approvals);
+    const details = [...(withRepository ? [] : [pr.repository]), ...prDetails(pr, prStatus, approvals)];
     return {
-      label: prReference(pr),
+      label: prName(pr, prNames.get(prKey(pr))?.title, withRepository),
       ...(details.length > 0 ? { detail: details.join(' · ') } : {}),
       dot: words === null ? 'nudge single' : `nudge pr-dot pr-ink tone-${tone}`,
       onSelect: () => window.claudeUi.openExternal(pr.url),

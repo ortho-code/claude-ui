@@ -115,10 +115,11 @@ export function groupNameByKey({ groupState }: View<'groupState'>): Map<string, 
 }
 
 // Adapt the current filter state to the pure predicate.
-export function passesFilters(session: SessionSummary, view: View<'pinned' | 'finished' | 'notes' | 'pendingDeletes' | 'tabs' | 'setAside' | 'filter'>, groupNames?: ReadonlyMap<string, string>): boolean {
+export function passesFilters(session: SessionSummary, view: View<'pinned' | 'finished' | 'notes' | 'pendingDeletes' | 'tabs' | 'setAside' | 'filter' | 'prNames'>, groupNames?: ReadonlyMap<string, string>): boolean {
   const { filters, dateFrom, dateTo } = view.filter;
   return sessionPasses(session, {
     groupNames,
+    prNames: view.prNames,
     text: searchText(view),
     pinnedOnly: filters.pinned,
     openOnly: filters.open,

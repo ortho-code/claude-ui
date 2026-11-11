@@ -1,5 +1,5 @@
 import { DEFAULT_STRENGTH, expandedStrength } from '../../shared/status/looks';
-import { categoryOf, type NeedsYouRegistry } from '../../shared/status/needs-you';
+import { categoryOf, isPrReason, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import { mutedBySetAside } from '../../shared/status/session-marks';
 import type { SetAside, NeedsYou, SessionGroup, SessionSummary } from '../../shared/types';
 import { tabButton, type TabButton, type TabButtonTab } from '../rules/claude';
@@ -173,16 +173,21 @@ export function isFiltering(view: View<'filter'>): boolean {
   return searchText(view).length > 0 || Object.values(view.filter.filters).some(Boolean) || view.filter.datePreset !== 'any';
 }
 
+/** What a session's dot and its tooltip are painted from, and so what `statusChanges` compares. */
+export type StatusView = View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes' | 'prNames'>;
+
+/** The slices of `StatusView`, for a watcher that follows the dots. */
+export const STATUS_SLICES = ['statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'settings', 'needsYouTypes', 'prNames'] as const;
+
 /**
- * The sessions whose status, background work, read mark, needs-you mark or set-aside mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has.
+ * The sessions whose status, background work, read mark, needs-you mark or set-aside mark differs between two readings, or whose reasons name a PR while what the PRs are called changed: what a status change asks a surface to repaint, as a status event naming one session always has.
  * A change of the strength order (`strengthNow`) changes what any dot may show, so then every session with a status or a reason.
  */
-export function statusChanges(
-  before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>,
-  after: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>,
-): Set<string> {
+export function statusChanges(before: StatusView, after: StatusView): Set<string> {
   if (strengthNow(before) !== strengthNow(after)) return new Set([...before.statuses.keys(), ...after.statuses.keys(), ...before.needsYou.keys(), ...after.needsYou.keys()]);
   const ids = new Set<string>();
+  // A PR's title came or changed: the tooltip of every session whose reasons name a PR says it.
+  if (before.prNames !== after.prNames) for (const [id, reasons] of after.needsYou) if (reasons.some(isPrReason)) ids.add(id);
   for (const id of new Set([...before.statuses.keys(), ...after.statuses.keys()])) if (before.statuses.get(id) !== after.statuses.get(id)) ids.add(id);
   for (const id of new Set([...before.backgroundTasks.keys(), ...after.backgroundTasks.keys()])) if (!sameOrder(before.backgroundTasks.get(id) ?? [], after.backgroundTasks.get(id) ?? [])) ids.add(id);
   for (const id of new Set([...before.acked, ...after.acked])) if (before.acked.has(id) !== after.acked.has(id)) ids.add(id);

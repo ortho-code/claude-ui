@@ -19,11 +19,11 @@ test("a session's PRs show as a mark on its row, counted, with the count in its 
   await expect(row(page, none.title).locator('.pr-badge')).toBeHidden();
 });
 
-test('the mark lists the PRs by their full reference, oldest first, and opens the one picked, without opening the session', async ({ app, page }) => {
+test('the mark lists the PRs by their number, oldest first, and opens the one picked, without opening the session', async ({ app, page }) => {
   await app.boot(fixture);
   await row(page, two.title).locator('.pr-badge').click();
-  await expect(page.locator('.kebab-menu button')).toHaveText(['ScientaNL/demo#12', 'ScientaNL/demo#7']);
-  await page.locator('.kebab-menu button', { hasText: 'ScientaNL/demo#7' }).click();
+  await expect(page.locator('.kebab-menu button .menu-item-label')).toHaveText(['#12', '#7']);
+  await page.locator('.kebab-menu button', { hasText: '#7' }).click();
   expect(await app.calls('openExternal')).toEqual([['https://github.com/ScientaNL/demo/pull/7']]);
   await expect(tab(page, two.title)).toHaveCount(0);
 });
@@ -32,13 +32,13 @@ test("a session's options list its PRs, from its row and from its tab, each open
   await app.boot({ ...fixture, openSessions: [two.id] });
   await row(page, two.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button', { hasText: 'PRs (2)' }).click();
-  await expect(page.locator('.kebab-menu.submenu button')).toHaveText(['ScientaNL/demo#12', 'ScientaNL/demo#7']);
-  await page.locator('.kebab-menu.submenu button', { hasText: 'ScientaNL/demo#12' }).click();
+  await expect(page.locator('.kebab-menu.submenu button .menu-item-label')).toHaveText(['#12', '#7']);
+  await page.locator('.kebab-menu.submenu button', { hasText: '#12' }).click();
 
   await tab(page, two.title).locator('.tab-kebab').click();
   await page.locator('.kebab-menu button', { hasText: 'PRs (2)' }).click();
-  await expect(page.locator('.kebab-menu.submenu button')).toHaveText(['ScientaNL/demo#12', 'ScientaNL/demo#7']);
-  await page.locator('.kebab-menu.submenu button', { hasText: 'ScientaNL/demo#7' }).click();
+  await expect(page.locator('.kebab-menu.submenu button .menu-item-label')).toHaveText(['#12', '#7']);
+  await page.locator('.kebab-menu.submenu button', { hasText: '#7' }).click();
   expect(await app.calls('openExternal')).toEqual([['https://github.com/ScientaNL/demo/pull/12'], ['https://github.com/ScientaNL/demo/pull/7']]);
 });
 

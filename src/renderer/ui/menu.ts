@@ -38,7 +38,7 @@ export interface MenuItem {
   session?: { status: string | null; acked: boolean };
   /** A dot ahead of the label classed by whoever lists the item, such as a PR's in its ink (pr-status.css), in place of a roll-up's. */
   dot?: string;
-  /** A second line under a dotted item's label, muted and wrapping, for what is said about the thing the label names, such as a PR's state. */
+  /** A second line under a dotted item's label, muted and wrapping, for what is said about the thing the label names, such as a PR's state; the label above it wraps too. */
   detail?: string;
   /** Dims the label — used for "Ungrouped", which is a place rather than a named thing. */
   muted?: boolean;

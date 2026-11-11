@@ -2,7 +2,7 @@ import { defaultUi } from '../../shared/config/defaults';
 import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/config/settings';
-import type { GroupState, SetAside, NeedsYou, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
+import type { GroupState, SetAside, NeedsYou, PrNames, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../rules/sessions';
 import { NO_PR_STATUS } from '../status/pr-status';
 import { createStore } from './store';
@@ -119,6 +119,11 @@ export interface AppState {
    * In memory only, asked again at every launch.
    */
   prStatus: PrStatusRead;
+  /**
+   * What each PR is called and who opened it, by its key (`prKey`): what was last seen of it, from main's copy once read and then from each answer, so a PR is named from launch rather than once GitHub answers.
+   * Empty while PR status is off, since nothing is asked then and what was seen is emptied.
+   */
+  prNames: ReadonlyMap<string, PrNames>;
   /**
    * The settings as they stand, from main's latest read of the file (`SettingsView.read`), whether it came as an answer, a change main tells of, or a save's answer: main tells the window of a change to the file unless every change it saw was its own write, so a save is kept here by the dialog that made it too (settings.ts).
    * Null until the first read.
@@ -349,6 +354,7 @@ export const store = createStore<AppState>(
     tabBarExpanded: defaultUi().tabBarExpanded,
     bulk: null,
     prStatus: NO_PR_STATUS,
+    prNames: new Map(),
     settings: null,
   },
   {
@@ -372,6 +378,7 @@ export const store = createStore<AppState>(
     folds: sameFolds,
     bulk: sameBulk,
     prStatus: sameData,
+    prNames: (a, b) => sameEntries(a, b, sameData),
     settings: sameData,
   },
 );
