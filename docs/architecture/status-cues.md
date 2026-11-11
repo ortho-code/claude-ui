@@ -124,7 +124,7 @@ The window rather than main, since the window holds both marks and is the only r
 **The two marks are kept apart, and the order they came in decides what shows**, by when each was set (`mutedBySetAside`), so it holds over a restart where a read mark does not ([decided 2026-10-29](../decisions/0143-set-aside-and-needs-you-marks-are-kept-apart.md)).
 A needs-you mark whose every reason is from before the set-aside mark is muted while the set-aside mark stands (`mutedNeedsYou`): where its dot shows the mark, it is dimmed, as read, with its reason in the tooltip, and the roll-ups follow the dot (`sessionPart`), so it counts for nothing in them; claude's status, working, asking or at its prompt, shows over the mark whatever the order says and counts as it does for any session (`mutedGivesWay`, [decided 2026-11-11](../decisions/0210-a-muted-needs-you-mark-gives-way-to-claudes-status.md)).
 When its moment comes the mark keeps that reason rather than taking the reminder's, and shows in full again.
-One that came after it is news the set-aside mark did not know of, so it shows and counts in full, the bookmark beside it.
+One that came after it is news the set-aside mark did not know of, so it shows and counts in full, the bookmark beside it; unless `setAsideNews` is `"wait"`, which mutes every reason while the set-aside mark stands, news included, until its day, or with whenever until the mark goes (`mutedBySetAside`, [decided 2026-11-12](../decisions/0215-news-while-set-aside-can-wait-for-its-day.md)).
 Undo of a close or a finish puts a needs-you mark back with the tab, from when it was marked, so one a set-aside mark muted is muted again.
 
 **A task claude has scheduled shows as a clock beside the session.**

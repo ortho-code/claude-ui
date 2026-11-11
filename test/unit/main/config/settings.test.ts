@@ -32,7 +32,7 @@ const jsonc = async (file: string): Promise<unknown> => {
   const read = readJsonc(await fs.readFile(file, 'utf8'));
   return read.ok ? read.json : read.error;
 };
-const defaults = { launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', undoRunning: 'start', setAsideRunning: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {} };
+const defaults = { launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', undoRunning: 'start', setAsideRunning: 'stop-close', setAsideNews: 'show', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {} };
 const text = (file: string): Promise<string> => fs.readFile(file, 'utf8');
 const gone = (file: string): Promise<void> => expect(fs.access(file)).rejects.toThrow();
 const moves = async (): Promise<unknown> => ((await json(metaFile)) as { moved: unknown }).moved;
@@ -204,6 +204,8 @@ describe('a new settings.json', () => {
         '  "undoRunning": "start",',
         '  // What setting a session aside does to a claude running in a tab of it: "stop-close" asks it to leave and closes the tab, "stop" asks it to leave and keeps the tab, "keep" leaves it running, where a prompt you send there takes the mark off',
         '  "setAsideRunning": "stop-close",',
+        '  // What a reason that marks a set-aside session after you set it aside does, such as a PR change: "show" shows and counts it at once, "wait" keeps it muted, as the reasons from before are, while the set-aside mark stands; claude\'s own status shows either way',
+        '  "setAsideNews": "show",',
         '  // The choices for setting a session aside, offered in the order they come with "whenever" last: "whenever", "in 30m", "in 2h", "in 3d", "in 1w", "tomorrow" or "next monday", a day with a time such as "09:00" or else the time below',
         '  "setAside": ["tomorrow", "in 1w", "whenever"],',
         '  // The time of day, as "HH:MM" in 24 hours, a choice without one comes back at',

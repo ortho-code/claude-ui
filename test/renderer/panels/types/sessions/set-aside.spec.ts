@@ -309,6 +309,26 @@ test('a moment that comes while the app runs shows when it comes, the next one a
   await expect(row(page, one.title).locator('.set-aside-mark')).toBeHidden();
 });
 
+// `setAsideNews` says whether news after the set-aside mark shows now or waits for the day: waiting, it is muted as the reasons before the mark are.
+test('with setAsideNews "wait", news after the set-aside mark stays muted and uncounted until its day comes', async ({ app, page }) => {
+  await page.clock.install({ time: new Date(2026, 9, 30, 8, 0) });
+  const due = new Date(2026, 9, 30, 8, 10).getTime();
+  await app.boot({ ...fixture, settings: settingsFileWith('settings.json', { setAsideNews: 'wait' }), needsYou: { [one.id]: [{ type: 'pr.conflict', at: 20, pr: 'acme/app#7' }] }, setAside: { [one.id]: { due, at: 10 } } });
+  const dot = row(page, one.title).locator('.nudge');
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merge conflict (read)');
+  await expect(dot).toHaveClass(/\backed\b/);
+  await page.clock.fastForward('11:00');
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merge conflict');
+  await expect(dot).not.toHaveClass(/\backed\b/);
+});
+
+test('with setAsideNews "show", the default, news after the set-aside mark shows and counts at once', async ({ app, page }) => {
+  await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'pr.conflict', at: 20, pr: 'acme/app#7' }] }, setAside: { [one.id]: { due: null, at: 10 } } });
+  const dot = row(page, one.title).locator('.nudge');
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merge conflict');
+  await expect(dot).not.toHaveClass(/\backed\b/);
+});
+
 // The day coming is news, so it takes the read mark off, as a new needs-you reason does: what comes due is never born read.
 test('a session marked read whose day comes is unread again, with the reasons it had', async ({ app, page }) => {
   await page.clock.install({ time: new Date(2026, 9, 30, 8, 0) });

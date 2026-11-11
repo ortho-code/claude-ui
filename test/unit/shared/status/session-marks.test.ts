@@ -213,10 +213,10 @@ describe('cameDue', () => {
 });
 
 describe('mutedBySetAside', () => {
-  it('mutes a needs-you mark whose newest reason came before the set-aside mark, and not one with a reason after it', () => {
-    expect(mutedBySetAside([{ type: 'app.was-running', at: 5, how: 'quit' }], { due: null, at: 10 })).toBe(true);
-    expect(mutedBySetAside([{ type: 'app.was-running', at: 10, how: 'quit' }], { due: null, at: 10 })).toBe(true);
-    expect(mutedBySetAside([{ type: 'app.was-running', at: 15, how: 'quit' }], { due: null, at: 10 })).toBe(false);
+  it('with news shown, mutes a needs-you mark whose newest reason came before the set-aside mark, and not one with a reason after it', () => {
+    expect(mutedBySetAside([{ type: 'app.was-running', at: 5, how: 'quit' }], { due: null, at: 10 }, 'show')).toBe(true);
+    expect(mutedBySetAside([{ type: 'app.was-running', at: 10, how: 'quit' }], { due: null, at: 10 }, 'show')).toBe(true);
+    expect(mutedBySetAside([{ type: 'app.was-running', at: 15, how: 'quit' }], { due: null, at: 10 }, 'show')).toBe(false);
     expect(
       mutedBySetAside(
         [
@@ -224,11 +224,22 @@ describe('mutedBySetAside', () => {
           { type: 'app.was-running', at: 5, how: 'quit' },
         ],
         { due: null, at: 10 },
+        'show',
       ),
     ).toBe(false);
-    expect(mutedBySetAside([{ type: 'app.was-running', at: 5, how: 'quit' }], undefined)).toBe(false);
-    expect(mutedBySetAside(undefined, { due: null, at: 10 })).toBe(false);
-    expect(mutedBySetAside([], { due: null, at: 10 })).toBe(false);
+  });
+
+  it('with news waiting, mutes a needs-you mark while the set-aside mark stands, reasons after it included', () => {
+    expect(mutedBySetAside([{ type: 'app.was-running', at: 15, how: 'quit' }], { due: null, at: 10 }, 'wait')).toBe(true);
+    expect(mutedBySetAside([{ type: 'app.was-running', at: 5, how: 'quit' }], { due: null, at: 10 }, 'wait')).toBe(true);
+  });
+
+  it('mutes nothing without a set-aside mark or without reasons, whichever way news goes', () => {
+    for (const news of ['show', 'wait'] as const) {
+      expect(mutedBySetAside([{ type: 'app.was-running', at: 5, how: 'quit' }], undefined, news)).toBe(false);
+      expect(mutedBySetAside(undefined, { due: null, at: 10 }, news)).toBe(false);
+      expect(mutedBySetAside([], { due: null, at: 10 }, news)).toBe(false);
+    }
   });
 });
 

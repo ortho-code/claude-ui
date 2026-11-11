@@ -11,7 +11,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', undoRunning: 'start', setAsideRunning: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {} });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', undoRunning: 'start', setAsideRunning: 'stop-close', setAsideNews: 'show', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {} });
   });
 
   it("take the file's approvals by repository, none unless told otherwise, and none of an object with a mistake", () => {
@@ -84,6 +84,16 @@ describe('the settings in force', () => {
     }
     for (const wrong of ['close', 'pause', true, null]) {
       expect(settingsView(holding({ setAsideRunning: wrong })).setAsideRunning).toEqual({ value: 'stop-close', problem: 'It has to be one of "stop-close", "stop", "keep".' });
+    }
+  });
+
+  it('take a choice of the file for news on a set-aside session, showing it unless told otherwise, and leave out one that is no choice', () => {
+    expect(settingsView(missing).setAsideNews.value).toBe('show');
+    for (const choice of ['show', 'wait']) {
+      expect(settingsView(holding({ setAsideNews: choice })).setAsideNews).toEqual({ value: choice, problem: null });
+    }
+    for (const wrong of ['mute', 'all', true, null]) {
+      expect(settingsView(holding({ setAsideNews: wrong })).setAsideNews).toEqual({ value: 'show', problem: 'It has to be one of "show", "wait".' });
     }
   });
 

@@ -148,7 +148,7 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0140](0140-a-set-aside-session-has-a-mark-of-its-own.md) | 2026-10-29 | A set-aside session has a mark of its own, beside the dot | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0141](0141-a-tab-can-no-longer-be-paused.md) | 2026-10-29 | A tab can no longer be paused — **Partly replaced** by [0212](0212-setting-a-running-session-aside-stops-it.md): setting aside no longer leaves the tab as it is | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
 | [0142](0142-a-time-field-follows-the-language-from-the-next-launch.md) | 2026-10-29 | A time field follows the language from the next launch | [The language](../architecture/window.md#the-language) |
-| [0143](0143-set-aside-and-needs-you-marks-are-kept-apart.md) | 2026-10-29 | The set-aside and needs-you marks are kept apart | [Status cues](../architecture/status-cues.md#status-cues) |
+| [0143](0143-set-aside-and-needs-you-marks-are-kept-apart.md) | 2026-10-29 | The set-aside and needs-you marks are kept apart — **Partly replaced** by [0215](0215-news-while-set-aside-can-wait-for-its-day.md): with news waiting, the order no longer decides | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0144](0144-shared-calendar.md) | 2026-10-29 | The calendar is one module and stylesheet | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
 | [0145](0145-the-first-run-marks-only-sessions-set-aside-to-wait.md) | 2026-10-29 | The first PR run marks only the sessions set aside to wait | [Reading sessions](../architecture/sessions.md#reading-sessions) |
 | [0146](0146-the-set-aside-dialog-names-the-session.md) | 2026-10-29 | The set-aside dialog names the session in its title | [Status cues](../architecture/status-cues.md#status-cues) |
@@ -220,3 +220,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0212](0212-setting-a-running-session-aside-stops-it.md) | 2026-11-11 | Setting a running session aside stops its claude | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0213](0213-a-panel-row-shows-its-sessions-note-mark.md) | 2026-11-11 | A panel's row that names a session shows its note mark | [Types from the config folder](../architecture/panels.md#types-from-the-config-folder) |
 | [0214](0214-a-new-needs-you-reason-is-unread.md) | 2026-11-11 | A new needs-you reason is unread | [Status cues](../architecture/status-cues.md#status-cues) |
+| [0215](0215-news-while-set-aside-can-wait-for-its-day.md) | 2026-11-12 | News while set aside can wait for its day | [Status cues](../architecture/status-cues.md#status-cues) |

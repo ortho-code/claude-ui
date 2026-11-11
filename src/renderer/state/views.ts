@@ -1,6 +1,8 @@
 import { DEFAULT_STRENGTH, expandedStrength } from '../../shared/status/looks';
 import { categoryOf, isPrReason, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import { mutedBySetAside } from '../../shared/status/session-marks';
+import { defaultSettings } from '../../shared/config/defaults';
+import type { SetAsideNews } from '../../shared/config/settings';
 import type { SetAside, NeedsYou, SessionGroup, SessionSummary } from '../../shared/types';
 import { tabButton, type TabButton, type TabButtonTab } from '../rules/claude';
 import { inView } from '../rules/session-filter';
@@ -219,20 +221,21 @@ export function sessionNudge(id: string, view: View<'statuses' | 'acked' | 'need
  * Whether a session's dot shows as read: marked read, or showing a needs-you mark its set-aside mark mutes, which looks read and stays so while the set-aside mark stands (decided 2026-10-29).
  * The dot still shows the mark, so its reason is there when you pick the session up again.
  */
-export function shownRead(id: string, shown: string | undefined, view: View<'acked' | 'needsYou' | 'setAside'>): boolean {
+export function shownRead(id: string, shown: string | undefined, view: View<'acked' | 'needsYou' | 'setAside' | 'settings'>): boolean {
   return view.acked.has(id) || (isNeeds(shown) && mutedNeedsYou(view).has(id));
 }
 
-let muted: { needsYou: ReadonlyMap<string, readonly NeedsYou[]>; setAside: ReadonlyMap<string, SetAside>; ids: ReadonlySet<string> } | null = null;
+let muted: { needsYou: ReadonlyMap<string, readonly NeedsYou[]>; setAside: ReadonlyMap<string, SetAside>; news: SetAsideNews; ids: ReadonlySet<string> } | null = null;
 
 /**
  * The sessions whose needs-you mark their set-aside mark mutes (`mutedBySetAside`): what every dot and roll-up reads as read.
- * Kept for the two maps it was made from, since every roll-up of a repaint asks for it.
+ * Kept for the two maps and the `setAsideNews` setting it was made from, since every roll-up of a repaint asks for it.
  */
-export function mutedNeedsYou(view: View<'needsYou' | 'setAside'>): ReadonlySet<string> {
-  if (muted?.needsYou !== view.needsYou || muted.setAside !== view.setAside) {
-    const ids = new Set([...view.setAside.keys()].filter((id) => mutedBySetAside(view.needsYou.get(id), view.setAside.get(id))));
-    muted = { needsYou: view.needsYou, setAside: view.setAside, ids };
+export function mutedNeedsYou(view: View<'needsYou' | 'setAside' | 'settings'>): ReadonlySet<string> {
+  const news = view.settings?.setAsideNews.value ?? defaultSettings().setAsideNews;
+  if (muted?.needsYou !== view.needsYou || muted.setAside !== view.setAside || muted.news !== news) {
+    const ids = new Set([...view.setAside.keys()].filter((id) => mutedBySetAside(view.needsYou.get(id), view.setAside.get(id), news)));
+    muted = { needsYou: view.needsYou, setAside: view.setAside, news, ids };
   }
   return muted.ids;
 }

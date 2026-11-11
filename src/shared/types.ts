@@ -413,6 +413,8 @@ export interface Settings {
   undoRunning: UndoRunning;
   /** What setting a session aside does to a claude running in a tab of it: asks it to leave and closes the tab, asks it to leave and keeps the tab cold, or leaves it running; a tab without a running claude is left as it is. */
   setAsideRunning: SetAsideRunning;
+  /** What a reason that marks a set-aside session after it was set aside does: shows and counts now, or is muted, as the reasons from before are, until the day comes. */
+  setAsideNews: SetAsideNews;
   /** The choices for setting a session aside, as written (shared/status/set-aside.ts), offered in the order they would come with Whenever last. */
   setAside: string[];
   /** The time of day a choice without one comes back at, as `"HH:MM"` in 24 hours; Pick a date… starts at it. */
@@ -494,7 +496,7 @@ import type { FolderName } from './helpers/folders';
 import type { NeedsYouChange, NeedsYouRegistry } from './status/needs-you';
 import type { LogLevel } from './helpers/log';
 import type { Look } from './status/looks';
-import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView, SetAsideRunning, UndoRunning } from './config/settings';
+import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView, SetAsideNews, SetAsideRunning, UndoRunning } from './config/settings';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;

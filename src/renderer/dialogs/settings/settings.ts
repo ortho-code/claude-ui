@@ -1,7 +1,7 @@
 import { parseLaunchFlags } from '../../../shared/config/flags';
 import { presetsProblem } from '../../../shared/status/set-aside';
 import { timeOfDay } from '../../../shared/helpers/time';
-import { changedSettings, fileChanges, languageTag, sameValue, type ChangedSetting, type LeaveButton, type RunningAtLaunch, type SetAsideRunning, type SettingsChange, type SettingsView, type UndoRunning } from '../../../shared/config/settings';
+import { changedSettings, fileChanges, languageTag, sameValue, type ChangedSetting, type LeaveButton, type RunningAtLaunch, type SetAsideNews, type SetAsideRunning, type SettingsChange, type SettingsView, type UndoRunning } from '../../../shared/config/settings';
 import type { Settings } from '../../../shared/types';
 import { element } from '../../ui/dom';
 import { runModal, listen } from '../../ui/modal';
@@ -20,6 +20,7 @@ const settingsPrStatus = document.getElementById('settings-pr-status') as HTMLIn
 const settingsLeaveButton = document.getElementById('settings-leave-button') as HTMLSelectElement;
 const settingsUndoRunning = document.getElementById('settings-undo-running') as HTMLSelectElement;
 const settingsSetAsideRunning = document.getElementById('settings-set-aside-running') as HTMLSelectElement;
+const settingsSetAsideNews = document.getElementById('settings-set-aside-news') as HTMLSelectElement;
 const settingsSetAside = document.getElementById('settings-set-aside') as HTMLInputElement;
 const settingsSetAsideError = document.getElementById('settings-set-aside-error')!;
 const settingsSetAsideTime = document.getElementById('settings-set-aside-time') as HTMLInputElement;
@@ -116,6 +117,19 @@ const setAsideRunningField = new SettingField(
   (file, why) => `The choice in ${file} is not used: ${why}`,
 );
 
+const setAsideNewsField = new SettingField(
+  'setAsideNews',
+  {
+    element: settingsSetAsideNews,
+    // Its options are the choices themselves, so what it holds is always one of them.
+    read: () => settingsSetAsideNews.value as SetAsideNews,
+    write: (value) => {
+      settingsSetAsideNews.value = value;
+    },
+  },
+  (file, why) => `The choice in ${file} is not used: ${why}`,
+);
+
 const setAsideField = new SettingField(
   'setAside',
   {
@@ -159,10 +173,10 @@ const localeField = new SettingField(
 );
 
 /** Every setting's field. */
-const fields = [flagsField, runningField, prStatusField, leaveButtonField, undoRunningField, setAsideRunningField, setAsideField, setAsideTimeField, localeField];
+const fields = [flagsField, runningField, prStatusField, leaveButtonField, undoRunningField, setAsideRunningField, setAsideNewsField, setAsideField, setAsideTimeField, localeField];
 
 /** What a save sends: every field's value as it stands. */
-function currentChange(): Pick<Settings, 'launchFlags' | 'runningSessionsAtLaunch' | 'prStatus' | 'leaveButton' | 'undoRunning' | 'setAsideRunning' | 'setAside' | 'setAsideTime' | 'locale'> {
+function currentChange(): Pick<Settings, 'launchFlags' | 'runningSessionsAtLaunch' | 'prStatus' | 'leaveButton' | 'undoRunning' | 'setAsideRunning' | 'setAsideNews' | 'setAside' | 'setAsideTime' | 'locale'> {
   return {
     launchFlags: flagsField.value(),
     runningSessionsAtLaunch: runningField.value(),
@@ -170,6 +184,7 @@ function currentChange(): Pick<Settings, 'launchFlags' | 'runningSessionsAtLaunc
     leaveButton: leaveButtonField.value(),
     undoRunning: undoRunningField.value(),
     setAsideRunning: setAsideRunningField.value(),
+    setAsideNews: setAsideNewsField.value(),
     setAside: setAsideField.value(),
     setAsideTime: setAsideTimeField.value(),
     locale: localeField.value(),

@@ -1,4 +1,4 @@
-import { changedSettings, LEAVE_BUTTON, RUNNING_AT_LAUNCH, SET_ASIDE_RUNNING, UNDO_RUNNING, type LeaveButton, type RunningAtLaunch, type SetAsideRunning, type SettingKey, type SettingsView, type UndoRunning } from '../../../shared/config/settings';
+import { changedSettings, LEAVE_BUTTON, RUNNING_AT_LAUNCH, SET_ASIDE_NEWS, SET_ASIDE_RUNNING, UNDO_RUNNING, type LeaveButton, type RunningAtLaunch, type SetAsideNews, type SetAsideRunning, type SettingKey, type SettingsView, type UndoRunning } from '../../../shared/config/settings';
 import { store } from '../../state/app';
 // The section list's entries are menu rows.
 import '../../ui/menu-row.css';
@@ -31,6 +31,12 @@ const SET_ASIDE_RUNNING_LABELS: Record<SetAsideRunning, string> = {
   keep: 'Keep claude running',
 };
 
+/** Each choice for news on a set-aside session, in words: the dropdown's options. */
+const SET_ASIDE_NEWS_LABELS: Record<SetAsideNews, string> = {
+  show: 'Show it now',
+  wait: 'Wait for its day',
+};
+
 type SectionId = 'general' | 'sessions' | 'needs-you' | 'appearance' | 'version-control' | 'logs';
 
 /** Each setting's words. */
@@ -41,6 +47,7 @@ const SETTING_LABELS: Record<SettingKey, string> = {
   leaveButton: 'Leave button',
   undoRunning: 'When Undo brings back a tab whose claude was running',
   setAsideRunning: 'When a running session is set aside',
+  setAsideNews: 'News while set aside',
   setAside: 'Set aside: the choices',
   setAsideTime: 'Time of day for a choice without one',
   locale: 'Language for times and dates',
@@ -93,7 +100,7 @@ export const SECTIONS: Section[] = [
   {
     id: 'sessions',
     label: 'Sessions',
-    keys: ['leaveButton', 'undoRunning', 'setAsideRunning', 'setAside', 'setAsideTime'],
+    keys: ['leaveButton', 'undoRunning', 'setAsideRunning', 'setAsideNews', 'setAside', 'setAsideTime'],
     body: `
       <div class="dialog-group">
         <label class="dialog-label" for="settings-leave-button">${SETTING_LABELS.leaveButton}</label>
@@ -114,6 +121,13 @@ export const SECTIONS: Section[] = [
         <p class="dialog-detail">A prompt you send in a session set aside takes the mark off, so stopping claude keeps a reply from doing that by accident. A busy claude is interrupted, as Stop does. The message that follows has an Undo that puts it all back.</p>
         <select id="settings-set-aside-running" class="dialog-field">
           ${SET_ASIDE_RUNNING.map((choice) => `<option value="${choice}">${SET_ASIDE_RUNNING_LABELS[choice]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="dialog-group">
+        <label class="dialog-label" for="settings-set-aside-news">${SETTING_LABELS.setAsideNews}</label>
+        <p class="dialog-detail">Something that needs you after you set a session aside, such as a change on its PR. Waiting, it stays dimmed and uncounted until the day comes, or with whenever until the mark goes. Claude's own status shows either way, and a prompt you send there takes the mark off.</p>
+        <select id="settings-set-aside-news" class="dialog-field">
+          ${SET_ASIDE_NEWS.map((choice) => `<option value="${choice}">${SET_ASIDE_NEWS_LABELS[choice]}</option>`).join('')}
         </select>
       </div>
       <div class="dialog-group">

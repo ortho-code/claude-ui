@@ -5,6 +5,7 @@
 import { isPrReason } from './needs-you';
 import { prFromUrl, prKey, referenceKey } from '../sessions/prs';
 import type { SetAside, NeedsYou, ScheduledTask, SessionPr, SettledBy, SettledNeedsYou } from '../types';
+import type { SetAsideNews } from '../config/settings';
 
 /** The marks, as `meta.json` holds them. */
 export interface SessionMarks {
@@ -178,10 +179,11 @@ export function cameDue(marks: { needsYou: Readonly<Record<string, readonly Need
 
 /**
  * Whether a session's needs-you mark is muted by its set-aside mark: every reason came before you set it aside, so you have seen why and chose to come back to it (decided 2026-10-29).
- * A reason that came after it is news the set-aside mark did not know of, and none is muted.
+ * A reason that came after it is news the set-aside mark did not know of: with `news` at `show` none is muted, and at `wait` it is muted with the rest until the day comes (decided 2026-11-12).
  */
-export function mutedBySetAside(needsYou: readonly NeedsYou[] | undefined, setAside: SetAside | undefined): boolean {
-  return needsYou !== undefined && needsYou.length > 0 && setAside !== undefined && newestAt(needsYou) <= setAside.at;
+export function mutedBySetAside(needsYou: readonly NeedsYou[] | undefined, setAside: SetAside | undefined, news: SetAsideNews): boolean {
+  if (needsYou === undefined || needsYou.length === 0 || setAside === undefined) return false;
+  return news === 'wait' || newestAt(needsYou) <= setAside.at;
 }
 
 /** A finished entry gone, whether or not it was there. */
