@@ -63,8 +63,8 @@ store.watch(['filter', 'folds', 'filterPanelOpen', 'tabBarExpanded'], () => pers
 // Told of the slices `whereOf` reads, the tabs among them: a `/clear` or a move into another folder changes the session under the same tab.
 store.watch(WHERE_SLICES, treeContextChanged);
 
-// A panel's rows mark the sessions they started — each one's title, status dot and the work behind it, mark read, and whether it runs — so the panels hear of every change to those, to the strength order and the categories that decide what a dot shows, and to which sessions a panel's rows started (its data, panels/links.ts).
-store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'tabs', 'panelData', 'settings', 'needsYouTypes'], treeSessionsChanged);
+// A panel's rows mark the sessions they started or name — each one's title, status dot and the work behind it, mark read, whether it runs, and its note — so the panels hear of every change to those, to the strength order and the categories that decide what a dot shows, and to which sessions a panel's rows started (its data, panels/links.ts).
+store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'notes', 'tabs', 'panelData', 'settings', 'needsYouTypes'], treeSessionsChanged);
 
 startLooks((slices, fn) => store.watch(slices, fn), store.get());
 

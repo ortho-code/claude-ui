@@ -5,6 +5,7 @@ import { routeLinks } from '../../window/external-links';
 import { Keyed, placeChildren } from '../../ui/keyed';
 import { kebabButton, type MenuItem } from '../../ui/menu';
 import { ackOnClick, sessionDotClass } from '../../status/status-dot';
+import { noteMark, showNote } from '../../status/note-mark';
 import { setTooltip } from '../../ui/tooltip';
 import type { LinkedSession, PanelHost } from '../contract';
 import { DEFAULT_BUTTONS, type DetailPart, type ListAction, type ListDocument, type ListItem, type ListSection, type RowText, type Verb } from './list-doc';
@@ -227,8 +228,10 @@ export class ListView {
     const kebabLabel = named ? 'Session options' : 'More actions';
     setTooltip(parts.kebab, kebabLabel);
     parts.kebab.setAttribute('aria-label', kebabLabel);
+    // The named session's note mark, as on its own row in the list, beside its dot.
+    const noted = showNote(parts.note, (item.session !== null ? this.host.session(item.session)?.note : null) ?? undefined);
     // The session it shows, before what it offers, so going back comes before starting again.
-    placeChildren(row, [content, ...(session ? [session] : []), ...buttons, ...(named || item.actions.length > shown ? [parts.kebab] : [])]);
+    placeChildren(row, [content, ...(noted ? [parts.note] : []), ...(session ? [session] : []), ...buttons, ...(named || item.actions.length > shown ? [parts.kebab] : [])]);
     return row;
   }
 
@@ -351,7 +354,11 @@ export class ListView {
     });
     // What the row offers beyond its buttons, and the menu of the session it names, behind the app's own kebab, last on the row as a session row's is; built once, so a press on it survives a redraw.
     const kebab = kebabButton('list-kebab pair-end', 'More actions', () => this.kebabItems(key));
-    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, namedDot, namedDotBox, actions: new Keyed<HTMLButtonElement>((button) => button), kebab };
+    const note = noteMark(() => {
+      const id = this.items.get(key)?.session;
+      if (id) this.host.editNote(id);
+    });
+    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, namedDot, namedDotBox, note, actions: new Keyed<HTMLButtonElement>((button) => button), kebab };
   }
 
   /** The button for one of a row's actions, which does its verb for the row as the last draw left it; a session's shows its prompt on hover, and the other verbs nothing, until a type asks for words of its own. */
@@ -393,6 +400,8 @@ interface ListRow {
   /** The dot of the session the row names (`session`), in the mark's place, and the box around it that holds that place. */
   namedDot: HTMLElement;
   namedDotBox: HTMLElement;
+  /** The note mark of the session the row names, on the row only while that session has a note. */
+  note: HTMLElement;
   /** Its action buttons, each kept by all its action says. */
   actions: Keyed<HTMLButtonElement>;
   /** The kebab holding its actions beyond its buttons and the menu of the session it names, on the row only while it has either. */

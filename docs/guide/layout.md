@@ -184,6 +184,7 @@ A panel's options are checked by the panel itself, when it appears and before ea
 A folder under `panel-types/` in the config folder is a panel type, named after the folder, so a type is shared by copying its folder.
 It holds a `panel.json` saying what the type is, and a script that prints a list, which the app draws: rows with links, sections that fold, a count on the panel's icon kept current on an interval, and buttons that start a Claude session with a prompt you see, and can change, before it starts.
 A row that started a session then shows that session's status and leads back to it.
+A row that names a session shows its note mark too while it has a note, as the session list does, so a note on why it waits is a hover away.
 
 [Panel types of your own](../panel-types.md) is the whole of it: what goes in the folder, what the script is given and prints, what the app does with it, and an example type to copy.
 

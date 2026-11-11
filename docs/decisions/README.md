@@ -218,3 +218,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0210](0210-a-muted-needs-you-mark-gives-way-to-claudes-status.md) | 2026-11-11 | A muted needs-you mark gives way to claude's status | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0211](0211-undo-starts-claude-again-where-it-was-running.md) | 2026-11-11 | Undo starts claude again where it was running | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
 | [0212](0212-setting-a-running-session-aside-stops-it.md) | 2026-11-11 | Setting a running session aside stops its claude | [Status cues](../architecture/status-cues.md#status-cues) |
+| [0213](0213-a-panel-row-shows-its-sessions-note-mark.md) | 2026-11-11 | A panel's row that names a session shows its note mark | [Types from the config folder](../architecture/panels.md#types-from-the-config-folder) |

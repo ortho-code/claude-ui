@@ -14,6 +14,7 @@ import { bootList, row as listRow } from '../list/list';
 type Shortcuts = [className: string, item: RegExp | ((control: Locator) => Promise<RegExp>)][];
 
 const DOT: [string, RegExp] = ['nudge', /^Mark as (read|unread)$/];
+const NOTE: [string, RegExp] = ['note-badge', /^(Add|Edit) note…$/];
 // The tab's button is a shortcut to one of the menu's leave items, which its mark says (`tabButton`): Stop session, Close tab, Finished or a force.
 const BUTTON_ITEMS: Record<string, string> = {
   stop: 'Stop session',
@@ -28,7 +29,7 @@ const TAB_BUTTON = async (control: Locator): Promise<RegExp> => new RegExp(`^${B
 const ROW: Shortcuts = [
   ['pin', /^(Pin in list|Unpin)$/],
   DOT,
-  ['note-badge', /^(Add|Edit) note…$/],
+  NOTE,
   ['sibling-badge', /^Siblings \(\d+\)$/],
   ['pr-badge', /^PRs \(\d+\)$/],
   ['worktree-badge', /^Worktrees \(\d+\)$/],
@@ -36,7 +37,7 @@ const ROW: Shortcuts = [
 const FINISHED_ROW: Shortcuts = [
   ['unfinish-btn', /^Unfinished$/],
   ['delete-btn', /^Delete session…$/],
-  ['note-badge', /^(Add|Edit) note…$/],
+  NOTE,
   ['sibling-badge', /^Siblings \(\d+\)$/],
   ['pr-badge', /^PRs \(\d+\)$/],
   ['worktree-badge', /^Worktrees \(\d+\)$/],
@@ -116,19 +117,19 @@ test("a press on a cold tab, which starts it, is in its menu as Open", async ({ 
   await expect(open).not.toHaveClass(/\bunavailable\b/);
 });
 
-// A panel's row naming a session: its press, going to the session, and its dot while that is a control are what the menu must hold; the row's own action buttons are the type's, not the session's, and its actions beyond them are in the menu by the list's own rule.
+// A panel's row naming a session: its press, going to the session, its dot while that is a control, and its note mark are what the menu must hold; the row's own action buttons are the type's, not the session's, and its actions beyond them are in the menu by the list's own rule.
 const PANEL_ROW = { version: 1, sections: [{ items: [{ key: 'r', text: 'The row', session: full.id, press: { 'open-session': full.id } }] }] };
 
 test("a press on a panel's row naming a session, going to it, is in the session's menu as Open", async ({ app, page }) => {
   await bootList(app, page, PANEL_ROW, { more: fixture });
   const surface = listRow(page, 'The row');
-  await eachControlHasItsItem(page, surface, surface.locator('.list-kebab'), [], /^Open$/);
+  await eachControlHasItsItem(page, surface, surface.locator('.list-kebab'), [NOTE], /^Open$/);
 });
 
 test("the dot on a panel's row naming a session waiting for you is in the session's menu as Mark as read", async ({ app, page }) => {
   await bootList(app, page, PANEL_ROW, { more: { ...fixture, statuses: { [full.id]: 'waiting' } } });
   const surface = listRow(page, 'The row');
-  await eachControlHasItsItem(page, surface, surface.locator('.list-kebab'), [DOT], /^Open$/);
+  await eachControlHasItsItem(page, surface, surface.locator('.list-kebab'), [DOT, NOTE], /^Open$/);
 });
 
 test("every control on a finished session's row is a shortcut to an item in its menu", async ({ app, page }) => {

@@ -94,6 +94,8 @@ export interface LinkedSession {
   running: boolean;
   /** A press on its dot marks it read or unread, by the rule every session dot follows (`canMarkRead`). */
   canMarkRead: boolean;
+  /** The note you attached to it; null for none. */
+  note: string | null;
 }
 
 /** Where a session's menu is opened: its row in the list or its tab, each of which leaves out the item that would be itself, or a panel's row naming it. */
@@ -141,6 +143,8 @@ export interface Asks {
   revealGroup(repoRoot: string, groupId: string | null): void;
   /** A session's menu, as the kebab on `from` lists it, with `own`, what that surface offers beyond its buttons, under its header: null for a session the app no longer has. */
   sessionMenu(id: string, from: SessionSurface, own?: readonly MenuItem[]): MenuItem[] | null;
+  /** Open a session's note to edit, as a press on its note mark in the list does; nothing for an id the app has no session for. */
+  editNote(id: string): void;
   /** Set sessions aside through Set aside…'s dialog, as the bar of selecting several does: once written, what a toast says of it and an Undo that puts each mark and the one's note back; null when the dialog was cancelled. */
   setAside(ids: readonly string[]): Promise<{ said: string; undo: () => void } | null>;
 }

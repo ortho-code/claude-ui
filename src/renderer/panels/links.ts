@@ -1,5 +1,5 @@
 import type { PanelData } from '../../shared/panels';
-import { projectFor, sessionLabel } from '../rules/sessions';
+import { entityKey, projectFor, sessionLabel } from '../rules/sessions';
 import { openMenu } from '../ui/menu';
 import { askForSession } from '../dialogs/session-dialog';
 import { showToast } from '../ui/toast';
@@ -67,6 +67,7 @@ export function sessionNamed(id: string): LinkedSession | null {
     acked: shownRead(id, dotStatus(id, view), view),
     running: sessionRunning(id, view),
     canMarkRead: canMarkRead(id, view),
+    note: view.notes.get(entityKey(session)) ?? null,
   };
 }
 

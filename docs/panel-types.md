@@ -294,6 +294,7 @@ A live value's `field` is one of: `title`.
 The dot of the session an item's `session` names shows the session's status as the session list's dot does, and hovering it names the session and its state.
 A press on it marks the session read, or unread again, wherever a press on its dot in the session list would: claude waiting, ready, or a needs-you reason; on a dot with nothing to mark, such as a session at work, the press is the row's.
 For a session the app does not have, the row shows no dot.
+While the session has a note, its note mark shows beside the dot, as on its row in the session list: the note on hover, and a press opens it to edit.
 
 ### A part
 
