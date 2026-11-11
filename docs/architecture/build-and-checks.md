@@ -33,8 +33,9 @@ A change meant to touch only comments is proved to with `npm run comments:prove 
 A directive comment is not dropped, since the tool that reads it takes it as code: ESLint's, TypeScript's, esbuild's annotations (`@__PURE__` and its kind, anywhere in a comment) and the legal comments it keeps in the bundle, and Vitest's environment, must each stay as they were, between the same two tokens and the same line breaks from each; one about its own line, an `eslint-disable-line`, keeps that line too, and one about the line below it, such as a `@ts-expect-error`, everything up to the next line that is neither blank nor a `//` comment.
 Passing it is still no reason to skip the linter, whose rules read other comments too (§ Which checks a change needs).
 
-**A file has a size** ([decided 2026-11-11](../decisions/0203-a-file-past-its-size-is-split-or-says-why-not.md)): the linter fails a source file of more than 500 lines of code and a test file of more than 700, blank lines and comments not counted (`max-lines` in `eslint.config.mjs`).
+**A file has a size** ([decided 2026-11-11](../decisions/0203-a-file-past-its-size-is-split-or-says-why-not.md)): the linter fails a source file of more than 400 lines of code and a test file of more than 700, blank lines and comments not counted (`max-lines` in `eslint.config.mjs`).
 One past it is split along the areas it serves, or carries the reason it belongs together at its top, after an `eslint-disable max-lines --`.
+A test file past it is split by the module or behaviour it covers, never trimmed: no test is dropped or merged into another to make it fit.
 Every suppression gives its reason that way (`test/text/suppressions.test.ts`), and no source file is named for no concept, such as `logic` or `utils` (`test/unit/names.test.ts`).
 A name of several words separates them with a dash, `terminal-shell.ts` ([decided 2026-11-11](../decisions/0204-a-file-name-of-several-words-is-kebab-case.md)); the same test file refuses a capital or an underscore in any file or folder name under `src/` and `test/`, and words run together are for review to catch.
 
