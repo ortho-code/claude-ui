@@ -18,6 +18,7 @@
     "styles:compare": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/renderer/styles/compare.ts",
     "comments:prove": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/tools/comments-only.ts",
     "lint": "eslint .",
+    "fallow": "fallow dead-code && fallow dupes",
     "rebuild": "electron-rebuild -f -w node-pty",
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:mac": "npm run build && electron-builder --mac"
@@ -34,6 +35,7 @@
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.1",
     "eslint": "^10.11.0",
+    "fallow": "^3.42.0",
     "globals": "^17.12.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.70.1",

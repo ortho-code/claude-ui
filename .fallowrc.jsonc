@@ -1,0 +1,19 @@
+{
+  "minimumVersion": "3.42.0",
+  // Run by hand when the icon changes, from no script in package.json.
+  "supportEntry": ["scripts/make-icon.mjs"],
+  // The window's checks bundle it at run time from a path in test/renderer/support/harness.ts, and the bridge's stand-in comes in through it.
+  "dynamicallyLoaded": ["test/renderer/support/install.ts"],
+  // The stylesheet the build writes beside the bundle; it is not there before a build.
+  "ignoreUnresolvedImports": ["./renderer.css"],
+  "rules": {
+    // The same name exported from two files is only ambiguous through a file that re-exports both, and no file here re-exports another.
+    "duplicate-exports": "off",
+    // Its first findings named types that are exported and imported, such as AppState and PanelType, as private.
+    "private-type-leaks": "off",
+    // A fallow-ignore says why, as every eslint-disable here does.
+    "require-suppression-reason": "error"
+  },
+  // Follows calls through a type, such as the settings dialog's fields, which the plain analysis took for unused.
+  "typeAware": { "enabled": true, "projects": ["tsconfig.main.json", "tsconfig.renderer.json", "tsconfig.test.json"] }
+}

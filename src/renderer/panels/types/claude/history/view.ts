@@ -5,6 +5,7 @@ import { setTooltip } from '../../../../ui/tooltip';
 import { drawPins, exchangeNode, type ExchangeDrawing } from './exchange';
 import { HistoryHead } from './head';
 import './view.css';
+import type { BarSource } from './bar';
 import type { Band } from './marks';
 import { applySlice, emptyModel, reportLine, requestLabel, type HistoryModel } from './model';
 
@@ -32,7 +33,7 @@ type Place = { at: number; offset: number } | null;
  * It opens as a drawer over the terminal area, from the bar beside it, and is KEPT LAID OUT while the live terminal is on show — hidden by visibility, not display — so what is drawn can still be measured, which is how the bar places its marks.
  * One view for the active tab: switching tabs points it at the new tab's session.
  */
-export class HistoryView {
+export class HistoryView implements BarSource {
   readonly el = document.createElement('section');
   /**
    * What dims claude beside it while it is open over the live terminal; a click on it closes the history.
