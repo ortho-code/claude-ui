@@ -35,6 +35,7 @@ Passing it is still no reason to skip the linter, whose rules read other comment
 
 **A file has a size** ([decided 2026-11-11](../decisions/0203-a-file-past-its-size-is-split-or-says-why-not.md)): the linter fails a source file of more than 400 lines of code and a test file of more than 700, blank lines and comments not counted (`max-lines` in `eslint.config.mjs`).
 One past it is split along the areas it serves, or carries the reason it belongs together at its top, after an `eslint-disable max-lines --`.
+A source function has a size too ([decided 2026-11-11](../decisions/0207-a-function-past-its-size-is-split-or-says-why-not.md)): more than 80 lines of code fails, and one past it is split along the steps it takes, or says why it belongs together above it, after an `eslint-disable-next-line max-lines-per-function --`; a test is left out, since a `describe` holds all its tests in one function.
 A test file past it is split by the module or behaviour it covers, never trimmed: no test is dropped or merged into another to make it fit.
 Every suppression gives its reason that way (`test/text/suppressions.test.ts`), and no source file is named for no concept, such as `logic` or `utils` (`test/unit/names.test.ts`).
 A name of several words separates them with a dash, `terminal-shell.ts` ([decided 2026-11-11](../decisions/0204-a-file-name-of-several-words-is-kebab-case.md)); the same test file refuses a capital or an underscore in any file or folder name under `src/` and `test/`, and words run together are for review to catch.

@@ -36,6 +36,8 @@ export default defineConfig(
   },
   // A file past this many lines of code is split along the areas it serves, or says at its top why it belongs together (`eslint-disable max-lines -- <why>`), so growing past it is a choice someone wrote down rather than drift (decision 0203).
   { files: ['src/**/*.ts'], rules: { 'max-lines': ['error', { max: 400, skipBlankLines: true, skipComments: true }] } },
+  // A function past this many lines of code is split along the steps it takes, or says above it why it belongs together (`eslint-disable-next-line max-lines-per-function -- <why>`); tests are left out, since a `describe` holds all its tests in one function (decision 0207).
+  { files: ['src/**/*.ts'], rules: { 'max-lines-per-function': ['error', { max: 80, skipBlankLines: true, skipComments: true }] } },
   { files: ['test/**/*.ts'], rules: { 'max-lines': ['error', { max: 700, skipBlankLines: true, skipComments: true }] } },
   {
     files: ['**/*.test.ts'],
