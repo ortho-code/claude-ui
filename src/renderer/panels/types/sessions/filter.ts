@@ -1,7 +1,7 @@
 import type { SessionSummary, UiState } from '../../../../shared/types';
 import { calendar } from '../../../dialogs/calendar';
 import { byId, fromMarkup } from '../../../ui/dom';
-import { datePresetRange, sessionPasses } from '../../../rules/session-list';
+import { datePresetRange, sessionPasses } from '../../../rules/session-filter';
 import { entityKey } from '../../../rules/sessions';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
 import { isFiltering, searchText } from '../../../state/views';

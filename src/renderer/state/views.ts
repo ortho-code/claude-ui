@@ -3,7 +3,8 @@ import { categoryOf, type NeedsYouRegistry } from '../../shared/status/needs-you
 import { mutedBySetAside } from '../../shared/status/session-marks';
 import type { SetAside, NeedsYou, SessionGroup, SessionSummary } from '../../shared/types';
 import { tabButton, type TabButton, type TabButtonTab } from '../rules/claude';
-import { inView, projectsForSwitcher, type SwitcherModel } from '../rules/session-list';
+import { inView } from '../rules/session-filter';
+import { projectsForSwitcher, type SwitcherModel } from '../rules/switcher';
 import { displayName, entityKey, projectRootExists, sessionsByKey, unstartableReason } from '../rules/sessions';
 import { sessionPart, type NudgeStatus } from '../status/rollup';
 import { isNeeds, shownState, type Strength } from '../status/shown';

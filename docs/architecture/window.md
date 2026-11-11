@@ -55,7 +55,7 @@ Closed over a filter that is on, the panel folds down to one row of chips, one p
 With nothing on, closing hides it all.
 The count's total is the set the matches were taken from: the same project scope and the same view before the other filters, so the count only ever compares a set with part of itself.
 The finished pill picks that set rather than narrowing it, since the finished view holds only finished sessions and the normal view none, so in the finished view the total is the finished sessions and the count says "finished"; in the normal view it is the number the switcher shows.
-One rule, `inView` in `rules/session-list.ts`, decides which set a session is in for the list, the switcher's counts and the total alike.
+One rule, `inView` in `rules/session-filter.ts`, decides which set a session is in for the list, the switcher's counts and the total alike.
 
 Folds come in two states, and they are deliberately separate.
 Filtering opens the whole tree so a match inside a folded section is never hidden, and folding from there is a way through the results — shut a project you have already been through — rather than a statement about how the sidebar should look.
