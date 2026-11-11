@@ -155,63 +155,66 @@ export function closedHowOf(lastLine: string | null): ClosedHow {
   return lastLine.endsWith(QUIT) ? 'quit' : 'ended';
 }
 
-export function createLog({ dir, header }: LogOptions): Log {
-  let current: { name: string; day: string; crash: boolean } | null = null;
-  let closed = false;
-  let last: { level: LogLevel; area: string; message: string } | null = null;
-  let repeats = 0;
-  let repeatTimer: ReturnType<typeof setTimeout> | null = null;
+/** The log's files: which one is current, starting the next one at a new day, writing a line into it, and the previous launch's last file, said to have crashed when it did not end with the quit line. */
+class LogFiles {
+  private current: { name: string; day: string; crash: boolean } | null = null;
   /** The lines `writeOnce` has written into the current file. */
-  let once = new Set<string>();
+  once = new Set<string>();
 
-  // Every write runs in order through one queue, so a roll or a restart can never interleave with the line that caused it.
-  let queue: Promise<void> = Promise.resolve();
-  const enqueue = (job: () => Promise<void>): void => {
-    queue = queue.then(job).catch(() => undefined);
-  };
+  constructor(
+    private readonly dir: string,
+    private readonly header: () => string[],
+  ) {}
 
-  const file = (name: string): string => path.join(dir, name);
+  private file(name: string): string {
+    return path.join(this.dir, name);
+  }
 
-  async function begin(now: Date, context?: string): Promise<void> {
-    await fs.mkdir(dir, { recursive: true });
+  async begin(now: Date, context?: string): Promise<void> {
+    await fs.mkdir(this.dir, { recursive: true });
     const name = logFileName(now);
-    current = { name, day: dayOf(now), crash: false };
-    once = new Set();
-    for (const line of [`log ${file(name)}`, ...(context === undefined ? [] : [context]), ...header()]) {
-      await appendStamped(file(name), formatLine('info', 'app', line));
+    this.current = { name, day: dayOf(now), crash: false };
+    this.once = new Set();
+    for (const line of [`log ${this.file(name)}`, ...(context === undefined ? [] : [context]), ...this.header()]) {
+      await appendStamped(this.file(name), formatLine('info', 'app', line));
     }
-    for (const expired of expiredLogs(await fs.readdir(dir))) {
-      if (expired !== name) await fs.rm(file(expired), { force: true }).catch(() => undefined);
+    for (const expired of expiredLogs(await fs.readdir(this.dir))) {
+      if (expired !== name) await fs.rm(this.file(expired), { force: true }).catch(() => undefined);
     }
   }
 
   /** The file's last line, then the crash rename if something died in it. */
-  async function finish(lastLine: string): Promise<void> {
-    if (current === null) return;
-    const done = current;
-    await appendStamped(file(done.name), formatLine('info', 'app', lastLine), { create: false }).catch(() => undefined);
-    if (done.crash) await fs.rename(file(done.name), file(crashName(done.name))).catch(() => undefined);
+  async finish(lastLine: string): Promise<void> {
+    if (this.current === null) return;
+    const done = this.current;
+    await appendStamped(this.file(done.name), formatLine('info', 'app', lastLine), { create: false }).catch(() => undefined);
+    if (done.crash) await fs.rename(this.file(done.name), this.file(crashName(done.name))).catch(() => undefined);
   }
 
   /** Start the next file when the date has moved on since the current one began. */
-  async function rollIfDue(now: Date): Promise<void> {
-    if (current === null || dayOf(now) === current.day) return;
-    const previous = current.name;
-    await finish(`${CONTINUES_IN}${logFileName(now)} =====`);
-    await begin(now, `continued from ${previous}`);
+  async rollIfDue(now: Date): Promise<void> {
+    if (this.current === null || dayOf(now) === this.current.day) return;
+    const previous = this.current.name;
+    await this.finish(`${CONTINUES_IN}${logFileName(now)} =====`);
+    await this.begin(now, `continued from ${previous}`);
   }
 
-  async function put(text: string): Promise<void> {
-    if (current === null) return;
+  async put(text: string): Promise<void> {
+    if (this.current === null) return;
     const now = new Date();
-    await rollIfDue(now);
+    await this.rollIfDue(now);
     try {
-      await appendStamped(file(current.name), text, { create: false });
+      await appendStamped(this.file(this.current.name), text, { create: false });
     } catch (error) {
       if (!isMissing(error)) return;
-      await begin(now, `started again: ${current.name} was removed while the app ran`);
-      await appendStamped(file(current.name), text);
+      await this.begin(now, `started again: ${this.current.name} was removed while the app ran`);
+      await appendStamped(this.file(this.current.name), text);
     }
+  }
+
+  /** Something died in the current file, so it is kept as a crash log when it ends. */
+  markCrash(): void {
+    if (this.current !== null) this.current.crash = true;
   }
 
   /**
@@ -219,14 +222,34 @@ export function createLog({ dir, header }: LogOptions): Log {
    * Only the newest ordinary file is the previous launch's last.
    * An earlier file of a run that crossed midnight ends with its continues line and is left alone, and so is one whose successor was deleted, since how that run ended is not in it.
    */
-  async function classifyPrevious(): Promise<void> {
-    const previous = logNames(await fs.readdir(dir)).find((log) => !log.crash);
+  async classifyPrevious(): Promise<void> {
+    const previous = logNames(await fs.readdir(this.dir)).find((log) => !log.crash);
     if (previous === undefined) return;
-    const lastLine = await readLastLine(file(previous.name));
+    const lastLine = await readLastLine(this.file(previous.name));
     if (lastLine === null || lastLine.endsWith(QUIT) || lastLine.includes(CONTINUES_IN)) return;
-    await appendStamped(file(previous.name), formatLine('warn', 'app', ENDED), { create: false });
-    await fs.rename(file(previous.name), file(crashName(previous.name)));
+    await appendStamped(this.file(previous.name), formatLine('warn', 'app', ENDED), { create: false });
+    await fs.rename(this.file(previous.name), this.file(crashName(previous.name)));
   }
+
+  /** Read before the previous file is classified, which may add a line to it, and before this launch makes its own. */
+  async readLastClosed(): Promise<ClosedHow> {
+    const newest = logNames(await fs.readdir(this.dir))[0];
+    return newest === undefined ? 'unknown' : closedHowOf(await readLastLine(this.file(newest.name)));
+  }
+}
+
+export function createLog({ dir, header }: LogOptions): Log {
+  const files = new LogFiles(dir, header);
+  let closed = false;
+  let last: { level: LogLevel; area: string; message: string } | null = null;
+  let repeats = 0;
+  let repeatTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Every write runs in order through one queue, so a roll or a restart can never interleave with the line that caused it.
+  let queue: Promise<void> = Promise.resolve();
+  const enqueue = (job: () => Promise<void>): void => {
+    queue = queue.then(job).catch(() => undefined);
+  };
 
   function flushRepeats(): void {
     if (repeatTimer !== null) clearTimeout(repeatTimer);
@@ -235,21 +258,15 @@ export function createLog({ dir, header }: LogOptions): Log {
     // The repeated message is named rather than pointed at, because the count may land in the next file, after its header.
     const text = formatLine(last.level, last.area, `repeated ${repeats} more ${repeats === 1 ? 'time' : 'times'}: ${last.message.split('\n')[0]}`);
     repeats = 0;
-    enqueue(() => put(text));
-  }
-
-  /** Read before the previous file is classified, which may add a line to it, and before this launch makes its own. */
-  async function readLastClosed(): Promise<ClosedHow> {
-    const newest = logNames(await fs.readdir(dir))[0];
-    return newest === undefined ? 'unknown' : closedHowOf(await readLastLine(file(newest.name)));
+    enqueue(() => files.put(text));
   }
 
   let closedHow: ClosedHow = 'unknown';
   enqueue(async () => {
     await fs.mkdir(dir, { recursive: true });
-    closedHow = await readLastClosed().catch(() => 'unknown' as const);
-    await classifyPrevious().catch(() => undefined);
-    await begin(new Date());
+    closedHow = await files.readLastClosed().catch(() => 'unknown' as const);
+    await files.classifyPrevious().catch(() => undefined);
+    await files.begin(new Date());
   });
   const closedRead = queue.then(() => closedHow);
 
@@ -262,10 +279,10 @@ export function createLog({ dir, header }: LogOptions): Log {
       last = null;
       // Checked when the line reaches the front of the queue, and after a roll the line itself would cause, so it is counted against the file it actually lands in.
       enqueue(async () => {
-        await rollIfDue(new Date());
-        if (once.has(text)) return;
-        await put(text);
-        once.add(text);
+        await files.rollIfDue(new Date());
+        if (files.once.has(text)) return;
+        await files.put(text);
+        files.once.add(text);
       });
     },
     write(level, area, message) {
@@ -278,7 +295,7 @@ export function createLog({ dir, header }: LogOptions): Log {
       flushRepeats();
       last = { level, area, message };
       const text = formatLine(level, area, message);
-      enqueue(() => put(text));
+      enqueue(() => files.put(text));
     },
     crash(area, message) {
       if (closed) return;
@@ -287,15 +304,15 @@ export function createLog({ dir, header }: LogOptions): Log {
       last = null;
       const text = formatLine('error', area, message);
       enqueue(async () => {
-        await put(text);
-        if (current !== null) current.crash = true;
+        await files.put(text);
+        files.markCrash();
       });
     },
     close() {
       if (!closed) {
         flushRepeats();
         closed = true;
-        enqueue(() => finish(QUIT));
+        enqueue(() => files.finish(QUIT));
       }
       return queue;
     },
