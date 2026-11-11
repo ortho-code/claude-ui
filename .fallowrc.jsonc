@@ -15,5 +15,47 @@
     "require-suppression-reason": "error"
   },
   // Follows calls through a type, such as the settings dialog's fields, which the plain analysis took for unused.
-  "typeAware": { "enabled": true, "projects": ["tsconfig.main.json", "tsconfig.renderer.json", "tsconfig.test.json"] }
+  "typeAware": { "enabled": true, "projects": ["tsconfig.main.json", "tsconfig.renderer.json", "tsconfig.test.json"] },
+  // The layers: which folder of src/ may import which, `import type` included (docs/architecture/processes.md § Processes).
+  // A file takes the first zone that matches it, so the zones run from the narrowest to the widest.
+  // test/unit/boundaries.test.ts crosses each line on purpose.
+  "boundaries": {
+    "zones": [
+      { "name": "main", "patterns": ["src/main/**"] },
+      { "name": "preload", "patterns": ["src/preload/**"] },
+      { "name": "shared", "patterns": ["src/shared/**"] },
+      // The renderer's start-up, and the saving of the view, which reads what each panel holds.
+      { "name": "start", "patterns": ["src/renderer/renderer.ts", "src/renderer/window/view-saving.ts"] },
+      { "name": "claude", "patterns": ["src/renderer/panels/types/claude/**"] },
+      { "name": "sessions", "patterns": ["src/renderer/panels/types/sessions/**"] },
+      { "name": "types", "patterns": ["src/renderer/panels/types/**"] },
+      // The layout tree, the one place that places the panel types.
+      { "name": "tree", "patterns": ["src/renderer/panels/tree.ts"] },
+      // What every panel type shares: the contract and the run code among it.
+      { "name": "panels", "patterns": ["src/renderer/panels/**"] },
+      // The store and its views.
+      { "name": "state", "patterns": ["src/renderer/state/**"] },
+      // The services the panels draw on: the rest of the renderer, `ui/`, `dialogs/`, `status/`, `window/`, `rules/` and the files beside them.
+      { "name": "services", "patterns": ["src/renderer/**"] }
+    ],
+    "rules": [
+      // Each process reaches another only over IPC; code both sides need goes in src/shared.
+      { "from": "main", "allow": ["main", "shared"] },
+      { "from": "preload", "allow": ["preload", "shared"] },
+      { "from": "shared", "allow": ["shared"] },
+      { "from": "start", "allow": ["shared", "start", "services", "state", "tree", "panels", "claude", "sessions", "types"] },
+      // A service sits below the panels, which draw on it, and so does the store, which they read.
+      { "from": "services", "allow": ["shared", "start", "services", "state"] },
+      { "from": "state", "allow": ["shared", "start", "services", "state"] },
+      { "from": "tree", "allow": ["shared", "start", "services", "state", "tree", "panels", "claude", "sessions", "types"] },
+      // Only the tree places the panel types; what they share is here.
+      { "from": "panels", "allow": ["shared", "start", "services", "state", "tree", "panels"] },
+      // The two built-ins never import each other's modules: they ask through the host (Asks) and share the store.
+      { "from": "claude", "allow": ["shared", "start", "services", "state", "tree", "panels", "claude", "types"] },
+      { "from": "sessions", "allow": ["shared", "start", "services", "state", "tree", "panels", "sessions", "types"] },
+      { "from": "types", "allow": ["shared", "start", "services", "state", "tree", "panels", "claude", "sessions", "types"] }
+    ],
+    // Every source file is in a layer, and a new folder beside the processes fails until it is given one; the tests, the scripts and the root's configs stand outside them.
+    "coverage": { "requireAllFiles": true, "allowUnmatched": ["test/**", "scripts/**", "eslint.config.mjs", "vitest.config.ts", "src/**/*.{css,html}"] }
+  }
 }

@@ -9,13 +9,13 @@ The standard Electron split, with the renderer locked down:
   `contextIsolation` is on and `nodeIntegration` is off, so the renderer never touches Node directly.
 - **Renderer** (`src/renderer`) is plain DOM, no framework yet, and talks only to the preload API.
 
-The linter holds the split: a source file importing from another process's folder fails `npm run lint`, and code both sides need goes in `src/shared`.
+Layers hold the split ([decided 2026-11-11](../decisions/0206-the-layers-are-fallows-zones.md)): a source file importing from another process's folder fails `npm run fallow`, which checks the layers declared in `.fallowrc.jsonc`, and code both sides need goes in `src/shared`.
 So does a rule of main's that the window checks' stand-in answers with, so the stand-in runs main's own code rather than a copy of it ([§ The window's checks](build-and-checks.md#the-windows-checks)), which is why some modules there are imported by main alone.
 The tests are outside it, under `test/`, since a test may assert across the line — the launcher's flags against the reserved list, for one.
 Inside the renderer it holds four more lines the same way: the two built-ins never import each other's modules, a service, any file in `ui/`, `dialogs/`, `status/`, `window/` or `rules/`, never imports from `panels/`, nor does `state/`, and outside `panels/types/` only the tree and the start-up (`renderer.ts`, `view-saving.ts`) import a panel type's module.
-ESLint takes a rule's settings from the last block that matches a file, so each of those blocks repeats the process rule rather than adding to it (`eslint.config.mjs` says so beside them).
-A unit test crosses every boundary on purpose, from inside every block, through ESLint's own API (`test/unit/boundaries.test.ts`), so a block that drops the process rule, or a pattern that misses a way of spelling a path, fails there rather than letting a crossing through.
-What no lint rule here can hold, a unit test does (`test/unit/imports.test.ts`): no cycle of value imports anywhere in `src/`, read with the compiler's own parser, `import type` aside since it runs nothing.
+Each layer is a zone of files with the zones it may import, `import type` included; a file takes the first zone that matches it, and every source file is in one: a new folder in the renderer is a service, the layer that may import least, and one beside the processes fails until it is given a layer.
+A unit test crosses every line on purpose, in a project of empty modules that fallow checks with the repo's own layers (`test/unit/boundaries.test.ts`), so a zone that takes a file it should not, or a way of spelling a path that slips past, fails there rather than letting a crossing through.
+What the layers do not hold, a unit test does (`test/unit/imports.test.ts`): no cycle of value imports anywhere in `src/`, read with the compiler's own parser, `import type` aside since it runs nothing.
 
 **The window never navigates.**
 Main refuses any navigation away from the app's own page and any new window (`will-navigate`, `setWindowOpenHandler`), because a page loaded there would get the preload's bridge, and the bridge runs commands.

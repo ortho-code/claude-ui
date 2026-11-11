@@ -39,7 +39,7 @@ A test file past it is split by the module or behaviour it covers, never trimmed
 Every suppression gives its reason that way (`test/text/suppressions.test.ts`), and no source file is named for no concept, such as `logic` or `utils` (`test/unit/names.test.ts`).
 A name of several words separates them with a dash, `terminal-shell.ts` ([decided 2026-11-11](../decisions/0204-a-file-name-of-several-words-is-kebab-case.md)); the same test file refuses a capital or an underscore in any file or folder name under `src/` and `test/`, and words run together are for review to catch.
 
-**Nothing goes unused and nothing is copied** ([decided 2026-11-11](../decisions/0205-fallow-gates-ci-for-unused-and-copied-code.md)): `npm run fallow` fails on a file, export or dependency that nothing uses, and on a block of code that appears twice, and CI runs it after the linter.
+**Nothing goes unused and nothing is copied** ([decided 2026-11-11](../decisions/0205-fallow-gates-ci-for-unused-and-copied-code.md)): `npm run fallow` fails on a file, export or dependency that nothing uses, on a block of code that appears twice, and on an import across the layers ([Processes](processes.md#processes)), and CI runs it after the linter.
 It is fallow, set up in `.fallowrc.jsonc`, with the reason for each setting beside it; it follows calls through types, from all three TypeScript projects.
 Something kept on purpose says so in a `fallow-ignore` comment with its reason, as an `eslint-disable` does.
 

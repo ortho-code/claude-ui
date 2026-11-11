@@ -4,26 +4,6 @@ import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-// Each process reaches another only through IPC, so a source folder may not import from the folders named here.
-// The tests, under test/, are outside it on purpose.
-const PROCESSES = { main: ['renderer', 'preload'], preload: ['main', 'renderer'], renderer: ['main', 'preload'], shared: ['main', 'preload', 'renderer'] };
-
-// ESLint takes a rule's options from the last block that matches a file, so a block that restricts more repeats its process's pattern rather than adding to it, and no two of the renderer's blocks below cover the same file.
-const boundary = (folder, files, ignores = [], ...more) => ({
-  files,
-  ignores,
-  rules: {
-    'no-restricted-imports': ['error', {
-      patterns: [{ group: PROCESSES[folder].map((other) => `**/${other}/**`), message: 'Processes talk only over IPC; code both sides need goes in src/shared.' }, ...more],
-    }],
-  },
-});
-
-// Inside the renderer the patterns are anchored on where each set of files sits, so `../../shared/panels` is never taken for the renderer's `panels/`, and end at the folder's name, so an import of the folder itself (its index.ts) is caught too.
-// A path from one built-in reaches the other's folder only by climbing straight into it or by naming it under `types/`, so the two built-ins' patterns take both, however far up the climb goes, and leave a module of the same name elsewhere alone.
-// test/unit/boundaries.test.ts crosses each one.
-const BUILTINS_APART = 'The two built-ins never import each other’s modules: they ask through the host (Asks) and share the store.';
-
 export default defineConfig(
   // test-results/ is Playwright's output, which a run of the window's checks deletes at its start, so a lint walking the tree beside one failed on the folder gone under it.
   { ignores: ['dist/', 'release/', 'test-results/'] },
@@ -54,29 +34,6 @@ export default defineConfig(
       eqeqeq: ['error', 'always', { null: 'ignore' }],
     },
   },
-  boundary('main', ['src/main/**/*.ts']),
-  boundary('preload', ['src/preload/**/*.ts']),
-  boundary('shared', ['src/shared/**/*.ts']),
-  // The whole renderer, which the blocks below narrow for their own files; none narrows the start-up, the tree, or the modules directly under panels/types/.
-  boundary('renderer', ['src/renderer/**/*.ts']),
-  boundary('renderer', ['src/renderer/*.ts'], ['src/renderer/renderer.ts'], {
-    regex: '^\\./panels(/|$)',
-    message: 'A service sits below the panels, which draw on it, so it never imports from panels/.',
-  }),
-  boundary('renderer', ['src/renderer/{ui,dialogs,status,window,rules}/**/*.ts'], ['src/renderer/window/view-saving.ts'], {
-    regex: '^\\.\\./panels(/|$)',
-    message: 'A service sits below the panels, which draw on it, so it never imports from panels/.',
-  }),
-  boundary('renderer', ['src/renderer/state/**/*.ts'], [], {
-    regex: '^\\.\\./panels(/|$)',
-    message: 'The store and its views sit below the panels, which read them, so state/ never imports from panels/.',
-  }),
-  boundary('renderer', ['src/renderer/panels/*.ts'], ['src/renderer/panels/tree.ts'], {
-    regex: '^\\./types(/|$)',
-    message: 'Only the tree places the panel types; what they share is the contract (contract.ts) and the run code (run.ts).',
-  }),
-  boundary('renderer', ['src/renderer/panels/types/claude/**/*.ts'], [], { regex: '^(\\.\\./)+sessions(/|$)|(^|/)types/sessions(/|$)', message: BUILTINS_APART }),
-  boundary('renderer', ['src/renderer/panels/types/sessions/**/*.ts'], [], { regex: '^(\\.\\./)+claude(/|$)|(^|/)types/claude(/|$)', message: BUILTINS_APART }),
   // A file past this many lines of code is split along the areas it serves, or says at its top why it belongs together (`eslint-disable max-lines -- <why>`), so growing past it is a choice someone wrote down rather than drift (decision 0203).
   { files: ['src/**/*.ts'], rules: { 'max-lines': ['error', { max: 400, skipBlankLines: true, skipComments: true }] } },
   { files: ['test/**/*.ts'], rules: { 'max-lines': ['error', { max: 700, skipBlankLines: true, skipComments: true }] } },

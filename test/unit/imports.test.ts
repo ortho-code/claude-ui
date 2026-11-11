@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * The import graph of everything under src/, read with the compiler's own parser.
- * Only imports that bring in a value count, since `import type` is erased and runs nothing; the linter holds which folder may import which (eslint.config.mjs), and this holds what no lint rule here can: that no two modules run each other.
+ * Only imports that bring in a value count, since `import type` is erased and runs nothing; fallow's layers hold which folder may import which (.fallowrc.jsonc), and this holds what they do not: that no two modules run each other.
  */
 
 const src = fileURLToPath(new URL('../../src/', import.meta.url));
