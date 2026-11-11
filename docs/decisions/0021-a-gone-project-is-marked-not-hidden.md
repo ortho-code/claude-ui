@@ -2,6 +2,7 @@
 
 - **Date:** 2026-09-28
 - **Area:** [A session whose folder is gone](../architecture/claude.md#a-session-whose-folder-is-gone)
+- **Partly replaced** by [0072](0072-a-project-is-listed-while-it-has-sessions.md) on 2026-10-15: finishing a dead project's sessions no longer takes it out of the switcher, only deleting them does; the mark rather than hiding still holds.
 
 ## Decision
 

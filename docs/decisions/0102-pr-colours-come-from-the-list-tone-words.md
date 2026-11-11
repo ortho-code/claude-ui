@@ -2,6 +2,7 @@
 
 - **Date:** 2026-10-22
 - **Area:** [Reading sessions](../architecture/sessions.md#reading-sessions)
+- **Partly replaced** by [0208](0208-a-prs-colour-follows-whose-turn-it-is.md) on 2026-11-11: a state that is not yours to act on takes the accent, and a PR yours to review again takes a needs-you look's colour.
 
 ## Decision
 

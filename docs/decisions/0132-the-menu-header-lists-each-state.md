@@ -2,6 +2,7 @@
 
 - **Date:** 2026-10-28
 - **Area:** [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it)
+- **Partly replaced** by [0174](0174-a-dots-tooltip-lists-every-state-the-session-is-in.md) on 2026-11-06: the header's lines run in the strength order, the dot's first, not the status and then the needs-you mark.
 
 ## Decision
 

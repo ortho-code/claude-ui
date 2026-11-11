@@ -2,6 +2,7 @@
 
 - **Date:** 2026-11-06
 - **Area:** [Status cues](../architecture/status-cues.md#status-cues)
+- **Partly replaced** by [0210](0210-a-muted-needs-you-mark-gives-way-to-claudes-status.md) on 2026-11-11: where a set-aside mark mutes the reasons, claude's status shows over them whatever the strength order says.
 
 ## Decision
 
