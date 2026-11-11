@@ -89,6 +89,52 @@ function menuBadge(className: string, icon: string, open: (anchor: HTMLElement) 
   return { badge, count };
 }
 
+/** A row's buttons at its end, each acting on the session listed under `key` when pressed: its pin, Unfinished and Delete, which the finished view shows, and its menu. */
+function rowButtons(key: string): { pin: HTMLButtonElement; unfinishBtn: HTMLButtonElement; deleteBtn: HTMLButtonElement; kebab: HTMLButtonElement } {
+  const pin = document.createElement('button');
+  pin.className = 'icon-btn pin';
+  pin.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (pin.disabled) return;
+    // Disabling it is the pending cue: the icon button's disabled look dims it (base.css).
+    // (There was a 'loading' class here with no CSS behind it, so it painted nothing.)
+    pin.disabled = true;
+    void togglePinFor(key).then(() => {
+      // The row's redraw re-enables it; this is for an answer that changed nothing, which tells nobody.
+      pin.disabled = false;
+    });
+  });
+
+  // Unfinished lives on the row because it is what the finished view is for; finishing a live session is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
+  const unfinishBtn = document.createElement('button');
+  unfinishBtn.className = 'icon-btn unfinish-btn';
+  unfinishBtn.hidden = true;
+  unfinishBtn.innerHTML = UNFINISH_ICON;
+  setTooltip(unfinishBtn, 'Unfinished');
+  unfinishBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    void unfinishFor(key);
+  });
+
+  // Delete lives only in the finished view (shown/hidden in updateRow); trash-based + confirmed.
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'icon-btn delete-btn pair-end';
+  setTooltip(deleteBtn, 'Delete session');
+  deleteBtn.hidden = true;
+  deleteBtn.innerHTML = strokeIcon(14, '<path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" />');
+  deleteBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    void confirmAndDelete([key]);
+  });
+
+  // The session's menu, in both views: a finished session's holds the finished view's two actions among its items (`sessionMenuItems`).
+  const kebab = kebabButton('session-kebab pair-end', 'Session options', () => {
+    const session = currentByKey.get(key);
+    return session ? sessionMenuItems(session, 'row') : null;
+  });
+  return { pin, unfinishBtn, deleteBtn, kebab };
+}
+
 // Build a row once.
 // Its click/pin handlers read the live session from `currentByKey` by the entity key (the session id), so a reused row stays correct across re-renders.
 function createSessionRow(key: string): HTMLElement {
@@ -154,47 +200,7 @@ function createSessionRow(key: string): HTMLElement {
   subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge);
   content.append(subline);
 
-  const pin = document.createElement('button');
-  pin.className = 'icon-btn pin';
-  pin.addEventListener('click', (event) => {
-    event.stopPropagation();
-    if (pin.disabled) return;
-    // Disabling it is the pending cue: the icon button's disabled look dims it (base.css).
-    // (There was a 'loading' class here with no CSS behind it, so it painted nothing.)
-    pin.disabled = true;
-    void togglePinFor(key).then(() => {
-      // The row's redraw re-enables it; this is for an answer that changed nothing, which tells nobody.
-      pin.disabled = false;
-    });
-  });
-
-  // Unfinished lives on the row because it is what the finished view is for; finishing a live session is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
-  const unfinishBtn = document.createElement('button');
-  unfinishBtn.className = 'icon-btn unfinish-btn';
-  unfinishBtn.hidden = true;
-  unfinishBtn.innerHTML = UNFINISH_ICON;
-  setTooltip(unfinishBtn, 'Unfinished');
-  unfinishBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    void unfinishFor(key);
-  });
-
-  // Delete lives only in the finished view (shown/hidden in updateRow); trash-based + confirmed.
-  const deleteBtn = document.createElement('button');
-  deleteBtn.className = 'icon-btn delete-btn pair-end';
-  setTooltip(deleteBtn, 'Delete session');
-  deleteBtn.hidden = true;
-  deleteBtn.innerHTML = strokeIcon(14, '<path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" />');
-  deleteBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    void confirmAndDelete([key]);
-  });
-
-  // The session's menu, in both views: a finished session's holds the finished view's two actions among its items (`sessionMenuItems`).
-  const kebab = kebabButton('session-kebab pair-end', 'Session options', () => {
-    const session = currentByKey.get(key);
-    return session ? sessionMenuItems(session, 'row') : null;
-  });
+  const { pin, unfinishBtn, deleteBtn, kebab } = rowButtons(key);
 
   // Its box in bulk mode, before the dot (bulk.ts); drawn only then, and a press anywhere on the row ticks it then.
   item.prepend(tickBox(), dot);
