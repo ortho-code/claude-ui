@@ -6,14 +6,14 @@ import { folderName } from '../../rules/sessions';
 import type { MenuItem } from '../../ui/menu';
 import { store } from '../../state/app';
 import { projName } from '../../state/views';
-import { bindTerminal, createTerminal, fitTerminal, unbindTerminal, type TerminalView } from '../../ui/terminal';
+import { problemSaid, TerminalShell, type ShellOwner } from './terminal-shell';
 import './terminal.css';
 import { CWD_OPTION, isFixedPath, optionsOf, type OptionDecl } from '../options';
 import type { MountedPanel, PanelHost, PanelTab, PanelType, Where } from '../contract';
 import { NO_CONTEXT, prepare, resolveContext, runContext } from '../run';
 
 /**
- * The `terminal` panel type: plain shells beside the terminal, each in a pty and an xterm of its own, as tabs in the panel's header (docs/architecture/panels.md § The `terminal` type).
+ * The `terminal` panel type: plain shells beside the terminal, each in a pty and an xterm of its own (terminal-shell.ts), as tabs in the panel's header (docs/architecture/panels.md § The `terminal` type).
  *
  * A SHELL STAYS PUT.
  * It starts in the folder it is made in — the context directory, or its `cwd` under it, or a fixed `cwd` — and stays there through tab and project switches; a shell has state, and a switch must never kill a command running in it.
@@ -26,43 +26,15 @@ import { NO_CONTEXT, prepare, resolveContext, runContext } from '../run';
  * A shell that EXITS leaves its screen up with a line saying so, and stays so until the next key, which starts a new one in its tab, so getting a shell back never depends on a button being there.
  */
 
-/** What a shell says of its first problem, as the header's word, which carries no full stop. */
-const problemSaid = (problems: string[]): string => problems[0]?.replace(/\.$/, '') ?? 'could not start';
-
 /** Which shells a panel shows: the selected project's, or every one in every project. */
 const SCOPE_OPTION: OptionDecl = { name: 'scope', kind: 'choice', values: ['project', 'global'] };
-
-/** A shell the panel holds, and the tab it is shown under. */
-interface Shell {
-  /** The panel's own id for it, which its tab is drawn by. */
-  id: string;
-  name: string;
-  /** The project it belongs to, its repo root, for a panel that shows shells by project; null for one that shows every shell everywhere. */
-  project: string | null;
-  /** The folder its shell starts in: where it was made or Restart here last started it, or for one brought back, where it was when the app last quit. */
-  folder: string;
-  box: HTMLElement;
-  view: TerminalView | null;
-  /** Its live shell's terminal id, or null while there is none. */
-  terminalId: number | null;
-  starting: boolean;
-  /** No shell because the last one ended, or never started: a key starts one. */
-  exited: boolean;
-  /** Closed while its shell was still starting, which then hands that shell straight back. */
-  closed: boolean;
-  /** Which of its starts is the latest: a start overtaken by another, a restart asked for while it was on its way, hands its shell straight back. */
-  starts: number;
-  /** Picked by you before it had a terminal to focus: it takes the keys once it has one. */
-  focusWhenStarted: boolean;
-  observer: ResizeObserver;
-}
 
 class TerminalPanel implements MountedPanel {
   readonly el = document.createElement('div');
   /** The line in a shell's place when there is none: no context to start one in, or no shell made here yet. */
   private readonly placeholder = document.createElement('div');
   /** In the order their tabs are drawn, every project's together. */
-  private shells: Shell[] = [];
+  private shells: TerminalShell[] = [];
   /** The tab on show, by what is on show: a project, All, or everywhere (`scopeKey`). */
   private readonly onShow = new Map<string, string>();
   /** Whether the panel is on screen, as the tree last said. */
@@ -85,11 +57,33 @@ class TerminalPanel implements MountedPanel {
   /** Its tabs folded to the row on show where they are in rows, as in All; kept with the shells. */
   private folded = false;
   private readonly unwatch: () => void;
+  /** What each of its shells asks of it. */
+  private readonly owner: ShellOwner;
 
   constructor(
     private readonly slot: PanelSlot,
     private readonly host: PanelHost,
   ) {
+    this.owner = {
+      check: async (shell) => {
+        // Checked against its own project, as Restart here checked it, so the two look at the same place unless the selection changes between them.
+        const { runnable, problems } = await this.prepared(this.ownWhere(shell));
+        return this.refused ? null : { runnable, problems };
+      },
+      // Filed under a project, its variables name that project whatever is selected, as in All with another project's tab on show; filed under none, the selection.
+      context: (shell, folder) => runContext(resolveContext(this.host.where()), folder, shell.project),
+      entryId: slot.key,
+      shown: (shell) => this.current() === shell,
+      changed: () => this.draw(),
+      ended: (said) => {
+        if (said !== null) {
+          this.sayFailed(said);
+          return;
+        }
+        this.host.setEnd('');
+        this.host.setStatus(null);
+      },
+    };
     this.el.className = 'panel-body';
     this.placeholder.className = 'pane-placeholder';
     this.placeholder.tabIndex = 0;
@@ -190,7 +184,7 @@ class TerminalPanel implements MountedPanel {
   unmount(): void {
     this.disposed = true;
     this.unwatch();
-    for (const shell of this.shells) this.dispose(shell);
+    for (const shell of this.shells) shell.dispose();
     this.shells = [];
   }
 
@@ -209,7 +203,7 @@ class TerminalPanel implements MountedPanel {
   }
 
   /** The shells whose tabs are on show, in the order they are drawn: in All, a project's together, in the project order you set. */
-  private visible(): Shell[] {
+  private visible(): TerminalShell[] {
     if (this.scope() === 'global') return this.shells;
     const project = this.host.where().project;
     if (project !== null) return this.shells.filter((shell) => shell.project === project);
@@ -223,7 +217,7 @@ class TerminalPanel implements MountedPanel {
   }
 
   /** The shell on show: the one last picked where you are, else the first. */
-  private current(): Shell | null {
+  private current(): TerminalShell | null {
     const visible = this.visible();
     const id = this.onShow.get(this.scopeKey());
     return visible.find((shell) => shell.id === id) ?? visible[0] ?? null;
@@ -310,23 +304,23 @@ class TerminalPanel implements MountedPanel {
   private ensure(): void {
     if (!this.loaded || !this.onScreen || this.refused || this.disposed) return;
     const current = this.current();
-    if (current?.terminalId === null && !current.starting && !current.exited) void this.start(current, current.folder);
+    if (current?.terminalId === null && !current.starting && !current.exited) void current.start(current.folder);
   }
 
   // ——— what a tab does ———
 
-  private withShell(id: string, act: (shell: Shell) => void): void {
+  private withShell(id: string, act: (shell: TerminalShell) => void): void {
     const shell = this.shells.find((each) => each.id === id);
     if (shell) act(shell);
   }
 
   /** Put a shell on show, started if it has nothing running and has not exited, and with the keys when `focus` says you picked it. */
-  private select(shell: Shell, focus: boolean): void {
+  private select(shell: TerminalShell, focus: boolean): void {
     this.onShow.set(this.scopeKey(), shell.id);
     if (shell.project !== null) this.onShow.set(shell.project, shell.id);
     this.draw();
     this.save();
-    if (shell.terminalId === null && !shell.starting && !shell.exited) void this.start(shell, shell.folder);
+    if (shell.terminalId === null && !shell.starting && !shell.exited) void shell.start(shell.folder);
     if (!focus) return;
     if (shell.view) shell.view.term.focus();
     else shell.focusWhenStarted = true;
@@ -367,38 +361,18 @@ class TerminalPanel implements MountedPanel {
     shell.focusWhenStarted = true;
     this.draw();
     this.save();
-    void this.start(shell, shell.folder);
+    void shell.start(shell.folder);
   }
 
   /** A shell's tab, with no shell yet: a new one, or one kept from the last launch, which brings its own id and name. */
-  private make(project: string | null, folder: string, kept?: { id: string; name: string }): Shell {
-    const box = document.createElement('div');
-    box.className = 'panel-terminal';
-    box.hidden = true;
-    this.el.append(box);
-    const shell: Shell = {
-      id: kept?.id ?? `${Date.now().toString(36)}-${this.nextId++}`,
-      name: kept?.name ?? this.freeName(project, folderName(folder)),
-      project,
-      folder,
-      box,
-      view: null,
-      terminalId: null,
-      starting: false,
-      exited: false,
-      closed: false,
-      starts: 0,
-      focusWhenStarted: false,
-      // Fit whenever the box changes size, its first layout included: a shell is made before its box is on screen, so it measures nothing yet, and a fit now would leave xterm at its 80×24 default — the hidden-pane trap.
-      // The same observer covers every later reveal — its tab picked, a group unfolding from its rail, a divider reopening a squeezed node — since each gives the box a size again.
-      observer: new ResizeObserver(() => this.fit(shell)),
-    };
-    shell.observer.observe(box);
-    return shell;
+  private make(project: string | null, folder: string, kept?: { id: string; name: string }): TerminalShell {
+    const id = kept?.id ?? `${Date.now().toString(36)}-${this.nextId++}`;
+    const name = kept?.name ?? this.freeName(project, folderName(folder));
+    return new TerminalShell(this.el, this.owner, id, name, project, folder);
   }
 
   /** A shell's name: its folder's, numbered from 2 when another of its project's has it. */
-  private freeName(project: string | null, base: string, except?: Shell): string {
+  private freeName(project: string | null, base: string, except?: TerminalShell): string {
     const taken = new Set(this.shells.filter((shell) => shell.project === project && shell !== except).map((shell) => shell.name));
     if (!taken.has(base)) return base;
     let n = 2;
@@ -406,11 +380,11 @@ class TerminalPanel implements MountedPanel {
     return `${base} ${n}`;
   }
 
-  private close(shell: Shell): void {
+  private close(shell: TerminalShell): void {
     const visible = this.visible();
     const at = visible.indexOf(shell);
     const wasCurrent = this.current() === shell;
-    this.dispose(shell);
+    shell.dispose();
     this.shells = this.shells.filter((each) => each !== shell);
     const next = wasCurrent ? (visible[at + 1] ?? visible[at - 1] ?? null) : null;
     if (next) this.select(next, true);
@@ -418,7 +392,7 @@ class TerminalPanel implements MountedPanel {
     this.save();
   }
 
-  private menu(shell: Shell): MenuItem[] {
+  private menu(shell: TerminalShell): MenuItem[] {
     return [
       { label: 'Rename…', onSelect: () => void this.rename(shell) },
       { label: 'Restart here', onSelect: () => void this.restartHere(shell) },
@@ -431,7 +405,7 @@ class TerminalPanel implements MountedPanel {
    * Whether ending a shell's running shell is all right: at once when nothing runs in its foreground but the shell, else when you say so, asked naming what runs, which main reads off its terminal at this moment.
    * Read at the press rather than kept on the tab, since a short command would change a mark there as it came and went.
    */
-  private async mayEnd(shell: Shell, question: string, consequence: string, action: string): Promise<boolean> {
+  private async mayEnd(shell: TerminalShell, question: string, consequence: string, action: string): Promise<boolean> {
     if (shell.terminalId === null) return true;
     // One question at a time: a second press while the first is being asked, or answered, ends nothing, rather than taking the first's answer as its own.
     if (this.asking) return false;
@@ -446,12 +420,12 @@ class TerminalPanel implements MountedPanel {
   }
 
   /** Close a shell's tab: the button, a middle-click and its menu's Close alike, asking first while a command runs in it. */
-  private async askClose(shell: Shell): Promise<void> {
+  private async askClose(shell: TerminalShell): Promise<void> {
     if (!(await this.mayEnd(shell, 'Close this terminal?', 'Closing the terminal ends it.', 'Close terminal'))) return;
     if (!shell.closed) this.close(shell);
   }
 
-  private async rename(shell: Shell): Promise<void> {
+  private async rename(shell: TerminalShell): Promise<void> {
     const name = await promptText('Rename terminal', shell.folder, shell.name);
     const trimmed = name?.trim();
     if (!trimmed || shell.closed) return;
@@ -479,7 +453,7 @@ class TerminalPanel implements MountedPanel {
    * Where a shell of a project starts as you are working now, when that is not the selection: its project's root, as in All with another project's tab on show, or with none.
    * Undefined where the selection is that place: the shell is filed under no project, or the selection is in its project.
    */
-  private ownWhere(shell: Shell): Where | undefined {
+  private ownWhere(shell: TerminalShell): Where | undefined {
     if (shell.project === null) return undefined;
     const where = this.host.where();
     const inIt = where.tab ? where.tab.repoRoot === shell.project : where.project === shell.project;
@@ -487,7 +461,7 @@ class TerminalPanel implements MountedPanel {
   }
 
   /** A new shell in the tab, in the folder you are working in now within its own project (`ownWhere`), asking first while a command runs in the one it replaces. */
-  private async restartHere(shell: Shell): Promise<void> {
+  private async restartHere(shell: TerminalShell): Promise<void> {
     const own = this.ownWhere(shell);
     const { runnable, run, problems } = await this.prepared(own);
     // The panel cannot run where you are, which it says in its place: nothing restarts behind that.
@@ -498,15 +472,15 @@ class TerminalPanel implements MountedPanel {
     if (!(await this.mayEnd(shell, 'Restart this terminal?', 'Restarting the terminal ends it.', 'Restart'))) return;
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- a close or an unmount can run while the question is up, which TypeScript's narrowing does not see
     if (shell.closed || this.disposed) return;
-    this.stop(shell);
+    shell.stop();
     shell.folder = run.cwd;
     shell.focusWhenStarted = true;
     this.onShow.set(this.scopeKey(), shell.id);
     this.save();
-    await this.start(shell, run.cwd);
+    await shell.start(run.cwd);
   }
 
-  // ——— a shell's life ———
+  // ——— checking where a shell would start ———
 
   /**
    * Check the options against where a shell would start, and hand back that folder.
@@ -528,118 +502,10 @@ class TerminalPanel implements MountedPanel {
     return { runnable, run: prepared.run, problems: prepared.problems };
   }
 
-  /**
-   * Start a shell in `folder` for `shell`'s tab, on its own screen, wiped when it had one before.
-   * Only its latest start counts: one overtaken on its way, by a restart or a close, hands its shell straight back and leaves the tab to the start that overtook it.
-   */
-  private async start(shell: Shell, folder: string): Promise<void> {
-    const start = ++shell.starts;
-    const latest = (): boolean => shell.starts === start && !shell.closed && !this.disposed;
-    shell.exited = false;
-    shell.starting = true;
-    // Checked against its own project, as Restart here checked it, so the two look at the same place unless the selection changes between them.
-    const own = this.ownWhere(shell);
-    const { runnable, problems } = await this.prepared(own);
-    if (!latest()) return;
-    // The panel cannot run where you are: it says why in its place, over every shell, and starts none behind that, another project's shell included.
-    if (this.refused) {
-      shell.starting = false;
-      return;
-    }
-    if (!shell.view) {
-      const view = createTerminal(shell.box);
-      shell.view = view;
-      view.term.onData((data) => {
-        if (shell.terminalId !== null) window.claudeUi.sendTerminalInput(shell.terminalId, data);
-        // The key is the ask for a new shell, so it is not sent on to it.
-        else if (shell.exited && !shell.starting) void this.start(shell, shell.folder);
-      });
-    } else {
-      // A restart: the old shell's screen goes, so the new prompt is not painted over its tail.
-      shell.view.term.reset();
-    }
-    this.draw();
-    const { term } = shell.view;
-    if (!runnable) {
-      // Refused in its own project: this shell alone says why, as a start main refuses does.
-      this.failed(shell, problemSaid(problems));
-      shell.starting = false;
-      this.draw();
-      return;
-    }
-    try {
-      // Filed under a project, its variables name that project whatever is selected, as in All with another project's tab on show; filed under none, the selection.
-      const id = await window.claudeUi.startShell(folder, runContext(resolveContext(this.host.where()), folder, shell.project), { entryId: this.slot.key, shellId: shell.id });
-      // Closed or overtaken while it was starting: hand the shell straight back rather than leave one running with nothing showing it.
-      if (!latest()) {
-        window.claudeUi.killTerminal(id);
-        return;
-      }
-      shell.terminalId = id;
-      bindTerminal(id, {
-        data: (data) => term.write(data),
-        exit: (exitCode) => {
-          if (shell.terminalId !== id) return;
-          shell.terminalId = null;
-          shell.exited = true;
-          // On the shell's own screen, dimmed, where the eye already is; its tab goes unfilled, as a tab with nothing behind it does.
-          term.write(`\r\n\x1b[2m[exited ${exitCode} — press any key for a new shell]\x1b[0m`);
-          this.draw();
-        },
-      });
-      this.host.setEnd('');
-      this.host.setStatus(null);
-      this.fit(shell);
-      // Only while it is on show: keys typed into a shell out of sight would go where nobody can see them.
-      if (shell.focusWhenStarted && this.current() === shell) term.focus();
-      shell.focusWhenStarted = false;
-    } catch (error) {
-      if (!latest()) return;
-      const missing = (error instanceof Error ? error.message : '').includes('MISSING_CWD:');
-      this.failed(shell, missing ? `${folder} is not there` : 'could not start');
-    } finally {
-      // An overtaken start leaves the tab to the start that overtook it.
-      if (latest()) {
-        shell.starting = false;
-        this.draw();
-      }
-    }
-  }
-
-  /** A shell that could not start says why on its own screen, dimmed, with a key to try again, and in the header (`sayFailed`). */
-  private failed(shell: Shell, said: string): void {
-    shell.exited = true;
-    shell.view?.term.write(`\x1b[2m[${said} — press any key to try again]\x1b[0m`);
-    this.sayFailed(said);
-  }
-
   /** Why a shell could not start or restart, in the header and with the rail's red dot: a shell that exits is somebody typing `exit`, and one that never started is the failure worth a dot. */
   private sayFailed(said: string): void {
     this.host.setEnd(said);
     this.host.setStatus('fail');
-  }
-
-  /** End a shell, if it has one, and stop listening to it: its tail belongs to nobody once a restart or a close has been asked for. */
-  private stop(shell: Shell): void {
-    if (shell.terminalId === null) return;
-    unbindTerminal(shell.terminalId);
-    window.claudeUi.killTerminal(shell.terminalId);
-    shell.terminalId = null;
-  }
-
-  private dispose(shell: Shell): void {
-    shell.closed = true;
-    this.stop(shell);
-    shell.observer.disconnect();
-    shell.view?.term.dispose();
-    shell.view = null;
-    shell.box.remove();
-  }
-
-  private fit(shell: Shell): void {
-    if (!shell.view || shell.box.hidden || shell.box.clientWidth === 0 || shell.box.clientHeight === 0) return;
-    fitTerminal(shell.view);
-    if (shell.terminalId !== null) window.claudeUi.resizeTerminal(shell.terminalId, shell.view.term.cols, shell.view.term.rows);
   }
 }
 
