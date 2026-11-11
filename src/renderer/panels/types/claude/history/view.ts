@@ -1,9 +1,9 @@
 import type { ClaudeUiApi, Exchange, HistoryPin, ReplyPart } from '../../../../../shared/types';
 import { routeLinks } from '../../../../window/external-links';
 import { flash } from '../../../../ui/flash';
-import { chevronIcon, PINNED_ICON } from '../../../../ui/svg';
 import { setTooltip } from '../../../../ui/tooltip';
 import { drawPins, exchangeNode, type ExchangeDrawing } from './exchange';
+import { HistoryHead } from './head';
 // The filter pill its All · Pinned wear, shared with the sidebar's filter.
 import '../../../../ui/pill.css';
 import './view.css';
@@ -41,8 +41,14 @@ export class HistoryView {
    * Goes into the terminal area just before `el`.
    */
   readonly scrim = document.createElement('div');
-  private readonly allButton = document.createElement('button');
-  private readonly pinnedButton = document.createElement('button');
+  private readonly head = new HistoryHead({
+    filter: () => {
+      this.applyFilter();
+      this.onLayout?.();
+    },
+    step: (by) => void this.step(by),
+    leave: () => this.leave(),
+  });
   private readonly scroller = document.createElement('div');
   private readonly list = document.createElement('div');
   private readonly note = document.createElement('div');
@@ -54,7 +60,6 @@ export class HistoryView {
   /** Counts the sessions followed, so a read that comes back after the view moved on can tell. */
   private followed = 0;
   private pins: Record<string, HistoryPin> = {};
-  private pinnedOnly = false;
   private reading = false;
   private readAgain = false;
   /**
@@ -87,38 +92,6 @@ export class HistoryView {
     this.el.className = 'history';
     this.el.setAttribute('aria-label', 'History of this session');
 
-    const head = document.createElement('div');
-    head.className = 'history-head';
-    const title = document.createElement('span');
-    title.className = 'history-title';
-    title.textContent = 'History';
-    // What is shown, as a labelled switch with the counts on it: all the requests, or only the pinned ones.
-    // An unlabelled star did not say it was a filter.
-    const show = document.createElement('span');
-    show.className = 'history-show';
-    for (const [button, pinnedOnly, tooltip] of [
-      [this.allButton, false, 'Show every request'],
-      [this.pinnedButton, true, 'Show only the pinned requests'],
-    ] as const) {
-      button.type = 'button';
-      button.className = 'history-filter';
-      setTooltip(button, tooltip);
-      button.addEventListener('click', () => this.setPinnedOnly(pinnedOnly));
-      show.append(button);
-    }
-    const grow = document.createElement('span');
-    grow.className = 'grow';
-    const previous = this.stepButton('up', 'Previous request (Ctrl+Shift+↑)', -1);
-    const next = this.stepButton('down', 'Next request (Ctrl+Shift+↓)', 1);
-    // The way out, labelled and always in view at the head, with its key on it: a floating pill at the foot was not found.
-    const leave = document.createElement('button');
-    leave.type = 'button';
-    leave.className = 'history-leave';
-    leave.innerHTML = 'Back to live <kbd>Esc</kbd>';
-    setTooltip(leave, 'Back to the live session');
-    leave.addEventListener('click', () => this.leave());
-    head.append(title, show, grow, previous, next, leave);
-
     this.scroller.className = 'history-scroll';
     this.list.className = 'history-list';
     this.scroller.append(this.list);
@@ -142,7 +115,7 @@ export class HistoryView {
 
     this.note.className = 'history-note';
     this.note.hidden = true;
-    this.el.append(head, this.note, this.scroller);
+    this.el.append(this.head.el, this.note, this.scroller);
     this.drawCount();
   }
 
@@ -380,17 +353,6 @@ export class HistoryView {
     return request ? request.offsetTop - 4 : 0;
   }
 
-  private stepButton(direction: 'up' | 'down', label: string, step: number): HTMLButtonElement {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'icon-btn compact';
-    button.innerHTML = chevronIcon(direction, 14);
-    button.setAttribute('aria-label', label);
-    setTooltip(button, label);
-    button.addEventListener('click', () => this.step(step));
-    return button;
-  }
-
   /** The exchange at the top of the view: the last one whose request line is at or above it. */
   private current(): number {
     const top = this.scroller.scrollTop + 8;
@@ -418,24 +380,10 @@ export class HistoryView {
     return this.scroller.scrollTop + this.scroller.clientHeight >= this.scroller.scrollHeight - 4;
   }
 
-  private setPinnedOnly(on: boolean): void {
-    this.pinnedOnly = on;
-    this.drawSwitch();
-    this.applyFilter();
-    this.onLayout?.();
-  }
-
-  private drawSwitch(): void {
-    this.allButton.classList.toggle('active', !this.pinnedOnly);
-    this.allButton.setAttribute('aria-pressed', String(!this.pinnedOnly));
-    this.pinnedButton.classList.toggle('active', this.pinnedOnly);
-    this.pinnedButton.setAttribute('aria-pressed', String(this.pinnedOnly));
-  }
-
   private applyFilter(): void {
     this.model.exchanges.forEach((exchange, index) => {
       const node = this.nodes[index];
-      const hidden = this.pinnedOnly && !this.holdsPin(exchange);
+      const hidden = this.head.pinnedOnly && !this.holdsPin(exchange);
       // Only where it changes: it runs after every slice of drawing, over all that is drawn.
       if (node && node.hidden !== hidden) node.hidden = hidden;
     });
@@ -534,11 +482,8 @@ export class HistoryView {
   }
 
   private drawCount(): void {
-    const total = this.model.exchanges.length;
     const pinned = this.model.exchanges.reduce((sum, exchange) => sum + (exchange.id in this.pins ? 1 : 0) + this.pinnedMessages(exchange), 0);
-    this.allButton.textContent = `All ${total}`;
-    this.pinnedButton.innerHTML = `${PINNED_ICON} Pinned ${pinned}`;
-    this.drawSwitch();
+    this.head.count(this.model.exchanges.length, pinned);
   }
 
   private async togglePin(exchange: Exchange): Promise<void> {
