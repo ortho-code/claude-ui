@@ -2,10 +2,9 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { createReadStream } from 'node:fs';
-import { prKey } from '../../shared/sessions/prs';
-import type { SessionPr, SessionSummary } from '../../shared/types';
-import { postedPrs } from './posted-prs';
-import { callsTool, changedFiles, FILE_TOOL_CALL, shellCommands, SHELL_TOOL_CALL } from './tool-calls';
+import type { SessionSummary } from '../../shared/types';
+import { callsTool, changedFiles, FILE_TOOL_CALL, SHELL_TOOL_CALL } from './tool-calls';
+import { TranscriptPrs } from './transcript-prs';
 import { promptOf } from './transcript';
 import { WorktreeTrail } from './worktree-trail';
 
@@ -49,13 +48,7 @@ export async function summarizeFile(file: string): Promise<SummaryRead | null> {
   // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system append (a Remote Control notice) or a resume bumps mtime without being real activity.
   // Captured with a cheap regex below.
   let lastMsgTs = '';
-  // The PRs the transcript links, by `prKey`.
-  // Claude Code writes the same record again through a session, so each is kept once, where it first appears, as spelt there.
-  const prs = new Map<string, SessionPr>();
-  const keepPr = (pr: SessionPr): void => {
-    const key = prKey(pr);
-    if (!prs.has(key)) prs.set(key, pr);
-  };
+  const prs = new TranscriptPrs();
 
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
   try {
@@ -122,15 +115,8 @@ export async function summarizeFile(file: string): Promise<SummaryRead | null> {
         }
       }
 
-      if (event.type === 'pr-link') {
-        const pr = linkedPr(event);
-        if (pr) keepPr(pr);
-      }
-
-      // A review or comment claude posted links its PR: Claude Code links none for a review, nor for a comment posted through `gh api`.
-      if (maybePost && event.type === 'assistant') {
-        for (const command of shellCommands(event)) for (const pr of postedPrs(command)) keepPr(pr);
-      }
+      if (event.type === 'pr-link') prs.linked(event);
+      if (maybePost && event.type === 'assistant') prs.posted(event);
 
       // Real compaction boundary; the following user/assistant message is the post-compaction head.
       if (event.type === 'system' && event.subtype === 'compact_boundary') {
@@ -152,7 +138,7 @@ export async function summarizeFile(file: string): Promise<SummaryRead | null> {
   // The worktree-state override beats the first-latched cwd; resolveRepo then maps a worktree path to its repo + badge through the same path it uses for `claude -w` sessions.
   const resolvedCwd = trail.cwd || cwd || decodeProjectDir(path.basename(path.dirname(file)));
   const lastActivity = lastMsgTs || stat.mtime.toISOString();
-  const summary = summaryFrom({ id, conversationId, cwd: resolvedCwd, title, firstMessage, model, lastActivity, prs: [...prs.values()], postCompactHeads });
+  const summary = summaryFrom({ id, conversationId, cwd: resolvedCwd, title, firstMessage, model, lastActivity, prs: prs.all, postCompactHeads });
   return { summary, leftWorktreePath: trail.left, movedOut: trail.movedOut, changes: [...changes.values()].reverse(), movedAt: trail.movedAt };
 }
 
@@ -188,15 +174,6 @@ function summaryFrom(facts: TranscriptFacts): SessionSummary {
     cwdExists: true,
     repoRootExists: true,
   };
-}
-
-/** The PR a `pr-link` record names, or null for a record this cannot use: its number a positive whole number, its repository a name, its page an https address. */
-function linkedPr(event: Record<string, unknown>): SessionPr | null {
-  const { prNumber, prRepository, prUrl } = event;
-  if (typeof prNumber !== 'number' || !Number.isInteger(prNumber) || prNumber <= 0) return null;
-  if (typeof prRepository !== 'string' || !prRepository) return null;
-  if (typeof prUrl !== 'string' || !prUrl.startsWith('https://')) return null;
-  return { repository: prRepository, number: prNumber, url: prUrl };
 }
 
 /** A title field is usable only when it is a non-empty string. */
