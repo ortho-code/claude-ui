@@ -1,5 +1,8 @@
 import { chevronIcon, PINNED_ICON } from '../../../../ui/svg';
 import { setTooltip } from '../../../../ui/tooltip';
+// The filter pill its All · Pinned wear, shared with the sidebar's filter.
+import '../../../../ui/pill.css';
+import './head.css';
 
 /** What a press in the history's head asks of the view. */
 export interface HeadActions {

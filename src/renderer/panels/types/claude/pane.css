@@ -1,4 +1,4 @@
-/* The pane's Resume, and the button beside it, wherever the pane offers them: under its sentence, and in the history's note when the history stands in for a cold tab (the history's own rules are history/view.css and bar.css). */
+/* The pane's Resume, and the button beside it, wherever the pane offers them: under its sentence, and in the history's note when the history stands in for a cold tab (the history's own rules are history/view.css, head.css, exchange.css and bar.css). */
 .history-note button,
 .pane-actions button {
   padding: 3px 12px;

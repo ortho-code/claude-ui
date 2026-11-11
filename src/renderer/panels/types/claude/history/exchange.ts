@@ -5,6 +5,7 @@ import { chevronIcon, PIN_ICON, PINNED_ICON } from '../../../../ui/svg';
 import { setTooltip } from '../../../../ui/tooltip';
 import { renderMarkdown } from './markdown';
 import { replyBlocks, reportLine, toolSummary } from './model';
+import './exchange.css';
 
 const MARKS: Partial<Record<Exchange['kind'], [label: string, tooltip: string]>> = {
   busy: ['sent while claude was working', 'Sent while claude was still working on something else, and taken up by it.'],

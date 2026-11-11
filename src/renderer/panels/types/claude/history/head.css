@@ -1,0 +1,55 @@
+/* THE HISTORY'S HEAD (head.ts): its title, All · Pinned, the steps between requests, and the way back to live. */
+.history-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 3px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-meta);
+}
+
+.history-title {
+  font-weight: 600;
+  font-size: var(--text-body);
+}
+
+/* All · Pinned: two filter pills side by side, the one on show in the filters' "on" look. */
+.history-show {
+  display: flex;
+  gap: 4px;
+  margin-left: 10px;
+}
+
+.history-show .history-filter {
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.history-head .grow {
+  flex: 1;
+}
+
+/* The way out of the history, in its head: labelled, with its key on it.
+   A history standing in for a cold tab has no live view, and closes from its own line instead. */
+.history-leave {
+  margin-left: 6px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-meta);
+}
+
+.history-leave kbd {
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--text-badge);
+}
+
+.history.standalone .history-leave {
+  display: none;
+}

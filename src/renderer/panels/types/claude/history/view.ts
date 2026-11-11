@@ -4,8 +4,6 @@ import { flash } from '../../../../ui/flash';
 import { setTooltip } from '../../../../ui/tooltip';
 import { drawPins, exchangeNode, type ExchangeDrawing } from './exchange';
 import { HistoryHead } from './head';
-// The filter pill its All · Pinned wear, shared with the sidebar's filter.
-import '../../../../ui/pill.css';
 import './view.css';
 import type { Band } from './marks';
 import { applySlice, emptyModel, reportLine, requestLabel, type HistoryModel } from './model';
