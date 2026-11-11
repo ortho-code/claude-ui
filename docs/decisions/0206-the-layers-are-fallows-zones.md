@@ -8,6 +8,7 @@
 Which folder of `src/` may import which is declared once, as fallow's boundaries in `.fallowrc.jsonc`: zones of files, each with the zones it may import, checked by `npm run fallow` and in CI.
 Every source file is in a zone: a new folder in the renderer falls to the services, the layer that may import least, and one beside the processes fails until it is given a zone.
 `test/unit/boundaries.test.ts` crosses every line in a project of empty modules, checked with the repo's own zones.
+The same command refuses a cycle of value imports, `import type` aside, and took the place of the unit test that did so (`imports.test.ts`), since the two held the same rule.
 
 ## Why
 

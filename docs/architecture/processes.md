@@ -15,7 +15,7 @@ The tests are outside it, under `test/`, since a test may assert across the line
 Inside the renderer it holds four more lines the same way: the two built-ins never import each other's modules, a service, any file in `ui/`, `dialogs/`, `status/`, `window/` or `rules/`, never imports from `panels/`, nor does `state/`, and outside `panels/types/` only the tree and the start-up (`renderer.ts`, `view-saving.ts`) import a panel type's module.
 Each layer is a zone of files with the zones it may import, `import type` included; a file takes the first zone that matches it, and every source file is in one: a new folder in the renderer is a service, the layer that may import least, and one beside the processes fails until it is given a layer.
 A unit test crosses every line on purpose, in a project of empty modules that fallow checks with the repo's own layers (`test/unit/boundaries.test.ts`), so a zone that takes a file it should not, or a way of spelling a path that slips past, fails there rather than letting a crossing through.
-What the layers do not hold, a unit test does (`test/unit/imports.test.ts`): no cycle of value imports anywhere in `src/`, read with the compiler's own parser, `import type` aside since it runs nothing.
+The same run refuses a cycle of value imports anywhere in `src/`, `import type` aside since it runs nothing: two modules that run each other are one module with a line drawn through it.
 
 **The window never navigates.**
 Main refuses any navigation away from the app's own page and any new window (`will-navigate`, `setWindowOpenHandler`), because a page loaded there would get the preload's bridge, and the bridge runs commands.

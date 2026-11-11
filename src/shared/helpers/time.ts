@@ -1,7 +1,7 @@
 /**
  * Times of day and local days, pure and shared: the settings check a time of day with them, and the set-aside choices and Pick a date… work out their moments with them.
  * Every day here is a local day, so a moment set for a time of day stays at that time across a change of the clocks.
- * A module of its own rather than part of settings.ts: settings.ts checks the choices with set-aside.ts, which needs `timeOfDay`, and the two importing each other would be a cycle, which the import rules refuse (test/unit/imports.test.ts).
+ * A module of its own rather than part of settings.ts: settings.ts checks the choices with set-aside.ts, which needs `timeOfDay`, and the two importing each other would be a cycle, which `npm run fallow` refuses.
  */
 
 /** A time of day as `"HH:MM"` in 24 hours, as hours and minutes, or null for anything else. */
