@@ -35,6 +35,7 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run lint
+      - run: npm run fallow
       - run: npm run build
       - run: npm test
       # The window's own checks drive the built renderer in a headless Chromium, the build Playwright's version asks for.

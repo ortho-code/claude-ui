@@ -39,6 +39,10 @@ A test file past it is split by the module or behaviour it covers, never trimmed
 Every suppression gives its reason that way (`test/text/suppressions.test.ts`), and no source file is named for no concept, such as `logic` or `utils` (`test/unit/names.test.ts`).
 A name of several words separates them with a dash, `terminal-shell.ts` ([decided 2026-11-11](../decisions/0204-a-file-name-of-several-words-is-kebab-case.md)); the same test file refuses a capital or an underscore in any file or folder name under `src/` and `test/`, and words run together are for review to catch.
 
+**Nothing goes unused and nothing is copied** ([decided 2026-11-11](../decisions/0205-fallow-gates-ci-for-unused-and-copied-code.md)): `npm run fallow` fails on a file, export or dependency that nothing uses, and on a block of code that appears twice, and CI runs it after the linter.
+It is fallow, set up in `.fallowrc.jsonc`, with the reason for each setting beside it; it follows calls through types, from all three TypeScript projects.
+Something kept on purpose says so in a `fallow-ignore` comment with its reason, as an `eslint-disable` does.
+
 ## The window's checks
 
 Every test is under `test/`, so `src/` is only what ships.
@@ -87,9 +91,9 @@ The table is the widest each folder can need; a small change runs only the check
 |---|---|
 | Only `.md` files | `npm test` |
 | Only comments in scripts, which `npm run comments:prove` passes | `npm run comments:prove`, then `npm run build`, `npm test`, `npm run lint` |
-| `src/main`, `src/preload`, `test/unit`, `test/text`, `test/tools`, `scripts/` | `npm run build`, `npm test`, `npm run lint` |
-| `src/renderer`, `src/shared`, `test/renderer`, `assets/` | all four: `npm run build`, `npm test`, `npm run lint`, `npm run test:renderer` |
-| `package.json`, `package-lock.json`, a `tsconfig*.json`, a tool's config, `mise.toml` | all four |
+| `src/main`, `src/preload`, `test/unit`, `test/text`, `test/tools`, `scripts/` | `npm run build`, `npm test`, `npm run lint`, `npm run fallow` |
+| `src/renderer`, `src/shared`, `test/renderer`, `assets/` | all five: `npm run build`, `npm test`, `npm run lint`, `npm run fallow`, `npm run test:renderer` |
+| `package.json`, `package-lock.json`, a `tsconfig*.json`, a tool's config, `mise.toml` | all five |
 
 A change across rows runs what each of its rows lists.
 The first takes about ten seconds, the next two about half a minute, and the last two up to two minutes, most of it the window's checks.
@@ -102,5 +106,5 @@ Main and the preload reach the window's checks only through the build, which the
 `src/shared` is built into main and into the window alike, so it runs everything.
 A workflow, `electron-builder.yml` and the shell script in `build/` are read here only by the text rules, for their comments, and the macOS entitlements file by nothing; CI's next run, or a release, is where they are tried.
 
-CI runs all four on every push to `main` and every pull request, whatever changed, so a commit that ran too few is still caught, after the push rather than before it.
+CI runs all five on every push to `main` and every pull request, whatever changed, so a commit that ran too few is still caught, after the push rather than before it.
 While working on one thing, run only its file: `npx vitest run <file>`, or `npm run build` and then `npx playwright test -c test/renderer <file>`; the choice above is for the commit.
