@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { type App, expect, test } from '../../../../support/harness';
+import { goLive } from '../../../../support/live';
 import { row } from '../../../../support/window';
 import { here, railItem, withLayout } from '../../../layout/layout';
 
@@ -28,12 +29,9 @@ type Size = [id: number, cols: number, rows: number];
 const sizes = async (app: App): Promise<Size[]> => (await app.calls('resizeTerminal')) as Size[];
 const lastSize = async (app: App): Promise<Size> => (await sizes(app)).at(-1)!;
 
-/** Start the session's row and let claude print, so the tab on show is live; the stand-in numbers its ptys from 1. */
-async function goLive(page: Page, app: App): Promise<void> {
-  await row(page, here.title).click();
-  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  expect(await app.emit('onTerminalData', 1, 'claude is here')).toBe(1);
-  await expect(page.locator('#term-placeholder')).toBeHidden();
+/** Start the session's row and let claude print, so the tab on show is live, once its pty has been given a size. */
+async function startLive(page: Page, app: App): Promise<void> {
+  await goLive(page, app, row(page, here.title));
   await expect.poll(() => sizes(app)).not.toEqual([]);
 }
 
@@ -42,7 +40,7 @@ const settle = (page: Page): Promise<void> => page.evaluate(() => new Promise<vo
 
 test('the tab on show is fitted to the terminal area as it grows, and claude is told the new size', async ({ app, page }) => {
   await app.boot({ ...withLayout(shared), ...fixture });
-  await goLive(page, app);
+  await startLive(page, app);
   const [, cols, rows] = await lastSize(app);
 
   await page.setViewportSize({ width: 1600, height: 1000 });
@@ -53,7 +51,7 @@ test('the tab on show is fitted to the terminal area as it grows, and claude is 
 
 test('the terminal area out of sight is not fitted, and is fitted to its size again when it comes back', async ({ app, page }) => {
   await app.boot({ ...withLayout(shared), ...fixture });
-  await goLive(page, app);
+  await startLive(page, app);
   const [, cols] = await lastSize(app);
 
   await railItem(page, /^Status/).click();
@@ -71,7 +69,7 @@ test('the terminal area out of sight is not fitted, and is fitted to its size ag
 
 test("the tab on show comes back into sight with its scrollbar where its lines are", async ({ app, page }) => {
   await app.boot({ ...withLayout(shared), ...fixture });
-  await goLive(page, app);
+  await startLive(page, app);
   expect(await app.emit('onTerminalData', 1, Array.from({ length: 200 }, (_, i) => `\r\nline ${i + 1}`).join(''))).toBe(1);
   const viewport = page.locator('#terminals .term.active .xterm-viewport');
   const atBottom = (): Promise<boolean> => viewport.evaluate((el) => el.scrollHeight > el.clientHeight && el.scrollTop + el.clientHeight >= el.scrollHeight - 1);

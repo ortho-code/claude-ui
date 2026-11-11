@@ -5,6 +5,18 @@ import type { Locator, Page } from '@playwright/test';
  * A check finds through these; what it then asks of what it found (a class, a text, a count) is the check's own.
  */
 
+/** The request at the top of the history's view, by the rule its steps go by: the last one whose request line is at or above the top. */
+export function historyAtTop(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const scroller = document.querySelector<HTMLElement>('.history-scroll')!;
+    let found = '';
+    for (const request of document.querySelectorAll<HTMLElement>('.history .exchange-request')) {
+      if (request.offsetTop - 4 <= scroller.scrollTop + 8) found = request.querySelector('.exchange-request-text')!.textContent!;
+    }
+    return found;
+  });
+}
+
 /** The button of the toast up that says `label`, such as Undo. */
 export const toastButton = (page: Page, label: string): Locator => page.locator('#toast .toast-action').filter({ hasText: new RegExp(`^${label}$`) });
 
