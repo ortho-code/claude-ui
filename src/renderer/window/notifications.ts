@@ -1,5 +1,5 @@
 import { lookClass } from '../status/looks';
-import { badgeClass } from '../status/statusdot';
+import { badgeClass } from '../status/status-dot';
 import { closeIcon } from '../ui/svg';
 import './notifications.css';
 

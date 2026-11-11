@@ -1,12 +1,12 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { entityKey, modelLabel, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
-import { setAsideLabel } from '../../../status/statelines';
-import { relativeTime } from '../../../ui/timewords';
+import { setAsideLabel } from '../../../status/state-lines';
+import { relativeTime } from '../../../ui/time-words';
 import type { HeaderLine, MenuItem } from '../../../ui/menu';
 import type { Moment } from '../../../ui/moments';
 import type { View } from '../../../state/app';
 import { groupNameOf, projName } from '../../../state/views';
-import { statusLines } from '../../../status/statusdot';
+import { statusLines } from '../../../status/status-dot';
 
 /**
  * WHAT IS SAID ABOUT A SESSION, in words: its menu's header, and its row's title and its meta line, which draw from here, so the row and the header cannot come to say those differently.

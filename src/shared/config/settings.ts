@@ -1,9 +1,9 @@
 import { defaultSettings } from './defaults';
 import { parseLaunchFlags } from './flags';
 import { looksProblem, strengthProblem, type Look } from '../status/looks';
-import { withChanges, type NeedsYouChange, type NeedsYouRegistry } from '../status/needsyou';
+import { withChanges, type NeedsYouChange, type NeedsYouRegistry } from '../status/needs-you';
 import { approvalsProblem } from '../sessions/prs';
-import { presetsProblem } from '../status/setaside';
+import { presetsProblem } from '../status/set-aside';
 import { timeOfDay } from '../helpers/time';
 import type { ReadStatus } from '../panels';
 import type { Settings } from '../types';

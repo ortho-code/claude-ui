@@ -1,10 +1,10 @@
 import { expandedStrength, NEEDS_YOU, YOUR_TURN_STATUS } from '../../../shared/status/looks';
-import type { NeedsYouRegistry } from '../../../shared/status/needsyou';
+import type { NeedsYouRegistry } from '../../../shared/status/needs-you';
 import { PR_ROLES } from '../../../shared/sessions/prs';
 import type { PrRole } from '../../../shared/types';
 import { element } from '../../ui/dom';
-import { statusLabel } from '../../status/statelines';
-import { stateClass } from '../../status/statusdot';
+import { statusLabel } from '../../status/state-lines';
+import { stateClass } from '../../status/status-dot';
 import { settingsNeedsYouList } from './sections';
 
 const settingsStrengthList = document.getElementById('settings-strength-list')!;

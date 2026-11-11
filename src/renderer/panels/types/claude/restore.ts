@@ -1,10 +1,10 @@
 import type { ClosedHow } from '../../../../shared/types';
 import { sessionsByKey, unstartableReason } from '../../../rules/sessions';
 import { store } from '../../../state/app';
-import { markNeedsYou, marks } from '../../../state/needsyou';
+import { markNeedsYou, marks } from '../../../state/needs-you';
 import { clearNudge } from '../../../state/statuses';
-import { whileRestoring } from './opentabs';
-import { remembered, tabOf } from './tabstate';
+import { whileRestoring } from './open-tabs';
+import { remembered, tabOf } from './tab-state';
 import { activateTab, buildTab, startTab } from './terminals';
 
 export async function restoreOpenTabs(): Promise<void> {

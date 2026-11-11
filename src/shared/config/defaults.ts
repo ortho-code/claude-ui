@@ -11,7 +11,7 @@ export function defaultSettings(): Settings {
 
 /**
  * An unfiltered, unfolded sidebar at its default width: what a first run gets, and what any field missing from the stored object falls back to.
- * Main's (src/main/window/uistate.ts reads the stored state over it); shared so that the window's checks start from the same first run rather than a copy of it.
+ * Main's (src/main/window/ui-state.ts reads the stored state over it); shared so that the window's checks start from the same first run rather than a copy of it.
  */
 export function defaultUi(): UiState {
   return {

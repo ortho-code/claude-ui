@@ -4,18 +4,18 @@ import { confirmDanger, confirmDelete, promptText } from '../../../dialogs/dialo
 import { leaveAction, leaveLabel, type LeaveAction } from '../../../rules/claude';
 import { entityKey, folderName, sessionLabel, unstartableReason } from '../../../rules/sessions';
 import { clockLines, clockOf } from '../../../status/clock';
-import { setAsideUntil } from '../../../status/statelines';
-import { relativeTime } from '../../../ui/timewords';
+import { setAsideUntil } from '../../../status/state-lines';
+import { relativeTime } from '../../../ui/time-words';
 import { openMenu, type MenuItem } from '../../../ui/menu';
-import { approvalsIn, prDetails, verdictOf } from '../../../status/prstatus';
+import { approvalsIn, prDetails, verdictOf } from '../../../status/pr-status';
 import { store, type TabState } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
 import { applyGroupState, moveSessionsToGroup } from '../../../state/groups';
 import { pickCheckout, pickedFor } from '../../../state/picks';
-import { clearSetAside, markSetAside } from '../../../state/setaside';
-import { clearNeedsYou } from '../../../state/needsyou';
+import { clearSetAside, markSetAside } from '../../../state/set-aside';
+import { clearNeedsYou } from '../../../state/needs-you';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
-import { setAsideDialog } from '../../../dialogs/setasidedialog';
+import { setAsideDialog } from '../../../dialogs/set-aside-dialog';
 import { isFiltering, leaveTab, projName, projectGroups, sessionById, sessionStarting, tabWith, unopenableReason } from '../../../state/views';
 import { copyText, showToast } from '../../../ui/toast';
 import type { SessionSurface } from '../../contract';
@@ -25,7 +25,7 @@ import { currentByKey, renderedSections } from './drawn';
 import { fullRead } from './read';
 import { revealGroup, revealSession } from './reveal';
 import '../../../ui/tone.css';
-import '../../../status/prstatus.css';
+import '../../../status/pr-status.css';
 
 /**
  * THE SESSION LIST'S MENUS AND THE WRITES THEY MAKE: a session's options and its pin, finish and delete; a group's and a project's options, their moves and renames, and a new group.

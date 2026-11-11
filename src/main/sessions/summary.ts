@@ -4,7 +4,7 @@ import * as readline from 'node:readline';
 import { createReadStream } from 'node:fs';
 import { prKey } from '../../shared/sessions/prs';
 import type { SessionPr, SessionSummary } from '../../shared/types';
-import { postedPrs } from './postedprs';
+import { postedPrs } from './posted-prs';
 import { promptOf } from './transcript';
 
 /** What one transcript says, before its folders are resolved to a repo. */

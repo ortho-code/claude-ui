@@ -1,5 +1,5 @@
 import type { Exchange, HistoryPin, ReplyPart } from '../../../../../shared/types';
-import { relativeTime } from '../../../../ui/timewords';
+import { relativeTime } from '../../../../ui/time-words';
 import { showMoment, type Moment } from '../../../../ui/moments';
 import { chevronIcon, PIN_ICON, PINNED_ICON } from '../../../../ui/svg';
 import { setTooltip } from '../../../../ui/tooltip';

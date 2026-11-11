@@ -1,6 +1,6 @@
 import { ipcMain, type BrowserWindow } from 'electron';
 import * as path from 'node:path';
-import { editAppFile, removeAppFile, startAppFile } from './appfiles';
+import { editAppFile, removeAppFile, startAppFile } from './app-files';
 import { tempOf } from '../files/atomic';
 import { onConfigChange } from './config';
 import { readJsoncFileWithDuplicates } from './jsonc';
@@ -8,7 +8,7 @@ import { errorText, log } from '../logs/log';
 import { getMoved, getSettings as getMetaSettings, markMoved } from '../sessions/meta';
 import { settingsFile, settingsLocalFile } from '../paths';
 import { defaultSettings } from '../../shared/config/defaults';
-import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/needsyou';
+import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import { fileEdits, saveRefusal, SETTING_KEYS, settingProblem, settingsInForce, settingsView, valuesOf, type SettingKey, type SettingsChange, type SettingsFileRead, type SettingsSaved, type SettingsView } from '../../shared/config/settings';
 import type { Settings } from '../../shared/types';
 

@@ -1,8 +1,8 @@
 import { defaultUi } from '../../../src/shared/config/defaults';
 import type { FolderName } from '../../../src/shared/helpers/folders';
-import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../../src/shared/status/needsyou';
+import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../../src/shared/status/needs-you';
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
-import type { Found } from '../../../src/shared/helpers/pathcheck';
+import type { Found } from '../../../src/shared/helpers/path-check';
 import type { SettingsFileRead } from '../../../src/shared/config/settings';
 import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, SettledNeedsYou, PrSeen, PrStatus, ScheduledTask, SessionPr, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
@@ -73,7 +73,7 @@ export interface BridgeFixture {
   /** The folder chosen in main's folder dialog; null, as main answers for one cancelled. */
   pickFolder: string | null;
   /**
-   * The fingerprint of the git working tree at each folder, as main's look at it would give it (src/main/panels/gitstate.ts), or what git said when it could not look; a folder left out is in no working tree.
+   * The fingerprint of the git working tree at each folder, as main's look at it would give it (src/main/panels/git-state.ts), or what git said when it could not look; a folder left out is in no working tree.
    * A check changes one while the window runs to make a change in that tree.
    */
   trees: Record<string, string | { error: string }>;

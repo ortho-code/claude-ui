@@ -8,7 +8,7 @@ import type { Readable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 import { configRoot } from '../paths';
 import { resolvePath } from '../config/config';
-import { workingTree } from './gitstate';
+import { workingTree } from './git-state';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup, type ShellInvocation } from '../pty/shell';
 import { fsFailure, log } from '../logs/log';
 import { formatDuration } from '../files/stamp';

@@ -6,13 +6,13 @@ import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '.
 import { clockOf } from '../../../status/clock';
 import { kebabButton } from '../../../ui/menu';
 import { showMoment, type Moment } from '../../../ui/moments';
-import { notLeftMark, showNotLeft } from '../../../status/notleft';
-import { approvalsIn, prMark } from '../../../status/prstatus';
-import { setAsideMark, showSetAside } from '../../../status/setasidemark';
-import { scheduledMark, showScheduled } from '../../../status/scheduledmark';
+import { notLeftMark, showNotLeft } from '../../../status/not-left';
+import { approvalsIn, prMark } from '../../../status/pr-status';
+import { setAsideMark, showSetAside } from '../../../status/set-aside-mark';
+import { scheduledMark, showScheduled } from '../../../status/scheduled-mark';
 import { store, type View } from '../../../state/app';
 import { tabWith } from '../../../state/views';
-import { ackOnClick, applyStatus } from '../../../status/statusdot';
+import { ackOnClick, applyStatus } from '../../../status/status-dot';
 import { NOTE_ICON, PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../ui/svg';
 import { showToast } from '../../../ui/toast';
 import { TONES } from '../../../ui/tone';
@@ -23,7 +23,7 @@ import { pressRowInBulk, tickBox } from './bulk';
 import { activityMoment, finishedMoment } from './describe';
 import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
 import '../../../ui/tone.css';
-import '../../../status/prstatus.css';
+import '../../../status/pr-status.css';
 import '../../../ui/badge.css';
 import './rows.css';
 
@@ -141,15 +141,15 @@ function createSessionRow(key: string): HTMLElement {
   noteSep.className = 'meta-sep';
   noteSep.textContent = '·';
   noteSep.hidden = true;
-  // A stop claude has not left, as its tab says it (notleft.ts), in place of the time and model while it does.
+  // A stop claude has not left, as its tab says it (not-left.ts), in place of the time and model while it does.
   const notLeft = notLeftMark('meta-not-left');
   meta.append(notLeft, metaText, noteSep, noteBadge);
 
   const subline = document.createElement('div');
   subline.className = 'session-subline';
-  // A task claude has scheduled for the session, as its tab shows it (scheduledmark.ts); shown in updateRow.
+  // A task claude has scheduled for the session, as its tab shows it (scheduled-mark.ts); shown in updateRow.
   const clock = scheduledMark('scheduled-badge', true);
-  // Set aside, as its tab shows it (setasidemark.ts); shown in updateRow.
+  // Set aside, as its tab shows it (set-aside-mark.ts); shown in updateRow.
   const setAside = setAsideMark('set-aside-badge', true);
   subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge);
   content.append(subline);
@@ -242,7 +242,7 @@ function newest(session: SessionSummary): SessionSummary {
 /** What a row draws from the store besides the session it shows. */
 export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'switchedModel' | 'pinned' | 'finished' | 'notes' | 'filter' | 'tabs' | 'prStatus' | 'reviewing' | 'settings' | 'needsYouTypes'>;
 
-/** Show what a row has from the tab running its session: its clock (`clockOf`), and the words for a stop claude has not left (notleft.ts), in place of its time and model while they show. */
+/** Show what a row has from the tab running its session: its clock (`clockOf`), and the words for a stop claude has not left (not-left.ts), in place of its time and model while they show. */
 export function showTabMarks(marks: RowTabMarks, id: string, view: View<'scheduledTasks' | 'tabs'>): void {
   const tab = tabWith(id, view);
   showScheduled(marks.clock, clockOf(view.scheduledTasks.get(id), tab));

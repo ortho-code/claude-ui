@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { PrStatus, SessionPr } from '../../../../../src/shared/types';
 import { session, settingsFileWith } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { needsYouFile, switchedOff } from '../../../support/needsyou';
+import { needsYouFile, switchedOff } from '../../../support/needs-you';
 import { row, tab, tabLabels } from '../../../support/window';
 
 // A linked PR changing in a way that needs you marks every session that links it as needing you, with that change as its reason, running or not, finished ones left out (decided 2026-10-29).

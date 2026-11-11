@@ -48,7 +48,7 @@ export const panelDataDir = path.join(configDir, 'panel-data');
 /**
  * The folder for everything a person may EDIT or SHARE — the settings, the layout file and the scripts it points at — and nothing else.
  * One folder apart from `meta.json` and the status files, which are the app's own and never meant for an editor, so "copy this folder" hands a colleague exactly the customisation and none of the machine state.
- * The app creates it, reads it and watches it, and writes only its own `.local.json` files in it (appfiles.ts), never a file a person writes.
+ * The app creates it, reads it and watches it, and writes only its own `.local.json` files in it (app-files.ts), never a file a person writes.
  */
 export const configRoot = path.join(configDir, 'config');
 
@@ -66,7 +66,7 @@ export const typesDir = path.join(configRoot, PANEL_TYPES_FOLDER);
 
 export const defaultLayoutFile = path.join(layoutsDir, 'default.json');
 
-/** The app's file beside it: this machine's sizes, folds and picks, by node id (layoutstate.ts). */
+/** The app's file beside it: this machine's sizes, folds and picks, by node id (layout-state.ts). */
 export const defaultLocalLayoutFile = path.join(layoutsDir, 'default.local.json');
 
 /** Your settings, which you edit by hand and the app writes only when Settings saves, at a launch that finds none, and once to move older settings into it (settings.ts). */
@@ -76,7 +76,7 @@ export const settingsFile = path.join(configRoot, 'settings.json');
 export const settingsLocalFile = path.join(configRoot, 'settings.local.json');
 
 /**
- * The copies of the app's own files in the config folder (appfiles.ts): the previous good one, one per version, and which version last wrote each.
+ * The copies of the app's own files in the config folder (app-files.ts): the previous good one, one per version, and which version last wrote each.
  * Outside the config folder, so that folder holds only what a person writes and the app's `.local.json` files, and a checkout of it shows no stray copies.
  */
 export const configBackupsDir = path.join(configDir, 'backups', 'config');

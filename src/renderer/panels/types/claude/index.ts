@@ -10,7 +10,7 @@ import { paneEl, stepHistory } from './pane';
 /**
  * THE TERMINAL AREA as a panel type: the tab bar over the terminals, on a line that folds it, with the history's bar beside them.
  * One pane for the run: built once, parked until the layout places it, and put back by every mount (`builtinType`), so a layout change that remounts its entry — a new id, an option — keeps a running session and its terminal as they were.
- * Each part builds its own markup as it loads — the tab bar and its line (tab-bar.ts), the pane with the terminals and the history's bar (pane.ts, tabstate.ts) — and this module puts them together.
+ * Each part builds its own markup as it loads — the tab bar and its line (tab-bar.ts), the pane with the terminals and the history's bar (pane.ts, tab-state.ts) — and this module puts them together.
  */
 const terminalPane = element('section');
 terminalPane.id = 'terminal-pane';

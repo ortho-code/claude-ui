@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-vi.mock('electron', async () => (await import('./statushome')).electronStub);
-vi.mock('node:os', async () => (await import('./statushome')).osStub);
+vi.mock('electron', async () => (await import('./status-home')).electronStub);
+vi.mock('node:os', async () => (await import('./status-home')).osStub);
 
 import { readScheduled } from '../../../../src/main/status/crons';
 import { readReport, reportEnd } from '../../../../src/main/status/status';
 import { statusDir } from '../../../../src/main/paths';
-import { readStatusFile, runHook, SID, useHookScript } from './hookscript';
+import { readStatusFile, runHook, SID, useHookScript } from './hook-script';
 
 useHookScript();
 

@@ -8,7 +8,7 @@ import { setTooltip } from '../ui/tooltip';
 import { foldEdge, isEmpty, type ResolvedGroup, type ResolvedNode, type ResolvedSplit } from './layout';
 import { dragTargets, flexFor, sizesAfterDrag, type FlexChild } from './sizes';
 import { notesLine } from './headers';
-import { foldedNow, keep, sizesOf, stateNotesOf, stateOf } from './treestate';
+import { foldedNow, keep, sizesOf, stateNotesOf, stateOf } from './tree-state';
 import './split.css';
 
 /**

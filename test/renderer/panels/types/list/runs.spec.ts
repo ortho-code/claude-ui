@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import type { NodeState } from '../../../../../src/shared/panels';
-import type { Found } from '../../../../../src/shared/helpers/pathcheck';
+import type { Found } from '../../../../../src/shared/helpers/path-check';
 import { type BridgeFixture, CONFIG_ROOT } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { chooseProject } from '../../../support/window';

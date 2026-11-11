@@ -2,15 +2,15 @@ import type { SetAside, NeedsYou, SessionSummary } from '../../../../shared/type
 import { leaveAction, leaveLabel, type LeaveAction, type TabButtonMark } from '../../../rules/claude';
 import { entityKey, sessionLabel } from '../../../rules/sessions';
 import { store, type TabState } from '../../../state/app';
-import { clearSetAside, markSetAside } from '../../../state/setaside';
-import { clearNeedsYou, restoreNeedsYou } from '../../../state/needsyou';
+import { clearSetAside, markSetAside } from '../../../state/set-aside';
+import { clearNeedsYou, restoreNeedsYou } from '../../../state/needs-you';
 import { leaveTab, sessionById, tabButtonOf } from '../../../state/views';
 import { showToast } from '../../../ui/toast';
 import { isQuitting } from '../../../window/quitting';
 import { hostOf } from '../builtin';
 import { askToLeave, forceStop, stopSession } from './leave';
-import { persistOpenTabs } from './opentabs';
-import { keptWhenGone, setTab, tabOf } from './tabstate';
+import { persistOpenTabs } from './open-tabs';
+import { keptWhenGone, setTab, tabOf } from './tab-state';
 import { buildTab, removeTab } from './terminals';
 
 /**

@@ -1,14 +1,14 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { entityKey, sessionLabel } from '../../../rules/sessions';
-import { newSession } from '../../../dialogs/newsession';
+import { newSession } from '../../../dialogs/new-session';
 import { store, type TabState } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
-import { clearNeedsYou } from '../../../state/needsyou';
+import { clearNeedsYou } from '../../../state/needs-you';
 import { setScheduled } from '../../../state/statuses';
 import { sessionById } from '../../../state/views';
 import { showToast } from '../../../ui/toast';
-import { persistOpenTabs } from './opentabs';
-import { setTab, tabOf } from './tabstate';
+import { persistOpenTabs } from './open-tabs';
+import { setTab, tabOf } from './tab-state';
 import { forceOutAtOnce, stopCalledOff } from './leave';
 import { removeTab } from './terminals';
 

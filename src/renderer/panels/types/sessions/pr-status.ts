@@ -1,13 +1,13 @@
 import { approvalsRequired, prKey, prReference, referenceKey } from '../../../../shared/sessions/prs';
 import type { PrRef, PrSeen, PrStatusRead } from '../../../../shared/types';
 import { entityKey } from '../../../rules/sessions';
-import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../status/prstatus';
+import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../status/pr-status';
 import { store, type View } from '../../../state/app';
-import { markNeedsYou, marksFor } from '../../../state/needsyou';
+import { markNeedsYou, marksFor } from '../../../state/needs-you';
 import { RunGate } from '../../run';
 
 /**
- * Asking main what GitHub says of every PR the sessions link (src/main/sessions/prstatus.ts), into the store's `prStatus`.
+ * Asking main what GitHub says of every PR the sessions link (src/main/sessions/pr-status.ts), into the store's `prStatus`.
  * Timed by the gate a panel's runs go through (`RunGate`): an ask whenever the PRs the listing links change, the first listing's included, then each at the delay the answer before it calls for (`nextAsk`).
  * The window regaining focus asks at once, unless the last answer is under a minute old.
  * Each answer also marks the sessions whose PRs changed in a way that needs you, against what was last seen of them (`settleChanges`).

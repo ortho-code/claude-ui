@@ -7,22 +7,22 @@ import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '.
 import { clockOf } from '../../../status/clock';
 import { asksForYou, strongestNudge } from '../../../status/rollup';
 import { isNeeds } from '../../../status/shown';
-import { statusLabel } from '../../../status/statelines';
-import { notLeftMark, showNotLeft } from '../../../status/notleft';
-import { markProjectGone } from '../../../status/projectgone';
+import { statusLabel } from '../../../status/state-lines';
+import { notLeftMark, showNotLeft } from '../../../status/not-left';
+import { markProjectGone } from '../../../status/project-gone';
 import { store, type TabState, type View } from '../../../state/app';
 import { projName, projectGone, projectGroups, sessionNudge, statusChanges, strengthNow, tabButtonOf, visibleTabs } from '../../../state/views';
-import { setAsideMark, showSetAside } from '../../../status/setasidemark';
-import { scheduledMark, showScheduled } from '../../../status/scheduledmark';
-import { ackOnClick, applyStatus, badgeClass } from '../../../status/statusdot';
+import { setAsideMark, showSetAside } from '../../../status/set-aside-mark';
+import { scheduledMark, showScheduled } from '../../../status/scheduled-mark';
+import { ackOnClick, applyStatus, badgeClass } from '../../../status/status-dot';
 import { layersIcon, SIBLING_ICON, WORKTREE_ICON } from '../../../ui/svg';
 import { buildTab, drawTab, dropSortable, sortableTabs, type TabEls } from '../../../ui/tab';
 import { setTooltip } from '../../../ui/tooltip';
 import { hostOf } from '../builtin';
 import { pressTabButton } from './closing';
 import { activateTab } from './terminals';
-import { persistOpenTabs } from './opentabs';
-import { tabOf, terminalOf } from './tabstate';
+import { persistOpenTabs } from './open-tabs';
+import { tabOf, terminalOf } from './tab-state';
 import './tab-bar.css';
 
 /**
@@ -309,9 +309,9 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
   worktreeMark.className = worktree?.muted ? 'tab-worktree worktree-mark muted' : 'tab-worktree worktree-mark';
   setTooltip(worktreeMark, worktree?.tooltip);
 
-  // A task claude has scheduled, as its row shows it (scheduledmark.ts).
+  // A task claude has scheduled, as its row shows it (scheduled-mark.ts).
   const scheduled = showScheduled(clock, clockOf(view.scheduledTasks.get(tab.session.id), tab));
-  // Set aside, as its row shows it (setasidemark.ts).
+  // Set aside, as its row shows it (set-aside-mark.ts).
   const setAsideShown = showSetAside(setAside, view.setAside.get(entityKey(tab.session)));
 
   const text = sessionLabel(tab.session);
@@ -330,7 +330,7 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
     button: tabButtonOf(tab, view),
     // The mark cluster is placed only when there ARE marks — an empty wrapper would still consume a gap and shift the label.
     lead: marks.length > 0 ? [dot, markGroup] : [dot],
-    // A stop claude has not left, as its row says it (notleft.ts).
+    // A stop claude has not left, as its row says it (not-left.ts).
     trail: showNotLeft(notLeft, tab) ? [notLeft] : [],
   });
   els.el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab

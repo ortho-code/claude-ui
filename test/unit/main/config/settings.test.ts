@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { promises as fs, mkdirSync, writeFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { readJsonc } from '../../../../src/main/config/jsonc';
-import { bundledNeedsYou } from '../../../renderer/support/needsyou';
+import { bundledNeedsYou } from '../../../renderer/support/needs-you';
 
 // A real folder, so settings.json, the old settings.local.json and meta.json are read from disk as main reads them.
 const { dataDir, logged } = vi.hoisted(() => {

@@ -1,8 +1,8 @@
-import type { PathFunctions } from '../../../src/shared/helpers/pathcheck';
+import type { PathFunctions } from '../../../src/shared/helpers/path-check';
 
 /**
  * Node's `path.posix.join` and `path.posix.resolve` for the stand-in, which runs in the page where Node's `path` is not, so that `checkPath` is answered by main's own rule (`resolvePathIn`).
- * A copy of Node, held to it by a unit test (test/unit/shared/pathcheck.test.ts) rather than trusted.
+ * A copy of Node, held to it by a unit test (test/unit/shared/path-check.test.ts) rather than trusted.
  * `resolve` has no working directory to fall back on, so a call without an absolute path throws; main's never is one, since a base is the config folder or an absolute folder.
  */
 

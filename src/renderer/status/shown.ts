@@ -1,5 +1,5 @@
 import { DEFAULT_STRENGTH, expandedStrength, NEEDS_YOU } from '../../shared/status/looks';
-import { NO_NEEDS_YOU_TYPES, PR_TYPES } from '../../shared/status/needsyou';
+import { NO_NEEDS_YOU_TYPES, PR_TYPES } from '../../shared/status/needs-you';
 import type { NeedsYou } from '../../shared/types';
 
 /** A needs-you reason as a dot shows it: `needs:` and its type, so what a dot shows stays one word a surface can compare, and the type is there for its look. */

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { GroupState, OrderMove } from '../../shared/types';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../shared/sessions/grouping';
 import { withText } from '../../shared/helpers/text';
-import { readMeta, serialize, update, writeAudited, type Meta } from './metastore';
+import { readMeta, serialize, update, writeAudited, type Meta } from './meta-store';
 
 export function getProjectNames(): Promise<Record<string, string>> {
   return serialize(async () => (await readMeta()).projectNames);

@@ -46,7 +46,7 @@ The one exception is a failed start's last five lines, which for a resume that d
   A review cut short by quitting or reloading has a start and no end, and a finish of a running tab is written when its claude exits, which can be after the review's end.
 - `needsYou`: per session, the reasons a write `marked`, `settled` with what settled them (`SettledBy`), or `restored` by Undo, by type.
 
-**Recorded in main, where `meta.json` is written** (`update` in `src/main/sessions/metastore.ts`), after the write has landed, so every surface that decides — the review, the bulk bar, the close toast, a session's menu, a tab's button — is counted without passing a source through; only the two writes nobody decides say what made them.
+**Recorded in main, where `meta.json` is written** (`update` in `src/main/sessions/meta-store.ts`), after the write has landed, so every surface that decides — the review, the bulk bar, the close toast, a session's menu, a tab's button — is counted without passing a source through; only the two writes nobody decides say what made them.
 The window sends only the review's opening and ending, which `reviewUsageOf` checks on arrival as the log checks the window's lines.
 
 **Not the audit log**: `meta-audit.log` is trimmed by size to trace a lost write over the last few sessions of work; this is kept by time, a year (`USAGE_KEPT_DAYS`), trimmed at each launch.

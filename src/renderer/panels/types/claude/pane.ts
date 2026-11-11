@@ -6,7 +6,7 @@ import { element, fromMarkup } from '../../../ui/dom';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
 import { activateTab } from './terminals';
-import { isOnShow, terminalOf, terminalsEl } from './tabstate';
+import { isOnShow, terminalOf, terminalsEl } from './tab-state';
 // Its Resume, in its own actions and in the history's note.
 import '../../../ui/decisive-button.css';
 import './pane.css';

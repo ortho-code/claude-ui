@@ -4,21 +4,21 @@ import { homedir } from 'node:os';
 import * as path from 'node:path';
 import { configRoot, layoutsDir, scriptsDir, typesDir, defaultLayoutFile, defaultLocalLayoutFile } from '../paths';
 import type { LayoutReport, PathBase, PathCheck, PathKind, TypeReport } from '../../shared/panels';
-import { pathProblem, resolvePathIn, type Found } from '../../shared/helpers/pathcheck';
-import { ownWrites } from './appfiles';
+import { pathProblem, resolvePathIn, type Found } from '../../shared/helpers/path-check';
+import { ownWrites } from './app-files';
 import { readJsoncFile } from './jsonc';
-import { readLocalLayout } from '../panels/layoutstate';
+import { readLocalLayout } from '../panels/layout-state';
 import { fsFailure, log } from '../logs/log';
 
 /**
- * The config folder: read and watched here, and never written from here; the app's own `.local.json` files in it are written by appfiles.ts alone.
+ * The config folder: read and watched here, and never written from here; the app's own `.local.json` files in it are written by app-files.ts alone.
  *
  * A read is TOLERANT the way meta's is not, and for the opposite reason: meta drops what it does not understand because the app wrote it and a past version's field is noise, while this file was written by a person, so what the app does not understand has to be NAMED back to them.
  * So nothing here throws or drops: a missing file is a report saying so, and a file that does not parse is a report saying what is wrong and at which line and column.
  */
 
 /**
- * Where a path option points (`resolvePathIn` in src/shared/helpers/pathcheck.ts, the rule itself), against this machine's home directory and config folder, joined and resolved by Node's own `path`.
+ * Where a path option points (`resolvePathIn` in src/shared/helpers/path-check.ts, the rule itself), against this machine's home directory and config folder, joined and resolved by Node's own `path`.
  * The ONE resolver, used by a panel's check and by the run and the shell start that follow it, so the check and the use cannot disagree about which file or folder was meant.
  */
 export function resolvePath(value: string, base: PathBase): string {

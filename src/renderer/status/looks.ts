@@ -6,7 +6,7 @@ import { strokeIcon, svgImage } from '../ui/svg';
 
 /**
  * THE LOOKS' STYLESHEET: every status's, category's and type's look, as `settings.json`'s `looks` and the defaults resolve them (shared/status/looks.ts), written into the page as one stylesheet, a rule per look on its class (`lookClass`).
- * A dot carries its look's class beside its state's (statusdot.ts), so no surface builds anything of its own for a look.
+ * A dot carries its look's class beside its state's (status-dot.ts), so no surface builds anything of its own for a look.
  */
 
 /** The id of the look a dot showing `state` is drawn in: a reason's type, `needs-you` for a panel's `needs`, a status its own; none for a state that is not a session's, such as a tab stopping or a run that failed. */

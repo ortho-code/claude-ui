@@ -1,5 +1,5 @@
 import { needsShown } from '../status/shown';
-import { badgeClass } from '../status/statusdot';
+import { badgeClass } from '../status/status-dot';
 import { element } from '../ui/dom';
 import { strokeIcon } from '../ui/svg';
 import { setTooltip } from '../ui/tooltip';

@@ -2,8 +2,8 @@ import { sessionLabel } from '../../../rules/sessions';
 import { store, type TabState } from '../../../state/app';
 import { clearNudge } from '../../../state/statuses';
 import { showToast } from '../../../ui/toast';
-import { persistOpenTabs } from './opentabs';
-import { clearStopTimers, isOnShow, keptWhenGone, setTab, stopTimers, tabOf, terminalOf } from './tabstate';
+import { persistOpenTabs } from './open-tabs';
+import { clearStopTimers, isOnShow, keptWhenGone, setTab, stopTimers, tabOf, terminalOf } from './tab-state';
 
 /**
  * Asking a tab's claude to leave, forcing one that does not, calling a leave off, and the cold tab one leaves behind.

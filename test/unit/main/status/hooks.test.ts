@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-vi.mock('electron', async () => (await import('./statushome')).electronStub);
-vi.mock('node:os', async () => (await import('./statushome')).osStub);
+vi.mock('electron', async () => (await import('./status-home')).electronStub);
+vi.mock('node:os', async () => (await import('./status-home')).osStub);
 
 import { installStatusHooks, statusSettingsFile } from '../../../../src/main/status/hooks';
 import { statusDir } from '../../../../src/main/paths';
-import { testHome } from './statushome';
-import { readStatusFile, runHook, SID, TOKEN, useHookScript } from './hookscript';
+import { testHome } from './status-home';
+import { readStatusFile, runHook, SID, TOKEN, useHookScript } from './hook-script';
 
 const settingsPath = path.join(testHome, '.claude', 'settings.json');
 const ourCmd = path.join(testHome, '.config', 'claude-ui', 'status-hook.sh');

@@ -17,7 +17,7 @@ import type { Asks, PanelType, Where } from './contract';
 import { commandType } from './types/command';
 import { terminalType } from './types/terminal';
 import { drawFullScreenButton, header, notesLine, problemList, tabsHeader } from './headers';
-import { foldedNow, initTreeState, keep, stateFileNotesNow, stateNotesOf, stateOf, takeState } from './treestate';
+import { foldedNow, initTreeState, keep, stateFileNotesNow, stateNotesOf, stateOf, takeState } from './tree-state';
 
 /**
  * The window, drawn from the layout tree: nested rows and columns of groups, each group showing one panel, with the app's own sidebar and terminal area as two of the panels.

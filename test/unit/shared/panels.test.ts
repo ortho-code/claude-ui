@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import { nodeStateProblem, parseSize, spelledSize, withLink, withNodeChanges, type NodeState, type PanelData } from '../../../src/shared/panels';
 
-// Main's own tests (test/unit/main/panels/paneldata.test.ts) hold what the file ends up with, pruning included; this holds what the window's checks rely on too: a new value, the given one untouched.
+// Main's own tests (test/unit/main/panels/panel-data.test.ts) hold what the file ends up with, pruning included; this holds what the window's checks rely on too: a new value, the given one untouched.
 describe('withLink', () => {
   it('adds the link from the time given and remembers the group, keeping the other links and projects', () => {
     const data: PanelData = { sessions: { s1: { key: 'a', label: 'A', href: null, startedAt: 't1' } }, lastGroup: { '/other': 'g-other' } };

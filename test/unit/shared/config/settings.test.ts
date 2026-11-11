@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { changedSettings, fileChanges, fileEdits, sameValue, saveRefusal, settingProblem, settingsInForce, settingsView, type SettingsFileRead } from '../../../../src/shared/config/settings';
-import { bundledNeedsYou } from '../../../renderer/support/needsyou';
+import { bundledNeedsYou } from '../../../renderer/support/needs-you';
 
 const missing: SettingsFileRead = { name: 'settings.json', status: 'missing', error: null, json: null };
 const holding = (json: unknown): SettingsFileRead => ({ name: 'settings.json', status: 'read', error: null, json });

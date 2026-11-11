@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import { auditLines, metaDir, useMetaDir, writeMetaFile } from './metafixture';
+import { auditLines, metaDir, useMetaDir, writeMetaFile } from './meta-fixture';
 
-vi.mock('electron', async () => (await import('./metafixture')).electronStub);
+vi.mock('electron', async () => (await import('./meta-fixture')).electronStub);
 
 import {
   getPinned,

@@ -374,7 +374,7 @@ export interface Settings {
   prStatus: boolean;
   /** What a tab's button does: stop a running session and then close the tab or mark its session finished, close or finish in one press, claude asked to leave first, or no button at all, leaving it to the tab's menu. */
   leaveButton: LeaveButton;
-  /** The choices for setting a session aside, as written (shared/status/setaside.ts), offered in the order they would come with Whenever last. */
+  /** The choices for setting a session aside, as written (shared/status/set-aside.ts), offered in the order they would come with Whenever last. */
   setAside: string[];
   /** The time of day a choice without one comes back at, as `"HH:MM"` in 24 hours; Pick a date… starts at it. */
   setAsideTime: string;
@@ -384,7 +384,7 @@ export interface Settings {
   strength: string[];
   /** How a status, `needs-you`, a category or a type is drawn, by its id, each entry the fields it changes; anything not set is drawn as before (shared/status/looks.ts). */
   looks: Record<string, Look>;
-  /** What you change of the needs-you categories and types the app ships, by id, each entry the fields it changes, such as `"enabled": false` (shared/status/needsyou.ts). */
+  /** What you change of the needs-you categories and types the app ships, by id, each entry the fields it changes, such as `"enabled": false` (shared/status/needs-you.ts). */
   needsYou: Record<string, NeedsYouChange>;
   /** How many approvals a PR needs before it counts as approved, by repository as `owner/name`; a repository not named counts as approved when GitHub says so (shared/sessions/prs.ts). */
   approvals: Record<string, number>;
@@ -452,7 +452,7 @@ export interface UiState {
 
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './helpers/folders';
-import type { NeedsYouChange, NeedsYouRegistry } from './status/needsyou';
+import type { NeedsYouChange, NeedsYouRegistry } from './status/needs-you';
 import type { LogLevel } from './helpers/log';
 import type { Look } from './status/looks';
 import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './config/settings';
@@ -636,7 +636,7 @@ export interface ClaudeUiApi {
   pickFolder(): Promise<string | null>;
   /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */
   openExternal(url: string): void;
-  /** What GitHub says of `prs`, asked with `gh` (`src/main/sessions/prstatus.ts`); a merged one is not asked again while the app runs. */
+  /** What GitHub says of `prs`, asked with `gh` (`src/main/sessions/pr-status.ts`); a merged one is not asked again while the app runs. */
   prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
   /** Current status per session id (busy | ready | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
@@ -717,7 +717,7 @@ export interface ClaudeUiApi {
    * `token` is the one the run was requested with, so a superseded run's tail can be told apart.
    */
   onPanelRun(callback: (entryId: string, token: string, event: PanelRunEvent) => void): void;
-  /** The git working tree at `dir`, as a fingerprint of what git reports there, for a panel that runs again when it changes (src/main/panels/gitstate.ts). */
+  /** The git working tree at `dir`, as a fingerprint of what git reports there, for a panel that runs again when it changes (src/main/panels/git-state.ts). */
   panelTree(dir: string): Promise<WorkingTree>;
   /** What the app keeps for a panel: the sessions its rows started, the group last picked for one, and a terminal panel's shells. */
   getPanelData(entryId: string): Promise<PanelData>;

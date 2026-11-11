@@ -1,8 +1,8 @@
 import { DEFAULT_STRENGTH, expandedStrength } from '../../../src/shared/status/looks';
-import { categoryOf } from '../../../src/shared/status/needsyou';
+import { categoryOf } from '../../../src/shared/status/needs-you';
 import type { NeedsYou, SessionSummary } from '../../../src/shared/types';
 import type { Strength } from '../../../src/renderer/status/shown';
-import { bundledNeedsYou } from '../../renderer/support/needsyou';
+import { bundledNeedsYou } from '../../renderer/support/needs-you';
 
 export function session(over: Partial<SessionSummary> = {}): SessionSummary {
   return {

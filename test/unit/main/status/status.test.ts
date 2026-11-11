@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-vi.mock('electron', async () => (await import('./statushome')).electronStub);
-vi.mock('node:os', async () => (await import('./statushome')).osStub);
+vi.mock('electron', async () => (await import('./status-home')).electronStub);
+vi.mock('node:os', async () => (await import('./status-home')).osStub);
 
 import { readAllStatuses as getAllStatuses, readReport, reportEnd, type Ending, type Report, type Work } from '../../../../src/main/status/status';
 import { statusDir } from '../../../../src/main/paths';
-import { readStatusFile, runHook, SID, statusFile, TOKEN, useHookScript } from './hookscript';
+import { readStatusFile, runHook, SID, statusFile, TOKEN, useHookScript } from './hook-script';
 
 useHookScript();
 
@@ -35,7 +35,7 @@ describe('the statuses read at launch', () => {
 });
 
 /**
- * What the last Stop left running is kept beside the status, for the reader of the transcript that ends what no hook ends (transcriptends.ts).
+ * What the last Stop left running is kept beside the status, for the reader of the transcript that ends what no hook ends (transcript-ends.ts).
  * It is that Stop's own payload, so it survives the busy of the next turn, which is when an interrupt needs it.
  */
 describe('what the last Stop left running', () => {

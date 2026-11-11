@@ -9,13 +9,13 @@ import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
 import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
 import type { FolderType } from './folder';
-import { readListDocument, type ListDocument } from './listdoc';
-import { ListView } from './listview';
+import { readListDocument, type ListDocument } from './list-doc';
+import { ListView } from './list-view';
 import '../../ui/tone.css';
 import './list.css';
 
 /**
- * The `list` kind: a type from the config folder whose script prints a list document (listdoc.ts), which the app draws with its own styles (listview.ts).
+ * The `list` kind: a type from the config folder whose script prints a list document (list-doc.ts), which the app draws with its own styles (list-view.ts).
  *
  * WHEN IT RUNS (`RunGate`, through `PanelRuns`, which a command panel's runs go through too): on first being shown, on Refresh, on a context change once it has run, shown or not, and on its interval if it has one — the interval also while the panel is hidden or folded, so the count on its rail stays true.
  * NEVER AN EMPTY LIST FOR A BROKEN RUN: a run that fails, or prints something that is not a list, says so.

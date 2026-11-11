@@ -2,15 +2,15 @@ import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-vi.mock('electron', async () => (await import('./sessionshome')).electronStub);
+vi.mock('electron', async () => (await import('./sessions-home')).electronStub);
 vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../../src/main/logs/log')>()),
-  ...(await import('./sessionshome')).logStub,
+  ...(await import('./sessions-home')).logStub,
 }));
-vi.mock('node:os', async () => (await import('./sessionshome')).osStub);
+vi.mock('node:os', async () => (await import('./sessions-home')).osStub);
 
 import { findTranscript, listSessions } from '../../../../src/main/sessions/sessions';
-import { jsonl, projectsDir, testHome } from './sessionshome';
+import { jsonl, projectsDir, testHome } from './sessions-home';
 
 beforeAll(async () => {
   const dir = path.join(projectsDir, '-tmp-proj');

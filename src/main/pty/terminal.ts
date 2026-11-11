@@ -9,7 +9,7 @@ import { settingsNow } from '../config/settings';
 import { log } from '../logs/log';
 import { formatDuration } from '../files/stamp';
 import type { TerminalLaunch } from '../../shared/types';
-import type { ShellFolder } from '../panels/paneldata';
+import type { ShellFolder } from '../panels/panel-data';
 import { ID_PATTERN, type PanelContext } from '../../shared/panels';
 
 const terminals = new Map<number, pty.IPty>();

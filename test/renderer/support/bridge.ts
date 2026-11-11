@@ -1,10 +1,10 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/sessions/history';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/sessions/grouping';
-import { NO_NEEDS_YOU_TYPES } from '../../../src/shared/status/needsyou';
+import { NO_NEEDS_YOU_TYPES } from '../../../src/shared/status/needs-you';
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
-import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/helpers/pathcheck';
+import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/helpers/path-check';
 import { prKey, withPrLinks } from '../../../src/shared/sessions/prs';
-import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/status/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/status/session-marks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/config/settings';
 import { withText } from '../../../src/shared/helpers/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -95,7 +95,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     onQuitting: on('onQuitting'),
     onClaudeMissing: on('onClaudeMissing'),
     getPinned: () => answer(fixture.pinned),
-    // The marks are main's own rules (src/shared/status/sessionmarks.ts), kept in the fixture, so a later read answers with what the change left.
+    // The marks are main's own rules (src/shared/status/session-marks.ts), kept in the fixture, so a later read answers with what the change left.
     togglePin: (id) => answer((fixture.pinned = togglePinned(fixture.pinned, id))),
     getHistoryPins: () => answer(fixture.historyPins),
     // Main's toggle (`toggleHistoryPin` in src/main/sessions/meta.ts) for a pin the window sends whole: it goes, or comes with when it was pinned.
@@ -234,11 +234,11 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     // Main's own rule (`seededOrder`), so a fixture need not place its projects: the listing's roots seed the order as they seed main's, new ones in front.
     seedProjectOrder: (roots) => answer((fixture.projectOrder = seededOrder(fixture.projectOrder, roots) ?? fixture.projectOrder)),
     moveProject: (repoRoot, move, shown) => answer((fixture.projectOrder = movedProject(fixture.projectOrder, repoRoot, move, shown) ?? fixture.projectOrder)),
-    // Main writes the pairing to its audit log and answers nothing, deciding nothing (`recordClear` in src/main/sessions/metastore.ts).
+    // Main writes the pairing to its audit log and answers nothing, deciding nothing (`recordClear` in src/main/sessions/meta-store.ts).
     recordClear: () => answer(undefined),
     pickFolder: () => answer(fixture.pickFolder),
     openExternal: sent,
-    // Main answers for the PRs asked about only, each one's last status by its key (`prKey`, `PrStatuses.ask`, src/main/sessions/prstatus.ts), so the fixture keeps them by key too; it also leaves out a PR whose repository is not `owner/name`, which no fixture links.
+    // Main answers for the PRs asked about only, each one's last status by its key (`prKey`, `PrStatuses.ask`, src/main/sessions/pr-status.ts), so the fixture keeps them by key too; it also leaves out a PR whose repository is not `owner/name`, which no fixture links.
     prStatuses: (prs) =>
       answer({
         statuses: Object.fromEntries(

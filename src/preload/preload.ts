@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { ClaudeUiApi, ScheduledTask } from '../shared/types';
 import type { LayoutReport, PanelData, PanelRunEvent } from '../shared/panels';
 import type { SettingsView } from '../shared/config/settings';
-import type { NeedsYouRegistry } from '../shared/status/needsyou';
+import type { NeedsYouRegistry } from '../shared/status/needs-you';
 
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),

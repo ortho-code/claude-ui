@@ -1,8 +1,8 @@
 import { ipcMain } from 'electron';
 import type { NeedsYou, SetAside, SettledBy, SettledNeedsYou } from '../../shared/types';
-import { cameDue, clearedSetAside, keptFrom, markedSetAside, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes, unkept } from '../../shared/status/sessionmarks';
+import { cameDue, clearedSetAside, keptFrom, markedSetAside, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes, unkept } from '../../shared/status/session-marks';
 import { needsYouUsage } from '../logs/usage';
-import { decided, readMeta, serialize, update } from '../sessions/metastore';
+import { decided, readMeta, serialize, update } from '../sessions/meta-store';
 
 /** The sessions marked as needing you; see `needsYou`. */
 export function getNeedsYou(): Promise<Record<string, NeedsYou[]>> {

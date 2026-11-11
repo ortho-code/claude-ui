@@ -1,4 +1,4 @@
-import { categoryOf } from '../../shared/status/needsyou';
+import { categoryOf } from '../../shared/status/needs-you';
 import { prKey } from '../../shared/sessions/prs';
 import type { ClosedHow, SetAside, NeedsYou, PrRole, PrStatus } from '../../shared/types';
 import { sessionLabel } from '../rules/sessions';

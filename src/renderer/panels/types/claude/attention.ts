@@ -6,7 +6,7 @@ import type { View } from '../../../state/app';
 import { projName, tabWith } from '../../../state/views';
 import { hostOf } from '../builtin';
 import { jumpToSession } from './asks';
-import { tabOf } from './tabstate';
+import { tabOf } from './tab-state';
 
 /**
  * The terminal area's attention toasts: a tab not on show that turns waiting or finished says so in a toast (drawn by notifications.ts), and so does one whose claude has not left a stop, and a click on it goes to that tab.

@@ -1,7 +1,7 @@
 import type { SetAside, PrStatusRead, SessionSummary } from '../../shared/types';
-import { relativeTime } from '../ui/timewords';
+import { relativeTime } from '../ui/time-words';
 import { entityKey } from './sessions';
-import { settledState } from '../status/prstatus';
+import { settledState } from '../status/pr-status';
 
 /**
  * THE REVIEW, pure (docs/architecture/session-list.md § The review): which sessions it offers, in which of its two sets, and the line that says why each is there.

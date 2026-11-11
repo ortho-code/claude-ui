@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { promptText } from '../../../dialogs/dialogs';
 import { entityKey, sessionLabel } from '../../../rules/sessions';
-import { newSession } from '../../../dialogs/newsession';
+import { newSession } from '../../../dialogs/new-session';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
 import { setProjectOnShow } from '../../../state/project';
@@ -11,7 +11,7 @@ import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
 import { closeTabs, finishSessions, pressLeave } from './closing';
 import { activateTab, createTab, startTab, switchWorkspaceTerminal } from './terminals';
-import type { TabLaunch } from './tabstate';
+import type { TabLaunch } from './tab-state';
 
 /**
  * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, finish one with its tabs, and follow the project chosen.

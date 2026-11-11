@@ -1,13 +1,13 @@
 import { ipcMain } from 'electron';
 import type { HistoryPin, PrSeen, ScheduledTask, SessionPr, UiState } from '../../shared/types';
-import { finishedFrom, clearedSetAside, purgedSession, settledNeedsYou, togglePinned, clearedFinished, withPrLink } from '../../shared/status/sessionmarks';
+import { finishedFrom, clearedSetAside, purgedSession, settledNeedsYou, togglePinned, clearedFinished, withPrLink } from '../../shared/status/session-marks';
 import { withText } from '../../shared/helpers/text';
 import type { WindowBounds } from '../window/bounds';
-import { normalizeUi } from '../window/uistate';
-import { scheduledBySession } from '../status/storedmarks';
+import { normalizeUi } from '../window/ui-state';
+import { scheduledBySession } from '../status/stored-marks';
 import { needsYouUsage } from '../logs/usage';
-import { decided, readMeta, recordClear, serialize, update, type MetaSettings } from './metastore';
-import { prSeenOf } from './storedprs';
+import { decided, readMeta, recordClear, serialize, update, type MetaSettings } from './meta-store';
+import { prSeenOf } from './stored-prs';
 
 export function getPinned(): Promise<string[]> {
   return serialize(async () => (await readMeta()).pinned);
@@ -74,7 +74,7 @@ export function unfinish(ids: string[], by?: 'resume'): Promise<Record<string, n
 }
 
 /**
- * Drop a session from all metadata (used when it is deleted), by the rule the window's checks answer with too (`purgedSession`, src/shared/status/sessionmarks.ts).
+ * Drop a session from all metadata (used when it is deleted), by the rule the window's checks answer with too (`purgedSession`, src/shared/status/session-marks.ts).
  * History pins stay: they are keyed by the request or message, which a fork sibling may still carry, and telling which pins nothing opens any more needs every transcript read — a job for a list of every pin, not for a delete.
  */
 export function purgeSession(id: string): Promise<void> {

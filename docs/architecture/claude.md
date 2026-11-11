@@ -148,7 +148,7 @@ A file that still lists paused tabs, `pausedSessions` ([decided 2026-10-29](../d
 A tab loses the mark when its session's process arrives, and gets it back if that start fails within its first moments; a start that is refused or throws never had a process, so the mark stays.
 The mark is written whenever it changes, with the rest.
 
-The code is in `src/renderer/panels/types/claude/`: `terminals.ts` holds a tab's life from built to its claude's exit, the workspace switch and the fit of the tab on show to the terminal area; `leave.ts` asking a claude to leave, forcing one that does not, and the cold tab one leaves; `closing.ts` closing a tab and finishing a session, and the Undo each offers; `tabstate.ts` each tab's terminal; `opentabs.ts` and `restore.ts` the open tabs kept for the next launch and their restore; `adopt.ts` a tab taking over the session its claude went on in.
+The code is in `src/renderer/panels/types/claude/`: `terminals.ts` holds a tab's life from built to its claude's exit, the workspace switch and the fit of the tab on show to the terminal area; `leave.ts` asking a claude to leave, forcing one that does not, and the cold tab one leaves; `closing.ts` closing a tab and finishing a session, and the Undo each offers; `tab-state.ts` each tab's terminal; `open-tabs.ts` and `restore.ts` the open tabs kept for the next launch and their restore; `adopt.ts` a tab taking over the session its claude went on in.
 
 ### Stopping a session is a request: claude may answer it with a question
 
@@ -182,7 +182,7 @@ The buttons say which it is too, the stop square, the cross or the lidded box, a
 
 **A stop claude has not left three seconds after the ask says so where it shows without a hover** ([decided 2026-10-24](../decisions/0108-a-stop-not-left-says-so-without-a-hover.md)).
 That is any ask, a stop's, a close's or a finish's.
-"hasn't left" stands beside the session's name in the colour of a session waiting for you, on its tab, and its row in the list, in place of the time and model (`notLeftWords`, `notleft.ts`); the row follows the session's first tab, which is its only one save while a `/resume` takes over a session another tab runs (§ A resumed session is the session it was).
+"hasn't left" stands beside the session's name in the colour of a session waiting for you, on its tab, and its row in the list, in place of the time and model (`notLeftWords`, `not-left.ts`); the row follows the session's first tab, which is its only one save while a `/resume` takes over a session another tab runs (§ A resumed session is the session it was).
 A tab not on show gets an attention toast too, naming the session, saying "Claude hasn't left — it may be asking you something", and listing what it has scheduled, since claude may be asking about that (`toastNotLeft`): the toasts a turn's end raises, since this is the same news, and they stack, newest on top, up to four, where the message bar holds one at a time.
 It stays until claude leaves, the stop is called off or forced, or it is dismissed, where a turn's toast goes after 5 s; a newer toast past the four pushes out the oldest that does not stay, so only a fifth stuck stop at once could push one out.
 A click on it brings the tab on show, where the question is.

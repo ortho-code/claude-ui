@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import { auditLines, metaDir, useMetaDir, writeMetaFile } from '../sessions/metafixture';
+import { auditLines, metaDir, useMetaDir, writeMetaFile } from '../sessions/meta-fixture';
 
-vi.mock('electron', async () => (await import('../sessions/metafixture')).electronStub);
+vi.mock('electron', async () => (await import('../sessions/meta-fixture')).electronStub);
 
 import { clearNeedsYou, clearSetAside, getKept, getNeedsYou, getNeedsYouHistory, getSetAside, keep, markNeedsYou, markSetAside, restoreNeedsYou, setAsideCameDue, unkeep } from '../../../../src/main/status/marks';
 import { finish, getRunningSessions, purgeSession, setOpenSessions, togglePin } from '../../../../src/main/sessions/meta';

@@ -3,7 +3,7 @@ import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { exitLater } from '../../../../support/clock';
 import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { needsYouFile, switchedOff } from '../../../../support/needsyou';
+import { needsYouFile, switchedOff } from '../../../../support/needs-you';
 import { openSettings } from '../../../../support/settings';
 import { row, switcherRollUp, tab, tabLabels, toastButton } from '../../../../support/window';
 

@@ -1,6 +1,6 @@
 import { DEFAULT_STRENGTH, expandedStrength } from '../../shared/status/looks';
-import { categoryOf, type NeedsYouRegistry } from '../../shared/status/needsyou';
-import { mutedBySetAside } from '../../shared/status/sessionmarks';
+import { categoryOf, type NeedsYouRegistry } from '../../shared/status/needs-you';
+import { mutedBySetAside } from '../../shared/status/session-marks';
 import type { SetAside, NeedsYou, SessionGroup, SessionSummary } from '../../shared/types';
 import { tabButton, type TabButton, type TabButtonTab } from '../rules/claude';
 import { inView, projectsForSwitcher, type SwitcherModel } from '../rules/session-list';

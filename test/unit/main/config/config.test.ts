@@ -21,7 +21,7 @@ vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({
 }));
 
 import type { BrowserWindow } from 'electron';
-import { editAppFile } from '../../../../src/main/config/appfiles';
+import { editAppFile } from '../../../../src/main/config/app-files';
 import { checkPath, noteLayout, readLayout, readTypes, registerConfig, resolvePath } from '../../../../src/main/config/config';
 import { configRoot, defaultLayoutFile, scriptsDir, typesDir } from '../../../../src/main/paths';
 import type { LocalLayoutRead, TypeReport } from '../../../../src/shared/panels';

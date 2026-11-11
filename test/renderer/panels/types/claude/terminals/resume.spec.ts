@@ -2,7 +2,7 @@ import type { RunningAtLaunch } from '../../../../../../src/shared/config/settin
 import type { ClosedHow, TerminalLaunch } from '../../../../../../src/shared/types';
 import { type BridgeFixture, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { needsYouFile, switchedOff } from '../../../../support/needsyou';
+import { needsYouFile, switchedOff } from '../../../../support/needs-you';
 import { tab } from '../../../../support/window';
 
 // At launch every open tab comes back, and the sessions that were running when the app closed come back as the setting says, cold by default or started again, and marked as needing you unless a file of yours switches that type off.

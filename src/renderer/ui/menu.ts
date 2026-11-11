@@ -1,6 +1,6 @@
 import type { NudgeStatus } from '../status/rollup';
 import { store, type AppState } from '../state/app';
-import { badgeClass, sessionDotClass } from '../status/statusdot';
+import { badgeClass, sessionDotClass } from '../status/status-dot';
 import { chevronIcon, strokeIcon } from './svg';
 import { setTooltip } from './tooltip';
 import { setUnavailable } from './unavailable';
@@ -36,7 +36,7 @@ export interface MenuItem {
   badge?: NudgeStatus;
   /** An item that IS a session: its own dot ahead of the label, as its row draws it, in place of a roll-up's. */
   session?: { status: string | null; acked: boolean };
-  /** A dot ahead of the label classed by whoever lists the item, such as a PR's in its ink (prstatus.css), in place of a roll-up's. */
+  /** A dot ahead of the label classed by whoever lists the item, such as a PR's in its ink (pr-status.css), in place of a roll-up's. */
   dot?: string;
   /** A second line under a dotted item's label, muted and wrapping, for what is said about the thing the label names, such as a PR's state. */
   detail?: string;

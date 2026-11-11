@@ -2,15 +2,15 @@ import type { ScheduledTask, SessionSummary } from '../../../../shared/types';
 import { hasVisibleOutput } from '../../../rules/claude';
 import { entityKey, unstartableReason } from '../../../rules/sessions';
 import { store, type TabState, type View } from '../../../state/app';
-import { clearNeedsYou } from '../../../state/needsyou';
+import { clearNeedsYou } from '../../../state/needs-you';
 import { clearNudge } from '../../../state/statuses';
 import { tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, fitTerminal, lastLines } from '../../../ui/terminal';
 import { showToast } from '../../../ui/toast';
 import { isQuitting } from '../../../window/quitting';
 import { coolTab } from './leave';
-import { persistOpenTabs } from './opentabs';
-import { clearStopTimers, isOnShow, remembered, setTab, tabOf, terminalOf, terminals, terminalsEl, type TabLaunch } from './tabstate';
+import { persistOpenTabs } from './open-tabs';
+import { clearStopTimers, isOnShow, remembered, setTab, tabOf, terminalOf, terminals, terminalsEl, type TabLaunch } from './tab-state';
 import './terminals.css';
 
 /**

@@ -4,7 +4,7 @@ import { test as base, expect, type Route } from '@playwright/test';
 import { build } from 'esbuild';
 import type { ClaudeUiApi, SessionSummary, UiState } from '../../../src/shared/types';
 import { defaultFixture, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
-import { bundledNeedsYou } from './needsyou';
+import { bundledNeedsYou } from './needs-you';
 
 /** The window as it ships: `npm run build`'s output, which `npm run test:renderer` builds first. */
 const DIST = path.resolve(__dirname, '../../../dist/renderer');

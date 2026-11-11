@@ -4,7 +4,7 @@
  */
 
 import { isIconName, type IconName } from '../helpers/icons';
-import type { NeedsYouRegistry } from './needsyou';
+import type { NeedsYouRegistry } from './needs-you';
 
 /** The statuses a hook reports, each an entry of the order. */
 export const STATUSES = ['waiting', 'busy', 'background', 'ready', 'closed'] as const;

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { auditLines, useMetaDir, writeMetaFile } from './metafixture';
+import { auditLines, useMetaDir, writeMetaFile } from './meta-fixture';
 
-vi.mock('electron', async () => (await import('./metafixture')).electronStub);
+vi.mock('electron', async () => (await import('./meta-fixture')).electronStub);
 
 import { createGroup, deleteGroup, getGroupState, getProjectNames, getProjectOrder, moveGroup, moveProject, moveSessionsToGroup, renameGroup, seedProjectOrder, setProjectName } from '../../../../src/main/sessions/groups';
 import { getPinned, purgeSession } from '../../../../src/main/sessions/meta';

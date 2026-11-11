@@ -1,6 +1,6 @@
 /**
  * Reading the records of a session transcript (`~/.claude/projects/<dir>/<id>.jsonl`, one JSON record per line).
- * What a record says is decided here once, for every reader of the transcript: the session list's summary, the history of a session's requests, and the ends of a turn no hook reports (transcriptends.ts).
+ * What a record says is decided here once, for every reader of the transcript: the session list's summary, the history of a session's requests, and the ends of a turn no hook reports (transcript-ends.ts).
  */
 
 import { promises as fs } from 'node:fs';

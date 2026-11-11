@@ -4,16 +4,16 @@ import { mkdirSync, mkdtempSync, promises as fs, realpathSync, rmSync, symlinkSy
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-vi.mock('electron', async () => (await import('./sessionshome')).electronStub);
+vi.mock('electron', async () => (await import('./sessions-home')).electronStub);
 vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../../src/main/logs/log')>()),
-  ...(await import('./sessionshome')).logStub,
+  ...(await import('./sessions-home')).logStub,
 }));
-vi.mock('node:os', async () => (await import('./sessionshome')).osStub);
+vi.mock('node:os', async () => (await import('./sessions-home')).osStub);
 
 import { listSessions } from '../../../../src/main/sessions/sessions';
 import type { SessionCheckout } from '../../../../src/shared/types';
-import { jsonl, logged, projectsDir } from './sessionshome';
+import { jsonl, logged, projectsDir } from './sessions-home';
 
 // The folder a session works in, which a panel without a `cwd` of its own runs in: the checkout of the newest file claude changed with a file tool.
 // Against a real repository with linked worktrees in the temp folder, since which checkout a file is in, and whether git ignores it there, are git's own answers.

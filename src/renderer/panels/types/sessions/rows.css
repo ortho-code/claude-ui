@@ -73,7 +73,7 @@
   color: var(--bg);
 }
 
-/* A PR mark is drawn in its PRs' roll-up ink (prstatus.css), at rest and filled alike; the accent while it has no tone. */
+/* A PR mark is drawn in its PRs' roll-up ink (pr-status.css), at rest and filled alike; the accent while it has no tone. */
 .pr-badge {
   --badge-ink: var(--pr-ink);
 }

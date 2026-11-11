@@ -1,6 +1,6 @@
 import { keptOver } from '../../shared/sessions/kept';
 import { store } from '../state/app';
-import { badgeClass } from '../status/statusdot';
+import { badgeClass } from '../status/status-dot';
 import { element } from '../ui/dom';
 import { PINNED_BADGE_ICON, WORKTREE_ICON } from '../ui/svg';
 import { copyText } from '../ui/toast';
@@ -13,7 +13,7 @@ import { optionsOf } from './options';
 import { SNAPSHOT_SLICES, snapshotText } from './snapshot';
 import { HeaderTabs } from './tabs';
 import type { TreeHost } from './tree';
-import { keep, stateOf } from './treestate';
+import { keep, stateOf } from './tree-state';
 import { viewButton } from './view-switch';
 
 /** A panel on screen, and the marks it reports through — made once with it, so a rebuilt header or rail shows the same marks rather than orphaning them. */
