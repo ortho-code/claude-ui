@@ -277,10 +277,15 @@ button:where(:not(.icon-btn, :disabled)):is(:hover, .menu-open),
   border-color: var(--failed);
 }
 
-/* A PR in a menu: filled with its ink, the colour its status gives it (pr-status.css). */
+/* A PR in a menu: filled with its ink, the colour its status gives it (pr-status.css), and still, without the pulse or icon of a look whose colour it takes. */
 .nudge.pr-dot {
   background: var(--pr-ink);
   border-color: var(--pr-ink);
+  animation: none;
+}
+
+.nudge.pr-dot::before {
+  content: none;
 }
 
 /* A panel's run under way, in its header: busy's spinning two-tone ring, since it is work too, but its own rule, since a run is not a session and a look set for busy must not repaint it.

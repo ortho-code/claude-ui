@@ -7,7 +7,7 @@ import { clockOf } from '../../../status/clock';
 import { kebabButton } from '../../../ui/menu';
 import { showMoment, type Moment } from '../../../ui/moments';
 import { notLeftMark, showNotLeft } from '../../../status/not-left';
-import { approvalsIn, prMark } from '../../../status/pr-status';
+import { inkClasses, PR_INKS, prMark, prRulesIn } from '../../../status/pr-status';
 import { setAsideMark, showSetAside } from '../../../status/set-aside-mark';
 import { scheduledMark, showScheduled } from '../../../status/scheduled-mark';
 import { store, type View } from '../../../state/app';
@@ -15,7 +15,6 @@ import { tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../status/status-dot';
 import { NOTE_ICON, PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../ui/svg';
 import { showToast } from '../../../ui/toast';
-import { TONES } from '../../../ui/tone';
 import { setTooltip } from '../../../ui/tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor, unfinishFor } from './actions';
@@ -319,8 +318,10 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   const prCount = session.prs.length;
   els.prBadge.hidden = prCount === 0;
   if (prCount > 0) {
-    const mark = prMark(session.prs, view.prStatus, approvalsIn(view.settings));
-    for (const tone of TONES) els.prBadge.classList.toggle(`tone-${tone}`, tone === mark.tone);
+    const mark = prMark(session.prs, view.prStatus, prRulesIn(view));
+    // Every ink and look class off first, then the mark's on: a look's class names the type that inked it, which changes with the PRs.
+    els.prBadge.classList.remove(...PR_INKS.map((ink) => `tone-${ink}`), ...[...els.prBadge.classList].filter((name) => name.startsWith('look-')));
+    els.prBadge.classList.add(...inkClasses(mark));
     els.prCount.textContent = String(prCount);
     setTooltip(els.prBadge, `${prCount === 1 ? '1 PR' : `${prCount} PRs`} linked to this session${mark.says ? ` — ${mark.says}` : ''} — click to list them`);
   }

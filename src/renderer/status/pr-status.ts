@@ -1,8 +1,10 @@
 import { approvalsRequired, authorName, prKey, prReference, type Approvals } from '../../shared/sessions/prs';
-import { PR_TYPES } from '../../shared/status/needs-you';
+import { firesFor, PR_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import type { SettingsView } from '../../shared/config/settings';
 import type { PrNames, PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, SessionSummary } from '../../shared/types';
+import type { View } from '../state/app';
 import type { Tone } from '../ui/tone';
+import { lookClass } from './looks';
 
 /** Main's answer before it has given one: no status for any PR, and nothing gone wrong. */
 export const NO_PR_STATUS: PrStatusRead = { statuses: {}, problem: null };
@@ -32,13 +34,38 @@ export function nextAsk(prs: readonly PrRef[], read: PrStatusRead): number | 'of
 }
 
 /** What a PR's state is called, as the words for why its mark has the tone it has. */
-export type PrWords = 'checks failed' | 'merge conflict' | 'changes requested' | 'draft' | 'checks running' | 'review required' | 'approved' | 'open' | 'merged' | 'closed';
+export type PrWords = 'checks failed' | 'merge conflict' | 'changes requested' | 'draft' | 'checks running' | 'review required' | 'approved' | 'new commits since your review' | 'your review asked' | 'open' | 'merged' | 'closed';
 
-/** A PR's standing: the tone its mark takes, and the words for why, null where its status is not known. */
+/**
+ * The ink a PR's mark takes: a tone (tone.ts), or `again`, a PR that is yours to review again, which takes the look of the needs-you type that says so (`PrVerdict.look`), as the needs-you mark of that type does.
+ */
+export type PrInk = Tone | 'again';
+
+/** Every ink, for a surface that toggles their classes. */
+export const PR_INKS: readonly PrInk[] = ['normal', 'attention', 'positive', 'muted', 'danger', 'again'];
+
+/** Who a PR waits on, where its strongest state is someone else's to act on. */
+export type PrWaitsOn = 'the author' | 'the reviewers';
+
+/**
+ * A PR's standing: the ink its mark takes, the words for why, null where its status is not known, the needs-you type whose look inks an `again` PR, and who the PR waits on where its strongest state is not yours to act on.
+ */
 export interface PrVerdict {
-  tone: Tone;
+  tone: PrInk;
   words: PrWords | null;
+  look: PrNeedsYouType | null;
+  waitsOn: PrWaitsOn | null;
 }
+
+/** One state a PR's status holds, in the order its words are chosen: the needs-you type that says it is yours to act on, null for one no type marks, and the ink it gives where it is. */
+interface Rung {
+  type: PrNeedsYouType | null;
+  tone: PrInk;
+  words: PrWords;
+}
+
+/** Whether a PR type fires for your role on the PR its verdict is for (`firesFor`): what decides whose turn a state is. */
+export type Fires = (type: PrNeedsYouType) => boolean;
 
 type OpenStatus = Extract<PrStatus, { state: 'open' }>;
 
@@ -52,26 +79,53 @@ function isApproved(status: OpenStatus, required: number | null): boolean {
 }
 
 /**
- * How a PR's status colours its mark, a PR taking the first rung it meets, highest first:
+ * Every state an open PR's status holds, strongest first:
  * - `danger`: its checks failed, or it conflicts with its base;
  * - `attention`: changes were requested;
- * - `positive`: approved (`isApproved`), not a draft, its checks passed or it has none, and no conflict — ready to merge;
- * - `normal`: open and none of the above — a draft, running checks, a review required, approved by fewer than the repository's number, approved with a conflict GitHub has not worked out yet, or no review decision at all;
- * - `muted`: merged or closed.
- * A PR whose status is not known is `normal`, which sets no colour of its own.
+ * - `normal`: a draft, running checks, a review required or approved by fewer than the repository's number;
+ * - `positive`: approved (`isApproved`), not a draft, its checks passed or it has none, and no conflict — ready to merge; approved with a conflict GitHub has not worked out yet is `normal`;
+ * - `again`: commits since your review, or your review asked;
+ * - `normal`: open, when it holds none of the rest.
+ */
+function rungsOf(status: OpenStatus, required: number | null): Rung[] {
+  const rungs: Rung[] = [];
+  if (status.checks === 'failed') rungs.push({ type: 'pr.checks-failed', tone: 'danger', words: 'checks failed' });
+  if (status.conflict === true) rungs.push({ type: 'pr.conflict', tone: 'danger', words: 'merge conflict' });
+  if (status.review === 'changes-requested') rungs.push({ type: 'pr.changes-requested', tone: 'attention', words: 'changes requested' });
+  if (status.draft) rungs.push({ type: null, tone: 'normal', words: 'draft' });
+  if (status.checks === 'running') rungs.push({ type: null, tone: 'normal', words: 'checks running' });
+  if (status.review === 'review-required' || (status.review === 'approved' && !isApproved(status, required))) rungs.push({ type: null, tone: 'normal', words: 'review required' });
+  else if (status.review === 'approved') {
+    const ready = status.conflict === false && !status.draft && status.checks !== 'running' && status.checks !== 'failed';
+    rungs.push(ready ? { type: 'pr.approved', tone: 'positive', words: 'approved' } : { type: null, tone: 'normal', words: 'approved' });
+  }
+  if (status.newCommits === true) rungs.push({ type: 'pr.new-commits', tone: 'again', words: 'new commits since your review' });
+  if (status.reviewAsked === true) rungs.push({ type: 'pr.review-requested', tone: 'again', words: 'your review asked' });
+  if (rungs.length === 0) rungs.push({ type: null, tone: 'normal', words: 'open' });
+  return rungs;
+}
+
+/**
+ * How a PR's status colours its mark: by whose turn it is (decided 2026-11-11).
+ * A state colours it only where its needs-you type fires for your role on the PR (`fires`), the same rule that decides whether that state marks a session as needing you, so a conflict on someone else's PR leaves it plain and commits since your review on one you review colour it.
+ * The PR takes the ink of the strongest state that is yours (`rungsOf`), and its words; with none, it is `normal`, its words the strongest state's, and where that state is someone else's to act on and your role is known, who it waits on: the author on someone else's PR, the reviewers on yours.
+ * Merged or closed is `muted`; a PR whose status is not known is `normal`, which sets no colour of its own.
  * `required` is the approvals the PR's repository needs, null for GitHub's decision alone.
  */
-export function prVerdict(status: PrStatus | null, required: number | null): PrVerdict {
-  if (status === null) return { tone: 'normal', words: null };
-  if (status.state !== 'open') return { tone: 'muted', words: status.state };
-  if (status.checks === 'failed') return { tone: 'danger', words: 'checks failed' };
-  if (status.conflict === true) return { tone: 'danger', words: 'merge conflict' };
-  if (status.review === 'changes-requested') return { tone: 'attention', words: 'changes requested' };
-  if (status.draft) return { tone: 'normal', words: 'draft' };
-  if (status.checks === 'running') return { tone: 'normal', words: 'checks running' };
-  if (status.review === 'review-required' || (status.review === 'approved' && !isApproved(status, required))) return { tone: 'normal', words: 'review required' };
-  if (status.review === 'approved') return { tone: status.conflict === false ? 'positive' : 'normal', words: 'approved' };
-  return { tone: 'normal', words: 'open' };
+export function prVerdict(status: PrStatus | null, required: number | null, fires: Fires): PrVerdict {
+  if (status === null) return { tone: 'normal', words: null, look: null, waitsOn: null };
+  if (status.state !== 'open') return { tone: 'muted', words: status.state, look: null, waitsOn: null };
+  const rungs = rungsOf(status, required);
+  const yours = rungs.find((rung) => rung.type !== null && fires(rung.type));
+  if (yours) return { tone: yours.tone, words: yours.words, look: yours.tone === 'again' ? yours.type : null, waitsOn: null };
+  const [strongest] = rungs as [Rung, ...Rung[]];
+  const waitsOn = strongest.type !== null && status.role !== null ? (status.role === 'own' ? 'the reviewers' : 'the author') : null;
+  return { tone: 'normal', words: strongest.words, look: null, waitsOn };
+}
+
+/** Whether a PR type fires for `role` by the needs-you types as they stand (`firesFor`). */
+export function firesForRole(registry: NeedsYouRegistry, role: PrRole | null): Fires {
+  return (type) => firesFor(registry, type, role);
 }
 
 /**
@@ -162,11 +216,11 @@ export function prChanges(seen: PrSeen | null, prs: readonly PrRef[], read: PrSt
   return { seen: seen === null && prs.every((pr) => read.statuses[prKey(pr)] === undefined) ? null : next, changes };
 }
 
-/** The order a session's PRs roll up by, highest first: whatever most needs a person wins, so the mark is muted only once every PR is merged or closed. */
-const PR_TONE_ORDER: readonly Tone[] = ['danger', 'attention', 'positive', 'normal', 'muted'];
+/** The order a session's PRs roll up by, highest first: whatever most needs a person wins, in the needs-you categories' order, so the mark is muted only once every PR is merged or closed. */
+const PR_TONE_ORDER: readonly PrInk[] = ['danger', 'attention', 'positive', 'again', 'normal', 'muted'];
 
-/** The tone that speaks for several PRs, by `PR_TONE_ORDER`; `normal` for none. */
-export function rollUpPrTone(tones: Iterable<Tone>): Tone {
+/** The ink that speaks for several PRs, by `PR_TONE_ORDER`; `normal` for none. */
+export function rollUpPrTone(tones: Iterable<PrInk>): PrInk {
   const all = new Set(tones);
   return PR_TONE_ORDER.find((tone) => all.has(tone)) ?? 'normal';
 }
@@ -180,23 +234,38 @@ const COUNTED: Record<PrWords, string> = {
   'checks running': 'with checks running',
   'review required': 'awaiting review',
   approved: 'approved',
+  'new commits since your review': 'with new commits since your review',
+  'your review asked': 'with your review asked',
   open: 'open',
   merged: 'merged',
   closed: 'closed',
 };
 
-/** What a session's PR mark shows: the tone its PRs roll up to, and what set it or why there is no status, null with nothing to say. */
+/** What a session's PR mark shows: the ink its PRs roll up to, the look of an `again` one, and what set it or why there is no status, null with nothing to say. */
 export interface PrMark {
-  tone: Tone;
+  tone: PrInk;
+  look: PrNeedsYouType | null;
   says: string | null;
+}
+
+/** What a PR's verdict is judged by beyond its status: the approvals each repository needs, and the needs-you types, whose roles say whose turn a state is. */
+export interface PrRules {
+  approvals: Approvals;
+  registry: NeedsYouRegistry;
+}
+
+/** The rules as the settings and the needs-you types stand (`approvalsIn`). */
+export function prRulesIn(view: View<'settings' | 'needsYouTypes'>): PrRules {
+  return { approvals: approvalsIn(view.settings), registry: view.needsYouTypes };
 }
 
 /**
  * A PR's verdict from main's answer: as if it had no status while main could not ask GitHub, whatever status it still holds from before, so a status that may be stale never colours anything.
  * What the mark and a PR's menu item both take it from.
  */
-export function verdictOf(pr: PrRef, read: PrStatusRead, approvals: Approvals): PrVerdict {
-  return prVerdict(knownStatus(pr, read), approvalsRequired(approvals, pr.repository));
+export function verdictOf(pr: PrRef, read: PrStatusRead, rules: PrRules): PrVerdict {
+  const status = knownStatus(pr, read);
+  return prVerdict(status, approvalsRequired(rules.approvals, pr.repository), firesForRole(rules.registry, status?.role ?? null));
 }
 
 /** A PR's status from main's answer, null while main could not ask GitHub, whatever it still holds from before. */
@@ -247,22 +316,40 @@ function approvalWords(status: OpenStatus, required: number | null): string | nu
   return count === 1 ? '1 approval' : `${count} approvals`;
 }
 
-/** What a PR's menu item says under its name, in order: who it is by and your role where it is not yours (`ownerWords`), its state (`verdictOf`), and an open PR's approvals; nothing while main could not ask GitHub. */
-export function prDetails(pr: PrRef, read: PrStatusRead, approvals: Approvals): string[] {
+/**
+ * What a PR's menu item says under its name, in order: who it is by and your role where it is not yours (`ownerWords`), its state (`verdictOf`), who it waits on where that state is not yours to act on, and an open PR's approvals; nothing while main could not ask GitHub.
+ */
+export function prDetails(pr: PrRef, read: PrStatusRead, rules: PrRules): string[] {
   const status = knownStatus(pr, read);
   if (status === null) return [];
-  const required = approvalsRequired(approvals, pr.repository);
-  const { words } = prVerdict(status, required);
-  const counted = status.state === 'open' ? approvalWords(status, required) : null;
-  return [...ownerWords(status), words, counted].filter((part): part is string => part !== null);
+  const { words, waitsOn } = verdictOf(pr, read, rules);
+  const counted = status.state === 'open' ? approvalWords(status, approvalsRequired(rules.approvals, pr.repository)) : null;
+  return [...ownerWords(status), words, waitsOn && `waiting on ${waitsOn}`, counted].filter((part): part is string => part !== null);
 }
 
-/** The mark for `prs` from main's answer: their roll-up tone, and the PRs that set it counted by state, `1 with failing checks`; when main could not ask GitHub, `normal`, saying why. */
-export function prMark(prs: readonly PrRef[], read: PrStatusRead, approvals: Approvals): PrMark {
-  if (read.problem !== null) return { tone: 'normal', says: `no status: ${read.problem}` };
-  const verdicts = prs.map((pr) => verdictOf(pr, read, approvals));
+/** How a count of PRs reads in a mark's tooltip: by who it waits on where its state is not yours to act on, `1 waiting on the author`, otherwise by its state (`COUNTED`). */
+function countedAs(verdict: PrVerdict): string | null {
+  if (verdict.waitsOn !== null) return `waiting on ${verdict.waitsOn}`;
+  return verdict.words === null ? null : COUNTED[verdict.words];
+}
+
+/**
+ * The mark for `prs` from main's answer: their roll-up ink, with the look of the first `again` PR where that is the ink, and the PRs that set it counted by what they say (`countedAs`), `1 with failing checks`; when main could not ask GitHub, `normal`, saying why.
+ */
+export function prMark(prs: readonly PrRef[], read: PrStatusRead, rules: PrRules): PrMark {
+  if (read.problem !== null) return { tone: 'normal', look: null, says: `no status: ${read.problem}` };
+  const verdicts = prs.map((pr) => verdictOf(pr, read, rules));
   const tone = rollUpPrTone(verdicts.map((verdict) => verdict.tone));
-  const counts = new Map<PrWords, number>();
-  for (const verdict of verdicts) if (verdict.tone === tone && verdict.words !== null) counts.set(verdict.words, (counts.get(verdict.words) ?? 0) + 1);
-  return { tone, says: [...counts].map(([words, count]) => `${count} ${COUNTED[words]}`).join(', ') || null };
+  const setting = verdicts.filter((verdict) => verdict.tone === tone);
+  const counts = new Map<string, number>();
+  for (const verdict of setting) {
+    const as = countedAs(verdict);
+    if (as !== null) counts.set(as, (counts.get(as) ?? 0) + 1);
+  }
+  return { tone, look: setting.find((verdict) => verdict.look !== null)?.look ?? null, says: [...counts].map(([as, count]) => `${count} ${as}`).join(', ') || null };
+}
+
+/** The classes that ink a PR's mark or dot: its ink's, and for `again` the look's class (looks.ts), whose colour `pr-status.css` takes. */
+export function inkClasses(ink: { tone: PrInk; look: PrNeedsYouType | null }): string[] {
+  return [`tone-${ink.tone}`, ...(ink.tone === 'again' && ink.look !== null ? [lookClass(ink.look)] : [])];
 }

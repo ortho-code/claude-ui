@@ -11,3 +11,8 @@
 .pr-ink.tone-muted {
   --pr-ink: var(--muted);
 }
+
+/* A PR yours to review again takes the colour of the needs-you type that says so, `--look` from the look's class beside this one (looks.ts), as that type's needs-you mark is drawn. */
+.pr-ink.tone-again {
+  --pr-ink: var(--look, var(--accent));
+}

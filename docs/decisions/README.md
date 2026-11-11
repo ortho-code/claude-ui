@@ -212,3 +212,4 @@ The architecture notes describe the app as it is now and link here for the reaso
 | [0205](0205-fallow-gates-ci-for-unused-and-copied-code.md) | 2026-11-11 | Fallow gates CI for unused and copied code | [Build](../architecture/build-and-checks.md#build) |
 | [0206](0206-the-layers-are-fallows-zones.md) | 2026-11-11 | The layers are fallow's zones | [Processes](../architecture/processes.md#processes) |
 | [0207](0207-a-function-past-its-size-is-split-or-says-why-not.md) | 2026-11-11 | A function past its size is split, or says why not | [Build](../architecture/build-and-checks.md#build) |
+| [0208](0208-a-prs-colour-follows-whose-turn-it-is.md) | 2026-11-11 | A PR's colour follows whose turn it is | [Reading sessions](../architecture/sessions.md#reading-sessions) |

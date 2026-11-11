@@ -1,9 +1,16 @@
 import { describe, it, expect } from 'vitest';
 
-import { PR_TYPES } from '../../../../src/shared/status/needs-you';
-import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, verdictOf, withNames } from '../../../../src/renderer/status/pr-status';
+import { PR_TYPES, type NeedsYouRegistry } from '../../../../src/shared/status/needs-you';
+import { approvalsIn, firesForRole, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, verdictOf, withNames, type PrInk, type PrRules, type PrVerdict, type PrWords } from '../../../../src/renderer/status/pr-status';
 import type { Approvals } from '../../../../src/shared/sessions/prs';
 import type { PrRef, PrSeen, PrStatus, SessionPr } from '../../../../src/shared/types';
+import { bundledNeedsYou } from '../../../renderer/support/needs-you';
+
+/** The needs-you types as shipped, whose roles say whose turn a PR's state is. */
+const REGISTRY = bundledNeedsYou();
+
+/** What a verdict is judged by: the approvals given, and the shipped needs-you types. */
+const rules = (approvals: Approvals = GITHUB_DECIDES): PrRules => ({ approvals, registry: REGISTRY });
 
 /** An open PR waiting on nobody: not a draft, approved, its checks passed, no conflict. */
 function open(overrides: Partial<Extract<PrStatus, { state: 'open' }>> = {}): PrStatus {
@@ -165,54 +172,83 @@ describe('needsYouNow', () => {
   });
 });
 
+/** A verdict whose state is yours to act on, or no one's: no look, and waiting on nobody. */
+const plain = (tone: PrInk, words: PrWords | null): PrVerdict => ({ tone, words, look: null, waitsOn: null });
+
+/** The verdict of `status` by the shipped needs-you types' roles, for your role on it. */
+const verdict = (status: PrStatus | null, required: number | null = null): PrVerdict => prVerdict(status, required, firesForRole(REGISTRY, status?.role ?? null));
+
 describe('prVerdict', () => {
   it('is normal with no words while its status is not known', () => {
-    expect(prVerdict(null, null)).toEqual({ tone: 'normal', words: null });
+    expect(verdict(null)).toEqual(plain('normal', null));
   });
 
-  it('mutes a merged or a closed PR', () => {
-    expect(prVerdict({ state: 'merged', role: 'own' }, null)).toEqual({ tone: 'muted', words: 'merged' });
-    expect(prVerdict({ state: 'closed', role: 'own' }, null)).toEqual({ tone: 'muted', words: 'closed' });
+  it('mutes a merged or a closed PR, whoever it is', () => {
+    expect(verdict({ state: 'merged', role: 'own' })).toEqual(plain('muted', 'merged'));
+    expect(verdict({ state: 'closed', role: 'other' })).toEqual(plain('muted', 'closed'));
   });
 
   it('is danger for failed checks or a conflict, over everything below', () => {
-    expect(prVerdict(open({ checks: 'failed', review: 'changes-requested', draft: true }), null)).toEqual({ tone: 'danger', words: 'checks failed' });
-    expect(prVerdict(open({ conflict: true, review: 'changes-requested' }), null)).toEqual({ tone: 'danger', words: 'merge conflict' });
+    expect(verdict(open({ checks: 'failed', review: 'changes-requested', draft: true }))).toEqual(plain('danger', 'checks failed'));
+    expect(verdict(open({ conflict: true, review: 'changes-requested' }))).toEqual(plain('danger', 'merge conflict'));
   });
 
   it('is attention for changes requested, over a draft and running checks', () => {
-    expect(prVerdict(open({ review: 'changes-requested', draft: true, checks: 'running' }), null)).toEqual({ tone: 'attention', words: 'changes requested' });
+    expect(verdict(open({ review: 'changes-requested', draft: true, checks: 'running' }))).toEqual(plain('attention', 'changes requested'));
   });
 
   it('is positive only when approved, not a draft, its checks passed or none, and no conflict', () => {
-    expect(prVerdict(open(), null)).toEqual({ tone: 'positive', words: 'approved' });
-    expect(prVerdict(open({ checks: null }), null)).toEqual({ tone: 'positive', words: 'approved' });
-    expect(prVerdict(open({ draft: true }), null)).toEqual({ tone: 'normal', words: 'draft' });
-    expect(prVerdict(open({ checks: 'running' }), null)).toEqual({ tone: 'normal', words: 'checks running' });
-    expect(prVerdict(open({ conflict: null }), null)).toEqual({ tone: 'normal', words: 'approved' });
+    expect(verdict(open())).toEqual(plain('positive', 'approved'));
+    expect(verdict(open({ checks: null }))).toEqual(plain('positive', 'approved'));
+    expect(verdict(open({ draft: true }))).toEqual(plain('normal', 'draft'));
+    expect(verdict(open({ checks: 'running' }))).toEqual(plain('normal', 'checks running'));
+    expect(verdict(open({ conflict: null }))).toEqual(plain('normal', 'approved'));
   });
 
   it('is normal while it waits on a review, or has no review decision', () => {
-    expect(prVerdict(open({ review: 'review-required' }), null)).toEqual({ tone: 'normal', words: 'review required' });
-    expect(prVerdict(open({ review: null }), null)).toEqual({ tone: 'normal', words: 'open' });
+    expect(verdict(open({ review: 'review-required' }))).toEqual(plain('normal', 'review required'));
+    expect(verdict(open({ review: null }))).toEqual(plain('normal', 'open'));
   });
 
   it('reads a PR GitHub calls approved as waiting on a review while it has fewer approvals than its repository needs, or a count not known', () => {
-    expect(prVerdict(open({ approvals: 1 }), 2)).toEqual({ tone: 'normal', words: 'review required' });
-    expect(prVerdict(open({ approvals: null }), 2)).toEqual({ tone: 'normal', words: 'review required' });
-    expect(prVerdict(open({ approvals: 2 }), 2)).toEqual({ tone: 'positive', words: 'approved' });
+    expect(verdict(open({ approvals: 1 }), 2)).toEqual(plain('normal', 'review required'));
+    expect(verdict(open({ approvals: null }), 2)).toEqual(plain('normal', 'review required'));
+    expect(verdict(open({ approvals: 2 }), 2)).toEqual(plain('positive', 'approved'));
   });
 
   it('never reads approved where GitHub does not, whatever the count', () => {
-    expect(prVerdict(open({ review: 'review-required', approvals: 3 }), 2)).toEqual({ tone: 'normal', words: 'review required' });
+    expect(verdict(open({ review: 'review-required', approvals: 3 }), 2)).toEqual(plain('normal', 'review required'));
+  });
+
+  // The shipped roles: failing checks, a conflict, changes requested and approved fire for your own PRs only.
+  it('leaves a state that is the author’s to act on plain on someone else’s PR, saying it waits on them', () => {
+    const waiting = (words: PrWords): PrVerdict => ({ tone: 'normal', words, look: null, waitsOn: 'the author' });
+    expect(verdict(open({ role: 'other', conflict: true }))).toEqual(waiting('merge conflict'));
+    expect(verdict(open({ role: 'reviewing', review: 'changes-requested' }))).toEqual(waiting('changes requested'));
+    expect(verdict(open({ role: 'reviewing' }))).toEqual(waiting('approved'));
+  });
+
+  it('inks a PR yours to review again with the look of the type that says so, over a state that waits on the author', () => {
+    expect(verdict(open({ role: 'reviewing', review: 'changes-requested', newCommits: true }))).toEqual({ tone: 'again', words: 'new commits since your review', look: 'pr.new-commits', waitsOn: null });
+    expect(verdict(open({ role: 'reviewing', review: 'review-required', reviewAsked: true }))).toEqual({ tone: 'again', words: 'your review asked', look: 'pr.review-requested', waitsOn: null });
+  });
+
+  it('follows roles changed in the needs-you types', () => {
+    const reviewerToo: NeedsYouRegistry = { ...REGISTRY, types: REGISTRY.types.map((type) => (type.id === 'pr.approved' ? { ...type, roles: ['own', 'reviewing'] } : type)) };
+    expect(prVerdict(open({ role: 'reviewing' }), null, firesForRole(reviewerToo, 'reviewing'))).toEqual(plain('positive', 'approved'));
+  });
+
+  it('leaves a PR plain, waiting on nobody it can name, while your role on it is not known', () => {
+    expect(verdict(open({ role: null, checks: 'failed' }))).toEqual(plain('normal', 'checks failed'));
   });
 });
 
 describe('rollUpPrTone', () => {
-  it('takes whatever most needs a person', () => {
-    expect(rollUpPrTone(['muted', 'normal', 'positive', 'attention', 'danger'])).toBe('danger');
-    expect(rollUpPrTone(['muted', 'normal', 'positive', 'attention'])).toBe('attention');
-    expect(rollUpPrTone(['muted', 'normal', 'positive'])).toBe('positive');
+  it('takes whatever most needs a person, a PR yours to review again after one ready to merge', () => {
+    expect(rollUpPrTone(['muted', 'normal', 'again', 'positive', 'attention', 'danger'])).toBe('danger');
+    expect(rollUpPrTone(['muted', 'normal', 'again', 'positive', 'attention'])).toBe('attention');
+    expect(rollUpPrTone(['muted', 'normal', 'again', 'positive'])).toBe('positive');
+    expect(rollUpPrTone(['muted', 'normal', 'again'])).toBe('again');
     expect(rollUpPrTone(['muted', 'normal'])).toBe('normal');
   });
 
@@ -246,22 +282,26 @@ describe('verdictOf', () => {
   const pr: PrRef = { repository: 'acme/app', number: 1 };
 
   it('reads the PR’s status from the answer, and no status for one it lacks', () => {
-    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: null }, GITHUB_DECIDES)).toEqual({ tone: 'muted', words: 'merged' });
-    expect(verdictOf(pr, NO_PR_STATUS, GITHUB_DECIDES)).toEqual({ tone: 'normal', words: null });
+    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: null }, rules())).toEqual(plain('muted', 'merged'));
+    expect(verdictOf(pr, NO_PR_STATUS, rules())).toEqual(plain('normal', null));
   });
 
   it('reads no status while main could not ask, whatever the answer still holds', () => {
-    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: 'gh was not found' }, GITHUB_DECIDES)).toEqual({ tone: 'normal', words: null });
+    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: 'gh was not found' }, rules())).toEqual(plain('normal', null));
   });
 
   it('reads the status of a PR spelt with other capitals, which main answers under its key', () => {
-    expect(verdictOf({ repository: 'Acme/App', number: 1 }, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: null }, GITHUB_DECIDES)).toEqual({ tone: 'muted', words: 'merged' });
+    expect(verdictOf({ repository: 'Acme/App', number: 1 }, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: null }, rules())).toEqual(plain('muted', 'merged'));
   });
 
   it('reads with the number the PR’s repository needs, matched in any case', () => {
     const read = { statuses: { 'acme/app#1': open({ approvals: 1 }) }, problem: null };
-    expect(verdictOf(pr, read, TWO)).toEqual({ tone: 'normal', words: 'review required' });
-    expect(verdictOf(pr, read, { 'acme/lib': 2 })).toEqual({ tone: 'positive', words: 'approved' });
+    expect(verdictOf(pr, read, rules(TWO))).toEqual(plain('normal', 'review required'));
+    expect(verdictOf(pr, read, rules({ 'acme/lib': 2 }))).toEqual(plain('positive', 'approved'));
+  });
+
+  it('reads whose turn it is by your role on the PR in the answer', () => {
+    expect(verdictOf(pr, { statuses: { 'acme/app#1': open({ role: 'other' }) }, problem: null }, rules())).toEqual({ tone: 'normal', words: 'approved', look: null, waitsOn: 'the author' });
   });
 });
 
@@ -278,7 +318,7 @@ describe('settledState', () => {
 
 describe('prDetails', () => {
   const pr: PrRef = { repository: 'acme/app', number: 1 };
-  const details = (status: PrStatus, approvals = GITHUB_DECIDES): string[] => prDetails(pr, { statuses: { 'acme/app#1': status }, problem: null }, approvals);
+  const details = (status: PrStatus, approvals = GITHUB_DECIDES): string[] => prDetails(pr, { statuses: { 'acme/app#1': status }, problem: null }, rules(approvals));
 
   it('names the role only for a PR that is not yours', () => {
     expect(details({ state: 'closed', role: 'own' })).toEqual(['closed']);
@@ -304,9 +344,14 @@ describe('prDetails', () => {
     expect(details(open({ approvals: null }), TWO)).toEqual(['review required']);
   });
 
+  it('says who a state that is not yours to act on waits on, after the state', () => {
+    expect(details(open({ role: 'reviewing', review: 'changes-requested', approvals: 0 }))).toEqual(['reviewing', 'changes requested', 'waiting on the author']);
+    expect(details(open({ role: 'reviewing', newCommits: true, approvals: 0 }))).toEqual(['reviewing', 'new commits since your review']);
+  });
+
   it('says nothing while main could not ask, or for a PR it has no status for', () => {
-    expect(prDetails(pr, { statuses: { 'acme/app#1': open() }, problem: 'gh was not found' }, GITHUB_DECIDES)).toEqual([]);
-    expect(prDetails(pr, NO_PR_STATUS, GITHUB_DECIDES)).toEqual([]);
+    expect(prDetails(pr, { statuses: { 'acme/app#1': open() }, problem: 'gh was not found' }, rules())).toEqual([]);
+    expect(prDetails(pr, NO_PR_STATUS, rules())).toEqual([]);
   });
 });
 
@@ -339,31 +384,38 @@ describe('prMark', () => {
   const read = (statuses: Record<string, PrStatus>, problem: string | null = null) => ({ statuses, problem });
 
   it('takes the roll-up tone, and counts only the PRs that set it, by state', () => {
-    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }), 'acme/app#2': open({ conflict: true }), 'acme/app#3': { state: 'merged', role: 'own' } }), GITHUB_DECIDES)).toEqual({
+    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }), 'acme/app#2': open({ conflict: true }), 'acme/app#3': { state: 'merged', role: 'own' } }), rules())).toEqual({
       tone: 'danger',
+      look: null,
       says: '1 with failing checks, 1 with a merge conflict',
     });
-    expect(prMark(prs, read({ 'acme/app#1': { state: 'merged', role: 'own' }, 'acme/app#2': { state: 'merged', role: 'own' }, 'acme/app#3': { state: 'closed', role: 'own' } }), GITHUB_DECIDES)).toEqual({
+    expect(prMark(prs, read({ 'acme/app#1': { state: 'merged', role: 'own' }, 'acme/app#2': { state: 'merged', role: 'own' }, 'acme/app#3': { state: 'closed', role: 'own' } }), rules())).toEqual({
       tone: 'muted',
+      look: null,
       says: '2 merged, 1 closed',
     });
   });
 
   it('is normal and says nothing while no PR has a status', () => {
-    expect(prMark(prs, NO_PR_STATUS, GITHUB_DECIDES)).toEqual({ tone: 'normal', says: null });
+    expect(prMark(prs, NO_PR_STATUS, rules())).toEqual({ tone: 'normal', look: null, says: null });
   });
 
   it('counts a PR with no status as normal beside the others, naming only those it has words for', () => {
-    expect(prMark(prs, read({ 'acme/app#1': open({ review: 'review-required' }), 'acme/app#3': { state: 'merged', role: 'own' } }), GITHUB_DECIDES)).toEqual({ tone: 'normal', says: '1 awaiting review' });
+    expect(prMark(prs, read({ 'acme/app#1': open({ review: 'review-required' }), 'acme/app#3': { state: 'merged', role: 'own' } }), rules())).toEqual({ tone: 'normal', look: null, says: '1 awaiting review' });
   });
 
   it('counts an approval below its repository’s number as awaiting review', () => {
-    expect(prMark(prs, read({ 'acme/app#1': open({ approvals: 1 }), 'acme/app#2': open({ approvals: 2 }) }), TWO)).toEqual({ tone: 'positive', says: '1 approved' });
-    expect(prMark(prs, read({ 'acme/app#1': open({ approvals: 1 }) }), TWO)).toEqual({ tone: 'normal', says: '1 awaiting review' });
+    expect(prMark(prs, read({ 'acme/app#1': open({ approvals: 1 }), 'acme/app#2': open({ approvals: 2 }) }), rules(TWO))).toEqual({ tone: 'positive', look: null, says: '1 approved' });
+    expect(prMark(prs, read({ 'acme/app#1': open({ approvals: 1 }) }), rules(TWO))).toEqual({ tone: 'normal', look: null, says: '1 awaiting review' });
+  });
+
+  it('counts a PR whose state is someone else’s to act on by who it waits on, and takes the look of one yours to review again', () => {
+    expect(prMark(prs, read({ 'acme/app#1': open({ role: 'other', conflict: true }), 'acme/app#2': open({ role: 'reviewing', review: 'review-required' }) }), rules())).toEqual({ tone: 'normal', look: null, says: '1 waiting on the author, 1 awaiting review' });
+    expect(prMark(prs, read({ 'acme/app#1': open({ role: 'other', conflict: true }), 'acme/app#2': open({ role: 'reviewing', newCommits: true }) }), rules())).toEqual({ tone: 'again', look: 'pr.new-commits', says: '1 with new commits since your review' });
   });
 
   it('is normal and says why when main could not ask, whatever statuses it still holds', () => {
-    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }) }, 'gh was not found'), GITHUB_DECIDES)).toEqual({ tone: 'normal', says: 'no status: gh was not found' });
+    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }) }, 'gh was not found'), rules())).toEqual({ tone: 'normal', look: null, says: 'no status: gh was not found' });
   });
 });
 

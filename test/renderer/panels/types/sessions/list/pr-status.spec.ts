@@ -4,6 +4,7 @@ import type { PrStatus, SessionPr, SessionSummary } from '../../../../../../src/
 import { session, settingsFileWith } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { lookOf, token } from '../../../../support/looks';
+import { needsYouFile } from '../../../../support/needs-you';
 import { openSettings } from '../../../../support/settings';
 import { row, tab } from '../../../../support/window';
 
@@ -266,7 +267,7 @@ test("a PR's list item names someone else's PR by your role, and counts an open 
   await mark(page, theirs.title).click();
   await expect(items(page)).toHaveCount(2);
   expect(await lines(items(page))).toEqual([
-    ['#9', 'ScientaNL/demo · reviewing · changes requested · 1 of 2 approvals'],
+    ['#9', 'ScientaNL/demo · reviewing · changes requested · waiting on the author · 1 of 2 approvals'],
     ['#10', 'ScientaNL/demo · someone else’s · merged'],
   ]);
   // Neither line is cut: the longest still fits the menu's width, the line under the reference wrapping where it would not.
@@ -277,6 +278,50 @@ test("a PR's list item names someone else's PR by your role, and counts an open 
   await mark(page, ready.title).click();
   await expect(items(page)).toHaveCount(1);
   expect(await lines(items(page))).toEqual([['#4', 'ScientaNL/demo · review required · 1 of 2 approvals']]);
+});
+
+// Whose turn a PR's state is follows the needs-you types' roles: as shipped, a conflict, failing checks, changes requested and approved are the author's, and new commits since your review and your review asked are yours on a PR you review.
+const theirs = marked('8', 'Theirs to fix', 30);
+const yoursAgain = marked('9', 'Yours to review again', 31, 30);
+const turns = {
+  sessions: [theirs, yoursAgain],
+  history: { [theirs.id]: [], [yoursAgain.id]: [] },
+  prStatuses: {
+    'scientanl/demo#30': { ...open(), role: 'reviewing', conflict: true, newCommits: false },
+    'scientanl/demo#31': { ...open(), role: 'reviewing', newCommits: true },
+  } satisfies Record<string, PrStatus>,
+};
+
+test("a PR whose state is the author's to act on keeps the accent and says who it waits on", async ({ app, page }) => {
+  await app.boot(turns);
+  await expect(mark(page, theirs.title)).toHaveAttribute('data-tooltip', '1 PR linked to this session — 1 waiting on the author — click to list them');
+  expect((await lookOf(mark(page, theirs.title))).color).toBe(await token(page, '--accent'));
+  await mark(page, theirs.title).click();
+  expect(await lines(items(page))).toEqual([['#30', 'ScientaNL/demo · reviewing · merge conflict · waiting on the author']]);
+  expect(await dotColours(items(page))).toEqual([await token(page, '--accent')]);
+});
+
+test('a PR yours to review again takes the colour of the needs-you type that says so, on its mark and its dot, and follows a look set for that type', async ({ app, page }) => {
+  await app.boot({ ...turns, settings: settingsFileWith('settings.json', { looks: { 'pr.new-commits': { colour: '#123456' } } }) });
+  await expect(mark(page, yoursAgain.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — 1 with new commits since your review — click to list them');
+  expect((await lookOf(mark(page, yoursAgain.title))).color).toBe('rgb(18, 52, 86)');
+  await mark(page, yoursAgain.title).click();
+  expect(await lines(items(page))).toEqual([
+    ['#31', 'ScientaNL/demo · reviewing · new commits since your review'],
+    ['#30', 'ScientaNL/demo · reviewing · merge conflict · waiting on the author'],
+  ]);
+  expect(await dotColours(items(page))).toEqual(['rgb(18, 52, 86)', await token(page, '--accent')]);
+  // The dot takes the look's colour alone: a needs-you look pulses, a PR's dot in a menu stays still.
+  expect(await items(page).first().locator('.nudge').evaluate((dot) => getComputedStyle(dot).animationName)).toBe('none');
+});
+
+test('a PR you review that is ready to merge turns green once its type fires for reviewers too', async ({ app, page }) => {
+  const ready = marked('a', 'Theirs approved', 32);
+  await app.boot({ sessions: [ready], history: { [ready.id]: [] }, prStatuses: { 'scientanl/demo#32': { ...open(), role: 'reviewing', review: 'approved', approvals: 1 } } });
+  await expect(mark(page, ready.title)).toHaveAttribute('data-tooltip', '1 PR linked to this session — 1 waiting on the author — click to list them');
+  await app.settingsOnDisk(needsYouFile({ 'pr.approved': { roles: ['own', 'reviewing'] } }));
+  await expect(mark(page, ready.title)).toHaveAttribute('data-tooltip', '1 PR linked to this session — 1 approved — click to list them');
+  expect((await lookOf(mark(page, ready.title))).color).toBe(await token(page, '--ready'));
 });
 
 test('a PR with no status is listed by its number and repository alone, with a hollow dot', async ({ app, page }) => {

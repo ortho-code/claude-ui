@@ -87,14 +87,14 @@ function dotsFollowStatuses(view: StatusView & View<'tabs' | 'finished'>, before
   repaintDots(statusChanges(before, view), view);
 }
 
-/** What draws the list again: the listing, a model switch, a pin, the finished marks, a note, a set-aside mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs and what they are called, which search matches, a task claude scheduled, Grouped or Recent, and for the review, a keep stamp, the review opening or ending, and the settings, which say whether GitHub is asked. */
-const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'finished', 'notes', 'setAside', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'prNames', 'scheduledTasks', 'arrangement', 'kept', 'reviewing', 'settings'] as const;
+/** What draws the list again: the listing, a model switch, a pin, the finished marks, a note, a set-aside mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs and what they are called, which search matches, the needs-you types, whose roles say whose turn a PR is, a task claude scheduled, Grouped or Recent, and for the review, a keep stamp, the review opening or ending, and the settings, which say whether GitHub is asked. */
+const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'finished', 'notes', 'setAside', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'prNames', 'needsYouTypes', 'scheduledTasks', 'arrangement', 'kept', 'reviewing', 'settings'] as const;
 /** The tabs, which have a watcher of their own (`listFollowsTabs`), since most of a tab's changes move only the rows' marks. */
 const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
  * What the list reads and is never told of: a status change repaints only the dots (`dotsFollowStatuses`); a fold only folds what is drawn (`foldsFollow`); and whether the filter panel is open.
  */
-const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'needsYou', 'needsYouTypes', 'folds', 'filterPanelOpen', 'bulk'] as const;
+const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'needsYou', 'folds', 'filterPanelOpen', 'bulk'] as const;
 
 /** Everything the list draws from the store. */
 type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (typeof LIST_QUIET)[number]>;

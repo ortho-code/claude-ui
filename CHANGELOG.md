@@ -13,6 +13,11 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A linked PR shows its title beside its number, in its list and on a needs-you line, and search finds a session by words of it.
   A PR that is not yours says who opened it.
 
+### Changed
+
+- A PR's colour says whose turn it is: a state that is the author's to act on, such as a conflict on a PR you review, leaves it plain and says "waiting on the author", and a PR you review with new commits or your review asked takes the colour of that needs-you mark.
+  The roles in `needsYou` decide whose turn each state is.
+
 ### Fixed
 
 - A review or comment a session posts inside a shell `if …; then` or a loop's `do` now links its PR to the session.
