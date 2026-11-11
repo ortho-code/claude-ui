@@ -36,7 +36,7 @@ test('the sessions running at quit come back cold until another choice is saved 
   await settings.choice.selectOption('start');
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '', runningSessionsAtLaunch: 'start', prStatus: true, leaveButton: 'stop-close', undoRunning: 'start', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' }]]);
+  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '', runningSessionsAtLaunch: 'start', prStatus: true, leaveButton: 'stop-close', undoRunning: 'start', setAsideRunning: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' }]]);
   expect(await page.evaluate(() => window.__claudeUiFixture.settings.json)).toEqual({ runningSessionsAtLaunch: 'start' });
 
   settings = await open(page);

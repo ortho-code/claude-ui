@@ -131,7 +131,7 @@ Its process has gone, so the tab is cold like any other ([decided 2026-10-07](..
 The cold state is visible in three places, all reading the same `terminalId === null`: the tab is unfilled rather than dimmed, the session row's left bar and the selected tab's top edge are `--muted` instead of accent, and the terminal pane explains that clicking the tab resumes it.
 Those two marks answer the same question, so they answer it the same way — accent means a live session, nowhere else.
 
-A tab is never paused: setting a session aside is the set-aside mark, the session's rather than its tab's, which leaves the tab as it is ([§ Status cues](status-cues.md#status-cues), [decided 2026-10-29](../decisions/0141-a-tab-can-no-longer-be-paused.md)); a launch reads the paused tabs an older `meta.json` lists as sessions set aside, whenever, and restores their tabs as ordinary cold ones.
+A tab is never paused: setting a session aside is the set-aside mark, the session's rather than its tab's ([decided 2026-10-29](../decisions/0141-a-tab-can-no-longer-be-paused.md)), and what it does to a claude running in the tab, stopping it and by default closing the tab, is `setAsideRunning` ([§ Status cues](status-cues.md#status-cues)); a launch reads the paused tabs an older `meta.json` lists as sessions set aside, whenever, and restores their tabs as ordinary cold ones.
 A roll-up, such as a project's in the switcher, and the attention toasts read the status itself, which for a session claude has left is `closed` and nudges nothing; a roll-up reads the session's needs-you mark too ([§ Status cues](status-cues.md#status-cues)).
 A stopping dot never shows the session's mark read, and is no control, so a click on it goes to what holds it.
 
@@ -270,7 +270,8 @@ A toast with a button stays 8 s, held from when the pointer moves onto it, where
 **A close's toast also offers Finished and Set aside…** ([decided 2026-11-05](../decisions/0166-a-close-offers-finished-and-set-aside.md); `offerUndoClose`).
 Every close that offers Undo offers both, for the sessions it closed: one toast for a batch, as the bar's Close tab raises, and a running tab's own at its exit; claude's own exit offers nothing still, and measured on this machine since 2026-10-27, it never happened.
 Finished is the menu's (`finishSessions`), handed the tabs the close removed, so its toast's Undo makes the sessions unfinished and puts the tabs back, as a finish's Undo does for the tabs it closed.
-Set aside… is the bar's (`setAside`, an ask the session list answers with the dialog `askSetAside` opens), so one session's dialog holds its note and several have no line; its toast's Undo takes the marks off and puts the tabs back, and Cancel brings the close's toast back with its Undo.
+Set aside… is the bar's (`setAside`, an ask the session list answers with the dialog `askSetAside` opens), so one session's dialog holds its note and several have no line; its toast is any set aside's (`setAsideTabs`), whose Undo takes the marks off and puts the tabs back, and Cancel brings the close's toast back with its Undo.
+A close of one tab of a session already set aside says until when, "Closed "<title>", set aside until Fri 6 Nov, 09:00", or ", set aside, whenever", and any close of such a session offers Clear set aside as a fourth button ([decided 2026-11-11](../decisions/0212-setting-a-running-session-aside-stops-it.md)).
 So whichever is pressed, the toast after it goes back to before the close; the close's own Undo goes with the toast it was on, since the bar holds one.
 It stays 8 s, held while the pointer is on it, as any toast with a button; its buttons never wrap, and a long title wraps beside them.
 

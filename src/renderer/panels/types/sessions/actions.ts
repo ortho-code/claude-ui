@@ -324,14 +324,13 @@ function linkedItems(session: SessionSummary): MenuItem[] {
 }
 
 /**
- * Set aside…, which asks when it comes back as needing you and where it stands, and Clear set aside: a mark on the session, so the tab is left as it is (decided 2026-10-29).
+ * Set aside…, which asks when it comes back as needing you and where it stands, and Clear set aside: a mark on the session, and what `setAsideRunning` says for a claude running in its tab (decided 2026-11-11).
  * A finished session's menu has neither, since a finish clears the mark.
  */
 function setAsideItems(session: SessionSummary): MenuItem[] {
   const key = entityKey(session);
   return [
-    // No toast: the row stays where it was, its bookmark saying what was done; the bar's batch has one, since its rows can leave the list (decided 2026-11-04).
-    { label: 'Set aside…', onSelect: () => void askSetAside([key], sessionLabel(session)) },
+    { label: 'Set aside…', onSelect: () => void setAsideFromList([key]) },
     store.get().setAside.has(key) ? { label: 'Clear set aside', onSelect: () => clearSetAside([key]) } : { label: 'Clear set aside', disabled: 'Not set aside' },
   ];
 }
@@ -371,6 +370,15 @@ export async function setAsideNamed(keys: readonly string[]): Promise<{ said: st
   const done = await askSetAside(keys, session ? sessionLabel(session) : `${keys.length} sessions`);
   if (!done) return null;
   return { said: `Set ${session ? `"${sessionLabel(session)}"` : `${keys.length} sessions`} aside${setAsideUntil(done.due)}`, undo: done.undo };
+}
+
+/**
+ * Set aside… from a session's menu or the bar of selecting several: the dialog, then the terminal area's part (`setAsideTabs`), which does what `setAsideRunning` says to the tabs and raises the toast whose Undo puts it all back.
+ * Every set aside has its toast, the menu's too, since a tab can now go with it (decided 2026-11-11).
+ */
+export async function setAsideFromList(keys: readonly string[]): Promise<void> {
+  const done = await setAsideNamed(keys);
+  if (done) hostOf('sessions').setAsideTabs(keys, done);
 }
 
 function noteItem(session: SessionSummary): MenuItem {

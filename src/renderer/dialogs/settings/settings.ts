@@ -1,7 +1,7 @@
 import { parseLaunchFlags } from '../../../shared/config/flags';
 import { presetsProblem } from '../../../shared/status/set-aside';
 import { timeOfDay } from '../../../shared/helpers/time';
-import { changedSettings, fileChanges, languageTag, sameValue, type ChangedSetting, type LeaveButton, type RunningAtLaunch, type SettingsChange, type SettingsView, type UndoRunning } from '../../../shared/config/settings';
+import { changedSettings, fileChanges, languageTag, sameValue, type ChangedSetting, type LeaveButton, type RunningAtLaunch, type SetAsideRunning, type SettingsChange, type SettingsView, type UndoRunning } from '../../../shared/config/settings';
 import type { Settings } from '../../../shared/types';
 import { element } from '../../ui/dom';
 import { runModal, listen } from '../../ui/modal';
@@ -19,6 +19,7 @@ const settingsRunning = document.getElementById('settings-running') as HTMLSelec
 const settingsPrStatus = document.getElementById('settings-pr-status') as HTMLInputElement;
 const settingsLeaveButton = document.getElementById('settings-leave-button') as HTMLSelectElement;
 const settingsUndoRunning = document.getElementById('settings-undo-running') as HTMLSelectElement;
+const settingsSetAsideRunning = document.getElementById('settings-set-aside-running') as HTMLSelectElement;
 const settingsSetAside = document.getElementById('settings-set-aside') as HTMLInputElement;
 const settingsSetAsideError = document.getElementById('settings-set-aside-error')!;
 const settingsSetAsideTime = document.getElementById('settings-set-aside-time') as HTMLInputElement;
@@ -102,6 +103,19 @@ const undoRunningField = new SettingField(
   (file, why) => `The choice in ${file} is not used: ${why}`,
 );
 
+const setAsideRunningField = new SettingField(
+  'setAsideRunning',
+  {
+    element: settingsSetAsideRunning,
+    // Its options are the choices themselves, so what it holds is always one of them.
+    read: () => settingsSetAsideRunning.value as SetAsideRunning,
+    write: (value) => {
+      settingsSetAsideRunning.value = value;
+    },
+  },
+  (file, why) => `The choice in ${file} is not used: ${why}`,
+);
+
 const setAsideField = new SettingField(
   'setAside',
   {
@@ -145,16 +159,17 @@ const localeField = new SettingField(
 );
 
 /** Every setting's field. */
-const fields = [flagsField, runningField, prStatusField, leaveButtonField, undoRunningField, setAsideField, setAsideTimeField, localeField];
+const fields = [flagsField, runningField, prStatusField, leaveButtonField, undoRunningField, setAsideRunningField, setAsideField, setAsideTimeField, localeField];
 
 /** What a save sends: every field's value as it stands. */
-function currentChange(): Pick<Settings, 'launchFlags' | 'runningSessionsAtLaunch' | 'prStatus' | 'leaveButton' | 'undoRunning' | 'setAside' | 'setAsideTime' | 'locale'> {
+function currentChange(): Pick<Settings, 'launchFlags' | 'runningSessionsAtLaunch' | 'prStatus' | 'leaveButton' | 'undoRunning' | 'setAsideRunning' | 'setAside' | 'setAsideTime' | 'locale'> {
   return {
     launchFlags: flagsField.value(),
     runningSessionsAtLaunch: runningField.value(),
     prStatus: prStatusField.value(),
     leaveButton: leaveButtonField.value(),
     undoRunning: undoRunningField.value(),
+    setAsideRunning: setAsideRunningField.value(),
     setAside: setAsideField.value(),
     setAsideTime: setAsideTimeField.value(),
     locale: localeField.value(),

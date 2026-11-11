@@ -287,10 +287,10 @@ export function scheduledReported(id: string): void {
   persistOpenTabs();
 }
 
-/** What a tab asked to leave for a close or a finish does at its claude's exit, set once as the terminal area is wired; a tab asked to leave for a stop goes cold (`coolTab`). */
+/** What a tab asked to leave does at its claude's exit, set once as the terminal area is wired: for a close or a finish, everything; for a stop, what follows its going cold (`coolTab`), such as a set aside's toast. */
 let leftAtExit: (token: string, tab: TabState) => void = () => {};
 
-/** Set what a tab asked to leave for a close or a finish does at its claude's exit. */
+/** Set what a tab asked to leave does at its claude's exit. */
 export function whenLeft(handler: (token: string, tab: TabState) => void): void {
   leftAtExit = handler;
 }
@@ -315,7 +315,7 @@ function onTabExit(token: string, exitCode: number, signal = 0): void {
   // Every other exit keeps today's behaviour below.
   if (tab.stopping) {
     if (tab.onExit === 'cool') coolTab(token);
-    else leftAtExit(token, tab);
+    leftAtExit(token, tab);
     return;
   }
   // A near-instant exit almost always means claude failed to start (bad env, not found, rc error).

@@ -110,6 +110,7 @@ const STARTER_NOTES: Record<SettingKey, string> = {
   prStatus: 'Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks and lets the PR types mark a session as needing you when one changes, such as merged or changes requested; turned on, it starts from the PRs as they are then',
   leaveButton: 'What a tab\'s button does: "stop-close" stops a running session and then closes the tab, "stop-finish" stops it and then marks its session finished, "close" and "finish" do so in one press, and "none" leaves it to the tab\'s menu',
   undoRunning: 'What Undo of a close or a finish does with a tab whose claude that close or finish ended: "start" starts claude again in it, "cold" brings it back without starting it; any other tab comes back cold either way',
+  setAsideRunning: 'What setting a session aside does to a claude running in a tab of it: "stop-close" asks it to leave and closes the tab, "stop" asks it to leave and keeps the tab, "keep" leaves it running, where a prompt you send there takes the mark off',
   setAside: 'The choices for setting a session aside, offered in the order they come with "whenever" last: "whenever", "in 30m", "in 2h", "in 3d", "in 1w", "tomorrow" or "next monday", a day with a time such as "09:00" or else the time below',
   setAsideTime: 'The time of day, as "HH:MM" in 24 hours, a choice without one comes back at',
   locale: 'The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',

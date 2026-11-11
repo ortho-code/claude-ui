@@ -31,6 +31,21 @@ test('the time is 09:00 until another is saved into settings.json, and a cleared
   expect(await page.evaluate(() => window.__claudeUiFixture.settings.json)).toEqual({ setAsideTime: '17:30' });
 });
 
+test('what setting a running session aside does offers its three choices in words, stopping claude and closing the tab until another is saved into settings.json', async ({ app, page }) => {
+  await app.boot();
+  let dialog = await openSettings(page, 'Sessions');
+  const choice = (): Locator => dialog.getByRole('combobox', { name: 'When a running session is set aside' });
+  await expect(choice().locator('option')).toHaveText(['Stop claude and close the tab', 'Stop claude, keep the tab', 'Keep claude running']);
+  await expect(choice()).toHaveValue('stop-close');
+
+  await choice().selectOption('keep');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toBeHidden();
+  expect(await page.evaluate(() => window.__claudeUiFixture.settings.json)).toEqual({ setAsideRunning: 'keep' });
+  dialog = await openSettings(page, 'Sessions');
+  await expect(choice()).toHaveValue('keep');
+});
+
 test("Set aside…'s dated choices come due at the time the settings say, and Pick a date…'s time starts at it", async ({ app, page }) => {
   await page.clock.setFixedTime(new Date(2026, 9, 29, 15, 30));
   await app.boot({ sessions: [one], settings: settingsFileWith('settings.json', { setAsideTime: '17:30' }) });

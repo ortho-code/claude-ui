@@ -58,8 +58,8 @@ test('Set aside… marks the session on its row and its tab by one class, and Cl
   expect((await app.calls('markSetAside')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], null]]);
   expect(await app.calls('startTerminal')).toEqual([]);
   await expect(tab(page, one.title)).toHaveCount(1);
-  // The session's menu raises no toast for it: the row stays where it was (decided 2026-11-04).
-  await expect(page.locator('#toast-message')).toBeHidden();
+  // Every set aside says so in a toast with its Undo, the menu's too (decided 2026-11-11).
+  await expect(page.locator('#toast-message')).toHaveText(`Set "${one.title}" aside, whenever`);
 
   await (await menuItem(page, one.title, 'Clear set aside')).click();
   for (const mark of marks(page)) await expect(mark).toBeHidden();

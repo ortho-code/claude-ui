@@ -124,6 +124,8 @@ export interface Asks {
   finishSessions(ids: readonly string[]): void;
   /** Close the tabs of sessions, as each one's Close tab would, never forcing one already closing; the cold ones at once, with one toast. */
   closeTabs(ids: readonly string[]): void;
+  /** What setting sessions aside does to their tabs, by `setAsideRunning`, once `done` has marked them: a running claude asked to leave and its tab closed or kept, or left running; then the toast saying `done.said`, whose Undo runs `done.undo` and puts back what was done to the tabs. */
+  setAsideTabs(ids: readonly string[], done: { said: string; undo: () => void }): void;
   /** The terminal area's half of selecting a project: the tabs on show and the tab in front follow it. */
   showProject(repoRoot: string | null): void;
   // Answered by the session list.

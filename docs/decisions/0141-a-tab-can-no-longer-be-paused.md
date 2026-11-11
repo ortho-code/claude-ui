@@ -2,6 +2,7 @@
 
 - **Date:** 2026-10-29
 - **Area:** [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process)
+- **Partly replaced** by [0212](0212-setting-a-running-session-aside-stops-it.md) on 2026-11-11: setting a session aside no longer leaves the tab as it is, since a claude running in it is stopped as `setAsideRunning` says; a tab is still never paused.
 
 ## Decision
 

@@ -23,11 +23,11 @@ async function menuItem(page: Page, title: string, item: string): Promise<Locato
   return page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: new RegExp(`^${item}$`) });
 }
 
-/** Close a stopped tab from its row's menu, and wait for its toast. */
-async function closeFromMenu(page: Page, title: string): Promise<void> {
+/** Close a stopped tab from its row's menu, and wait for its toast, saying `said`. */
+async function closeFromMenu(page: Page, title: string, said = `Closed "${title}"`): Promise<void> {
   await (await menuItem(page, title, 'Close tab')).click();
   await expect(tab(page, title)).toHaveCount(0);
-  await expect(message(page)).toHaveText(`Closed "${title}"`);
+  await expect(message(page)).toHaveText(said);
 }
 
 /** Start a session's tab and let claude print, so the tab is live. */
@@ -118,7 +118,7 @@ test("the bar's Close tab with two stopped tabs raises one toast, whose Finished
 
 test("a session already set aside: the close toast's Set aside… shows its mark, and Finished's Undo puts the mark back", async ({ app, page }) => {
   await app.boot({ ...fixture, setAside: { [one.id]: { due: null, at: 1 } } });
-  await closeFromMenu(page, one.title);
+  await closeFromMenu(page, one.title, `Closed "${one.title}", set aside, whenever`);
   await toastButton(page, 'Set aside…').click();
   await expect(page.locator('#set-aside-overlay')).toContainText('Now set aside, whenever');
   await page.locator('#set-aside-cancel').click();

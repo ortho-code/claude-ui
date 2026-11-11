@@ -13,7 +13,7 @@ import { headingTick, tickedOnShow } from '../../../ui/ticks';
 import { showToast } from '../../../ui/toast';
 import { setUnavailable, unavailable } from '../../../ui/unavailable';
 import { hostOf } from '../builtin';
-import { confirmAndDelete, moveToGroupItems, setAsideNamed } from './actions';
+import { confirmAndDelete, moveToGroupItems, setAsideFromList } from './actions';
 import { container, currentByKey, drawnKeys } from './drawn';
 import './bulk.css';
 
@@ -147,15 +147,6 @@ function named(keys: readonly string[]): string {
 }
 
 /**
- * Set aside… from the bar: the dialog for every ticked session, one with its note, several without (decided 2026-11-05), each marked in one write, and one toast whose Undo puts each back as it was, its old mark or none, and the one's note.
- * A session's menu raises no toast for its Set aside…, since its row stays where it was (decided 2026-11-04): a batch's rows can leave what is on show, and the toast is then what says what happened.
- */
-async function setAside(keys: readonly string[]): Promise<void> {
-  const done = await setAsideNamed(keys);
-  if (done) showToast(done.said, false, [{ label: 'Undo', run: done.undo }]);
-}
-
-/**
  * Keep from the bar: every ticked session kept out of the review for its days, in one write, and one toast whose Undo puts each stamp back as it was, or none (docs/architecture/session-list.md § The review).
  * Offered outside the review too, to hold a session out of it before it would come up.
  */
@@ -183,7 +174,8 @@ function onAct(name: string, run: (keys: string[], button: HTMLButtonElement) =>
 }
 
 onAct('finish', (keys) => hostOf('sessions').finishSessions(keys));
-onAct('set-aside', (keys) => void setAside(keys));
+// The dialog for every ticked session, one with its note, several without (decided 2026-11-05), each marked in one write, and the toast whose Undo puts it all back.
+onAct('set-aside', (keys) => void setAsideFromList(keys));
 onAct('keep', (keys) => keep(keys));
 onAct('move', (keys, button) => openMenu(button, moveToGroupItems(sessionsOf(keys))));
 onAct('stop', (keys) => {

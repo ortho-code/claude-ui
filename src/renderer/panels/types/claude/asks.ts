@@ -9,7 +9,7 @@ import { projName, sessionById, tabWith, unopenableReason } from '../../../state
 import { showToast } from '../../../ui/toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
-import { closeTabs, finishSessions, pressLeave } from './closing';
+import { closeTabs, finishSessions, pressLeave, setAsideTabs } from './closing';
 import { activateTab, createTab, startTab, switchWorkspaceTerminal } from './terminals';
 import type { TabLaunch } from './tab-state';
 
@@ -154,7 +154,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
 }
 
 /** The asks the terminal area answers. */
-export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressLeave' | 'finishSessions' | 'closeTabs' | 'showProject'> = {
+export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressLeave' | 'finishSessions' | 'closeTabs' | 'setAsideTabs' | 'showProject'> = {
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
@@ -172,5 +172,6 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
   },
   finishSessions,
   closeTabs,
+  setAsideTabs: (ids, done) => setAsideTabs(ids, done),
   showProject: (repoRoot) => switchWorkspaceTerminal(repoRoot),
 };

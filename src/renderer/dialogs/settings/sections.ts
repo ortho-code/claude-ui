@@ -1,4 +1,4 @@
-import { changedSettings, LEAVE_BUTTON, RUNNING_AT_LAUNCH, UNDO_RUNNING, type LeaveButton, type RunningAtLaunch, type SettingKey, type SettingsView, type UndoRunning } from '../../../shared/config/settings';
+import { changedSettings, LEAVE_BUTTON, RUNNING_AT_LAUNCH, SET_ASIDE_RUNNING, UNDO_RUNNING, type LeaveButton, type RunningAtLaunch, type SetAsideRunning, type SettingKey, type SettingsView, type UndoRunning } from '../../../shared/config/settings';
 import { store } from '../../state/app';
 // The section list's entries are menu rows.
 import '../../ui/menu-row.css';
@@ -24,6 +24,13 @@ const UNDO_RUNNING_LABELS: Record<UndoRunning, string> = {
   cold: 'Bring the tab back without starting it',
 };
 
+/** Each choice for a running session set aside, in words: the dropdown's options. */
+const SET_ASIDE_RUNNING_LABELS: Record<SetAsideRunning, string> = {
+  'stop-close': 'Stop claude and close the tab',
+  stop: 'Stop claude, keep the tab',
+  keep: 'Keep claude running',
+};
+
 type SectionId = 'general' | 'sessions' | 'needs-you' | 'appearance' | 'version-control' | 'logs';
 
 /** Each setting's words. */
@@ -33,6 +40,7 @@ const SETTING_LABELS: Record<SettingKey, string> = {
   prStatus: 'PR status from GitHub',
   leaveButton: 'Leave button',
   undoRunning: 'When Undo brings back a tab whose claude was running',
+  setAsideRunning: 'When a running session is set aside',
   setAside: 'Set aside: the choices',
   setAsideTime: 'Time of day for a choice without one',
   locale: 'Language for times and dates',
@@ -85,7 +93,7 @@ export const SECTIONS: Section[] = [
   {
     id: 'sessions',
     label: 'Sessions',
-    keys: ['leaveButton', 'undoRunning', 'setAside', 'setAsideTime'],
+    keys: ['leaveButton', 'undoRunning', 'setAsideRunning', 'setAside', 'setAsideTime'],
     body: `
       <div class="dialog-group">
         <label class="dialog-label" for="settings-leave-button">${SETTING_LABELS.leaveButton}</label>
@@ -99,6 +107,13 @@ export const SECTIONS: Section[] = [
         <p class="dialog-detail">The Undo a close or a finish offers puts its tabs back where they were. This is for a tab whose claude the close or the finish ended; any other comes back cold either way.</p>
         <select id="settings-undo-running" class="dialog-field">
           ${UNDO_RUNNING.map((choice) => `<option value="${choice}">${UNDO_RUNNING_LABELS[choice]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="dialog-group">
+        <label class="dialog-label" for="settings-set-aside-running">${SETTING_LABELS.setAsideRunning}</label>
+        <p class="dialog-detail">A prompt you send in a session set aside takes the mark off, so stopping claude keeps a reply from doing that by accident. A busy claude is interrupted, as Stop does. The message that follows has an Undo that puts it all back.</p>
+        <select id="settings-set-aside-running" class="dialog-field">
+          ${SET_ASIDE_RUNNING.map((choice) => `<option value="${choice}">${SET_ASIDE_RUNNING_LABELS[choice]}</option>`).join('')}
         </select>
       </div>
       <div class="dialog-group">

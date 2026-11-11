@@ -2,6 +2,7 @@
 
 - **Date:** 2026-11-04
 - **Area:** [Selecting several](../architecture/session-list.md#selecting-several)
+- **Replaced** by [0212](0212-setting-a-running-session-aside-stops-it.md) on 2026-11-11: every set aside raises a toast, the menu's too, since it can now close a tab.
 
 ## Decision
 

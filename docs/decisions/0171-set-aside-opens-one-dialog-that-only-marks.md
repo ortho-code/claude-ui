@@ -2,6 +2,7 @@
 
 - **Date:** 2026-11-05
 - **Area:** [Status cues](../architecture/status-cues.md#status-cues)
+- **Partly replaced** by [0212](0212-setting-a-running-session-aside-stops-it.md) on 2026-11-11: Set aside no longer only marks, since a claude running in the tab is stopped as `setAsideRunning` says; the one dialog still holds.
 
 ## Decision
 

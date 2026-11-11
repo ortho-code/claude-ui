@@ -2,6 +2,7 @@
 
 What was decided about how claude-ui works, when, and why, each with what was turned down.
 The architecture notes describe the app as it is now and link here for the reasoning.
+A decision a later one replaces stays as it was written, marked **Replaced** here and under its title, or **Partly replaced** with the part that no longer holds, each linking to the decision that replaced it.
 
 | # | Date | Decision | Area |
 |---|---|---|---|
@@ -145,7 +146,7 @@ The architecture notes describe the app as it is now and link here for the reaso
 | [0138](0138-a-session-keeps-every-needs-you-reason.md) | 2026-10-29 | A session keeps every reason it needs you for | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
 | [0139](0139-a-set-aside-day-comes-due-at-a-set-time.md) | 2026-10-29 | A set-aside day comes due at the time of day the settings give | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0140](0140-a-set-aside-session-has-a-mark-of-its-own.md) | 2026-10-29 | A set-aside session has a mark of its own, beside the dot | [Status cues](../architecture/status-cues.md#status-cues) |
-| [0141](0141-a-tab-can-no-longer-be-paused.md) | 2026-10-29 | A tab can no longer be paused | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
+| [0141](0141-a-tab-can-no-longer-be-paused.md) | 2026-10-29 | A tab can no longer be paused — **Partly replaced** by [0212](0212-setting-a-running-session-aside-stops-it.md): setting aside no longer leaves the tab as it is | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
 | [0142](0142-a-time-field-follows-the-language-from-the-next-launch.md) | 2026-10-29 | A time field follows the language from the next launch | [The language](../architecture/window.md#the-language) |
 | [0143](0143-set-aside-and-needs-you-marks-are-kept-apart.md) | 2026-10-29 | The set-aside and needs-you marks are kept apart | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0144](0144-shared-calendar.md) | 2026-10-29 | The calendar is one module and stylesheet | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
@@ -160,7 +161,7 @@ The architecture notes describe the app as it is now and link here for the reaso
 | [0153](0153-watch-sessions-waits-two-seconds.md) | 2026-11-02 | Watching the sessions waits 2 seconds after the last change | [Types from the config folder](../architecture/panels.md#types-from-the-config-folder) |
 | [0154](0154-the-leave-button-key-names-the-leave.md) | 2026-11-03 | The leave button's setting is named for the leave | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
 | [0155](0155-the-leave-button-offers-close-finish-and-none.md) | 2026-11-03 | The leave button offers close, finish and none as choices | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
-| [0156](0156-a-sessions-menu-raises-no-toast-for-set-aside.md) | 2026-11-04 | A session's menu raises no toast for Set aside… | [Selecting several](../architecture/session-list.md#selecting-several) |
+| [0156](0156-a-sessions-menu-raises-no-toast-for-set-aside.md) | 2026-11-04 | A session's menu raises no toast for Set aside… — **Replaced** by [0212](0212-setting-a-running-session-aside-stops-it.md) | [Selecting several](../architecture/session-list.md#selecting-several) |
 | [0157](0157-grouped-and-recent-are-the-sessions-panels-views.md) | 2026-11-04 | Grouped and Recent are the sessions panel's views | [Recent](../architecture/session-list.md#recent) |
 | [0158](0158-list-order-catches-up-each-minute.md) | 2026-11-04 | The session list's order catches up once a minute | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
 | [0159](0159-pins-are-not-floated-in-recent.md) | 2026-11-04 | Pins are not floated in Recent | [Recent](../architecture/session-list.md#recent) |
@@ -175,7 +176,7 @@ The architecture notes describe the app as it is now and link here for the reaso
 | [0168](0168-a-set-aside-list-with-a-bad-choice-is-not-used.md) | 2026-11-05 | A set-aside list with a choice the app cannot read is not used | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0169](0169-finished-sessions-are-kept-under-finished.md) | 2026-11-05 | Finished sessions are kept under `finished` | [App-side metadata and session groups](../architecture/sessions.md#app-side-metadata-and-session-groups) |
 | [0170](0170-set-aside-for-several-leaves-their-notes.md) | 2026-11-05 | Setting several sessions aside leaves their notes as they are | [Selecting several](../architecture/session-list.md#selecting-several) |
-| [0171](0171-set-aside-opens-one-dialog-that-only-marks.md) | 2026-11-05 | Set aside opens one dialog that only marks | [Status cues](../architecture/status-cues.md#status-cues) |
+| [0171](0171-set-aside-opens-one-dialog-that-only-marks.md) | 2026-11-05 | Set aside opens one dialog that only marks — **Partly replaced** by [0212](0212-setting-a-running-session-aside-stops-it.md): it no longer only marks | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0172](0172-where-a-set-aside-session-stands-is-its-note.md) | 2026-11-05 | Where a set-aside session stands is its note | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0173](0173-a-dots-state-is-picked-by-one-strength-order.md) | 2026-11-06 | A dot's state is picked by one strength order | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0174](0174-a-dots-tooltip-lists-every-state-the-session-is-in.md) | 2026-11-06 | A dot's tooltip lists every state the session is in | [Status cues](../architecture/status-cues.md#status-cues) |
@@ -216,3 +217,4 @@ The architecture notes describe the app as it is now and link here for the reaso
 | [0209](0209-a-pr-opened-in-the-browser-is-looked-for-by-its-branch.md) | 2026-11-11 | A PR opened in the browser is looked for by its branch | [Reading sessions](../architecture/sessions.md#reading-sessions) |
 | [0210](0210-a-muted-needs-you-mark-gives-way-to-claudes-status.md) | 2026-11-11 | A muted needs-you mark gives way to claude's status | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0211](0211-undo-starts-claude-again-where-it-was-running.md) | 2026-11-11 | Undo starts claude again where it was running | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
+| [0212](0212-setting-a-running-session-aside-stops-it.md) | 2026-11-11 | Setting a running session aside stops its claude | [Status cues](../architecture/status-cues.md#status-cues) |

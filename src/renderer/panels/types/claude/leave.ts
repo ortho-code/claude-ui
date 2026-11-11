@@ -104,7 +104,16 @@ export function stopCalledOff(token: string): TabState | null {
   if (!tab?.stopping || tab.forced) return null;
   clearStopTimers(token);
   setTab(token, { stopping: false, onExit: 'cool', forceable: false, notLeft: false });
+  calledOff(token);
   return tab;
+}
+
+/** What else a leave called off undoes, set once as the terminal area is wired: what a close, a finish or a set aside noted for that leave's exit (closing.ts). */
+let calledOff: (token: string) => void = () => {};
+
+/** Set what else a leave called off undoes. */
+export function whenCalledOff(handler: (token: string) => void): void {
+  calledOff = handler;
 }
 
 /**
