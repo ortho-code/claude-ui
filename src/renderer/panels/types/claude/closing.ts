@@ -12,8 +12,8 @@ import { isQuitting } from '../../../window/quitting';
 import { hostOf } from '../builtin';
 import { askToLeave, forceStop, stopSession } from './leave';
 import { persistOpenTabs } from './open-tabs';
-import { keptWhenGone, setTab, tabOf } from './tab-state';
-import { buildTab, removeTab, startTab } from './terminals';
+import { isOnShow, keptWhenGone, setTab, tabOf } from './tab-state';
+import { activateTab, buildTab, removeTab, startTab } from './terminals';
 
 /**
  * Closing a tab, finishing a session and what setting one aside does to its tabs, at once or once claude has gone, and the Undo each offers; and the leave a press asks for, which ends in a stop (leave.ts), a close or a finish.
@@ -58,6 +58,8 @@ interface RemovedTab {
   needsYou: readonly NeedsYou[] | null;
   /** Whether its claude was running when the close or the finish began, so that close or finish asked it to leave, rather than a stop before it. */
   running: boolean;
+  /** Whether it was the tab on show as it went, which an Undo puts back on show. */
+  onShow: boolean;
 }
 
 /** What Undo needs of a tab about to be removed, read before it goes; `running` for one whose claude the close or the finish asked to leave. */
@@ -68,6 +70,7 @@ function removedTab(tab: TabState, running = false): RemovedTab {
     scheduledWhenStopped: keptWhenGone(tab),
     needsYou: store.get().needsYou.get(entityKey(tab.session)) ?? null,
     running,
+    onShow: isOnShow(tab.token),
   };
 }
 
@@ -79,7 +82,8 @@ function removedTab(tab: TabState, running = false): RemovedTab {
  */
 function putBack(removed: readonly RemovedTab[]): void {
   const toStart: string[] = [];
-  for (const { session, at, scheduledWhenStopped, needsYou, running } of [...removed].reverse()) {
+  let shown: string | null = null;
+  for (const { session, at, scheduledWhenStopped, needsYou, running, onShow } of [...removed].reverse()) {
     if (store.get().tabs.some((t) => t.session.id === session.id) || store.get().finished.has(entityKey(session))) continue;
     // As it was, from when it was marked, so a set-aside mark that muted it mutes it again.
     if (needsYou) restoreNeedsYou(entityKey(session), needsYou);
@@ -90,8 +94,11 @@ function putBack(removed: readonly RemovedTab[]): void {
     tabs.splice(Math.min(Math.max(at, 0), tabs.length), 0, built);
     store.set({ tabs });
     if (running && restartsOnUndo(session)) toStart.push(token);
+    if (onShow) shown = token;
   }
   persistOpenTabs();
+  // Brought on show without starting it: whether it starts is `toStart`'s, by the same rule as the rest.
+  if (shown !== null) activateTab(shown, false);
   for (const token of toStart) void startTab(token);
 }
 
@@ -134,7 +141,8 @@ interface SetAsideAct {
   said: string;
   undoMarks: () => void;
   removed: RemovedTab[];
-  stopped: string[];
+  /** The tabs it stopped, each with whether it was on show as its claude went. */
+  stopped: { token: string; onShow: boolean }[];
 }
 
 /** The tabs whose claude a set aside asked to leave and that have not gone yet, each with its set aside. */
@@ -184,13 +192,15 @@ function undoSetAside(act: SetAsideAct): void {
   }
   act.undoMarks();
   putBack(act.removed);
-  for (const token of act.stopped) restartCold(token);
+  for (const { token, onShow } of act.stopped) restartCold(token, onShow);
 }
 
-/** Start claude again in a cold tab an Undo kept, where `undoRunning` says to and its folder is still there. */
-function restartCold(token: string): void {
+/** Start claude again in a cold tab an Undo kept, where `undoRunning` says to and its folder is still there, and bring it back on show where it was. */
+function restartCold(token: string, onShow: boolean): void {
   const tab = tabOf(token);
-  if (tab?.terminalId === null && restartsOnUndo(tab.session)) void startTab(token);
+  if (!tab) return;
+  if (onShow) activateTab(token, false);
+  if (tab.terminalId === null && restartsOnUndo(tab.session)) void startTab(token);
 }
 
 /**
@@ -384,13 +394,13 @@ function finishAtExit(key: string): void {
  * The exit of a claude asked to leave: for a stop, its tab cold by now, claude started again where an Undo asked for it, and a set aside's toast raised again with this tab among those it stopped.
  * For a close or a finish, the tab goes now that claude has gone, and the session is marked finished for the finish; a close for a set aside raises the set aside's toast rather than its own.
  */
-export function leftAtExit(token: string, tab: TabState): void {
+export function leftAtExit(token: string, tab: TabState, onShow = false): void {
   const key = entityKey(tab.session);
   const aside = setAsideLeft(token, key);
   if (tab.onExit === 'cool') {
-    if (restartAtExit.delete(token)) restartCold(token);
+    if (restartAtExit.delete(token)) restartCold(token, onShow);
     if (aside) {
-      aside.stopped.push(token);
+      aside.stopped.push({ token, onShow });
       offerUndoSetAside(aside);
     }
     return;

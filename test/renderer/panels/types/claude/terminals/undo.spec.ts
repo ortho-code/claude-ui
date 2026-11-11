@@ -71,6 +71,24 @@ test('Close tab on a running session offers Undo once claude has gone, which sta
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
 });
 
+test('Undo brings the tab that was on show back on show, and one that was not stays behind the one on show', async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app, one.title);
+  await (await menuItem(page, one.title, 'Close tab')).click();
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await undo(page).click();
+  await expect(tab(page, one.title)).toHaveClass(/\bactive\b/);
+
+  await tabLabels(page).filter({ hasText: two.title }).click();
+  await (await menuItem(page, one.title, 'Close tab')).click();
+  await expect.poll(() => app.calls('closeTerminal')).toHaveLength(2);
+  expect(await app.emit('onTerminalExit', FIRST + 1, 0)).toBe(1);
+  await undo(page).click();
+  await expect(tabLabels(page)).toHaveText([one.title, two.title]);
+  await expect(tab(page, two.title)).toHaveClass(/\bactive\b/);
+  await expect(tab(page, one.title)).not.toHaveClass(/\bactive\b/);
+});
+
 test('a tab stopped first and closed while claude was still leaving comes back cold, as the stop left it', async ({ app, page }) => {
   await app.boot(fixture);
   await startLive(page, app, one.title);

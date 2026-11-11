@@ -24,6 +24,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   `setAsideRunning` in Settings keeps the tab (`"stop"`) or leaves claude running (`"keep"`, as before).
 - Every set aside, from a session's menu too, raises a message saying until when, whose Undo puts back the mark, the tabs and claude.
 - Closing the tab of a session that is set aside says until when, and offers Clear set aside.
+- Undo of a close, a finish or a set aside brings the tab that was on show back on show.
 
 ### Fixed
 

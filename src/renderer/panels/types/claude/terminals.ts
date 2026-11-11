@@ -288,10 +288,10 @@ export function scheduledReported(id: string): void {
 }
 
 /** What a tab asked to leave does at its claude's exit, set once as the terminal area is wired: for a close or a finish, everything; for a stop, what follows its going cold (`coolTab`), such as a set aside's toast. */
-let leftAtExit: (token: string, tab: TabState) => void = () => {};
+let leftAtExit: (token: string, tab: TabState, onShow: boolean) => void = () => {};
 
-/** Set what a tab asked to leave does at its claude's exit. */
-export function whenLeft(handler: (token: string, tab: TabState) => void): void {
+/** Set what a tab asked to leave does at its claude's exit; `onShow` is whether the tab was on show as claude went, read before a stop's cooling takes it off show. */
+export function whenLeft(handler: (token: string, tab: TabState, onShow: boolean) => void): void {
   leftAtExit = handler;
 }
 
@@ -314,8 +314,9 @@ function onTabExit(token: string, exitCode: number, signal = 0): void {
   // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed — or, for a close or a finish, remove it now that claude has gone, and mark the session finished for the finish.
   // Every other exit keeps today's behaviour below.
   if (tab.stopping) {
+    const onShow = isOnShow(token);
     if (tab.onExit === 'cool') coolTab(token);
-    leftAtExit(token, tab);
+    leftAtExit(token, tab, onShow);
     return;
   }
   // A near-instant exit almost always means claude failed to start (bad env, not found, rc error).

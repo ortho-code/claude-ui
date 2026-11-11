@@ -58,6 +58,7 @@ test("the default's Undo takes the mark off, puts the tab back where it stood an
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
   expect(await app.calls('clearSetAside')).toEqual([[[one.id]]]);
   await expect(row(page, one.title).locator('.set-aside-mark')).toBeHidden();
+  await expect(tab(page, one.title)).toHaveClass(/\bactive\b/);
 });
 
 test('an Undo pressed while claude is still leaving keeps the tab and starts claude again once it has gone, with no close of its own', async ({ app, page }) => {
@@ -84,6 +85,7 @@ test('with "stop" the tab stays, cold, once claude has gone, and Undo takes the 
   await undo(page).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
   expect(await app.calls('clearSetAside')).toEqual([[[one.id]]]);
+  await expect(tab(page, one.title)).toHaveClass(/\bactive\b/);
 });
 
 test('with "keep" claude goes on running, the toast comes at once, and Undo takes the mark off', async ({ app, page }) => {
