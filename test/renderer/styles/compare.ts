@@ -9,6 +9,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { renamed } from './keys.ts';
 
 interface Picture {
   width: number;
@@ -23,22 +24,6 @@ const { PNG } = require(path.join(core, 'lib/utilsBundle')) as { PNG: { sync: { 
 
 /** How many differing pixels a picture lists before it only counts them. */
 const SHOWN_PIXELS = 50;
-
-/** An element key with its classes renamed by `renames` and sorted again, as the capture sorts them; everything after a line's ` | ` is its value and is left alone. */
-function renamed(line: string, renames: ReadonlyMap<string, string[]>): string {
-  const at = line.indexOf(' | ');
-  const key = at < 0 ? line : line.slice(0, at);
-  const rewritten = key.replace(/(?:\.[\w-]+)+/g, (classes) =>
-    classes
-      .slice(1)
-      .split('.')
-      .flatMap((name) => renames.get(name) ?? [name])
-      .sort()
-      .map((name) => `.${name}`)
-      .join(''),
-  );
-  return at < 0 ? rewritten : rewritten + line.slice(at);
-}
 
 /** The lines only in `a`, as many times as `a` has them more than `b` does. */
 function onlyIn(a: string[], b: string[]): string[] {
