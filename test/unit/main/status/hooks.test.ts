@@ -1,0 +1,446 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { promises as fs } from 'node:fs';
+import * as path from 'node:path';
+
+vi.mock('electron', async () => (await import('./statushome')).electronStub);
+vi.mock('node:os', async () => (await import('./statushome')).osStub);
+
+import { installStatusHooks, statusSettingsFile } from '../../../../src/main/status/hooks';
+import { statusDir } from '../../../../src/main/paths';
+import { testHome } from './statushome';
+import { readStatusFile, runHook, SID, TOKEN, useHookScript } from './hookscript';
+
+const settingsPath = path.join(testHome, '.claude', 'settings.json');
+const ourCmd = path.join(testHome, '.config', 'claude-ui', 'status-hook.sh');
+const foreignPromptHook = { hooks: [{ type: 'command', command: '/somewhere/my-own-hook.sh' }] };
+const foreignPreTool = { hooks: [{ type: 'command', command: '/somewhere/commit-style.sh' }] };
+
+async function writeSettings(value: unknown): Promise<void> {
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify(value, null, 2));
+}
+async function readSettings(): Promise<Record<string, unknown>> {
+  return JSON.parse(await fs.readFile(settingsPath, 'utf8'));
+}
+
+beforeEach(async () => {
+  await fs.rm(settingsPath, { force: true });
+});
+
+describe('installStatusHooks', () => {
+  it('writes the status hooks into the tool-owned settings file, not the user settings', async () => {
+    await installStatusHooks();
+    const tool = JSON.parse(await fs.readFile(statusSettingsFile, 'utf8'));
+    expect(Object.keys(tool.hooks).sort()).toEqual([
+      'Notification',
+      'PermissionRequest',
+      'PostModelSwitch',
+      'PostToolUse',
+      'PreCompact',
+      'SessionEnd',
+      'SessionStart',
+      'Stop',
+      'UserPromptSubmit',
+    ]);
+    // PostToolUse is what ends the waiting a permission prompt starts: approving one fires nothing else, so without it the dot stays on waiting for the rest of the turn.
+    expect(tool.hooks.PostToolUse[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
+    // The script path is single-quoted: on macOS it lives under "Application Support" and an unquoted space would split it into two arguments.
+    expect(tool.hooks.UserPromptSubmit[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
+    // A permission prompt is waiting from the moment claude asks, not from its notice six seconds later.
+    expect(tool.hooks.PermissionRequest[0].hooks[0].command).toBe(`'${ourCmd}' waiting`);
+    // Compaction is work: busy while it runs, and its END arrives as a SessionStart the script turns into ready.
+    expect(tool.hooks.PreCompact[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
+    expect(tool.hooks.SessionStart[0].hooks[0].command).toBe(`'${ourCmd}' start`);
+  });
+
+  // The cleanup scans every event in the user's file rather than the ones registered now, so an entry left by a version that hooked something this one does not is still found.
+  it('strips an injected hook on an event this version does not register', async () => {
+    await writeSettings({
+      hooks: {
+        SubagentStop: [{ hooks: [{ type: 'command', command: `${ourCmd} ready` }] }, foreignPromptHook],
+      },
+    });
+    await installStatusHooks();
+    expect(((await readSettings()).hooks as Record<string, unknown>).SubagentStop).toEqual([foreignPromptHook]);
+  });
+
+  // The commands here are deliberately UNQUOTED: the entries being cleaned up were written by versions that did not quote the script path, which is why the matcher uses `includes`.
+  it('strips only the previously-injected status hooks from ~/.claude/settings.json', async () => {
+    await writeSettings({
+      model: 'sonnet',
+      hooks: {
+        // ours + a foreign hook on the same event: keep the foreign one.
+        UserPromptSubmit: [{ hooks: [{ type: 'command', command: `${ourCmd} busy` }] }, foreignPromptHook],
+        // only ours: the event key goes away entirely.
+        Stop: [{ hooks: [{ type: 'command', command: `${ourCmd} ready` }] }],
+        // unrelated event we never touch.
+        PreToolUse: [foreignPreTool],
+      },
+    });
+
+    await installStatusHooks();
+    const after = await readSettings();
+
+    expect(after.model).toBe('sonnet');
+    expect((after.hooks as Record<string, unknown>).UserPromptSubmit).toEqual([foreignPromptHook]);
+    expect((after.hooks as Record<string, unknown>).Stop).toBeUndefined();
+    expect((after.hooks as Record<string, unknown>).PreToolUse).toEqual([foreignPreTool]);
+    // Preserve the trailing newline so the cleanup leaves no spurious "no newline" diff.
+    expect(await fs.readFile(settingsPath, 'utf8')).toMatch(/}\n$/);
+  });
+
+  it('is idempotent: a second run leaves the cleaned user settings unchanged', async () => {
+    await writeSettings({
+      hooks: {
+        UserPromptSubmit: [{ hooks: [{ type: 'command', command: `${ourCmd} busy` }] }, foreignPromptHook],
+      },
+    });
+    await installStatusHooks();
+    const once = await fs.readFile(settingsPath, 'utf8');
+    await installStatusHooks();
+    const twice = await fs.readFile(settingsPath, 'utf8');
+    expect(twice).toBe(once);
+  });
+
+  it('does not create ~/.claude/settings.json when there is none to clean', async () => {
+    await installStatusHooks();
+    await expect(fs.access(settingsPath)).rejects.toThrow();
+    // The tool settings file is still written.
+    await expect(fs.access(statusSettingsFile)).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * The hook script is the only part of the app that runs outside it, in a shell Claude Code starts, and none of it was covered before.
+ * These run the real script the way Claude Code does — argument, JSON on stdin, `CLAUDE_UI` set — and read the file it leaves behind.
+ */
+describe('the hook script', () => {
+  useHookScript();
+
+  it('writes the status it is given for the session on stdin', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+    expect((await readStatusFile())?.status).toBe('busy');
+  });
+
+  it('writes nothing at all for a session claude-ui did not start', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' }, false);
+    expect(await readStatusFile()).toBe(null);
+  });
+
+  it('reports which terminal the session is running in', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+    expect((await readStatusFile())?.tab).toBe(TOKEN);
+  });
+
+  // Busy is several events, and one of them alone — a prompt submitted — says a session asked to leave has stayed.
+  it('names the event that reported the status', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+    expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'UserPromptSubmit' });
+    runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
+    expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'PostToolUse' });
+  });
+
+  // The prompt tells yours from a turn claude started itself (startedByClaude), so it goes along, as the JSON string it was, escapes and all.
+  it('writes the prompt submitted beside its status, and none for any other event', async () => {
+    const prompt = 'say "hi" \\ then\nstop';
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt });
+    expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'UserPromptSubmit', prompt });
+    runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse', tool_name: 'Read', tool_input: { prompt: 'not this' } });
+    expect(await readStatusFile()).not.toHaveProperty('prompt');
+  });
+
+  // Claude's hook schema names where a prompt came from, which 2.1.310 did not yet send.
+  it('writes where claude says the prompt came from, where it says', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: 'tick', source: 'schedule_wakeup' });
+    expect(await readStatusFile()).toMatchObject({ prompt: 'tick', source: 'schedule_wakeup' });
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: 'tick' });
+    expect(await readStatusFile()).not.toHaveProperty('source');
+  });
+
+  /**
+   * EVERY reason, `clear` and `resume` included.
+   * Those two leave the PROCESS running, which is what made them look like exceptions — but they end the session this event NAMES and start a different one, and this app tracks sessions.
+   * Declining to write for them was tried and reverted: it left the finished session showing a live dot for good.
+   */
+  it.each(['clear', 'resume', 'logout', 'prompt_input_exit', 'other'])(
+    'closes the session it names when SessionEnd says %s',
+    async (reason) => {
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+      runHook('closed', { session_id: SID, hook_event_name: 'SessionEnd', reason });
+      expect((await readStatusFile())?.status).toBe('closed');
+    },
+  );
+
+  it('closes the session when SessionEnd carries no reason', async () => {
+    runHook('closed', { session_id: SID, hook_event_name: 'SessionEnd' });
+    expect((await readStatusFile())?.status).toBe('closed');
+  });
+
+  // A compaction ending is the one SessionStart that means a STATE, and it has to beat the guard below because the session already has a status — the busy that PreCompact set.
+  it('turns the end of a compaction into ready, over a live status', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'PreCompact' });
+    runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'compact' });
+    expect((await readStatusFile())?.status).toBe('ready');
+  });
+
+  // Every other SessionStart is identity only.
+  // Writing it over a real status would hollow a live dot, and the wrong answer would then be seeded at the next launch.
+  it.each(['clear', 'resume', 'startup'])('never overwrites a status when SessionStart says %s', async (source) => {
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+    runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source });
+    expect((await readStatusFile())?.status).toBe('busy');
+  });
+
+  // The case the identity marker exists for: a session nothing has reported on yet, which is how a tab learns the id that replaced its own after a /clear.
+  it('records a session it has never seen before', async () => {
+    runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'clear' });
+    const written = await readStatusFile();
+    expect(written?.status).toBe('start');
+    expect(written?.tab).toBe(TOKEN);
+  });
+
+  // Which session a terminal runs, and why, goes to a file of its own, for a session that has a status too: claude's own `/resume` goes on in a session that already has one, and the tab must hear of it at once rather than at the next prompt.
+  it.each(['clear', 'resume', 'startup'])('says which session the terminal runs and why when SessionStart says %s, over a status it leaves alone', async (source) => {
+    runHook('closed', { session_id: SID, hook_event_name: 'SessionEnd', reason: 'other' });
+    runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source });
+    expect(JSON.parse(await fs.readFile(path.join(statusDir, `${SID}.start`), 'utf8'))).toEqual({ tab: TOKEN, source });
+    expect((await readStatusFile())?.status).toBe('closed');
+  });
+
+  // A compaction is the same claude going on in the same session, and its SessionStart is a status instead.
+  it('says nothing of which session runs at the end of a compaction', async () => {
+    runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'compact' });
+    await expect(fs.access(path.join(statusDir, `${SID}.start`))).rejects.toThrow();
+  });
+
+  /**
+   * A model switch is the one report that is neither a state nor an identity, so it goes to a file of its own.
+   * A transcript only records which model ANSWERED, which is why this is the only place the answer exists at the moment it becomes true.
+   */
+  it('records a model switch beside the status, without disturbing it', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+    runHook('model', {
+      session_id: SID,
+      hook_event_name: 'PostModelSwitch',
+      from_model: 'claude-opus-5',
+      to_model: 'claude-sonnet-5',
+    });
+    expect(await fs.readFile(path.join(statusDir, `${SID}.model`), 'utf8')).toBe('claude-sonnet-5');
+    // The session is still working; a switch says nothing about that.
+    expect((await readStatusFile())?.status).toBe('busy');
+  });
+
+  it('writes no model file when the event names no model to switch to', async () => {
+    runHook('model', { session_id: SID, hook_event_name: 'PostModelSwitch', from_model: 'claude-opus-5' });
+    await expect(fs.access(path.join(statusDir, `${SID}.model`))).rejects.toThrow();
+  });
+
+  // The payload claude 2.1.289 sends as a permission prompt appears, reduced to what matters here.
+  it('writes waiting when claude asks for permission, naming the event', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
+    runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'WebFetch', tool_input: { url: 'https://example.com' }, permission_mode: 'default', permission_suggestions: [] });
+    expect(await readStatusFile()).toMatchObject({ status: 'waiting', event: 'PermissionRequest' });
+  });
+
+  // The prompt's own notice, about six seconds later (measured), asks nothing new, and writing it would take a read mark off.
+  it("writes nothing for a permission prompt's notice over the waiting its request wrote", async () => {
+    runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'WebFetch' });
+    runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'permission_prompt', message: 'Claude needs your permission' });
+    expect(await readStatusFile()).toMatchObject({ status: 'waiting', event: 'PermissionRequest' });
+  });
+
+  // A claude that sends no PermissionRequest leaves the notice as the only word of the prompt.
+  it("still writes waiting for a permission prompt's notice over busy", async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
+    runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'permission_prompt', message: 'Claude needs your permission' });
+    expect(await readStatusFile()).toMatchObject({ status: 'waiting', event: 'Notification' });
+  });
+
+  // `source` belongs to SessionStart alone: one riding along on any other event must not rewrite its status.
+  it('ignores a source on an event that is not a SessionStart', async () => {
+    runHook('waiting', { session_id: SID, hook_event_name: 'Notification', source: 'compact' });
+    expect((await readStatusFile())?.status).toBe('waiting');
+  });
+
+  /**
+   * `Stop` lists the work still running behind the turn it ends (`background_tasks`), in the shape claude 2.1.289 was measured to send it.
+   * Work still running means the session is not ready, so the dot says so in ready's place.
+   */
+  describe('a turn that ends with work still running behind it', () => {
+    const task = (type: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({
+      id: `task-${type}`,
+      type,
+      status: 'running',
+      description: `a ${type}`,
+      ...extra,
+    });
+    const stop = (extra: Record<string, unknown>): Record<string, unknown> => ({
+      session_id: SID,
+      hook_event_name: 'Stop',
+      stop_hook_active: false,
+      last_assistant_message: 'Started.',
+      ...extra,
+    });
+
+    it('reports background in place of ready, naming what runs', async () => {
+      runHook('ready', stop({ background_tasks: [task('shell', { command: 'sleep 20' }), task('subagent', { agent_type: 'general-purpose' })], session_crons: [] }));
+      expect(await readStatusFile()).toMatchObject({ status: 'background', event: 'Stop', background: ['shell', 'subagent'] });
+    });
+
+    it('names a type of work it has not heard of as claude labels it', async () => {
+      runHook('ready', stop({ background_tasks: [task('MCP task', { server: 'github', tool: 'watch' })] }));
+      expect(await readStatusFile()).toMatchObject({ status: 'background', background: ['MCP task'] });
+    });
+
+    // An empty list says nothing runs, and a claude too old to send the list says nothing at all, which is no reason to claim anything runs.
+    it.each([
+      ['an empty list', { background_tasks: [], session_crons: [] }],
+      ['no list at all', {}],
+    ])('reports ready for %s', async (_case, extra) => {
+      runHook('ready', stop(extra));
+      const written = await readStatusFile();
+      expect(written?.status).toBe('ready');
+      expect(written).not.toHaveProperty('background');
+    });
+
+    // A `/loop` or a scheduled wakeup will start a turn LATER; nothing is running meanwhile, and counting it would keep a looping session from ever showing finished.
+    it('does not count a scheduled wakeup as running', async () => {
+      runHook('ready', stop({ background_tasks: [], session_crons: [{ id: 'cron-1', schedule: '*/5 * * * *', recurring: true, prompt: 'check the build' }] }));
+      expect((await readStatusFile())?.status).toBe('ready');
+    });
+
+    /**
+     * Claude watches a published artifact for comments, and lists the watch as a `monitor` while it lasts (measured on claude 2.1.296: one armed by a publish was still listed about 50 minutes later).
+     * Nothing runs meanwhile: a comment sent to Claude summons a turn of its own (by claude's source), as a scheduled wakeup starts one.
+     */
+    const watch = task('monitor', { id: 'sg1al8hmg', description: 'live updates for artifact https://claude.ai/artifact/AbCdEf123 (auto-armed on publish)' });
+
+    it('does not count an artifact watch as running', async () => {
+      runHook('ready', stop({ background_tasks: [watch], session_crons: [] }));
+      const written = await readStatusFile();
+      expect(written?.status).toBe('ready');
+      expect(written).not.toHaveProperty('background');
+    });
+
+    // A monitor of your own counts as work, and it is listed as `monitor` too, so a watch takes only one of them off the list.
+    it('leaves an artifact watch out of what runs beside it', async () => {
+      runHook('ready', stop({ background_tasks: [task('shell'), watch, task('monitor')] }));
+      expect(await readStatusFile()).toMatchObject({ status: 'background', background: ['shell', 'monitor'] });
+    });
+
+    /**
+     * A minute at its prompt without input makes claude send an idle notice, `idle_prompt`, whether or not a shell still runs (measured on claude 2.1.289); by its source the same goes for a monitor, while claude itself holds the notice back for a background subagent.
+     * While work runs, claude is not waiting for you: that work's end starts a turn of its own, and the same notice a minute after THAT turn is the real one.
+     */
+    it("keeps background through claude's idle notice, and ready through the one after the work has ended", async () => {
+      runHook('ready', stop({ background_tasks: [task('shell')] }));
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' });
+      expect((await readStatusFile())?.status).toBe('background');
+
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: '<task-notification>' });
+      runHook('ready', stop({ background_tasks: [] }));
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' });
+      expect((await readStatusFile())?.status).toBe('ready');
+    });
+
+    // Only the idle notice is held back: a permission prompt, a question, anything else claude notifies, needs you.
+    it.each(['permission_prompt', 'elicitation_dialog', 'agent_needs_input', undefined])('still says waiting over background for a %s notification', async (type) => {
+      runHook('ready', stop({ background_tasks: [task('shell')] }));
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', ...(type ? { notification_type: type } : {}) });
+      expect((await readStatusFile())?.status).toBe('waiting');
+    });
+
+    it('says waiting over background when claude asks for permission', async () => {
+      runHook('ready', stop({ background_tasks: [task('shell')] }));
+      runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'WebFetch' });
+      expect((await readStatusFile())?.status).toBe('waiting');
+    });
+
+    // The turn's own words are a string, so a `"type"` inside them arrives escaped and must not count as a task.
+    it('counts nothing out of the words the turn ended on', async () => {
+      runHook('ready', stop({ last_assistant_message: 'The payload had "type":"shell" in it.', background_tasks: [task('subagent')] }));
+      expect((await readStatusFile())?.background).toEqual(['subagent']);
+    });
+  });
+
+  /** A minute at its prompt without input, claude says "Claude is waiting for your input": the turn is done, which is ready, and nothing asks you anything. */
+  describe("claude's idle notice", () => {
+    const notice = { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' };
+
+    it('writes nothing over the ready the Stop wrote, so the Stop stays the event', async () => {
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop' });
+      runHook('waiting', notice);
+      expect(await readStatusFile()).toMatchObject({ status: 'ready', event: 'Stop' });
+    });
+
+    it('writes nothing over a waiting, which a question still open says better', async () => {
+      runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'WebFetch' });
+      runHook('waiting', notice);
+      expect(await readStatusFile()).toMatchObject({ status: 'waiting', event: 'PermissionRequest' });
+    });
+
+    it('says ready where the file says claude is still at work, since claude is at its prompt', async () => {
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+      runHook('waiting', notice);
+      expect(await readStatusFile()).toMatchObject({ status: 'ready', event: 'Notification' });
+    });
+
+    it('keeps the last Stop for what it left running and scheduled', async () => {
+      const stopFile = path.join(statusDir, `${SID}.stop`);
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+      await fs.writeFile(stopFile, '{"session_crons":[]}');
+      runHook('waiting', notice);
+      expect(await fs.readFile(stopFile, 'utf8')).toBe('{"session_crons":[]}');
+    });
+  });
+
+  /** Notices claude sends of something finished (claude 2.1.310's binary: "Claude Code login successful", "<agent> finished", "Claude is done using your computer"; 2.1.316's: an MCP server's form confirmed complete, and the answer it was given), which ask nothing. */
+  describe('a notice of something finished', () => {
+    it.each(['auth_success', 'agent_completed', 'computer_use_exit', 'elicitation_complete', 'elicitation_response'])('writes nothing for %s, over ready or busy', async (type) => {
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop' });
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: type });
+      expect(await readStatusFile()).toMatchObject({ status: 'ready', event: 'Stop' });
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: 'go' });
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: type });
+      expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'UserPromptSubmit' });
+    });
+
+    // One that may ask something, or a kind a later claude adds, still says waiting: missing a question is worse than a waiting too many.
+    it.each(['push_notification', 'auth_storage_failure', 'agent_needs_input', 'worker_permission_prompt', 'a_kind_not_known_yet'])('still says waiting for %s', async (type) => {
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop' });
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: type });
+      expect((await readStatusFile())?.status).toBe('waiting');
+    });
+  });
+
+  /**
+   * Hooks fired inside a subagent carry the session's own id, told apart by `agent_id` (measured on claude 2.1.289).
+   * Once the session's turn has ended, a subagent still at work is a background one, and its tool calls are not the session working again.
+   */
+  describe('an event from inside a subagent', () => {
+    const fromSubagent = { agent_id: 'a4f90cdffb4a6bcc9', agent_type: 'general-purpose' };
+
+    it.each([
+      ['ready', {}],
+      ['background', { background_tasks: [{ id: 'a4f90cdffb4a6bcc9', type: 'subagent', status: 'running', description: 'a subagent' }] }],
+    ])('never writes busy over %s', async (status, extra) => {
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', ...extra });
+      runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse', tool_name: 'Bash', ...fromSubagent });
+      expect((await readStatusFile())?.status).toBe(status);
+    });
+
+    // A foreground subagent runs inside the session's turn, so approving its prompt is the session working again, as it is for the session's own.
+    it('writes busy over waiting', async () => {
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification' });
+      runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse', tool_name: 'Bash', ...fromSubagent });
+      expect((await readStatusFile())?.status).toBe('busy');
+    });
+
+    // Waiting is the one state that needs you, so it is never held back, whoever asks.
+    it('still writes waiting over ready', async () => {
+      runHook('ready', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ id: 'a4f90cdffb4a6bcc9', type: 'subagent', status: 'running', description: 'a subagent' }] });
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', ...fromSubagent });
+      expect((await readStatusFile())?.status).toBe('waiting');
+    });
+  });
+});

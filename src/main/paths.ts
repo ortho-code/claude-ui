@@ -13,7 +13,7 @@ import { PANEL_TYPES_FOLDER } from '../shared/panels';
  * On macOS it is `~/Library/Application Support`, which gives the status files and the hook script the same home as `meta.json` instead of splitting them between `~/.config` and Library.
  *
  * Import this module before any other path use.
- * `app.setPath` runs on import, and a module that computes a path at load time (status.ts does) would otherwise capture the unpinned value.
+ * `app.setPath` runs on import, and a module that computes a path at load time (status/hooks.ts does) would otherwise capture the unpinned value.
  */
 app.setPath('userData', path.join(app.getPath('appData'), 'claude-ui'));
 

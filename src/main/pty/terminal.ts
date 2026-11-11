@@ -1,7 +1,7 @@
 import { ipcMain, type WebContents } from 'electron';
 import * as pty from 'node-pty';
 import { existsSync, readlinkSync } from 'node:fs';
-import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from '../status/status';
+import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from '../status/hooks';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup } from './shell';
 import { contextEnv } from '../panels/panels';
 import { flagNames, parseLaunchFlags } from '../../shared/config/flags';

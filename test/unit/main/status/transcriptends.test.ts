@@ -2,38 +2,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-// A temp HOME so the hook script and the status files land in a throwaway ~/.config.
-const { testHome } = vi.hoisted(() => {
-  const os = require('node:os');
-  const fs = require('node:fs');
-  const path = require('node:path');
-  return { testHome: fs.mkdtempSync(path.join(os.tmpdir(), 'claude-ui-transcriptends-')) as string };
-});
+vi.mock('electron', async () => (await import('./statushome')).electronStub);
+vi.mock('node:os', async () => (await import('./statushome')).osStub);
 
-// paths.ts pins userData to <appData>/claude-ui on import, so the fake app honours setPath (as status.test.ts explains).
-vi.mock('electron', () => {
-  const nodePath = require('node:path');
-  const pinned: Record<string, string> = {};
-  return {
-    app: {
-      getPath: (name: string) => pinned[name] ?? nodePath.join(testHome, name === 'appData' ? '.config' : name),
-      setPath: (name: string, value: string) => {
-        pinned[name] = value;
-      },
-    },
-    ipcMain: { handle: vi.fn(), on: vi.fn() },
-    BrowserWindow: class {},
-  };
-});
-vi.mock('node:os', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:os')>();
-  return { ...actual, homedir: () => testHome };
-});
-
-import { installStatusHooks, type Ending, type Report, type Work } from '../../../../src/main/status/status';
+import { installStatusHooks } from '../../../../src/main/status/hooks';
+import type { Ending, Report, Work } from '../../../../src/main/status/status';
 import { statusDir } from '../../../../src/main/paths';
 import { INTERRUPT_EVENT, REFUSAL_EVENT, TASK_END_EVENT, newFacts, readFact, transcriptChanged, unhookedEnd, type Facts } from '../../../../src/main/status/transcriptends';
 import { runHook } from './hookscript';
+import { testHome } from './statushome';
 
 const shell = { id: 'bh9w6pqmt', type: 'shell' };
 const subagent = { id: 'a9f387eb22d2413de', type: 'subagent' };

@@ -32,7 +32,7 @@ interface FakePty {
   kill: () => void;
 }
 
-// terminal.ts reaches electron and node-pty at import time, and through status.ts it reaches paths.ts, which pins the userData path on import.
+// terminal.ts reaches electron and node-pty at import time, and through status/hooks.ts it reaches paths.ts, which pins the userData path on import.
 vi.mock('electron', () => ({
   app: { getPath: () => '/tmp/claude-ui-test', setPath: () => {} },
   ipcMain: {
