@@ -5,7 +5,9 @@ import { createReadStream } from 'node:fs';
 import { prKey } from '../../shared/sessions/prs';
 import type { SessionPr, SessionSummary } from '../../shared/types';
 import { postedPrs } from './posted-prs';
+import { callsTool, changedFiles, FILE_TOOL_CALL, shellCommands, SHELL_TOOL_CALL } from './tool-calls';
 import { promptOf } from './transcript';
+import { WorktreeTrail } from './worktree-trail';
 
 /** What one transcript says, before its folders are resolved to a repo. */
 export interface SummaryRead {
@@ -27,43 +29,6 @@ export interface FileChange {
   at: string;
 }
 
-/** Claude's tools that change a file, each with the input that names it. */
-const FILE_TOOLS = new Map([
-  ['Edit', 'file_path'],
-  ['Write', 'file_path'],
-  ['MultiEdit', 'file_path'],
-  ['NotebookEdit', 'notebook_path'],
-]);
-
-/** A line that may call one of them, before it is parsed. */
-const FILE_TOOL_CALL = new RegExp(`"name":"(?:${[...FILE_TOOLS.keys()].join('|')})"`);
-
-/** Claude's tools that run a shell command, each given as its `command` input. */
-const SHELL_TOOLS = ['Bash', 'PowerShell'];
-
-/** A line that may call one of them, before it is parsed. */
-const SHELL_TOOL_CALL = new RegExp(`"name":"(?:${SHELL_TOOLS.join('|')})"`);
-
-/** The tool calls in an assistant record, each by its tool's name and its input. */
-function toolCalls(event: Record<string, unknown>): { name: string; input: unknown }[] {
-  const content = (event.message as { content?: unknown } | undefined)?.content;
-  if (!Array.isArray(content)) return [];
-  return content.flatMap((part: unknown) => {
-    if (typeof part !== 'object' || part === null) return [];
-    const { type, name, input } = part as { type?: unknown; name?: unknown; input?: unknown };
-    return type === 'tool_use' && typeof name === 'string' ? [{ name, input }] : [];
-  });
-}
-
-/** The commands an assistant record's shell-tool calls run. */
-function shellCommands(event: Record<string, unknown>): string[] {
-  return toolCalls(event).flatMap(({ name, input }) => {
-    if (!SHELL_TOOLS.includes(name)) return [];
-    const command = (input as { command?: unknown } | undefined)?.command;
-    return typeof command === 'string' ? [command] : [];
-  });
-}
-
 /** Summarize one transcript without loading the whole file into memory. */
 export async function summarizeFile(file: string): Promise<SummaryRead | null> {
   const id = path.basename(file, '.jsonl');
@@ -76,24 +41,10 @@ export async function summarizeFile(file: string): Promise<SummaryRead | null> {
   const postCompactHeads: string[] = [];
   // Set right after a compaction boundary so the next user/assistant message is captured as a head.
   let awaitingCompactHead = false;
-  // A session can ENTER a worktree mid-life (claude's EnterWorktree tool): the transcript stays in its original project dir and only a worktree-state event records the move, so the first-latched cwd goes stale.
-  // The LAST worktree-state wins: entered (a worktreeSession object) puts the session at worktreePath; exited (worktreeSession null) drops it back to the recorded original cwd.
-  let worktreeStateCwd: string | null = null;
-  let worktreeOriginalCwd = '';
-  // An exit does not undo where the session did its work, so the worktree it last entered is kept through one, and a later enter clears it.
-  let enteredWorktreePath = '';
-  let leftWorktreePath = '';
-  // Whether the session is in a worktree by its records, so only the first null after an entry is an exit: Claude Code writes null again and again after an exit, at each resume too.
-  let inWorktree = false;
-  // An exit is a MOVE when claude's ExitWorktree tool made it, and a close otherwise, since Claude Code writes the same records when a session closes in its worktree.
-  // The call has been seen two records after its exit, in the same turn, so it counts before the exit or after it until the next user record: a call after a later prompt, such as one a resume brings, is not the exit's, and Claude Code refuses it for a worktree from an earlier session.
-  let exitCalled = false;
-  let exitAwaitsCall = false;
-  let movedOut = false;
+  const trail = new WorktreeTrail();
   // Where the session changed files, against where it last moved by a worktree tool, so a move after its last change wins and a change after a move does.
   // Positions, not times, order the two: a `worktree-state` record carries no timestamp.
   const changes = new Map<string, FileChange>();
-  let movedAt = -1;
   let position = 0;
   // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system append (a Remote Control notice) or a resume bumps mtime without being real activity.
   // Captured with a cheap regex below.
@@ -140,7 +91,7 @@ export async function summarizeFile(file: string): Promise<SummaryRead | null> {
       const maybeChange = isAssistant && FILE_TOOL_CALL.test(line);
       const maybePost = isAssistant && line.includes('gh ') && SHELL_TOOL_CALL.test(line);
       // Read before the lines below are skipped unparsed, as a user record mostly is.
-      if (exitAwaitsCall && line.includes('"type":"user"')) exitAwaitsCall = false;
+      if (isUser) trail.userRecord();
       if (!isTitle && !maybeBoundary && !maybeWorktree && !maybePrLink && !maybeExitCall && !maybeChange && !maybePost && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
 
       let event: Record<string, unknown>;
@@ -159,37 +110,8 @@ export async function summarizeFile(file: string): Promise<SummaryRead | null> {
       else if (event.type === 'ai-title') aiTitle = event.aiTitle;
       else if (!firstMessage && event.type === 'user') firstMessage = promptOf(event);
 
-      if (event.type === 'worktree-state') {
-        const ws = event.worktreeSession as { worktreePath?: unknown; originalCwd?: unknown } | null;
-        if (ws && typeof ws.worktreePath === 'string') {
-          // Claude Code writes the state again with each turn while the session is in its worktree, and a repeat is no move.
-          if (!inWorktree || worktreeStateCwd !== ws.worktreePath) movedAt = position;
-          worktreeStateCwd = ws.worktreePath;
-          enteredWorktreePath = ws.worktreePath;
-          leftWorktreePath = '';
-          if (typeof ws.originalCwd === 'string') worktreeOriginalCwd = ws.originalCwd;
-          inWorktree = true;
-          exitCalled = false;
-          exitAwaitsCall = false;
-          movedOut = false;
-        } else {
-          // Exited (worktreeSession null carries no path); fall back to the enter event's original cwd.
-          worktreeStateCwd = worktreeOriginalCwd || null;
-          leftWorktreePath = enteredWorktreePath;
-          if (inWorktree) {
-            movedOut = exitCalled;
-            exitAwaitsCall = !exitCalled;
-            movedAt = position;
-          }
-          inWorktree = false;
-        }
-      }
-
-      if (maybeExitCall && event.type === 'assistant' && callsTool(event, 'ExitWorktree')) {
-        // Before its exit, it is waited for; after it, in the same turn, it settles the exit already read as a close.
-        if (inWorktree) exitCalled = true;
-        else if (exitAwaitsCall) movedOut = true;
-      }
+      if (event.type === 'worktree-state') trail.state(event, position);
+      if (maybeExitCall && event.type === 'assistant' && callsTool(event, 'ExitWorktree')) trail.exitCall();
 
       // Only claude's own records: a transcript's `api-request-blob` records replay earlier calls, with no timestamp, wherever they are written.
       if (maybeChange && event.type === 'assistant') {
@@ -228,14 +150,23 @@ export async function summarizeFile(file: string): Promise<SummaryRead | null> {
   const title = asTitle(customTitle) || asTitle(aiTitle);
   const stat = await fs.stat(file);
   // The worktree-state override beats the first-latched cwd; resolveRepo then maps a worktree path to its repo + badge through the same path it uses for `claude -w` sessions.
-  const resolvedCwd = worktreeStateCwd || cwd || decodeProjectDir(path.basename(path.dirname(file)));
+  const resolvedCwd = trail.cwd || cwd || decodeProjectDir(path.basename(path.dirname(file)));
   const lastActivity = lastMsgTs || stat.mtime.toISOString();
-  const summary: SessionSummary = {
-    id,
-    conversationId,
-    cwd: resolvedCwd,
+  const summary = summaryFrom({ id, conversationId, cwd: resolvedCwd, title, firstMessage, model, lastActivity, prs: [...prs.values()], postCompactHeads });
+  return { summary, leftWorktreePath: trail.left, movedOut: trail.movedOut, changes: [...changes.values()].reverse(), movedAt: trail.movedAt };
+}
+
+/** What a transcript alone says of a session. */
+type TranscriptFacts = Pick<SessionSummary, 'id' | 'conversationId' | 'cwd' | 'title' | 'firstMessage' | 'model' | 'lastActivity' | 'prs' | 'postCompactHeads'>;
+
+/** A session's summary from its transcript's facts, with what only a listing can say left at its default. */
+function summaryFrom(facts: TranscriptFacts): SessionSummary {
+  return {
+    id: facts.id,
+    conversationId: facts.conversationId,
+    cwd: facts.cwd,
     // Filled in by listSessions once the repo is resolved; default to the cwd's own group.
-    repoRoot: resolvedCwd,
+    repoRoot: facts.cwd,
     worktree: '',
     leftWorktree: '',
     movedOutOfWorktree: false,
@@ -244,34 +175,19 @@ export async function summarizeFile(file: string): Promise<SummaryRead | null> {
     // Set per listing too, from the checkouts read with the summary and whether each folder is there.
     checkouts: [],
     isRepo: false,
-    title: title.slice(0, 200),
-    firstMessage: firstMessage.slice(0, 200),
-    model,
-    lastActivity,
+    title: facts.title.slice(0, 200),
+    firstMessage: facts.firstMessage.slice(0, 200),
+    model: facts.model,
+    lastActivity: facts.lastActivity,
     // Sibling grouping is derived across the whole session list in listSessions; default to "alone".
     isSibling: false,
     siblingIds: [],
-    prs: [...prs.values()],
-    postCompactHeads,
+    prs: facts.prs,
+    postCompactHeads: facts.postCompactHeads,
     // Both re-derived per listing, like the sibling marks: a folder can be removed or put back without the transcript changing, so the answer cannot be cached beside one.
     cwdExists: true,
     repoRootExists: true,
   };
-  return { summary, leftWorktreePath, movedOut: leftWorktreePath !== '' && movedOut, changes: [...changes.values()].reverse(), movedAt };
-}
-
-/** The absolute paths an assistant record's file-tool calls change; a relative one names no file anyone can find. */
-function changedFiles(event: Record<string, unknown>): string[] {
-  return toolCalls(event).flatMap(({ name, input }) => {
-    const field = FILE_TOOLS.get(name);
-    const file = field && typeof input === 'object' && input !== null ? (input as Record<string, unknown>)[field] : undefined;
-    return typeof file === 'string' && path.isAbsolute(file) ? [file] : [];
-  });
-}
-
-/** Whether an assistant record calls the tool `name`. */
-function callsTool(event: Record<string, unknown>, name: string): boolean {
-  return toolCalls(event).some((call) => call.name === name);
 }
 
 /** The PR a `pr-link` record names, or null for a record this cannot use: its number a positive whole number, its repository a name, its page an https address. */
