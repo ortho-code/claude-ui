@@ -9,6 +9,7 @@ import { foldEdge, isEmpty, type ResolvedGroup, type ResolvedNode, type Resolved
 import { dragTargets, flexFor, sizesAfterDrag, type FlexChild } from './sizes';
 import { notesLine } from './headers';
 import { foldedNow, keep, sizesOf, stateNotesOf, stateOf } from './treestate';
+import './split.css';
 
 /**
  * A split of the window, drawn: its children side by side or stacked, sized from the file and the app's sizes over it, and the dividers between them, which resize, reset and fold.
@@ -160,7 +161,7 @@ const OPPOSITE: Record<Direction, Direction> = { up: 'down', down: 'up', left: '
 /**
  * THE FOLD CONTROL (P7, P12): the fold chevron (fold-chevron.ts) on the divider on the other side of the edge a group folds toward, pointing the way it moves, and turned round while it is folded.
  * Two on one divider — two foldable groups alone in a split — sit one after the other along the line, each pointing into its own group, so neither covers a header; hovering one outlines the group it acts on.
- * Faint until the pointer is on the divider (fold-chevron.css, tree.css), so a window of foldable groups is not a row of buttons.
+ * Faint until the pointer is on the divider (fold-chevron.css, split.css), so a window of foldable groups is not a row of buttons.
  */
 function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], toggles: Place['toggleFold'][], a: number, b: number): void {
   const riders = [a, b].filter((index) => toggles[index] && edges[index] === (index === a ? 'start' : 'end'));

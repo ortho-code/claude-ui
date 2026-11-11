@@ -1,10 +1,10 @@
 import { keptOver } from '../../shared/sessions/kept';
 import type { LayoutReport, NodeStateChange } from '../../shared/panels';
 import { element } from '../ui/dom';
-import { foldable, renderSplit, type Place, type SplitContext } from './split';
 // A panel header's count wears the section heading's count pill.
 import '../ui/card.css';
 import '../ui/badge.css';
+import { foldable, renderSplit, type Place, type SplitContext } from './split';
 import './tree.css';
 import { setTooltip } from '../ui/tooltip';
 import { iconSvg } from './icons';

@@ -1,0 +1,117 @@
+/*
+  THE LAYOUT TREE'S SPLITS (panels/split.ts): rows and columns of nodes, a divider between every two.
+  A node's flex and its min along the split's axis are set inline from the file and the dragged sizes; both mins are 0 here so a node can shrink across the other axis.
+  A node does not clip: the sidebar's switcher opens past its own edge at a narrow width, as it always has.
+*/
+.split {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split.columns {
+  flex-direction: row;
+}
+
+.split.rows {
+  flex-direction: column;
+}
+
+/* A split with a note under it, and the whole window with the app file's notes under it (panels/tree.ts). */
+.split-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.node {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+/*
+  Always there between two neighbours, and always drawn, as a hairline down its middle: two panels on the same background would otherwise read as one.
+  Only a draggable one reacts to the pointer.
+*/
+.divider {
+  position: relative;
+  flex: 0 0 5px;
+  background: transparent;
+}
+
+.divider::after {
+  content: "";
+  position: absolute;
+  background: var(--border);
+}
+
+.split.columns > .divider::after {
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 1px;
+}
+
+.split.rows > .divider::after {
+  left: 0;
+  right: 0;
+  top: 2px;
+  height: 1px;
+}
+
+.split.columns > .divider.drag {
+  cursor: col-resize;
+}
+
+.split.rows > .divider.drag {
+  cursor: row-resize;
+}
+
+.divider.drag:hover,
+.divider.dragging {
+  background: var(--accent);
+}
+
+/*
+  The fold chevron (fold-chevron.css) on a divider, centred on its line: 11px across a 5px divider, so it overhangs each neighbour by 3px, which stays inside their padding and never covers a header's text.
+  Full once the pointer is on its divider.
+*/
+.divider:hover .fold-chev {
+  opacity: 1;
+}
+
+.split.columns > .divider .fold-chev {
+  left: -3px;
+}
+
+.split.rows > .divider .fold-chev {
+  top: -3px;
+}
+
+/* Two groups alone in a split share one divider: both chevrons sit on the line, one after the other along it, each pointing into its own group; the hover outline says which is which. */
+.split.columns > .divider .fold-chev.shared.before {
+  top: calc(50% - 32px);
+}
+
+.split.columns > .divider .fold-chev.shared.after {
+  top: calc(50% + 2px);
+}
+
+.split.rows > .divider .fold-chev.shared.before {
+  left: calc(50% - 32px);
+}
+
+.split.rows > .divider .fold-chev.shared.after {
+  left: calc(50% + 2px);
+}
+
+/* The group a hovered chevron acts on.
+   An outline, so it paints over the group's own content. */
+.node.fold-target {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
