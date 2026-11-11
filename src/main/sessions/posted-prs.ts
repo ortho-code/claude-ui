@@ -96,7 +96,7 @@ function invocations(command: string): string[][] {
   let words: string[] = [];
   let word = '';
   let inWord = false;
-  const heredocs: { delimiter: string; tabs: boolean }[] = [];
+  const heredocs: Heredoc[] = [];
   const endWord = (): void => {
     if (inWord) words.push(word);
     word = '';
@@ -110,23 +110,11 @@ function invocations(command: string): string[][] {
   let at = 0;
   while (at < command.length) {
     const char = command[at]!;
-    if (char === "'") {
-      const close = command.indexOf("'", at + 1);
-      const end = close === -1 ? command.length : close;
-      word += command.slice(at + 1, end);
+    if (char === "'" || char === '"') {
+      const quoted = char === "'" ? singleQuoted(command, at) : doubleQuoted(command, at);
+      word += quoted.text;
       inWord = true;
-      at = end + 1;
-      continue;
-    }
-    if (char === '"') {
-      at++;
-      while (at < command.length && command[at] !== '"') {
-        if (command[at] === '\\' && at + 1 < command.length && '"\\$`'.includes(command[at + 1]!)) at++;
-        word += command.charAt(at);
-        at++;
-      }
-      inWord = true;
-      at++;
+      at = quoted.at;
       continue;
     }
     if (char === '\\') {
@@ -144,29 +132,14 @@ function invocations(command: string): string[][] {
     }
     if (command.startsWith('<<', at) && command[at + 2] !== '<') {
       endWord();
-      at += 2;
-      const tabs = command[at] === '-';
-      if (tabs) at++;
-      while (command[at] === ' ' || command[at] === '\t') at++;
-      let delimiter = '';
-      while (at < command.length && !/[\s;&|<>]/.test(command[at]!)) {
-        if (command[at] !== "'" && command[at] !== '"' && command[at] !== '\\') delimiter += command.charAt(at);
-        at++;
-      }
-      if (delimiter) heredocs.push({ delimiter, tabs });
+      const opened = heredocStart(command, at);
+      if (opened.heredoc) heredocs.push(opened.heredoc);
+      at = opened.at;
       continue;
     }
     if (char === '\n') {
       endInvocation();
-      at++;
-      for (const { delimiter, tabs } of heredocs.splice(0)) {
-        while (at < command.length) {
-          const end = command.indexOf('\n', at);
-          const line = command.slice(at, end === -1 ? command.length : end);
-          at = end === -1 ? command.length : end + 1;
-          if ((tabs ? line.replace(/^\t+/, '') : line) === delimiter) break;
-        }
-      }
+      at = pastHeredocs(command, at + 1, heredocs.splice(0));
       continue;
     }
     if (char === '&' && (command[at - 1] === '>' || command[at - 1] === '<' || command[at + 1] === '>')) {
@@ -191,4 +164,56 @@ function invocations(command: string): string[][] {
   }
   endInvocation();
   return all;
+}
+
+/** The text of the single-quoted string that opens at `at`, taken as it is, and where the command goes on after its closing quote; one never closed runs to the end. */
+function singleQuoted(command: string, at: number): { text: string; at: number } {
+  const close = command.indexOf("'", at + 1);
+  const end = close === -1 ? command.length : close;
+  return { text: command.slice(at + 1, end), at: end + 1 };
+}
+
+/** The text of the double-quoted string that opens at `at`, with a backslash taken off before `"`, `\`, `$` and a backquote, and where the command goes on after its closing quote. */
+function doubleQuoted(command: string, at: number): { text: string; at: number } {
+  let text = '';
+  at++;
+  while (at < command.length && command[at] !== '"') {
+    if (command[at] === '\\' && at + 1 < command.length && '"\\$`'.includes(command[at + 1]!)) at++;
+    text += command.charAt(at);
+    at++;
+  }
+  return { text, at: at + 1 };
+}
+
+/** A heredoc a line opens: the line that ends it, and whether `<<-` lets that line start with tabs. */
+interface Heredoc {
+  delimiter: string;
+  tabs: boolean;
+}
+
+/** The heredoc whose `<<` is at `at`, with its delimiter's quoting taken off, and where its delimiter word ends; null for a `<<` with no word after it. */
+function heredocStart(command: string, at: number): { heredoc: Heredoc | null; at: number } {
+  at += 2;
+  const tabs = command[at] === '-';
+  if (tabs) at++;
+  while (command[at] === ' ' || command[at] === '\t') at++;
+  let delimiter = '';
+  while (at < command.length && !/[\s;&|<>]/.test(command[at]!)) {
+    if (command[at] !== "'" && command[at] !== '"' && command[at] !== '\\') delimiter += command.charAt(at);
+    at++;
+  }
+  return { heredoc: delimiter ? { delimiter, tabs } : null, at };
+}
+
+/** Where the command goes on after the bodies of `heredocs`, which start at `at`, the line after the one that opened them, in the order they were opened. */
+function pastHeredocs(command: string, at: number, heredocs: Heredoc[]): number {
+  for (const { delimiter, tabs } of heredocs) {
+    while (at < command.length) {
+      const end = command.indexOf('\n', at);
+      const line = command.slice(at, end === -1 ? command.length : end);
+      at = end === -1 ? command.length : end + 1;
+      if ((tabs ? line.replace(/^\t+/, '') : line) === delimiter) break;
+    }
+  }
+  return at;
 }
