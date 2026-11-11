@@ -7,7 +7,9 @@ import { toastAttention, toastNotLeft } from './attention';
 import { railStatusFollowsTabs } from './index';
 import { history, paneFollows } from './pane';
 import { renderTabBar, tabBarFollowsStatuses } from './tab-bar';
-import { promptSubmitted, reconcileOpenTabs, scheduledReported } from './terminals';
+import { leftAtExit } from './closing';
+import { promptSubmitted } from './leave';
+import { reconcileOpenTabs, scheduledReported, whenLeft } from './terminals';
 import { adoptReplacement } from './adopt';
 
 /**
@@ -24,6 +26,8 @@ function followSwitch(tabToken: string, id: string, source: string): void {
 
 export const claudeWatch = {
   rules(): void {
+    // A tab asked to leave for a close or a finish goes, and finishes its session, at its claude's exit.
+    whenLeft(leftAtExit);
     // The listing moved: the open tabs adopt their sessions' fresh summaries.
     store.watch(['sessions'], reconcileOpenTabs, { reads: ['tabs'] });
   },

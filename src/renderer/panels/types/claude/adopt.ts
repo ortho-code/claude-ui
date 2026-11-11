@@ -9,7 +9,8 @@ import { sessionById } from '../../../state/views';
 import { showToast } from '../../../ui/toast';
 import { persistOpenTabs } from './opentabs';
 import { setTab, tabOf } from './tabstate';
-import { forceOutAtOnce, removeTab, stopCalledOff } from './terminals';
+import { forceOutAtOnce, stopCalledOff } from './leave';
+import { removeTab } from './terminals';
 
 /**
  * A claude's start or a status event named the session a tab now runs: when that is another session than the tab's, the tab takes it over.

@@ -9,7 +9,8 @@ import { projName, sessionById, tabWith, unopenableReason } from '../../../state
 import { showToast } from '../../../ui/toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
-import { activateTab, finishSessions, closeTabs, createTab, pressLeave, startTab, switchWorkspaceTerminal } from './terminals';
+import { closeTabs, finishSessions, pressLeave } from './closing';
+import { activateTab, createTab, startTab, switchWorkspaceTerminal } from './terminals';
 import type { TabLaunch } from './tabstate';
 
 /**

@@ -148,7 +148,7 @@ A file that still lists paused tabs, `pausedSessions` ([decided 2026-10-29](../d
 A tab loses the mark when its session's process arrives, and gets it back if that start fails within its first moments; a start that is refused or throws never had a process, so the mark stays.
 The mark is written whenever it changes, with the rest.
 
-The code is in `src/renderer/panels/types/claude/`: `terminals.ts` holds a tab's life from built to closed, the workspace switch and the fit of the tab on show to the terminal area; `tabstate.ts` each tab's terminal; `opentabs.ts` and `restore.ts` the open tabs kept for the next launch and their restore; `adopt.ts` a tab taking over the session its claude went on in.
+The code is in `src/renderer/panels/types/claude/`: `terminals.ts` holds a tab's life from built to its claude's exit, the workspace switch and the fit of the tab on show to the terminal area; `leave.ts` asking a claude to leave, forcing one that does not, and the cold tab one leaves; `closing.ts` closing a tab and finishing a session, and the Undo each offers; `tabstate.ts` each tab's terminal; `opentabs.ts` and `restore.ts` the open tabs kept for the next launch and their restore; `adopt.ts` a tab taking over the session its claude went on in.
 
 ### Stopping a session is a request: claude may answer it with a question
 
@@ -248,7 +248,7 @@ The force's first second runs from the ask, so an item pressed later, over a lea
 An item does what it says or nothing: a press carries the mark it was drawn with and acts only while the item would still do the same (`pressLeave`), all but Finished on a session with no tab, which acts on what is there at the press ([decided 2026-10-21](../decisions/0094-a-menu-item-does-what-it-says-or-nothing.md)).
 A list panel's kebab item asks for its action the same way, only while its row still offers it ([§ Types from the config folder](panels.md#types-from-the-config-folder)); the tab's button and its middle-click are drawn from the tab as it is at the press, and go through the same check.
 
-**Finished is one press, and the mark waits for claude to go** ([decided 2026-10-28](../decisions/0126-finished-is-one-press-and-waits-for-claude.md); `finishSessions`, `claude/terminals.ts`).
+**Finished is one press, and the mark waits for claude to go** ([decided 2026-10-28](../decisions/0126-finished-is-one-press-and-waits-for-claude.md); `finishSessions`, `claude/closing.ts`).
 A running session's claude is asked to leave as a close asks it, and its tab stays, stopping, so a question claude asks on its way out is answered in a tab that is still there; its exit removes the tab and marks the session finished (`onExit: 'finish'`).
 A tab that is open but not running closes as the session is marked finished, at once.
 The mark is written at the exit, so the claudes the app asked do not run a finished session, and one opened in the moment main writes the mark is asked to leave after it, or closed at its exit if it was leaving already, or ended as it arrives if it is still starting.
@@ -260,7 +260,7 @@ A write main refuses says so in a toast too, since at an exit the tab has gone a
 Finished is unavailable while a tab starts ("Starting…"), as Stop session is, since there is no claude yet to ask.
 A quit before claude has gone marks nothing finished, and the tab comes back at the next launch, as a close under way does ([decided 2026-10-28](../decisions/0121-a-quit-marks-nothing-finished.md)).
 
-**A close or a finish you press offers Undo** ([decided 2026-10-28](../decisions/0118-a-close-or-finish-offers-undo.md); `offerUndoClose`, `offerUndoFinish`, `claude/terminals.ts`).
+**A close or a finish you press offers Undo** ([decided 2026-10-28](../decisions/0118-a-close-or-finish-offers-undo.md); `offerUndoClose`, `offerUndoFinish`, `claude/closing.ts`).
 The toast comes once the tab has gone, for a running session when claude has left and for a finish when its mark is written, so it never offers to bring back a tab that is still there; a tab claude's own exit closed offers nothing, since nobody removed it.
 Undo puts each tab back where it stood, if the tabs have not changed since, cold, and starts nothing; a finish's Undo makes the session unfinished first, with its set-aside and needs-you marks as they were, which the finish keeps for it, since a session finished without a tab has no tab to carry them back.
 A session opened again meanwhile keeps the tab it has rather than gaining a second, and a finished one gets none; a tab a finish closed, one opened while its mark was written, offers no close of its own, the finish's toast being its Undo.
