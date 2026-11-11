@@ -11,7 +11,7 @@ import { root } from './tracked';
 const read = (file: string): string => readFileSync(join(root, file), 'utf8');
 
 /** The version each place a release bumps carries, by where it is. */
-export function versionsOf(manifest: { version: string }, lock: { version: string; packages: Record<string, { version?: string }> }): Record<string, string | undefined> {
+export function versionsOf(manifest: { version: string }, lock: { version: string; packages: { ''?: { version?: string } } }): Record<string, string | undefined> {
   return { 'package.json': manifest.version, 'package-lock.json': lock.version, 'package-lock.json packages[""]': lock.packages['']?.version };
 }
 
