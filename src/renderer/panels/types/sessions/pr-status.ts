@@ -1,7 +1,7 @@
 import { approvalsRequired, prKey, prReference, referenceKey } from '../../../../shared/sessions/prs';
-import type { PrRef, PrSeen, PrStatusRead } from '../../../../shared/types';
+import type { PrRef, PrSeen, PrsFound, PrStatusRead, PrToFind } from '../../../../shared/types';
 import { entityKey } from '../../../rules/sessions';
-import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, withNames } from '../../../status/pr-status';
+import { approvalsIn, createKey, createsToFind, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, withNames } from '../../../status/pr-status';
 import { store, type View } from '../../../state/app';
 import { markNeedsYou, marksFor } from '../../../state/needs-you';
 import { RunGate } from '../../run';
@@ -12,6 +12,7 @@ import { RunGate } from '../../run';
  * The window regaining focus asks at once, unless the last answer is under a minute old.
  * Each answer also marks the sessions whose PRs changed in a way that needs you, against what was last seen of them (`settleChanges`).
  * What each PR is called comes into the store's `prNames` from what was last seen, as soon as that is read, and then from each answer.
+ * Each ask first looks for the PRs sessions opened in the browser, every five minutes until each is found or 30 days have passed (`findCreates`).
  * An ask overtaken by a later one before main answered is dropped, so an older answer never lands over a newer one.
  * Only while the setting allows it (`Settings.prStatus`), which is not known before the settings are read: until then, and while it is off, an ask asks nothing and leaves no status, so a launch with it off never runs `gh`; turning it on asks at once.
  */
@@ -25,16 +26,29 @@ let answeredAt = 0;
 /** Whether the setting lets the window ask; null until the settings are read. */
 let allowed: boolean | null = null;
 
-/** The PRs to ask about, as one key in an order of its own, so the gate asks again only when the set changes, not when the listing reorders the sessions naming them. */
-const linkedKey = (): string => linkedPrs(store.get().sessions).map(prKey).sort().join('\n');
+/** How often a PR opened in the browser is looked for while it has not been found. */
+const FIND_EVERY_MS = 5 * 60_000;
+
+/** The PRs opened in the browser that were found, by `createKey`, so each is looked for until it is; kept for the life of the window, since a found one is a link from then on. */
+const foundCreates = new Set<string>();
+
+/** The PRs opened in the browser still looked for now (`createsToFind`). */
+const waitingCreates = (): PrToFind[] => createsToFind(store.get().sessions, foundCreates, Date.now());
+
+/** The PRs to ask about and the ones opened in the browser to look for, as one key in an order of its own, so the gate asks again only when either set changes, not when the listing reorders the sessions naming them. */
+const linkedKey = (): string => [...linkedPrs(store.get().sessions).map(prKey), ...waitingCreates().map(createKey)].sort().join('\n');
 
 const gate = new RunGate(linkedKey, (number) => void ask(number));
 
 async function ask(number: number): Promise<void> {
+  const stillLooking = allowed === true && (await findCreates(waitingCreates()));
+  // A PR found is linked by reading the listing again, which starts an ask of its own.
+  if (!gate.isLatest(number)) return;
+  const lookAgain = stillLooking ? FIND_EVERY_MS : 'off';
   const prs = allowed === true ? linkedPrs(store.get().sessions) : [];
   if (prs.length === 0) {
     store.set({ prStatus: NO_PR_STATUS });
-    gate.ended(number, 'off');
+    gate.ended(number, lookAgain);
     return;
   }
   // Read before main is asked, so what an answer changed is settled without a wait in which another answer could land; a read that failed settles nothing this time.
@@ -51,8 +65,34 @@ async function ask(number: number): Promise<void> {
   if (!gate.isLatest(number)) return;
   answeredAt = Date.now();
   store.set({ prStatus: read, prNames: withNames(store.get().prNames, read.statuses) });
-  gate.ended(number, nextAsk(prs, read));
+  gate.ended(number, sooner(nextAsk(prs, read), lookAgain));
   if (known) settleChanges(prs, read);
+}
+
+/** The sooner of two delays, `off` being never. */
+function sooner(a: number | 'off', b: number | 'off'): number | 'off' {
+  if (a === 'off') return b;
+  return b === 'off' ? a : Math.min(a, b);
+}
+
+/**
+ * Ask main to find the PRs sessions opened in the browser (src/main/sessions/pr-find.ts), which it links to their sessions as the app's own links; the listing is read again once any is found, so the session shows it and its status is asked from then on.
+ * Whether any of `creates` is still not found, so the asking goes on; a failed ask finds nothing, and so leaves them all to look for.
+ */
+async function findCreates(creates: readonly PrToFind[]): Promise<boolean> {
+  if (creates.length === 0) return false;
+  let result: PrsFound;
+  try {
+    result = await window.claudeUi.findCreatedPrs([...creates]);
+  } catch {
+    return true;
+  }
+  for (const { create } of result.found) foundCreates.add(createKey(create));
+  if (result.found.length > 0) {
+    const readAt = store.stamp();
+    store.set({ sessions: await window.claudeUi.listSessions() }, { readAt });
+  }
+  return creates.length > result.found.length;
 }
 
 /** What was last seen of the PRs, as main keeps it (`prChanges`), once read (`readSeen`); null for never, the first run. */

@@ -138,12 +138,12 @@ export async function summarizeFile(file: string): Promise<SummaryRead | null> {
   // The worktree-state override beats the first-latched cwd; resolveRepo then maps a worktree path to its repo + badge through the same path it uses for `claude -w` sessions.
   const resolvedCwd = trail.cwd || cwd || decodeProjectDir(path.basename(path.dirname(file)));
   const lastActivity = lastMsgTs || stat.mtime.toISOString();
-  const summary = summaryFrom({ id, conversationId, cwd: resolvedCwd, title, firstMessage, model, lastActivity, prs: prs.all, postCompactHeads });
+  const summary = summaryFrom({ id, conversationId, cwd: resolvedCwd, title, firstMessage, model, lastActivity, prs: prs.all, webCreates: prs.webCreates, postCompactHeads });
   return { summary, leftWorktreePath: trail.left, movedOut: trail.movedOut, changes: [...changes.values()].reverse(), movedAt: trail.movedAt };
 }
 
 /** What a transcript alone says of a session. */
-type TranscriptFacts = Pick<SessionSummary, 'id' | 'conversationId' | 'cwd' | 'title' | 'firstMessage' | 'model' | 'lastActivity' | 'prs' | 'postCompactHeads'>;
+type TranscriptFacts = Pick<SessionSummary, 'id' | 'conversationId' | 'cwd' | 'title' | 'firstMessage' | 'model' | 'lastActivity' | 'prs' | 'webCreates' | 'postCompactHeads'>;
 
 /** A session's summary from its transcript's facts, with what only a listing can say left at its default. */
 function summaryFrom(facts: TranscriptFacts): SessionSummary {
@@ -169,6 +169,7 @@ function summaryFrom(facts: TranscriptFacts): SessionSummary {
     isSibling: false,
     siblingIds: [],
     prs: facts.prs,
+    webCreates: facts.webCreates,
     postCompactHeads: facts.postCompactHeads,
     // Both re-derived per listing, like the sibling marks: a folder can be removed or put back without the transcript changing, so the answer cannot be cached beside one.
     cwdExists: true,

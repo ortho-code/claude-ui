@@ -24,6 +24,7 @@ import { readBundledNeedsYou } from './status/needs-you';
 import { registerSettings } from './config/settings';
 import { registerLayoutState } from './panels/layout-state';
 import { registerClipboardIpc } from './platform/clipboard';
+import { registerPrFind } from './sessions/pr-find';
 import { registerPrStatus } from './sessions/pr-status';
 import { withPrLinks } from '../shared/sessions/prs';
 import { registerStatusIpc, clearStatuses } from './status/status';
@@ -150,6 +151,7 @@ void app.whenReady().then(async () => {
   });
   registerFolders();
   registerPrStatus();
+  registerPrFind();
   // Before the window, so the answer is in hand by the time anyone can reach the maximize button.
   learnMaximizeInset();
   await createWindow();

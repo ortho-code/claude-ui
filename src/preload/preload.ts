@@ -80,6 +80,7 @@ const api: ClaudeUiApi = {
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   openExternal: (url) => ipcRenderer.send('shell:openExternal', url),
   prStatuses: (prs) => ipcRenderer.invoke('prs:status', prs),
+  findCreatedPrs: (creates) => ipcRenderer.invoke('prs:find', creates),
   getAllStatuses: () => ipcRenderer.invoke('status:getAll'),
   onSessionStatus: (callback) =>
     ipcRenderer.on('session:status', (_event, id: string, status: string, tab: string, event: string, background?: string[], prompt?: string, source?: string) => callback(id, status, tab, event, background, prompt, source)),

@@ -262,7 +262,7 @@ beforeAll(async () => {
   );
 
   // The PRs claude posted a review or comment on, beside Claude Code's records: one PR spelt with other capitals there, a post on another PR, a read that posts nothing, and a PowerShell call.
-  const shell = (name: string, command: string) => ({ type: 'assistant', message: { content: [{ type: 'tool_use', id: `t${command.length}`, name, input: { command } }] } });
+  const shell = (name: string, command: string, timestamp?: string) => ({ type: 'assistant', ...(timestamp ? { timestamp } : {}), message: { content: [{ type: 'tool_use', id: `t${command.length}`, name, input: { command } }] } });
   await fs.writeFile(
     path.join(dir, 'posted.jsonl'),
     jsonl(
@@ -274,6 +274,11 @@ beforeAll(async () => {
       link(12),
       shell('Bash', "gh api repos/other/repo/pulls/30/comments -f body='a note'"),
       shell('PowerShell', 'gh pr comment https://github.com/other/repo/pull/50 --body done'),
+      // PRs opened in the browser to be created: a branch tried twice, kept at its later try, another branch, and one in a record with no time, which cannot say what came after it.
+      shell('Bash', 'gh pr create --web --repo ScientaNL/demo --head me:fix', '2026-01-03T09:00:00.000Z'),
+      shell('Bash', 'gh pr create -w -R ScientaNL/demo -H other', '2026-01-03T09:05:00.000Z'),
+      shell('Bash', 'gh pr create  --web --repo ScientaNL/demo --head me:fix', '2026-01-03T09:10:00.000Z'),
+      shell('Bash', 'gh pr create --web --repo ScientaNL/demo --head untimed'),
     ),
   );
 
@@ -317,6 +322,15 @@ describe('listSessions', () => {
       { repository: 'other/repo', number: 30, url: 'https://github.com/other/repo/pull/30' },
       { repository: 'other/repo', number: 50, url: 'https://github.com/other/repo/pull/50' },
     ]);
+  });
+
+  it('reads the PRs opened in the browser to be created, each branch once at its latest try, and none in a record with no time', async () => {
+    const sessions = await listSessions();
+    expect(sessions.find((s) => s.id === 'posted')?.webCreates).toEqual([
+      { repository: 'ScientaNL/demo', head: 'other', at: '2026-01-03T09:05:00.000Z' },
+      { repository: 'ScientaNL/demo', head: 'me:fix', at: '2026-01-03T09:10:00.000Z' },
+    ]);
+    expect(sessions.find((s) => s.id === 'pr')?.webCreates).toEqual([]);
   });
 
   it('keeps the latest model reported across the transcript', async () => {

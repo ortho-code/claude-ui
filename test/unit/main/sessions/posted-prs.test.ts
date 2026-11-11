@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { postedPrs } from '../../../../src/main/sessions/posted-prs';
+import { postedPrs, webCreates } from '../../../../src/main/sessions/posted-prs';
 
 const pr = (repository: string, number: number) => ({ repository, number, url: `https://github.com/${repository}/pull/${number}` });
 
@@ -92,7 +92,34 @@ describe('postedPrs', () => {
     expect(postedPrs('{ gh pr review 6 --repo acme/app --approve; }')).toEqual([pr('acme/app', 6)]);
   });
 
+  it('links nothing for a PR created in the browser, which is not posted on', () => {
+    expect(postedPrs('gh pr create --web --repo acme/app --head me:fix')).toEqual([]);
+  });
+
   it('links every PR a command posts on, in its order', () => {
     expect(postedPrs('gh pr comment 2 --repo acme/app --body a && gh pr review 1 --repo acme/web --approve')).toEqual([pr('acme/app', 2), pr('acme/web', 1)]);
+  });
+});
+
+describe('webCreates', () => {
+  // The command session 2a3c1b9a ran on 2026-11-09, its title shortened.
+  it('reads a PR created in the browser, by the repository and the branch the command names', () => {
+    const command = 'cd /repo/.claude/worktrees/fix && git push origin HEAD && gh pr create --web --repo ScientaNL/Scienta --base develop --head alleknalle:fix --title "Setup creates the host folders"';
+    expect(webCreates(command)).toEqual([{ repository: 'ScientaNL/Scienta', head: 'alleknalle:fix' }]);
+  });
+
+  it('reads the short flags and values given after an equals sign', () => {
+    expect(webCreates('gh pr create -w -R=acme/app -H fix')).toEqual([{ repository: 'acme/app', head: 'fix' }]);
+    expect(webCreates('gh pr create --repo=https://github.com/acme/app --head=fix --web')).toEqual([{ repository: 'acme/app', head: 'fix' }]);
+  });
+
+  it('reads nothing without --web, or with the repository or the branch left to the checkout', () => {
+    expect(webCreates('gh pr create --repo acme/app --head fix --title x')).toEqual([]);
+    expect(webCreates('gh pr create --web --head fix')).toEqual([]);
+    expect(webCreates('gh pr create --web --repo acme/app')).toEqual([]);
+  });
+
+  it('never takes a value such as a title for the flag it spells', () => {
+    expect(webCreates('gh pr create --title --web --repo acme/app --head fix')).toEqual([]);
   });
 });

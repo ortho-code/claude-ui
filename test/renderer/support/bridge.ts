@@ -249,6 +249,16 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
         ),
         problem: fixture.prProblem,
       }),
+    // Main links each PR it finds to its session as the app's own link, and answers what it found (`findCreated`, src/main/sessions/pr-find.ts); while it cannot ask GitHub it finds nothing and says why.
+    findCreatedPrs: (creates) => {
+      if (fixture.prProblem !== null) return answer({ found: [], problem: fixture.prProblem });
+      const found = creates.flatMap((create) => {
+        const key = `${create.repository}\n${create.head}`;
+        return Object.hasOwn(fixture.createdPrs, key) ? [{ create, url: fixture.createdPrs[key] }] : [];
+      });
+      for (const { create, url } of found) fixture.prLinks = withPrLink(fixture.prLinks, create.id, url);
+      return answer({ found, problem: null });
+    },
     getAllStatuses: () => answer(fixture.statuses),
     onSessionStatus: on('onSessionStatus'),
     onSessionStart: on('onSessionStart'),

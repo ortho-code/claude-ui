@@ -58,6 +58,8 @@ export interface BridgeFixture {
   prStatuses: Record<string, PrStatus>;
   /** Why main could not ask GitHub, as it would say; null for nothing wrong. */
   prProblem: string | null;
+  /** The page of the PR each branch opened in the browser became, by `<repository>\n<head>`, as main would find it; one left out has no PR yet. */
+  createdPrs: Record<string, string>;
   historyPins: Record<string, HistoryPin>;
   /** Session id -> its transcript's exchanges, as main reads them; a listed session left out has no history the stand-in can answer for, and one the listing does not have has no transcript yet. */
   history: Record<string, Exchange[]>;
@@ -119,6 +121,7 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
     isSibling: false,
     siblingIds: [],
     prs: [],
+    webCreates: [],
     postCompactHeads: [],
     cwdExists: true,
     repoRootExists: true,
@@ -181,6 +184,7 @@ export function defaultFixture(): BridgeFixture {
     statuses: {},
     prStatuses: {},
     prProblem: null,
+    createdPrs: {},
     historyPins: {},
     history: {},
     layout: { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, status: 'missing', error: null, json: null, types: [], local: noLocalLayout() },

@@ -11,6 +11,7 @@ function session(id: string, days: number, prs: number[] = []): SessionSummary {
     id, conversationId: id, cwd: '/p', repoRoot: '/p', isRepo: true, worktree: '', leftWorktree: '', movedOutOfWorktree: false, workCwd: '', checkouts: [],
     title: id, firstMessage: '', model: '', lastActivity: ago(days), isSibling: false, siblingIds: [], postCompactHeads: [], cwdExists: true, repoRootExists: true,
     prs: prs.map((number) => ({ repository: 'acme/app', number, url: `https://github.com/acme/app/pull/${number}` })),
+    webCreates: [],
   };
 }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { PR_TYPES, type NeedsYouRegistry } from '../../../../src/shared/status/needs-you';
-import { approvalsIn, firesForRole, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, verdictOf, withNames, type PrInk, type PrRules, type PrVerdict, type PrWords } from '../../../../src/renderer/status/pr-status';
+import { approvalsIn, createKey, createsToFind, FIND_FOR_MS, firesForRole, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, verdictOf, withNames, type PrInk, type PrRules, type PrVerdict, type PrWords } from '../../../../src/renderer/status/pr-status';
 import type { Approvals } from '../../../../src/shared/sessions/prs';
 import type { PrRef, PrSeen, PrStatus, SessionPr } from '../../../../src/shared/types';
 import { bundledNeedsYou } from '../../../renderer/support/needs-you';
@@ -352,6 +352,22 @@ describe('prDetails', () => {
   it('says nothing while main could not ask, or for a PR it has no status for', () => {
     expect(prDetails(pr, { statuses: { 'acme/app#1': open() }, problem: 'gh was not found' }, rules())).toEqual([]);
     expect(prDetails(pr, NO_PR_STATUS, rules())).toEqual([]);
+  });
+});
+
+describe('createsToFind', () => {
+  const at = '2026-11-09T09:00:00.000Z';
+  const sessions = [{ id: 's1', webCreates: [{ repository: 'acme/app', head: 'fix', at }] }, { id: 's2', webCreates: [] }];
+
+  it('looks for a PR opened in the browser until 30 days after the command, with the session that opened it', () => {
+    const now = Date.parse(at);
+    expect(createsToFind(sessions, new Set(), now + FIND_FOR_MS - 1)).toEqual([{ id: 's1', repository: 'acme/app', head: 'fix', at }]);
+    expect(createsToFind(sessions, new Set(), now + FIND_FOR_MS)).toEqual([]);
+  });
+
+  it('no longer looks for one found', () => {
+    const found = new Set([createKey({ id: 's1', repository: 'Acme/App', head: 'fix', at })]);
+    expect(createsToFind(sessions, found, Date.parse(at))).toEqual([]);
   });
 });
 

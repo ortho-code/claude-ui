@@ -1,7 +1,7 @@
 import { approvalsRequired, authorName, prKey, prReference, type Approvals } from '../../shared/sessions/prs';
 import { firesFor, PR_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import type { SettingsView } from '../../shared/config/settings';
-import type { PrNames, PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, SessionSummary } from '../../shared/types';
+import type { PrNames, PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, PrToFind, SessionSummary } from '../../shared/types';
 import type { View } from '../state/app';
 import type { Tone } from '../ui/tone';
 import { lookClass } from './looks';
@@ -22,6 +22,17 @@ export function linkedPrs(sessions: readonly Pick<SessionSummary, 'prs'>[]): PrR
 }
 
 const MINUTE = 60_000;
+
+/** How long after the command a PR opened in the browser is looked for: long enough for one submitted whenever you get to it, and bounded, so a create left unsubmitted is not asked about for ever. */
+export const FIND_FOR_MS = 30 * 24 * 60 * MINUTE;
+
+/** What tells one PR opened in the browser from another: its session, repository, branch and when the command ran. */
+export const createKey = (create: PrToFind): string => [create.id, create.repository.toLowerCase(), create.head, create.at].join('\n');
+
+/** The PRs sessions opened in the browser that are still looked for at `now`: within `FIND_FOR_MS` of the command, and not found yet (`found`, by `createKey`). */
+export function createsToFind(sessions: readonly Pick<SessionSummary, 'id' | 'webCreates'>[], found: ReadonlySet<string>, now: number): PrToFind[] {
+  return sessions.flatMap(({ id, webCreates }) => webCreates.map((create) => ({ ...create, id }))).filter((create) => now - Date.parse(create.at) < FIND_FOR_MS && !found.has(createKey(create)));
+}
 
 /**
  * When to ask main again after it answered `read` about `prs`: in a minute while any open PR's checks run, in five while any PR could still change — open, closed, or with no status — or main could not ask, and never once every one is merged.

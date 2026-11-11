@@ -118,6 +118,11 @@ export interface SessionSummary {
    */
   prs: SessionPr[];
   /**
+   * The PRs the session opened in the browser to be created there, by a `gh pr create --web` naming the repository and the branch, each once, the latest command for it kept; empty when none.
+   * No PR exists when the command runs, so the window asks GitHub for the one made from that branch afterwards and links it as the app's own.
+   */
+  webCreates: PendingPr[];
+  /**
    * First user/assistant uuid after each compaction boundary.
    * A fork of a compacted session adopts one of these as its own conversationId, which is how such a fork is linked into the family.
    * Main-process bookkeeping; the renderer doesn't use it.
@@ -154,6 +159,22 @@ export interface SessionPr {
   number: number;
   /** The PR's page. */
   url: string;
+}
+
+/** A PR a session opened in the browser to be created: the repository it is for, the branch it is from, `owner:branch` for a fork's, and when the command ran (ISO), which the PR is made after. */
+export interface PendingPr {
+  repository: string;
+  head: string;
+  at: string;
+}
+
+/** A PR opened in the browser that the window asks main to find, with the session that opened it. */
+export type PrToFind = PendingPr & { id: string };
+
+/** What main found of the PRs asked for: each found one, as it was asked for, with the page of the PR now linked to its session, and why the asking failed, null when it did not. */
+export interface PrsFound {
+  found: { create: PrToFind; url: string }[];
+  problem: string | null;
 }
 
 /**
@@ -652,6 +673,8 @@ export interface ClaudeUiApi {
   openExternal(url: string): void;
   /** What GitHub says of `prs`, asked with `gh` (`src/main/sessions/pr-status.ts`); a merged one is not asked again while the app runs. */
   prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
+  /** Find the PRs sessions opened in the browser to be created, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */
+  findCreatedPrs(creates: PrToFind[]): Promise<PrsFound>;
   /** Current status per session id (busy | ready | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
   /**

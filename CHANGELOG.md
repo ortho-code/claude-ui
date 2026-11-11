@@ -12,6 +12,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 
 - A linked PR shows its title beside its number, in its list and on a needs-you line, and search finds a session by words of it.
   A PR that is not yours says who opened it.
+- A PR a session opened in the browser with `gh pr create --web`, naming the repository and the branch, is linked to that session once you submit it there.
 
 ### Changed
 

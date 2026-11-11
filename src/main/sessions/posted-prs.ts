@@ -7,19 +7,50 @@ import type { SessionPr } from '../../shared/types';
  * A PR named by a bare number, or under a `{owner}/{repo}` placeholder, names no repository and is left out.
  */
 export function postedPrs(command: string): SessionPr[] {
-  return invocations(command).flatMap((words) => {
-    const at = commandAt(words);
-    const program = words[at];
-    if (program !== 'gh' && !program?.endsWith('/gh')) return [];
-    const args = words.slice(at + 1).filter((word) => !REDIRECTION.test(word));
+  return ghCalls(command).flatMap((args) => {
     if (args[0] === 'pr' && (args[1] === 'review' || args[1] === 'comment')) return prCommandPost(args.slice(2));
     if (args[0] === 'api') return apiPost(args.slice(1));
     return [];
   });
 }
 
+/** A PR a command opened in the browser to be created there: the repository it is for and the branch it is from, `owner:branch` for a fork's. */
+export interface WebCreate {
+  repository: string;
+  head: string;
+}
+
+/**
+ * The PRs a shell command opens in the browser to create, `gh pr create --web` naming both the repository with `--repo` and the branch with `--head`, which `gh` prints no PR for, since the PR is made in the browser afterwards.
+ * Read as `postedPrs` reads its commands; one that leaves either to the folder's checkout names nothing sure, and is left out.
+ */
+export function webCreates(command: string): WebCreate[] {
+  return ghCalls(command).flatMap((args) => {
+    if (args[0] !== 'pr' || args[1] !== 'create') return [];
+    const { options } = parsed(args.slice(2), CREATE_VALUE_FLAGS);
+    const last = (...flags: string[]): string | null | undefined => options.filter((option) => flags.includes(option.flag)).at(-1)?.value;
+    if (!options.some((option) => option.flag === '--web' || option.flag === '-w')) return [];
+    const repository = REPOSITORY.exec(last('--repo', '-R') ?? '')?.[1];
+    const head = last('--head', '-H');
+    return repository && head ? [{ repository, head }] : [];
+  });
+}
+
+/** The arguments of each `gh` an invocation of `command` runs, after `gh` itself, without redirections. */
+function ghCalls(command: string): string[][] {
+  return invocations(command).flatMap((words) => {
+    const at = commandAt(words);
+    const program = words[at];
+    if (program !== 'gh' && !program?.endsWith('/gh')) return [];
+    return [words.slice(at + 1).filter((word) => !REDIRECTION.test(word))];
+  });
+}
+
 /** `gh pr review|comment`'s options that take a value, which is never the PR. */
 const PR_VALUE_FLAGS = new Set(['-b', '--body', '-F', '--body-file', '-R', '--repo']);
+
+/** `gh pr create`'s options that take a value, so a value such as a title is never read as a flag. */
+const CREATE_VALUE_FLAGS = new Set(['-t', '--title', '-b', '--body', '-F', '--body-file', '-B', '--base', '-H', '--head', '-R', '--repo', '-a', '--assignee', '-l', '--label', '-m', '--milestone', '-p', '--project', '-r', '--reviewer', '-T', '--template', '--recover']);
 
 /** `gh api`'s options that take a value, which is never the endpoint. */
 const API_VALUE_FLAGS = new Set(['-X', '--method', '-f', '--raw-field', '-F', '--field', '-H', '--header', '--input', '-q', '--jq', '-t', '--template', '--hostname', '--cache', '-p', '--preview']);

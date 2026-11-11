@@ -398,3 +398,45 @@ test("typing words of a linked PR's title finds its session", async ({ app, page
   await expect(row(page, none.title)).toBeHidden();
   await expect(row(page, titled.title)).toBeVisible();
 });
+
+// A PR opened in the browser with `gh pr create --web` exists only once it is submitted there, so the window looks for it until it does, and links it to the session that opened it.
+const COMMAND_AT = '2026-11-09T09:21:32.000Z';
+const opener = session({ id: '00000000-0000-4000-8000-0000000000fb', title: 'Opened a PR in the browser', webCreates: [{ repository: 'ScientaNL/demo', head: 'me:fix', at: COMMAND_AT }] });
+const createdUrl = 'https://github.com/ScientaNL/demo/pull/40';
+
+test('a PR opened in the browser is looked for every five minutes, linked to its session once it exists, and then asked about as any other', async ({ app, page }) => {
+  await page.clock.install({ time: new Date('2026-11-09T09:22:00.000Z') });
+  await app.boot({ sessions: [opener], history: { [opener.id]: [] }, prStatuses: { 'scientanl/demo#40': { ...open(), title: 'Fix the thing' } } });
+  await expect.poll(() => app.calls('findCreatedPrs')).toEqual([[[{ id: opener.id, repository: 'ScientaNL/demo', head: 'me:fix', at: COMMAND_AT }]]]);
+  await expect(mark(page, opener.title)).toBeHidden();
+
+  // Submitted in the browser.
+  await page.evaluate((url) => void (window.__claudeUiFixture.createdPrs['ScientaNL/demo\nme:fix'] = url), createdUrl);
+  await page.clock.fastForward(5 * MINUTE);
+  await expect(mark(page, opener.title)).toHaveText('1');
+  await expect.poll(() => app.calls('prStatuses')).toEqual([[[ref(40)]]]);
+  await mark(page, opener.title).click();
+  expect(await lines(items(page))).toEqual([['#40 · Fix the thing', 'ScientaNL/demo · review required']]);
+  await mark(page, opener.title).click();
+
+  // Found, it is looked for no more.
+  await page.clock.fastForward(5 * MINUTE);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(2);
+  expect(await app.calls('findCreatedPrs')).toHaveLength(2);
+});
+
+test('a PR opened in the browser is looked for no longer than 30 days after the command', async ({ app, page }) => {
+  await page.clock.install({ time: new Date('2026-12-09T09:21:00.000Z') });
+  await app.boot({ sessions: [opener], history: { [opener.id]: [] } });
+  await expect.poll(() => app.calls('findCreatedPrs')).toHaveLength(1);
+  await page.clock.fastForward(5 * MINUTE);
+  expect(await app.calls('findCreatedPrs')).toHaveLength(1);
+});
+
+test('with PR status off, a PR opened in the browser is not looked for', async ({ app, page }) => {
+  await page.clock.install({ time: new Date('2026-11-09T09:22:00.000Z') });
+  await app.boot({ sessions: [opener], history: { [opener.id]: [] }, settings: prStatusIs(false) });
+  await expect(row(page, opener.title)).toBeVisible();
+  await page.clock.fastForward(5 * MINUTE);
+  expect(await app.calls('findCreatedPrs')).toEqual([]);
+});
