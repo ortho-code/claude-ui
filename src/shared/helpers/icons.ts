@@ -8,7 +8,7 @@
  */
 
 /** The eye: a panel's `eye` icon. */
-export const EYE_PATH = '<path d="M1.6 8S4 3.8 8 3.8 14.4 8 14.4 8 12 12.2 8 12.2 1.6 8 1.6 8z" /><circle cx="8" cy="8" r="2" />';
+const EYE_PATH ='<path d="M1.6 8S4 3.8 8 3.8 14.4 8 14.4 8 12 12.2 8 12.2 1.6 8 1.6 8z" /><circle cx="8" cy="8" r="2" />';
 
 export const ICONS = {
   sessions:

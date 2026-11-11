@@ -62,7 +62,7 @@ function rulesOn(on: string, look: ResolvedLook): string {
  * It opens with the needs-you look on the dot of a reason whose type has no look here (`.needs` without any of their classes), so a reason of a type the needs-you files do not define, which ranks at `needs-you`, draws as needs-you rather than as no look at all.
  * That rule keeps a type's rule's weight, the `:not` inside `:where`, so read's dimming, coming later, still wins over it.
  */
-export function looksStylesheet(looks: ReadonlyMap<string, ResolvedLook>): string {
+function looksStylesheet(looks: ReadonlyMap<string, ResolvedLook>): string {
   const needsYou = looks.get(NEEDS_YOU);
   const classes = [...looks.keys()].map(selectorOf).join(', ');
   return [...(needsYou ? [rulesOn(`.needs:where(:not(${classes}))`, needsYou)] : []),...[...looks].map(([id, look]) => lookRules(id, look))].join('\n');

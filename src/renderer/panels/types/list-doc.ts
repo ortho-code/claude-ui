@@ -16,7 +16,7 @@ import { TONES, type Tone } from '../../ui/tone';
  */
 
 /** The document's `version`: the one shape this build reads. */
-export const LIST_VERSION = 1;
+const LIST_VERSION = 1;
 
 /**
  * The fields of each object in a list document: the ONE place they are named (see fields.ts), which `docs/panel-types.md` is held to by a test.
@@ -38,11 +38,8 @@ export const LIST_FIELDS = {
 export const LIVE_FIELDS = ['title'] as const;
 export type LiveField = (typeof LIVE_FIELDS)[number];
 
-/** A verb's name, which is its field in an action or a `press`. */
-export type VerbName = (typeof LIST_FIELDS.verb)[number];
-
 /** What goes between the parts of a row's `detail` lines when neither the row nor the list says. */
-export const DEFAULT_SEPARATOR = ' · ';
+const DEFAULT_SEPARATOR = ' · ';
 
 /** How many of a row's actions show as buttons when the list does not say: the first, the rest behind the row's menu. */
 export const DEFAULT_BUTTONS = 1;

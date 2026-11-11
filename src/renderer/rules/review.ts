@@ -27,13 +27,13 @@ export interface ReviewFacts {
 }
 
 /** `is:unfinished`: no tab, not finished, and not on its way to the trash. */
-export function isUnfinished(session: SessionSummary, facts: ReviewFacts): boolean {
+function isUnfinished(session: SessionSummary, facts: ReviewFacts): boolean {
   const key = entityKey(session);
   return !facts.tabbed.has(key) && !facts.finished.has(key) && !facts.pendingDeletes.has(key);
 }
 
 /** `is:set-aside`: set aside, with a day or whenever. */
-export function isSetAside(session: SessionSummary, facts: ReviewFacts): boolean {
+function isSetAside(session: SessionSummary, facts: ReviewFacts): boolean {
   return facts.setAside.has(entityKey(session));
 }
 

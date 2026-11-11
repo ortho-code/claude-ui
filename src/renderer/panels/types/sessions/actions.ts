@@ -338,7 +338,7 @@ function setAsideItems(session: SessionSummary): MenuItem[] {
  * One session's dialog holds its note as where it stands, and the note is written when it changed; several leave their notes as they are (decided 2026-11-05).
  * Resolves, once written, to the moment chosen and an Undo that puts back each mark and the note as they were, or to null when the dialog was cancelled.
  */
-export async function askSetAside(keys: readonly string[], what: string): Promise<{ due: number | null; undo: () => void } | null> {
+async function askSetAside(keys: readonly string[], what: string): Promise<{ due: number | null; undo: () => void } | null> {
   const { setAside, notes } = store.get();
   const [only] = keys;
   const one = keys.length === 1 ? only : undefined;

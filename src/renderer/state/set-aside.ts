@@ -31,7 +31,7 @@ export function clearSetAside(ids: readonly string[], by?: 'prompt'): void {
 }
 
 /** Settle the set-aside marks that have come due (`cameDue`); nothing is sent while none has. */
-export function settleDueSetAside(now = Date.now()): void {
+function settleDueSetAside(now = Date.now()): void {
   const { setAside, needsYou } = store.get();
   if (![...setAside.values()].some((mark) => mark.due !== null && mark.due <= now)) return;
   const remind = typeIsOn(store.get().needsYouTypes, 'app.reminder');

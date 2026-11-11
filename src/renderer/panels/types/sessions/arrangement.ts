@@ -13,7 +13,7 @@ import './arrangement.css';
  */
 
 /** The sessions panel's views, in the order the switch shows them; the first is what a panel with no pick and no `view` in its entry shows. */
-export const SESSION_VIEWS: PanelView[] = [
+const SESSION_VIEWS: PanelView[] = [
   { id: 'grouped', label: 'Grouped', icon: 'tree' },
   { id: 'recent', label: 'Recent', icon: 'clock' },
 ];

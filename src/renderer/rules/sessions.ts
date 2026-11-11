@@ -139,7 +139,7 @@ export function worktreeMarkState(session: SessionSummary): WorktreeMarkState | 
 }
 
 /** The linked worktree a session works in (`workCwd`); '' when that is the main checkout, or the folder the session runs in. */
-export function workWorktree(session: Pick<SessionSummary, 'workCwd' | 'repoRoot'>): string {
+function workWorktree(session: Pick<SessionSummary, 'workCwd' | 'repoRoot'>): string {
   return session.workCwd ? worktreeAt(session.workCwd, session.repoRoot) : '';
 }
 

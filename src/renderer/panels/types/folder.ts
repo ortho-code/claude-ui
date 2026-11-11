@@ -18,7 +18,7 @@ import { mountList } from './list';
  */
 
 /** The manifest's `version`: the one shape this build reads. */
-export const MANIFEST_VERSION = 1;
+const MANIFEST_VERSION = 1;
 
 export const KINDS = ['list'] as const;
 export type Kind = (typeof KINDS)[number];

@@ -149,7 +149,7 @@ export function optionProblems(options: Record<string, unknown>, decl: OptionsDe
  * Everything wrong with one option's value as written, for an entry's options and for each item and field of a list, which it checks by the same rules under its full path, `actions[0].button`; `valueProblem` underneath it is the one check of a single value.
  * A list says every item's problems, not only the first; any other kind has at most one.
  */
-export function valueProblems(option: OptionDecl, value: unknown): string[] {
+function valueProblems(option: OptionDecl, value: unknown): string[] {
   if (option.kind !== 'list') {
     const problem = valueProblem(option, value);
     return problem ? [problem] : [];

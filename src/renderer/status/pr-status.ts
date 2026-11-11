@@ -94,7 +94,7 @@ function conditionsOf(status: PrStatus, required: number | null): Set<PrNeedsYou
 const PR_ORDER = Object.keys(PR_TYPES);
 
 /** `types` strongest first, in the order the PR types are named in (`PR_TYPES`). */
-export function ranked(types: Iterable<PrNeedsYouType>): PrNeedsYouType[] {
+function ranked(types: Iterable<PrNeedsYouType>): PrNeedsYouType[] {
   return [...types].sort((a, b) => PR_ORDER.indexOf(a) - PR_ORDER.indexOf(b));
 }
 

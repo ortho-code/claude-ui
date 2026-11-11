@@ -133,7 +133,7 @@ export const noLocalLayout = (): LocalLayoutRead => ({ file: `${CONFIG_ROOT}/lay
 export const localLayoutWith = (nodes: Record<string, NodeState>): LocalLayoutRead => ({ ...noLocalLayout(), status: 'read', json: { nodes } });
 
 /** A settings file that is not there, as main reads one. */
-export const noSettingsFile = (name: string): SettingsFileRead => ({ name, status: 'missing', error: null, json: null });
+const noSettingsFile = (name: string): SettingsFileRead => ({ name, status: 'missing', error: null, json: null });
 
 /** A settings file holding `json`, as main reads one. */
 export const settingsFileWith = (name: string, json: unknown): SettingsFileRead => ({ name, status: 'read', error: null, json });

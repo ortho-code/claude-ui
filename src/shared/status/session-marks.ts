@@ -136,7 +136,7 @@ export function restoredNeedsYou(marks: NeedsYouMarks, id: string, reasons: read
 }
 
 /** When a session's newest reason was marked; 0 for none. */
-export function newestAt(reasons: readonly NeedsYou[]): number {
+function newestAt(reasons: readonly NeedsYou[]): number {
   return Math.max(0, ...reasons.map((reason) => reason.at));
 }
 

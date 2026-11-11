@@ -4,7 +4,7 @@ import type { ScheduledTask } from '../../shared/types';
  * What becomes of a task when its session's claude goes, said beside it wherever it is named, so it is known before a stop rather than asked at it.
  * Measured on claude 2.1.302: a cron, one-shot or repeating, came back with the same id when the session was resumed, whether claude's own question was answered "Exit and stop tasks" or the session was forced out; a `/loop` wakeup did not.
  */
-export function afterStop(task: ScheduledTask): string {
+function afterStop(task: ScheduledTask): string {
   return task.cron === null ? 'ends with the session' : 'comes back when you open the session';
 }
 

@@ -99,12 +99,3 @@ export function withOverrides(children: { id: string; size: NodeSize | null }[],
   const file = children.map((child) => child.size);
   return exhausted(sizes) && !exhausted(file) ? { sizes: file, dropped: true } : { sizes, dropped: false };
 }
-
-/**
- * A split's stored sizes if they still describe it, else undefined: they are dropped WHOLE once its set of children differs from the one they were stored for, so a file edit that adds or removes a child falls back to the file's sizes rather than keeping half of each (decision 8).
- */
-export function keptSizes(stored: Record<string, number> | undefined, ids: string[]): Record<string, number> | undefined {
-  if (!stored) return undefined;
-  const keys = Object.keys(stored);
-  return keys.length === ids.length && ids.every((id) => stored[id] !== undefined) ? stored : undefined;
-}

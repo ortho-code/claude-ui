@@ -142,7 +142,7 @@ export function closeTabs(keys: readonly string[]): void {
  * claude persists per turn, so a session's context is on disk whichever way it ends.
  * `undoable` is a close you pressed of a cold tab, whose going offers Undo at once; a live tab's close offers it at its exit (`leftAtExit`), unless a finish closed it, whose own toast is its Undo.
  */
-export function closeTab(token: string, undoable = false): void {
+function closeTab(token: string, undoable = false): void {
   const tab = tabOf(token);
   if (!tab) return;
   if (tab.terminalId === null) {

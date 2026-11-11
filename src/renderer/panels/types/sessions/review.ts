@@ -23,7 +23,7 @@ const count = reviewButton.querySelector<HTMLElement>('.review-count')!;
 export type ReviewView = View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'setAside' | 'kept' | 'notes' | 'prStatus' | 'settings' | 'activeProject'>;
 
 /** The store's state as the review's terms read it (`ReviewFacts`). */
-export function reviewFacts(view: ReviewView): ReviewFacts {
+function reviewFacts(view: ReviewView): ReviewFacts {
   return {
     tabbed: new Set(view.tabs.map((t) => entityKey(t.session))),
     finished: view.finished,
@@ -57,7 +57,7 @@ export function reviewFlat(sections: readonly ReviewSection[]): FlatSection[] {
 }
 
 /** The Review button follows the review in scope: its count, unavailable at none while the list does not show it, since a review with nothing in it would end at once; pressed, and a press that ends it, while the list shows it. */
-export function showReviewButton(view: ReviewView & View<'reviewing'>): void {
+function showReviewButton(view: ReviewView & View<'reviewing'>): void {
   const n = reviewCount(reviewInScope(view));
   count.textContent = n > 0 ? String(n) : '';
   setUnavailable(button, n === 0 && !view.reviewing ? 'Nothing to review' : null, `${n} ${n === 1 ? 'session' : 'sessions'} to decide: ready to finish, or untouched for long`);
@@ -73,7 +73,7 @@ button.addEventListener('click', () => {
 });
 
 /** The longest the count waits between looks: a session crosses its days with nothing in the store moving, as a set-aside mark comes due (state/set-aside.ts); an open review is looked at every minute with the list's order (list.ts). */
-export const REVIEW_LOOK_EVERY_MS = 60 * 60 * 1000;
+const REVIEW_LOOK_EVERY_MS =60 * 60 * 1000;
 
 /** The button's count, now and as the store and the clock move; registered with the sidebar's repaints (watch.ts). */
 export function watchReviewButton(): void {

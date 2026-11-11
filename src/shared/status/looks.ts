@@ -7,14 +7,14 @@ import { isIconName, type IconName } from '../helpers/icons';
 import type { NeedsYouRegistry } from './needs-you';
 
 /** The statuses a hook reports, each an entry of the order. */
-export const STATUSES = ['waiting', 'busy', 'background', 'ready', 'closed'] as const;
+const STATUSES =['waiting', 'busy', 'background', 'ready', 'closed'] as const;
 export type Status = (typeof STATUSES)[number];
 
 /** The entry standing for every needs-you category the order does not name, in Now's order (their `order`). */
 export const NEEDS_YOU = 'needs-you';
 
 /** The category whose two types, claude asking and claude ready, are the statuses `waiting` and `ready` themselves, never stored reasons, so it has no place of its own in the order. */
-export const YOUR_TURN = 'your-turn';
+const YOUR_TURN ='your-turn';
 
 /** The status each of Your turn's types is, and so the look it is drawn in. */
 export const YOUR_TURN_STATUS: Readonly<Record<string, Status>> = { 'claude.asks': 'waiting', 'claude.ready': 'ready' };
@@ -76,7 +76,7 @@ export const PALETTE = {
 } as const;
 
 /** The shapes a look's `mark` can be besides an icon: a filled dot, a hollow ring, and busy's arc spinning over a faint track of its colour. */
-export const SHAPES = ['dot', 'ring', 'spinner'] as const;
+const SHAPES =['dot', 'ring', 'spinner'] as const;
 export type Mark = (typeof SHAPES)[number] | IconName;
 
 /** How one status, `needs-you`, category or type is drawn, as `settings.json`'s `looks` gives it: each field it changes, the rest from what it looks like or what it belongs to (`resolvedLooks`). */

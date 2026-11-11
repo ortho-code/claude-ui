@@ -18,7 +18,7 @@ import { PanelRuns, RunPanel, type Checked, type RunAsk, type RunEnd, type RunPr
  */
 
 /** Where a command line is cut for a default title: a title is a label, not the whole line. */
-export const TITLE_MAX = 40;
+const TITLE_MAX = 40;
 
 /**
  * What an entry runs, in the form the runner takes.

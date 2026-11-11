@@ -73,7 +73,7 @@ export interface SessionsSnapshot {
 export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'needsYouTypes', 'setAside', 'groupState', 'prStatus', 'settings'] as const satisfies readonly (keyof AppState)[];
 
 /** Every session not finished, as the switcher counts them, each once, by id, so the same sessions in a new order are the same snapshot. */
-export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.get()): SessionsSnapshot {
+function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.get()): SessionsSnapshot {
   const groups = new Map(view.groupState.groups.map((group) => [group.id, group]));
   // Two tabs can hold one session the listing does not have yet, and the pool has it once for each.
   const pool = [...new Map(switcherPool(view).map((session) => [session.id, session])).values()];
