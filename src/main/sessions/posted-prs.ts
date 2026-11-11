@@ -8,7 +8,7 @@ import type { SessionPr } from '../../shared/types';
  */
 export function postedPrs(command: string): SessionPr[] {
   return invocations(command).flatMap((words) => {
-    const at = words.findIndex((word) => !ASSIGNMENT.test(word));
+    const at = commandAt(words);
     const program = words[at];
     if (program !== 'gh' && !program?.endsWith('/gh')) return [];
     const args = words.slice(at + 1).filter((word) => !REDIRECTION.test(word));
@@ -36,6 +36,17 @@ const REDIRECTION = /^(?:\d*[<>]|&>)/;
 
 /** An environment assignment before the command an invocation runs. */
 const ASSIGNMENT = /^[A-Za-z_]\w*=/;
+
+/** The shell's words that may stand before the command an invocation runs: the reserved words that open a command, and `time`, which times the one after it. */
+const OPENING_WORDS = new Set(['if', 'then', 'else', 'elif', 'while', 'until', 'do', '!', '{', 'time']);
+
+/** Where in an invocation's words the command it runs stands: after the words that open it, then after its environment assignments. */
+function commandAt(words: readonly string[]): number {
+  let at = 0;
+  while (at < words.length && OPENING_WORDS.has(words[at]!)) at++;
+  while (at < words.length && ASSIGNMENT.test(words[at]!)) at++;
+  return at;
+}
 
 function prOf(repository: string, number: string): SessionPr {
   return { repository, number: Number(number), url: `https://github.com/${repository}/pull/${number}` };

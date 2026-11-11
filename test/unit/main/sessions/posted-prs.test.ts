@@ -84,6 +84,14 @@ describe('postedPrs', () => {
     expect(postedPrs('GH_HOST=github.com gh pr review 5 --repo acme/app --approve')).toEqual([pr('acme/app', 5)]);
   });
 
+  it('reads the command behind the shell’s words that open one, such as then or do', () => {
+    expect(postedPrs('if [ "$head" = "$want" ]; then gh api -X POST repos/acme/app/pulls/3/reviews --input r.json; else echo moved; fi')).toEqual([pr('acme/app', 3)]);
+    expect(postedPrs('for n in 1 2; do gh pr comment "$n" --repo acme/app --body x; done')).toEqual([]);
+    expect(postedPrs('for n in 1 2; do gh pr comment https://github.com/acme/app/pull/4 --body x; done')).toEqual([pr('acme/app', 4)]);
+    expect(postedPrs('if ! time GH_HOST=github.com gh pr review 5 --repo acme/app --approve; then exit 1; fi')).toEqual([pr('acme/app', 5)]);
+    expect(postedPrs('{ gh pr review 6 --repo acme/app --approve; }')).toEqual([pr('acme/app', 6)]);
+  });
+
   it('links every PR a command posts on, in its order', () => {
     expect(postedPrs('gh pr comment 2 --repo acme/app --body a && gh pr review 1 --repo acme/web --approve')).toEqual([pr('acme/app', 2), pr('acme/web', 1)]);
   });
