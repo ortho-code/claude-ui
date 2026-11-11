@@ -77,7 +77,7 @@ A share is a flex weight, and a size dragged to is kept PER NODE IN ITS OWN UNIT
 A drag writes the two nodes beside the divider when that alone puts every flexible child where the drag left it, and every flexible child on show when it does not, which is when a share given to a node without one would change what its unsized siblings get; a lone flexible child takes what is left and is never written (`sizesAfterDrag`).
 Each written share is the child's weight per px of the room it shared before the drag times what it measures now, so the sum holds and a sibling the drag did not touch keeps its place; a sweep over every mix of sizes, both dividers and widths up to 3,440 px checks every drag is reproduced within half a pixel, and shares are written to four places, which stays within that.
 Kept per node, a size survives a sibling the file adds or removes, which takes what the file gives it; the one case that would go wrong — shares written for nodes without one, then a sibling added without one, which would find no share left — is guarded: the app's sizes never make your layout wrong, so where they would raise the note the file alone does not, that split shows the file's sizes, and the log says so (`withOverrides`).
-The arithmetic lives in `src/renderer/panels/sizes.ts`, pure and tested; `tree.ts` only measures and applies.
+The arithmetic lives in `src/renderer/panels/sizes.ts`, pure and tested; `split.ts`, which draws a split and its dividers, only measures and applies.
 
 ### Dividers and folding
 
@@ -116,7 +116,7 @@ In a group that cannot fold the shown icon still does nothing, and has neither a
 A panel's own marks — the busy mark, the run's last word, its button — sit in a header over it, unless its type is bare.
 A panel can put tabs in that header in place of its title (`PanelHost.setTabs`, § The `terminal` type).
 
-The fold control and the switcher each live in one function in `tree.ts` (`foldControls`, `switcher`), so trying one of the other variants from the mock — a header button, a tab strip — is a local change there, and none of it is in the file format.
+The fold control and the switcher each live in one function, `foldControls` in `split.ts` and `switcher` in `tree.ts`, so trying one of the other variants from the mock — a header button, a tab strip — is a local change there, and none of it is in the file format.
 
 ### Full screen
 

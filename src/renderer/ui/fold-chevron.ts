@@ -6,7 +6,7 @@ import './fold-chevron.css';
 
 /**
  * THE FOLD CHEVRON: a thin tab laid on a line, which folds what is beside the line away and back, pointing the way that edge moves and turned round while it is folded.
- * The chevron a panel group folds from on the divider beside it (panels/tree.ts), the tab bar on the line under it (panels/types/claude/tab-bar.ts), and a panel's tabs on its header's bottom line (panels/tabs.ts).
+ * The chevron a panel group folds from on the divider beside it (panels/split.ts), the tab bar on the line under it (panels/types/claude/tab-bar.ts), and a panel's tabs on its header's bottom line (panels/tabs.ts).
  * How it looks is here and in its stylesheet, for a line that runs down or across (`line`); how far across the line it sits, and when its line counts as pointed at, are the surface's.
  * Its mark sits in an element of its own, so a surface can give the chevron more, such as the tab bar's dot, which drawing the mark again leaves where it is.
  */

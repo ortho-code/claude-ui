@@ -7,7 +7,7 @@
 }
 
 /*
-  THE LAYOUT TREE (panels/tree.ts): rows and columns of nodes, a divider between every two.
+  THE LAYOUT TREE (panels/tree.ts, its splits drawn by panels/split.ts): rows and columns of nodes, a divider between every two.
   A node's flex and its min along the split's axis are set inline from the file and the dragged sizes; both mins are 0 here so a node can shrink across the other axis.
   A node does not clip: the sidebar's switcher opens past its own edge at a narrow width, as it always has.
 */
