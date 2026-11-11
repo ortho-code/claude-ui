@@ -1,5 +1,5 @@
 import type { ScheduledTask, SessionSummary } from '../../../../shared/types';
-import { hasVisibleOutput } from '../../../rules/claude';
+import { hasVisibleOutput } from '../../../ui/ansi';
 import { entityKey, unstartableReason } from '../../../rules/sessions';
 import { store, type TabState, type View } from '../../../state/app';
 import { clearNeedsYou } from '../../../state/needs-you';

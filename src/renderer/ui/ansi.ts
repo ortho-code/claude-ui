@@ -1,6 +1,6 @@
 /**
  * Strip terminal escape sequences from command output, so `ls --color=always` does not paint garbage into a `<pre>`.
- * A starting session's loader uses the same two functions to tell claude's terminal setup from its first real output (`hasVisibleOutput` in rules/claude.ts).
+ * A starting session's loader uses the same two functions to tell claude's terminal setup from its first real output (`hasVisibleOutput`).
  *
  * Defensive, on top of `NO_COLOR=1` and `TERM=dumb` in the command's environment: those are requests, and not every tool listens.
  * Three shapes, MEASURED from real `git` and `ls` output rather than from the standard:
@@ -35,4 +35,20 @@ export function splitPendingEscape(text: string): [string, string] {
   if (ESCAPE_AT_START.test(tail)) return [text, ''];
   // A string escape that has not seen its terminator yet is also incomplete, however long it is.
   return [text.slice(0, esc), tail];
+}
+
+/**
+ * Does this chunk put anything on screen?
+ *
+ * The first BYTES out of the pty are not the first thing you can see: measured, claude sends three chunks of pure terminal setup — save/restore cursor, scroll region, bracketed paste, focus reporting — before any content.
+ * Clearing the loader on those flashed it away and left the pane empty again, which on a resume is seconds of nothing while the transcript renders.
+ *
+ * Strips escape sequences with `stripAnsi`, which the command panel uses too, then the remaining control characters, and asks whether anything is left.
+ * A sequence the chunk ends partway through counts as nothing yet, rather than as the text it starts with.
+ * Erring towards "not visible" is the safe direction: the loader stays a moment longer rather than uncovering an empty pane.
+ */
+export function hasVisibleOutput(data: string): boolean {
+  const [complete] = splitPendingEscape(data);
+  // eslint-disable-next-line no-control-regex -- what is left once the escapes are gone is control characters, which are what this removes
+  return stripAnsi(complete).replace(/[\x00-\x1f\x7f]/g, '').trim().length > 0;
 }

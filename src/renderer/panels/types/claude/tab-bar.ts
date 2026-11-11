@@ -2,7 +2,7 @@ import type Sortable from 'sortablejs';
 import { element, fromMarkup } from '../../../ui/dom';
 import { drawFoldChevron, foldChevron, offerRowFold } from '../../../ui/fold-chevron';
 import { Keyed, placeChildren } from '../../../ui/keyed';
-import { orderAsTabs, reorderWithinGroup } from '../../../rules/claude';
+import { orderAsTabs, reorderWithinGroup } from '../../../rules/tab-order';
 import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
 import { clockOf } from '../../../status/clock';
 import { asksForYou, strongestNudge } from '../../../status/rollup';

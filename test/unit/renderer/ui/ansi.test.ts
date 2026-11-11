@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripAnsi, splitPendingEscape } from '../../../../src/renderer/ui/ansi';
+import { hasVisibleOutput, stripAnsi, splitPendingEscape } from '../../../../src/renderer/ui/ansi';
 
 // Captured from the real tools with colour forced, so the shapes here are what a panel will actually meet.
 const GIT_STATUS = ' \x1b[31mM\x1b[m tracked\n\x1b[31m??\x1b[m untracked\n';
@@ -81,5 +81,35 @@ describe('splitPendingEscape', () => {
   it('reassembles across the boundary to what one read would have given', () => {
     const [head, pending] = splitPendingEscape(' \x1b[3');
     expect(stripAnsi(head) + stripAnsi(pending + '1mM\x1b[m tracked')).toBe(' M tracked');
+  });
+});
+
+// The exact chunks a starting claude sends, captured from a real pty.
+// The loader hides the terminal until something is actually drawn, so a false "visible" here is a pane that flashes and goes empty again — which is what happened when this only tested for the first BYTE.
+describe('hasVisibleOutput', () => {
+  it('ignores the terminal setup claude sends before drawing anything', () => {
+    // ESC 7 and ESC 8 are the trap: two-char escapes whose second byte is a DIGIT, so a stripper that only handles CSI and letter-escapes leaves "7" behind and calls it content.
+    expect(hasVisibleOutput('\x1b7\x1b[r\x1b8\x1b[?25h')).toBe(false);
+    expect(hasVisibleOutput('\x1b[?25l')).toBe(false);
+    expect(hasVisibleOutput('\x1b[?2004h\x1b[?1004h\x1b[?2031h')).toBe(false);
+    expect(hasVisibleOutput('\x1b[>0q\x1b[c')).toBe(false);
+  });
+
+  it('ignores an OSC window-title sequence and bare whitespace', () => {
+    expect(hasVisibleOutput('\x1b]0;claude\x07')).toBe(false);
+    expect(hasVisibleOutput('\r\r\n\r\r\n')).toBe(false);
+    expect(hasVisibleOutput('')).toBe(false);
+  });
+
+  it('reports the first chunk that actually draws', () => {
+    expect(hasVisibleOutput('\r\n\x1b[38;2;255;193;7m────\x1b[39m\r\n\x1b[2GAccessing')).toBe(true);
+    expect(hasVisibleOutput('hello')).toBe(true);
+  });
+
+  it('counts a sequence the chunk ends partway through as nothing yet, and the text after a complete one as content', () => {
+    expect(hasVisibleOutput('\x1b]0;claude\x1b[?25l')).toBe(false);
+    expect(hasVisibleOutput('\x1b[38;2;25')).toBe(false);
+    expect(hasVisibleOutput('\x1bPq#0;2;0;0;0')).toBe(false);
+    expect(hasVisibleOutput('\x1b[2GAccessing')).toBe(true);
   });
 });
