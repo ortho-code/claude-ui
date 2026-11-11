@@ -104,24 +104,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       continue;
     }
     if (item.header) {
-      const header = document.createElement('div');
-      header.className = 'menu-header';
-      for (const said of [item.label, ...item.header]) {
-        const line = document.createElement('div');
-        line.className = 'menu-header-line';
-        if (typeof said === 'string') line.textContent = said;
-        else {
-          // The dot as the session's own dots draw it, beside its words, which wrap after it rather than under it.
-          const dot = document.createElement('span');
-          dot.className = said.dot;
-          const text = document.createElement('span');
-          text.textContent = said.text;
-          line.classList.add('dotted');
-          line.append(dot, text);
-        }
-        header.append(line);
-      }
-      menu.append(header);
+      menu.append(menuHeader(item.label, item.header));
       continue;
     }
     const button = document.createElement('button');
@@ -137,29 +120,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       continue;
     }
     // A row led by a dot: a session's own, one its lister classes, or the roll-up of something countable (a group, say), whose count then sits in its own column at the right; the label takes the room it needs and ellipsizes.
-    if (item.count !== undefined || item.session || item.dot !== undefined) {
-      const label = document.createElement('span');
-      label.className = 'menu-item-label';
-      label.textContent = item.label;
-      if (item.muted) label.classList.add('muted');
-      const dot = document.createElement('span');
-      dot.className = item.session ? sessionDotClass(item.session.status, item.session.acked) : (item.dot ?? badgeClass(item.badge ?? null));
-      button.textContent = '';
-      button.append(dot, label);
-      if (item.detail !== undefined) {
-        const detail = document.createElement('span');
-        detail.className = 'menu-item-detail';
-        detail.textContent = item.detail;
-        button.classList.add('two-line');
-        button.append(detail);
-      }
-      if (item.count !== undefined) {
-        const count = document.createElement('span');
-        count.className = 'menu-item-count';
-        count.textContent = String(item.count);
-        button.append(count);
-      }
-    }
+    if (item.count !== undefined || item.session || item.dot !== undefined) dottedRow(button, item);
     if (item.checked !== undefined) button.prepend(tickColumn(item.checked));
     if (item.submenu) {
       button.className = 'menu-row has-submenu';
@@ -184,6 +145,53 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       });
     }
     menu.append(button);
+  }
+}
+
+/** A menu's header: its label, then each line it says, a line with a dot drawn as the session's own dots are. */
+function menuHeader(label: string, lines: HeaderLine[]): HTMLElement {
+  const header = document.createElement('div');
+  header.className = 'menu-header';
+  for (const said of [label, ...lines]) {
+    const line = document.createElement('div');
+    line.className = 'menu-header-line';
+    if (typeof said === 'string') line.textContent = said;
+    else {
+      // The dot as the session's own dots draw it, beside its words, which wrap after it rather than under it.
+      const dot = document.createElement('span');
+      dot.className = said.dot;
+      const text = document.createElement('span');
+      text.textContent = said.text;
+      line.classList.add('dotted');
+      line.append(dot, text);
+    }
+    header.append(line);
+  }
+  return header;
+}
+
+/** A row led by a dot, in place of its plain label: the dot, the label, and its detail line and count where it has them. */
+function dottedRow(button: HTMLButtonElement, item: MenuItem): void {
+  const label = document.createElement('span');
+  label.className = 'menu-item-label';
+  label.textContent = item.label;
+  if (item.muted) label.classList.add('muted');
+  const dot = document.createElement('span');
+  dot.className = item.session ? sessionDotClass(item.session.status, item.session.acked) : (item.dot ?? badgeClass(item.badge ?? null));
+  button.textContent = '';
+  button.append(dot, label);
+  if (item.detail !== undefined) {
+    const detail = document.createElement('span');
+    detail.className = 'menu-item-detail';
+    detail.textContent = item.detail;
+    button.classList.add('two-line');
+    button.append(detail);
+  }
+  if (item.count !== undefined) {
+    const count = document.createElement('span');
+    count.className = 'menu-item-count';
+    count.textContent = String(item.count);
+    button.append(count);
   }
 }
 
