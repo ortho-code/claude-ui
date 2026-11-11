@@ -1,11 +1,11 @@
 import type { PanelContext, PanelSource } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
 import './command.css';
-import type { MountedPanel, PanelHost, PanelType } from '../contract';
+import type { PanelHost, PanelType } from '../contract';
 import { stripAnsi, splitPendingEscape } from '../../ui/ansi';
 import { CWD_OPTION, INTERVAL_OPTION, WATCH_OPTION, intervalOf, optionsOf } from '../options';
 import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
-import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
+import { PanelRuns, RunPanel, type Checked, type RunAsk, type RunEnd, type RunProgress } from '../runs';
 
 /**
  * The `command` panel type: runs a command line or a script and shows what it printed.
@@ -33,7 +33,7 @@ export function commandSource(options: Record<string, unknown>): PanelSource {
  */
 const PENDING_MAX = 4096;
 
-class CommandPanel implements MountedPanel, RunHooks<PanelContext> {
+class CommandPanel extends RunPanel<PanelContext> {
   readonly el = document.createElement('div');
   private readonly output = document.createElement('pre');
   private readonly placeholder = document.createElement('div');
@@ -43,12 +43,13 @@ class CommandPanel implements MountedPanel, RunHooks<PanelContext> {
    */
   private held: DocumentFragment | null = null;
   private pending = '';
-  private readonly runs: PanelRuns<PanelContext>;
+  protected readonly runs: PanelRuns<PanelContext>;
 
   constructor(
     private readonly slot: PanelSlot,
     private readonly host: PanelHost,
   ) {
+    super();
     this.el.className = 'panel-body';
     this.output.className = 'panel-output';
     this.placeholder.className = 'pane-placeholder';
@@ -56,26 +57,6 @@ class CommandPanel implements MountedPanel, RunHooks<PanelContext> {
     this.placeholder.hidden = true;
     this.el.append(this.output, this.placeholder);
     this.runs = new PanelRuns(slot, host, () => intervalOf(optionsOf(this.slot.entry)), this);
-  }
-
-  refresh(): void {
-    this.runs.refresh();
-  }
-
-  contextChanged(): void {
-    this.runs.contextChanged();
-  }
-
-  setVisible(visible: boolean): void {
-    this.runs.setVisible(visible);
-  }
-
-  recheck(): void {
-    this.runs.recheck();
-  }
-
-  unmount(): void {
-    this.runs.unmount();
   }
 
   /** The options against the selection as it is now, and where the panel would run. */

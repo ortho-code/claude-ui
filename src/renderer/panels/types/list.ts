@@ -7,7 +7,7 @@ import type { PanelSlot } from '../layout';
 import { intervalOf, optionsOf } from '../options';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
-import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
+import { PanelRuns, RunPanel, type Checked, type RunAsk, type RunEnd, type RunProgress } from '../runs';
 import type { FolderType } from './folder';
 import { readListDocument, type ListDocument } from './list-doc';
 import { ListView } from './list-view';
@@ -58,13 +58,13 @@ interface ListReady {
   script: string;
 }
 
-class ListPanel implements MountedPanel, RunHooks<ListReady> {
+class ListPanel extends RunPanel<ListReady> {
   readonly el = element('div', 'panel-body');
   private readonly placeholder = element('div', 'pane-placeholder');
   private readonly failedLine = element('div', 'panel-note list-failed');
   private readonly view: ListView;
   private readonly unavailable = element('div', 'panel-problems');
-  private readonly runs: PanelRuns<ListReady>;
+  protected readonly runs: PanelRuns<ListReady>;
   private stdout = '';
   private stderr = '';
   /** The last list a run printed, and when; null until one has. */
@@ -84,6 +84,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     private readonly type: PanelType,
     private readonly folder: FolderType,
   ) {
+    super();
     this.view = new ListView(host, { from: () => this.slot.title, dir: () => this.lastDir });
     this.placeholder.textContent = WAITING;
     this.el.append(this.placeholder, this.failedLine, this.view.el, this.unavailable);
@@ -94,29 +95,13 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     this.runs.setNotes(folder.notes);
   }
 
-  refresh(): void {
-    this.runs.refresh();
-  }
-
-  contextChanged(): void {
-    this.runs.contextChanged();
-  }
-
-  setVisible(visible: boolean): void {
-    this.runs.setVisible(visible);
-  }
-
   sessionsChanged(): void {
     this.view.draw();
   }
 
-  recheck(): void {
-    this.runs.recheck();
-  }
-
-  unmount(): void {
+  override unmount(): void {
     this.stopLanguage();
-    this.runs.unmount();
+    super.unmount();
   }
 
   /** The interval the panel runs on, in ms: the entry's own, else its type's; null for none. */

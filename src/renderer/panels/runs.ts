@@ -328,3 +328,35 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     void this.rebase(this.runNumber);
   }
 }
+
+/** A panel whose runs go through `PanelRuns`: what the tree asks of it about running, its runs answer, and what differs is its hooks. */
+export abstract class RunPanel<Ready> implements MountedPanel, RunHooks<Ready> {
+  abstract readonly el: HTMLElement;
+  protected abstract readonly runs: PanelRuns<Ready>;
+
+  refresh(): void {
+    this.runs.refresh();
+  }
+
+  contextChanged(): void {
+    this.runs.contextChanged();
+  }
+
+  setVisible(visible: boolean): void {
+    this.runs.setVisible(visible);
+  }
+
+  recheck(): void {
+    this.runs.recheck();
+  }
+
+  unmount(): void {
+    this.runs.unmount();
+  }
+
+  abstract check(): Promise<Checked<Ready>>;
+  abstract idle(runnable: boolean): void;
+  abstract start(ready: Ready, tick: boolean): RunAsk;
+  abstract progress(event: RunProgress): void;
+  abstract ended(event: RunEnd): void;
+}
