@@ -1,6 +1,6 @@
 import { typeIsOn } from '../../shared/status/needs-you';
 import { cameDue, clearedSetAside, markedSetAside } from '../../shared/status/session-marks';
-import { store } from './app';
+import { store, withMember } from './app';
 
 /**
  * The writes to the set-aside marks: the session's menu sets and clears one, the bar of selecting several sets them and its Undo clears them, a finish clears them and its Undo puts them back, a prompt there takes one off, and its day coming turns it into needing you.
@@ -30,13 +30,21 @@ export function clearSetAside(ids: readonly string[], by?: 'prompt'): void {
   else window.claudeUi.clearSetAside(marked, by);
 }
 
-/** Settle the set-aside marks that have come due (`cameDue`); nothing is sent while none has. */
+/**
+ * Settle the set-aside marks that have come due (`cameDue`); nothing is sent while none has.
+ * A day coming is news, whether it brings the reminder or lights up the reasons the mark muted, so it takes each session's read mark off, as a new needs-you reason does (`markNeedsYou`, decided 2026-11-11).
+ */
 function settleDueSetAside(now = Date.now()): void {
-  const { setAside, needsYou } = store.get();
-  if (![...setAside.values()].some((mark) => mark.due !== null && mark.due <= now)) return;
+  const { setAside, needsYou, acked } = store.get();
+  const due = [...setAside].filter(([, mark]) => mark.due !== null && mark.due <= now).map(([id]) => id);
+  if (due.length === 0) return;
   const remind = typeIsOn(store.get().needsYouTypes, 'app.reminder');
   const next = cameDue({ setAside: Object.fromEntries(setAside), needsYou: Object.fromEntries(needsYou) }, now, remind);
-  store.set({ setAside: new Map(Object.entries(next.setAside)), needsYou: new Map(Object.entries(next.needsYou)) });
+  store.set({
+    setAside: new Map(Object.entries(next.setAside)),
+    needsYou: new Map(Object.entries(next.needsYou)),
+    acked: due.reduce((set, id) => withMember(set, id, false), acked),
+  });
   window.claudeUi.setAsideCameDue(now, remind);
 }
 

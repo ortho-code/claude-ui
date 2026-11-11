@@ -264,6 +264,38 @@ test('a PR you review marks its sessions for new commits since your review, and 
   await notNeeds(row(page, closed.title).locator('.nudge'));
 });
 
+// A new reason is news, so it takes the read mark off as a new status from claude does: news is never born read.
+test('a session marked read is unread again when a PR change marks it with a reason of another kind', async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot({ ...fixture, needsYou: { [closed.id]: [{ type: 'app.was-running', at: Date.now() - MINUTE, how: 'quit' }] } });
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  const dot = row(page, closed.title).locator('.nudge');
+  await dot.click();
+  await expect(dot).toHaveClass(/\backed\b/);
+
+  await gitHubSays(page, { 'acme/app#7': { state: 'merged', role: 'own' }, 'acme/app#8': open() });
+  await nextAsk(page);
+  await expect(dot).toHaveAttribute('data-tooltip', /PR #7 merged/);
+  await expect(dot).not.toHaveClass(/\backed\b/);
+});
+
+test("a session marked read is unread again when its PR's next change replaces that PR's reason", async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot(fixture);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  await gitHubSays(page, { 'acme/app#7': open({ conflict: true }), 'acme/app#8': open() });
+  await nextAsk(page);
+  const dot = row(page, closed.title).locator('.nudge');
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merge conflict');
+  await dot.click();
+  await expect(dot).toHaveClass(/\backed\b/);
+
+  await gitHubSays(page, { 'acme/app#7': open({ conflict: true, checks: 'failed' }), 'acme/app#8': open() });
+  await nextAsk(page);
+  await expect(dot).toHaveAttribute('data-tooltip', /PR #7 checks failed/);
+  await expect(dot).not.toHaveClass(/\backed\b/);
+});
+
 // Turning PR status on starts from the PRs as they are then (decided 2026-10-29).
 test('turned off and on again, a PR that changed meanwhile marks nothing, and its next change does', async ({ app, page }) => {
   await page.clock.install();

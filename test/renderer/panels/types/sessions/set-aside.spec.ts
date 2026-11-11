@@ -309,6 +309,29 @@ test('a moment that comes while the app runs shows when it comes, the next one a
   await expect(row(page, one.title).locator('.set-aside-mark')).toBeHidden();
 });
 
+// The day coming is news, so it takes the read mark off, as a new needs-you reason does: what comes due is never born read.
+test('a session marked read whose day comes is unread again, with the reasons it had', async ({ app, page }) => {
+  await page.clock.install({ time: new Date(2026, 9, 30, 8, 0) });
+  await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.was-running', at: 5, how: 'quit' }] }, setAside: { [one.id]: { due: new Date(2026, 9, 30, 8, 10).getTime(), at: 10 } } });
+  const dot = row(page, one.title).locator('.nudge');
+  await dot.click();
+  await page.clock.fastForward('11:00');
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit');
+  await expect(dot).not.toHaveClass(/\backed\b/);
+});
+
+test('a session marked read whose day comes is unread again, with the reminder', async ({ app, page }) => {
+  await page.clock.install({ time: new Date(2026, 9, 30, 8, 0) });
+  await app.boot({ ...fixture, setAside: { [one.id]: { due: new Date(2026, 9, 30, 8, 10).getTime(), at: 10 } } });
+  await app.emit('onSessionStatus', one.id, 'ready', '', 'Stop');
+  const dot = row(page, one.title).locator('.nudge');
+  await dot.click();
+  await expect(dot).toHaveClass(/\backed\b/);
+  await page.clock.fastForward('11:00');
+  await expect(dot).toHaveAttribute('data-tooltip', /reminder for Fri 30 Oct, 08:10/);
+  await expect(dot).not.toHaveClass(/\backed\b/);
+});
+
 test('a needs-you mark from before the set-aside mark is muted, read-looking and counted nowhere, and keeps its reason for when the day comes', async ({ app, page }) => {
   await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.was-running', at: 5, how: 'quit' }] }, setAside: { [one.id]: { due: null, at: 10 } } });
   const dot = row(page, one.title).locator('.nudge');

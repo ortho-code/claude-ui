@@ -4,6 +4,7 @@
 
 - Every session has a status dot, driven by Claude Code hooks scoped to the sessions the app launches: busy, ready, waiting for you, working in the background when a turn ends with work it started still running, and hollow when its claude is not running.
 - A dot can be marked read while it shows ready, waiting or needing you and its session is not finished.
+  A new status from claude, a new reason the session needs you, such as a change on its PR, or the day you set it aside until coming, makes it unread again.
 - Which state a dot shows when several hold, and how each status, category and type is drawn, are yours to set, as `strength` and `looks` in [Settings](settings.md); the dot's tooltip lists every state that holds.
 - The project switcher counts the sessions in other projects that need you, and a group's jump menu, the tab bar's fold and a panel's icon roll the dots of what they hold up into one.
 

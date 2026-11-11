@@ -1,17 +1,24 @@
 import { firesFor, typeIsOn } from '../../shared/status/needs-you';
 import { clearedNeedsYou, markedNeedsYou, settledTypes } from '../../shared/status/session-marks';
 import type { NeedsYou, PrNeedsYouType, PrRole, SettledBy } from '../../shared/types';
-import { store, type View } from './app';
+import { store, withMember, type View } from './app';
 
 /**
  * The writes to the needs-you marks, which several surfaces make: a launch marks, a prompt, a close and Clear needs you take one off, Undo puts one back.
  * Each is made in the store by main's own rule and sent to main, which keeps them in `meta.json`, with each session's history of what settled its reasons, which the window does not keep.
  */
 
-/** Mark sessions as needing you for `reasons`, each from its own time. */
+/**
+ * Mark sessions as needing you for `reasons`, each from its own time.
+ * A new reason is news, one that replaces an older reason of its kind included, so it takes each session's read mark off, as a new status from claude does (`setStatus`): news is never born read (decided 2026-11-11).
+ */
 export function markNeedsYou(ids: readonly string[], reasons: readonly NeedsYou[]): void {
   if (ids.length === 0 || reasons.length === 0) return;
-  store.set({ needsYou: new Map(Object.entries(markedNeedsYou(Object.fromEntries(store.get().needsYou), ids, reasons))) });
+  const { needsYou, acked } = store.get();
+  store.set({
+    needsYou: new Map(Object.entries(markedNeedsYou(Object.fromEntries(needsYou), ids, reasons))),
+    acked: ids.reduce((set, id) => withMember(set, id, false), acked),
+  });
   window.claudeUi.markNeedsYou([...ids], [...reasons]);
 }
 

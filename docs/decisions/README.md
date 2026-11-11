@@ -219,3 +219,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0211](0211-undo-starts-claude-again-where-it-was-running.md) | 2026-11-11 | Undo starts claude again where it was running | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
 | [0212](0212-setting-a-running-session-aside-stops-it.md) | 2026-11-11 | Setting a running session aside stops its claude | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0213](0213-a-panel-row-shows-its-sessions-note-mark.md) | 2026-11-11 | A panel's row that names a session shows its note mark | [Types from the config folder](../architecture/panels.md#types-from-the-config-folder) |
+| [0214](0214-a-new-needs-you-reason-is-unread.md) | 2026-11-11 | A new needs-you reason is unread | [Status cues](../architecture/status-cues.md#status-cues) |

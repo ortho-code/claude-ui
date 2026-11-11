@@ -33,6 +33,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session set aside after it was marked as needing you shows claude ready when its turn ends, and counts in the project switcher, instead of only its dimmed mark.
 - A link that claude breaks over several lines opens whole wherever it is clicked, and hovering a link in a terminal shows where it goes.
   A link claude sends now shows only its text, as in a browser.
+- A session you marked read is unread again when something new needs you there, such as a merge conflict on its PR or the day you set it aside until, instead of the news arriving already read and uncounted.
 
 ## 0.4.0 — 2026-11-09
 
