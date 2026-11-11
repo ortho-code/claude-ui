@@ -223,26 +223,8 @@ function stopRun(run: Run, reason: PanelStopReason): void {
   if (run.child.pid !== undefined) terminateGroup(run.child.pid, () => !run.exited);
 }
 
-/** Start a run for an entry, stopping the one it replaces first. */
-export function run(sender: WebContents, request: PanelRunRequest): void {
-  const previous = runs.get(request.entryId);
-  if (previous) {
-    runs.delete(request.entryId);
-    stopRun(previous, 'rerun');
-  }
-  const { cwd } = request.context;
-  const tell = (event: PanelRunEvent): void => {
-    if (!sender.isDestroyed()) sender.send('panel:run', request.entryId, request.token, event);
-  };
-  // Refused rather than left to the spawn, whose error would name the shell rather than the folder.
-  if (!cwd || !existsSync(cwd)) {
-    const error = `${cwd || 'the context directory'} is not there`;
-    log('warn', 'panel', `${request.entryId} refused: ${error}`);
-    tell({ kind: 'exit', code: null, signal: null, error });
-    return;
-  }
-  // Anything but `apart` is the one pipe, as every run was before the choice existed.
-  const stderr: PanelStderr = request.stderr === 'apart' ? 'apart' : 'merged';
+/** Start an entry's command, with the run's files and its environment; null when the spawn refused, which the panel has then been told. */
+function spawnPanel(request: PanelRunRequest, stderr: PanelStderr, tell: (event: PanelRunEvent) => void): { child: ChildProcess; control: string | null; sessions: string | null } | null {
   const { file, args } = panelInvocation(request.source, stderr);
   const control = makeRunFile(request.entryId, 'control', '');
   const sessions = request.sessions === undefined ? null : makeRunFile(request.entryId, 'sessions', request.sessions);
@@ -255,7 +237,7 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
   let child: ChildProcess;
   try {
     child = spawn(file, args, {
-      cwd,
+      cwd: request.context.cwd,
       env,
       detached: true,
       stdio: STDIO[stderr],
@@ -267,26 +249,14 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
     const message = error instanceof Error ? error.message : String(error);
     log('warn', 'panel', `${request.entryId} could not run: ${message}`);
     tell({ kind: 'exit', code: null, signal: null, error: message });
-    return;
+    return null;
   }
-  const current: Run = {
-    entryId: request.entryId,
-    token: request.token,
-    child,
-    sender,
-    bytes: 0,
-    stopReason: null,
-    exited: false,
-    finished: false,
-    muted: false,
-    timeout: setTimeout(() => stopRun(current, 'timeout'), PANEL_TIMEOUT_MS),
-    started: Date.now(),
-    control,
-    sessions,
-  };
-  runs.set(request.entryId, current);
-  live.add(current);
+  return { child, control, sessions };
+}
 
+/** Forward a run's output to its panel as it comes, within the cap, and its end once the output and the process are both done. */
+function forward(current: Run, stderr: PanelStderr): void {
+  const { child } = current;
   // Merged, the one pipe is the shell's stdout; apart, the command's two are fds 3 and 4 (see FIRST).
   const sources: [Readable, 'output' | 'stderr'][] =
     stderr === 'merged'
@@ -341,6 +311,49 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
       ended(code, signal);
     }, 1000);
   });
+}
+
+/** Start a run for an entry, stopping the one it replaces first. */
+export function run(sender: WebContents, request: PanelRunRequest): void {
+  const previous = runs.get(request.entryId);
+  if (previous) {
+    runs.delete(request.entryId);
+    stopRun(previous, 'rerun');
+  }
+  const { cwd } = request.context;
+  const tell = (event: PanelRunEvent): void => {
+    if (!sender.isDestroyed()) sender.send('panel:run', request.entryId, request.token, event);
+  };
+  // Refused rather than left to the spawn, whose error would name the shell rather than the folder.
+  if (!cwd || !existsSync(cwd)) {
+    const error = `${cwd || 'the context directory'} is not there`;
+    log('warn', 'panel', `${request.entryId} refused: ${error}`);
+    tell({ kind: 'exit', code: null, signal: null, error });
+    return;
+  }
+  // Anything but `apart` is the one pipe, as every run was before the choice existed.
+  const stderr: PanelStderr = request.stderr === 'apart' ? 'apart' : 'merged';
+  const spawned = spawnPanel(request, stderr, tell);
+  if (spawned === null) return;
+  const { child, control, sessions } = spawned;
+  const current: Run = {
+    entryId: request.entryId,
+    token: request.token,
+    child,
+    sender,
+    bytes: 0,
+    stopReason: null,
+    exited: false,
+    finished: false,
+    muted: false,
+    timeout: setTimeout(() => stopRun(current, 'timeout'), PANEL_TIMEOUT_MS),
+    started: Date.now(),
+    control,
+    sessions,
+  };
+  runs.set(request.entryId, current);
+  live.add(current);
+  forward(current, stderr);
 }
 
 /** Stop an entry's current run, because its panel was hidden or removed. */
