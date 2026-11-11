@@ -1,0 +1,15 @@
+/* INLINE tier of the icon control: the note mark rides inside a 12px meta line, so it can't take the standard 24x20 box without pushing every noted row taller.
+   It keeps its own smaller box but the same hover language as its neighbours (see the shared hover rule in base.css), so it reads as clickable rather than as decoration.
+   Muted, not accent: the worktree/sibling pills use accent for what the SESSION is, while a note is something you attached.
+   No vertical nudge — it is a flex child of the line it sits in, so centring is the layout's job, not a magic number's. */
+.note-badge {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 1px 3px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}

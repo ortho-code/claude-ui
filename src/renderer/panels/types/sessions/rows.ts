@@ -13,7 +13,8 @@ import { scheduledMark, showScheduled } from '../../../status/scheduled-mark';
 import { store, type View } from '../../../state/app';
 import { tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../status/status-dot';
-import { NOTE_ICON, PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../ui/svg';
+import { noteMark, showNote } from '../../../status/note-mark';
+import { PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../ui/svg';
 import { showToast } from '../../../ui/toast';
 import { setTooltip } from '../../../ui/tooltip';
 import { hostOf } from '../builtin';
@@ -169,13 +170,7 @@ function createSessionRow(key: string): HTMLElement {
   metaText.className = 'meta-text';
   // The badges used to take a line of their own between title and meta.
   // They ride the meta's line now: the meta takes the remaining width (and still stacks by itself if it must), the marks keep their intrinsic size at the right.
-  // A note's mark, clickable straight into the editor — if you can see there's a note, the natural move is to read it, and the tooltip only previews the first line.
-  const noteBadge = document.createElement('span');
-  noteBadge.className = 'note-badge';
-  noteBadge.hidden = true;
-  noteBadge.innerHTML = NOTE_ICON;
-  noteBadge.addEventListener('click', (event) => {
-    event.stopPropagation();
+  const noteBadge = noteMark(() => {
     const session = currentByKey.get(key);
     if (session) void editNote(session);
   });
@@ -298,12 +293,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   rowTabMarks.set(session.id, els);
   showSetAside(els.setAside, view.setAside.get(entityKey(session)));
 
-  const note = view.notes.get(entityKey(session));
-  els.noteBadge.hidden = !note;
-  els.noteSep.hidden = !note;
-  // Tooltips are one line, so preview the start rather than dumping a long note into it.
-  // The tooltip wraps and keeps line breaks now, so it can show a real chunk of the note.
-  if (note) setTooltip(els.noteBadge, note.length > 400 ? `${note.slice(0, 400)}…` : note);
+  els.noteSep.hidden = !showNote(els.noteBadge, view.notes.get(entityKey(session)));
 
   els.siblingsBadge.hidden = !session.isSibling;
   if (session.isSibling) {
