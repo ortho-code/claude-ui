@@ -32,7 +32,7 @@ const jsonc = async (file: string): Promise<unknown> => {
   const read = readJsonc(await fs.readFile(file, 'utf8'));
   return read.ok ? read.json : read.error;
 };
-const defaults = { launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {} };
+const defaults = { launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', undoRunning: 'start', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {} };
 const text = (file: string): Promise<string> => fs.readFile(file, 'utf8');
 const gone = (file: string): Promise<void> => expect(fs.access(file)).rejects.toThrow();
 const moves = async (): Promise<unknown> => ((await json(metaFile)) as { moved: unknown }).moved;
@@ -200,6 +200,8 @@ describe('a new settings.json', () => {
         '  "prStatus": true,',
         '  // What a tab\'s button does: "stop-close" stops a running session and then closes the tab, "stop-finish" stops it and then marks its session finished, "close" and "finish" do so in one press, and "none" leaves it to the tab\'s menu',
         '  "leaveButton": "stop-close",',
+        '  // What Undo of a close or a finish does with a tab whose claude that close or finish ended: "start" starts claude again in it, "cold" brings it back without starting it; any other tab comes back cold either way',
+        '  "undoRunning": "start",',
         '  // The choices for setting a session aside, offered in the order they come with "whenever" last: "whenever", "in 30m", "in 2h", "in 3d", "in 1w", "tomorrow" or "next monday", a day with a time such as "09:00" or else the time below',
         '  "setAside": ["tomorrow", "in 1w", "whenever"],',
         '  // The time of day, as "HH:MM" in 24 hours, a choice without one comes back at',

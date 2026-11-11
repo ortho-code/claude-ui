@@ -1,14 +1,16 @@
 import type { Locator, Page } from '@playwright/test';
 import { exitLater } from '../../../../support/clock';
-import { session } from '../../../../support/fixture';
+import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab, tabLabels, toastButton } from '../../../../support/window';
 
-// A tab you close and a session you mark finished, from any control, offer Undo in the toast once the tab has gone, which puts the tab back where it was, cold, and makes the session unfinished (decided 2026-10-28).
+// A tab you close and a session you mark finished, from any control, offer Undo in the toast once the tab has gone, which puts the tab back where it was and makes the session unfinished (decided 2026-10-28).
+// A tab whose claude the close or the finish ended gets claude started again, unless `undoRunning` says to leave it cold; any other comes back cold (decided 2026-11-11).
 // A tab claude's own exit closed offers nothing: you did not remove it.
 const one = session({ id: '00000000-0000-4000-8000-0000000000d1', title: 'First tab' });
 const two = session({ id: '00000000-0000-4000-8000-0000000000d2', title: 'Second tab' });
 const fixture = { sessions: [one, two], openSessions: [one.id, two.id], history: { [one.id]: [], [two.id]: [] } };
+const leftCold = { ...fixture, settings: settingsFileWith('settings.json', { undoRunning: 'cold' }) };
 // The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the first claude is 1.
 const FIRST = 1;
 
@@ -55,7 +57,7 @@ test("a stopped tab's button and its middle-click offer Undo too", async ({ app,
   await expect(tabLabels(page)).toHaveText([one.title, two.title]);
 });
 
-test('Close tab on a running session offers Undo once claude has gone, not at the press', async ({ app, page }) => {
+test('Close tab on a running session offers Undo once claude has gone, which starts claude again in it', async ({ app, page }) => {
   await app.boot(fixture);
   await startLive(page, app, one.title);
   await (await menuItem(page, one.title, 'Close tab')).click();
@@ -66,7 +68,30 @@ test('Close tab on a running session offers Undo once claude has gone, not at th
   await expect(tab(page, one.title)).toHaveCount(0);
   await undo(page).click();
   await expect(tabLabels(page)).toHaveText([one.title, two.title]);
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+});
+
+test('a tab stopped first and closed while claude was still leaving comes back cold, as the stop left it', async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app, one.title);
+  await (await menuItem(page, one.title, 'Stop session')).click();
+  await (await menuItem(page, one.title, 'Close tab')).click();
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await undo(page).click();
+  await expect(tabLabels(page)).toHaveText([one.title, two.title]);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+  expect(await app.calls('startTerminal')).toHaveLength(1);
+});
+
+test('with undoRunning "cold", Undo of a close puts a running tab back cold', async ({ app, page }) => {
+  await app.boot(leftCold);
+  await startLive(page, app, one.title);
+  await (await menuItem(page, one.title, 'Close tab')).click();
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await undo(page).click();
+  await expect(tabLabels(page)).toHaveText([one.title, two.title]);
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+  expect(await app.calls('startTerminal')).toHaveLength(1);
 });
 
 test("a tab claude's own exit closed offers no Undo", async ({ app, page }) => {
@@ -91,7 +116,7 @@ test('Finished offers Undo, which makes the session unfinished and puts its tab 
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
-test('Finished on a running session offers Undo once claude has gone and the mark is written', async ({ app, page }) => {
+test('Finished on a running session offers Undo once claude has gone and the mark is written, which starts claude again in it', async ({ app, page }) => {
   await app.boot(fixture);
   await startLive(page, app, one.title);
   await (await menuItem(page, one.title, 'Finished')).click();
@@ -101,7 +126,18 @@ test('Finished on a running session offers Undo once claude has gone and the mar
   await undo(page).click();
   await expect(row(page, one.title)).toHaveCount(1);
   await expect(tabLabels(page)).toHaveText([one.title, two.title]);
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+});
+
+test('with undoRunning "cold", Undo of a finish puts a running tab back cold', async ({ app, page }) => {
+  await app.boot(leftCold);
+  await startLive(page, app, one.title);
+  await (await menuItem(page, one.title, 'Finished')).click();
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await undo(page).click();
+  await expect(tabLabels(page)).toHaveText([one.title, two.title]);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+  expect(await app.calls('startTerminal')).toHaveLength(1);
 });
 
 test('Finished on a session with no tab offers Undo, which makes it unfinished', async ({ app, page }) => {

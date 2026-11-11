@@ -11,7 +11,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {} });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', undoRunning: 'start', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {} });
   });
 
   it("take the file's approvals by repository, none unless told otherwise, and none of an object with a mistake", () => {
@@ -66,6 +66,14 @@ describe('the settings in force', () => {
     // The values before the act was called Finished are not read: nothing released had them (decided 2026-11-05).
     for (const wrong of ['stop', 'close-finish', 'stop-archive', 'archive', true, null]) {
       expect(settingsView(holding({ leaveButton: wrong })).leaveButton).toEqual({ value: 'stop-close', problem: 'It has to be one of "stop-close", "stop-finish", "close", "finish", "none".' });
+    }
+  });
+
+  it('take a choice of the file for what Undo does with a running tab, starting claude again unless told otherwise, and leave out one that is no choice', () => {
+    expect(settingsView(missing).undoRunning.value).toBe('start');
+    expect(settingsView(holding({ undoRunning: 'cold' })).undoRunning).toEqual({ value: 'cold', problem: null });
+    for (const wrong of ['resume', true, null]) {
+      expect(settingsView(holding({ undoRunning: wrong })).undoRunning).toEqual({ value: 'start', problem: 'It has to be one of "start", "cold".' });
     }
   });
 

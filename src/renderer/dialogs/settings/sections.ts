@@ -1,4 +1,4 @@
-import { changedSettings, LEAVE_BUTTON, RUNNING_AT_LAUNCH, type LeaveButton, type RunningAtLaunch, type SettingKey, type SettingsView } from '../../../shared/config/settings';
+import { changedSettings, LEAVE_BUTTON, RUNNING_AT_LAUNCH, UNDO_RUNNING, type LeaveButton, type RunningAtLaunch, type SettingKey, type SettingsView, type UndoRunning } from '../../../shared/config/settings';
 import { store } from '../../state/app';
 // The section list's entries are menu rows.
 import '../../ui/menu-row.css';
@@ -18,6 +18,12 @@ const LEAVE_BUTTON_LABELS: Record<LeaveButton, string> = {
   none: 'No button, only the menu',
 };
 
+/** Each choice for a running tab an Undo brings back, in words: the dropdown's options. */
+const UNDO_RUNNING_LABELS: Record<UndoRunning, string> = {
+  start: 'Start claude again',
+  cold: 'Bring the tab back without starting it',
+};
+
 type SectionId = 'general' | 'sessions' | 'needs-you' | 'appearance' | 'version-control' | 'logs';
 
 /** Each setting's words. */
@@ -26,6 +32,7 @@ const SETTING_LABELS: Record<SettingKey, string> = {
   runningSessionsAtLaunch: 'Sessions running when the app closed',
   prStatus: 'PR status from GitHub',
   leaveButton: 'Leave button',
+  undoRunning: 'When Undo brings back a tab whose claude was running',
   setAside: 'Set aside: the choices',
   setAsideTime: 'Time of day for a choice without one',
   locale: 'Language for times and dates',
@@ -78,13 +85,20 @@ export const SECTIONS: Section[] = [
   {
     id: 'sessions',
     label: 'Sessions',
-    keys: ['leaveButton', 'setAside', 'setAsideTime'],
+    keys: ['leaveButton', 'undoRunning', 'setAside', 'setAsideTime'],
     body: `
       <div class="dialog-group">
         <label class="dialog-label" for="settings-leave-button">${SETTING_LABELS.leaveButton}</label>
         <p class="dialog-detail">The button beside a session's menu on its tab, which a middle-click on the tab presses too. A running session is asked to leave first, whichever it is. Without the button, the session's menu holds it all.</p>
         <select id="settings-leave-button" class="dialog-field">
           ${LEAVE_BUTTON.map((choice) => `<option value="${choice}">${LEAVE_BUTTON_LABELS[choice]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="dialog-group">
+        <label class="dialog-label" for="settings-undo-running">${SETTING_LABELS.undoRunning}</label>
+        <p class="dialog-detail">The Undo a close or a finish offers puts its tabs back where they were. This is for a tab whose claude the close or the finish ended; any other comes back cold either way.</p>
+        <select id="settings-undo-running" class="dialog-field">
+          ${UNDO_RUNNING.map((choice) => `<option value="${choice}">${UNDO_RUNNING_LABELS[choice]}</option>`).join('')}
         </select>
       </div>
       <div class="dialog-group">

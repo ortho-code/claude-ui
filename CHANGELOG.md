@@ -18,6 +18,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 
 - A PR's colour says whose turn it is: a state that is the author's to act on, such as a conflict on a PR you review, leaves it plain and says "waiting on the author", and a PR you review with new commits or your review asked takes the colour of that needs-you mark.
   The roles in `needsYou` decide whose turn each state is.
+- Undo of a close or a finish starts claude again in a tab whose claude that close or finish ended.
+  `undoRunning` in Settings set to `"cold"` brings it back without starting it, as before.
 
 ### Fixed
 

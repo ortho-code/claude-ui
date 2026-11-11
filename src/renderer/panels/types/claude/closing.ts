@@ -1,6 +1,7 @@
 import type { SetAside, NeedsYou, SessionSummary } from '../../../../shared/types';
 import { leaveAction, leaveLabel, type LeaveAction, type TabButtonMark } from '../../../rules/claude';
-import { entityKey, sessionLabel } from '../../../rules/sessions';
+import { defaultSettings } from '../../../../shared/config/defaults';
+import { entityKey, sessionLabel, unstartableReason } from '../../../rules/sessions';
 import { store, type TabState } from '../../../state/app';
 import { clearSetAside, markSetAside } from '../../../state/set-aside';
 import { clearNeedsYou, restoreNeedsYou } from '../../../state/needs-you';
@@ -11,7 +12,7 @@ import { hostOf } from '../builtin';
 import { askToLeave, forceStop, stopSession } from './leave';
 import { persistOpenTabs } from './open-tabs';
 import { keptWhenGone, setTab, tabOf } from './tab-state';
-import { buildTab, removeTab } from './terminals';
+import { buildTab, removeTab, startTab } from './terminals';
 
 /**
  * Closing a tab and finishing a session, at once or once claude has gone, and the Undo each offers; and the leave a press asks for, which ends in a stop (leave.ts), a close or a finish.
@@ -54,36 +55,45 @@ interface RemovedTab {
   scheduledWhenStopped: TabState['scheduledWhenStopped'];
   /** Every reason its session needed you for, which its going settled. */
   needsYou: readonly NeedsYou[] | null;
+  /** Whether its claude was running when the close or the finish began, so that close or finish asked it to leave, rather than a stop before it. */
+  running: boolean;
 }
 
-/** What Undo needs of a tab about to be removed, read before it goes. */
-function removedTab(tab: TabState): RemovedTab {
+/** What Undo needs of a tab about to be removed, read before it goes; `running` for one whose claude the close or the finish asked to leave. */
+function removedTab(tab: TabState, running = false): RemovedTab {
   return {
     session: tab.session,
     at: store.get().tabs.findIndex((t) => t.token === tab.token),
     scheduledWhenStopped: keptWhenGone(tab),
     needsYou: store.get().needsYou.get(entityKey(tab.session)) ?? null,
+    running,
   };
 }
 
 /**
- * Undo's put-back: each tab back where it stood, cold, as a tab restored at launch is, and marked as needing you again if it was; nothing starts.
+ * Undo's put-back: each tab back where it stood, as a tab restored at launch is, and marked as needing you again if it was.
+ * One whose claude the close or the finish ended gets claude started again, unless `undoRunning` says to leave it cold or its folder has gone (decided 2026-11-11); any other comes back cold.
  * `removed` is in the order the tabs went, each `at` counted among the tabs as they were then, so they come back last first.
  * A session another tab holds by now, opened again meanwhile, keeps that tab rather than gaining a second, and a finished one gets none, since the app opens no finished session.
  */
 function putBack(removed: readonly RemovedTab[]): void {
-  for (const { session, at, scheduledWhenStopped, needsYou } of [...removed].reverse()) {
+  const restart = (store.get().settings?.undoRunning.value ?? defaultSettings().undoRunning) === 'start';
+  const toStart: string[] = [];
+  for (const { session, at, scheduledWhenStopped, needsYou, running } of [...removed].reverse()) {
     if (store.get().tabs.some((t) => t.session.id === session.id) || store.get().finished.has(entityKey(session))) continue;
     // As it was, from when it was marked, so a set-aside mark that muted it mutes it again.
     if (needsYou) restoreNeedsYou(entityKey(session), needsYou);
     // Built at the end, as every tab is, then moved to where it stood.
-    buildTab(session, scheduledWhenStopped);
+    const token = buildTab(session, scheduledWhenStopped);
     const tabs = [...store.get().tabs];
     const built = tabs.pop()!;
     tabs.splice(Math.min(Math.max(at, 0), tabs.length), 0, built);
     store.set({ tabs });
+    // The session as the app knows it now, as a launch reads it, so a folder gone since the close is not started.
+    if (running && restart && !unstartableReason(sessionById(session.id) ?? session)) toStart.push(token);
   }
   persistOpenTabs();
+  for (const token of toStart) void startTab(token);
 }
 
 /**
@@ -153,11 +163,16 @@ function closeTab(token: string, undoable = false): void {
   }
   // Already leaving: it goes with the exit rather than staying cold.
   if (tab.stopping) {
+    if (tab.onExit === 'cool') stoppedFirst.add(token);
     setTab(token, { onExit: 'close' });
     return;
   }
+  stoppedFirst.delete(token);
   askToLeave(token, tab.terminalId, 'close');
 }
+
+/** The tabs whose claude a stop asked to leave before a close or a finish took the exit over: the stop had ended claude, so an Undo brings them back cold. */
+const stoppedFirst = new Set<string>();
 
 /**
  * Mark sessions finished, closing every tab each is open in: at once where no claude of the app's runs it, all of those in one write with one toast, and where one does, once that claude has gone, asked to leave as a close asks it.
@@ -183,8 +198,13 @@ export function finishSessions(keys: readonly string[], closed: readonly Removed
       if (tab.terminalId === null) {
         finishedTabs(key).push(removedTab(tab));
         removeTab(tab.token);
-      } else if (tab.stopping) setTab(tab.token, { onExit: 'finish' });
-      else askToLeave(tab.token, tab.terminalId, 'finish');
+      } else if (tab.stopping) {
+        if (tab.onExit === 'cool') stoppedFirst.add(tab.token);
+        setTab(tab.token, { onExit: 'finish' });
+      } else {
+        stoppedFirst.delete(tab.token);
+        askToLeave(tab.token, tab.terminalId, 'finish');
+      }
     }
   }
   if (now.length > 0) void finishNow(now);
@@ -286,7 +306,7 @@ function finishAtExit(key: string): void {
 export function leftAtExit(token: string, tab: TabState): void {
   const key = entityKey(tab.session);
   const removed = finishedTabs(key);
-  removed.push(removedTab(tab));
+  removed.push(removedTab(tab, !stoppedFirst.delete(token)));
   removeTab(token);
   if (tab.onExit === 'finish') {
     finishAtExit(key);

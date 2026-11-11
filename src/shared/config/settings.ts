@@ -16,7 +16,7 @@ import type { Settings } from '../types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'setAside', 'setAsideTime', 'locale', 'strength', 'looks', 'needsYou', 'approvals'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'undoRunning', 'setAside','setAsideTime', 'locale', 'strength', 'looks', 'needsYou', 'approvals'];
 
 /**
  * The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them: start them again, or bring their tabs back cold.
@@ -31,6 +31,10 @@ export type RunningAtLaunch = (typeof RUNNING_AT_LAUNCH)[number];
  */
 export const LEAVE_BUTTON = ['stop-close', 'stop-finish', 'close', 'finish', 'none'] as const;
 export type LeaveButton = (typeof LEAVE_BUTTON)[number];
+
+/** The choices for a tab an Undo brings back whose claude the close or the finish ended (`Settings.undoRunning`), in the order Settings offers them: start claude again, or bring the tab back cold. */
+export const UNDO_RUNNING = ['start', 'cold'] as const;
+export type UndoRunning = (typeof UNDO_RUNNING)[number];
 
 /** The check of a setting that is one of a fixed list of words. */
 const oneOf =
@@ -101,6 +105,7 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
   runningSessionsAtLaunch: (value) => oneOf(RUNNING_AT_LAUNCH)(value === 'mark' || value === 'pause' || value === 'leave' ? 'cold' : value),
   prStatus: (value) => (typeof value === 'boolean' ? { ok: true, value } : { ok: false, why: 'It has to be true or false.' }),
   leaveButton: oneOf(LEAVE_BUTTON),
+  undoRunning: oneOf(UNDO_RUNNING),
   setAside: (value) => {
     const why = presetsProblem(value);
     return why === null ? { ok: true, value: [...(value as string[])] } : { ok: false, why };
@@ -224,6 +229,7 @@ export function settingsView(file: SettingsFileRead, read = 0, bundled: NeedsYou
     runningSessionsAtLaunch: viewOf('runningSessionsAtLaunch'),
     prStatus: viewOf('prStatus'),
     leaveButton: viewOf('leaveButton'),
+    undoRunning: viewOf('undoRunning'),
     setAside: viewOf('setAside'),
     setAsideTime: viewOf('setAsideTime'),
     locale: viewOf('locale'),
@@ -241,7 +247,7 @@ export function settingsView(file: SettingsFileRead, read = 0, bundled: NeedsYou
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, setAside: view.setAside.value, setAsideTime: view.setAsideTime.value, locale: view.locale.value, strength: view.strength.value, looks: view.looks.value, needsYou: view.needsYou.value, approvals: view.approvals.value };
+  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, undoRunning: view.undoRunning.value, setAside: view.setAside.value, setAsideTime: view.setAsideTime.value, locale: view.locale.value, strength: view.strength.value, looks: view.looks.value, needsYou: view.needsYou.value, approvals: view.approvals.value };
 }
 
 /**

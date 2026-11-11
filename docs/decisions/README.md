@@ -215,3 +215,4 @@ The architecture notes describe the app as it is now and link here for the reaso
 | [0208](0208-a-prs-colour-follows-whose-turn-it-is.md) | 2026-11-11 | A PR's colour follows whose turn it is | [Reading sessions](../architecture/sessions.md#reading-sessions) |
 | [0209](0209-a-pr-opened-in-the-browser-is-looked-for-by-its-branch.md) | 2026-11-11 | A PR opened in the browser is looked for by its branch | [Reading sessions](../architecture/sessions.md#reading-sessions) |
 | [0210](0210-a-muted-needs-you-mark-gives-way-to-claudes-status.md) | 2026-11-11 | A muted needs-you mark gives way to claude's status | [Status cues](../architecture/status-cues.md#status-cues) |
+| [0211](0211-undo-starts-claude-again-where-it-was-running.md) | 2026-11-11 | Undo starts claude again where it was running | [Tab lifecycle: a tab can exist without a process](../architecture/claude.md#tab-lifecycle-a-tab-can-exist-without-a-process) |
