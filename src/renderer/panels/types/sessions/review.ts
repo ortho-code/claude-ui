@@ -20,7 +20,7 @@ const button = reviewButton;
 const count = reviewButton.querySelector<HTMLElement>('.review-count')!;
 
 /** What the review reads of the store. */
-export type ReviewView = View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'setAside' | 'kept' | 'notes' | 'prStatus' | 'settings' | 'activeProject'>;
+export type ReviewView = View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'setAside' | 'kept' | 'notes' | 'prStatus' | 'prNames' | 'settings' | 'activeProject'>;
 
 /** The store's state as the review's terms read it (`ReviewFacts`). */
 function reviewFacts(view: ReviewView): ReviewFacts {
@@ -32,6 +32,7 @@ function reviewFacts(view: ReviewView): ReviewFacts {
     kept: view.kept,
     notes: view.notes,
     prStatus: view.prStatus,
+    prNames: view.prNames,
     // On until the settings are read, as it is by default; nothing has been asked by then, so its line says it is asking.
     prStatusOn: view.settings?.prStatus.value ?? true,
   };
@@ -77,7 +78,7 @@ const REVIEW_LOOK_EVERY_MS =60 * 60 * 1000;
 
 /** The button's count, now and as the store and the clock move; registered with the sidebar's repaints (watch.ts). */
 export function watchReviewButton(): void {
-  const slices = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'setAside', 'kept', 'notes', 'prStatus', 'settings', 'activeProject', 'reviewing'] as const;
+  const slices = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'setAside', 'kept', 'notes', 'prStatus', 'prNames', 'settings', 'activeProject', 'reviewing'] as const;
   store.watch(slices, showReviewButton);
   window.setInterval(() => showReviewButton(store.get()), REVIEW_LOOK_EVERY_MS);
   showReviewButton(store.get());

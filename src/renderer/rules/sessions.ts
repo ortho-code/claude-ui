@@ -169,6 +169,9 @@ export function folderName(repoRoot: string): string {
   return repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
 }
 
+/** What a session's last activity is called where its moment is given in full, "Last active: …". */
+export const LAST_ACTIVE = 'Last active';
+
 // The one place a session's display label is composed: the name Claude gave it, else its first prompt, else what a session with nothing in it is called, after the folder it runs in.
 // Every surface shows the same name this way (docs/architecture/sessions.md § Reading sessions).
 export function sessionLabel(session: SessionSummary): string {

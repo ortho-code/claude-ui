@@ -1,5 +1,5 @@
 import type { SessionSummary } from '../../../../shared/types';
-import { entityKey, modelLabel, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
+import { entityKey, LAST_ACTIVE, modelLabel, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
 import { setAsideLabel } from '../../../status/state-lines';
 import { relativeTime } from '../../../ui/time-words';
 import type { HeaderLine, MenuItem } from '../../../ui/menu';
@@ -16,9 +16,6 @@ import { statusLines } from '../../../status/status-dot';
 function modelOf(session: SessionSummary, view: View<'switchedModel'>): string {
   return view.switchedModel.get(session.id) ?? session.model;
 }
-
-/** What a session's last activity is called where its moment is given in full. */
-export const LAST_ACTIVE = 'Last active';
 
 /** When a session was last active, and the model it runs, as its row's meta line says them. */
 export function activityMoment(session: SessionSummary, view: View<'switchedModel'>): Moment {

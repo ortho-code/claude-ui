@@ -20,7 +20,7 @@ import { setTooltip } from '../../../ui/tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor, unfinishFor } from './actions';
 import { pressRowInBulk, tickBox } from './bulk';
-import { activityMoment, finishedMoment, LAST_ACTIVE } from './describe';
+import { activityMoment, finishedMoment } from './describe';
 import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
 import '../../../ui/tone.css';
 import '../../../status/pr-status.css';
@@ -257,7 +257,7 @@ export function showTabMarks(marks: RowTabMarks, id: string, view: View<'schedul
  */
 export interface FlatLine {
   lead: (shown: SessionSummary) => string | null;
-  why: ((shown: SessionSummary) => string) | null;
+  why: ((shown: SessionSummary) => Moment) | null;
 }
 
 /** Bring `row` up to date for `session`; `flat` for a row drawn flat (list.ts), which leads its line with where it sits. */
@@ -319,7 +319,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   // When it was finished in the finished view, where every session is; when it was active everywhere else.
   // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, rules/sessions.ts).
   const moment = (shown: SessionSummary, as: RowView): Moment => {
-    const own = (flat?.why ? { text: flat.why(shown), at: shown.lastActivity, label: LAST_ACTIVE } : null) ?? (finishedView ? finishedMoment(shown, as) : null) ?? activityMoment(shown, as);
+    const own = flat?.why?.(shown) ?? (finishedView ? finishedMoment(shown, as) : null) ?? activityMoment(shown, as);
     const lead = flat?.lead(shown) ?? null;
     return lead ? { ...own, text: `${lead} · ${own.text}` } : own;
   };

@@ -24,7 +24,7 @@ const fixture = {
   sessions: all,
   projectOrder: [PROJECT, OTHER],
   prSeen: { 'acme/app#1': MERGED, 'acme/app#2': OPEN },
-  prStatuses: { 'acme/app#1': MERGED, 'acme/app#2': OPEN },
+  prStatuses: { 'acme/app#1': { ...MERGED, title: 'Ship the scheduler', settledAt: ago(1) }, 'acme/app#2': OPEN },
   history: Object.fromEntries(all.map((s) => [s.id, []])),
 };
 
@@ -53,8 +53,10 @@ test('opening it shows the two sets, each row saying why it is there, and sets t
   await expect(setNames(page)).toHaveText(['Ready to finish', 'Untouched 30+ days']);
   await expect(setRows(page, 'Ready to finish')).toHaveText([ready.title]);
   await expect(setRows(page, 'Untouched 30+ days')).toHaveText([old.title]);
-  await expect(why(page, ready.title)).toHaveText('Its PR merged · 3 d ago');
+  await expect(why(page, ready.title)).toHaveText('#1 · Ship the scheduler · merged 1 d ago');
+  await expect(why(page, ready.title)).toHaveAttribute('data-tooltip', 'Merged: di 3 nov, 12:00');
   await expect(why(page, old.title)).toHaveText('41 days · note: “blocked on design”');
+  await expect(why(page, old.title)).toHaveAttribute('data-tooltip', 'Last active: do 24 sep, 13:00');
   await expect(page.locator('#filter-toggle')).toBeHidden();
   await expect(page.locator('#bulk-line')).toContainText('Review');
   await expect(page.locator('#bulk-line .bulk-count')).toHaveText('demo · 2 to decide · 0 ticked');

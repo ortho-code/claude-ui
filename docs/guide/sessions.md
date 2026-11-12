@@ -63,7 +63,7 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
   A claude running in its tab is asked to leave, as Stop asks, and the tab closes once it has gone, unless `setAsideRunning` in [Settings](settings.md) says to keep the tab or to leave claude running; a message says until when, and its Undo puts it all back, claude started again included.
   The mark goes when its day comes, when you send a prompt there, when you finish the session, or with Clear set aside, which a close's message offers too.
 - Selecting several sessions, a project's or a group's from its menu or one from its row's, puts a box on every row and heading, and a bar that marks finished, sets aside, keeps out of the review, moves to a group, stops or closes the tabs of every one ticked, in one go, with one Undo for what it finishes, sets aside, keeps or closes of the sessions that are not running; among the finished sessions it makes them unfinished, or deletes them after one question for all.
-- A review, from its button under the header, lists the sessions without a tab that are ready to finish, every PR they link merged or closed, or untouched for 30 days, each saying why, to mark finished, set aside or keep out of the review for 30 days in bulk, until nothing is left to decide.
+- A review, from its button under the header, lists the sessions without a tab that are ready to finish, every PR they link merged or closed, or untouched for 30 days, each saying why and naming its PR, or counting its several by state, a ready one with when they merged or closed where GitHub has said, to mark finished, set aside or keep out of the review for 30 days in bulk, until nothing is left to decide.
 
 ## The history
 
