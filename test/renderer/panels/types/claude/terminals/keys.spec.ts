@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { session } from '../../../../support/fixture';
-import { copyImage, copyText } from '../../../../support/clipboard';
+import { allowClipboard, clipboardText, copyImage, copyText, selectFirstRow } from '../../../../support/clipboard';
 import { type App, expect, test } from '../../../../support/harness';
 import { row } from '../../../../support/window';
 
@@ -91,6 +91,18 @@ test('off WSL, a paste with no text goes on as it came, without asking what was 
   await page.keyboard.press('Control+Shift+V');
   await expect.poll(() => app.calls('sendTerminalInput')).toEqual([[FIRST, '\x1b[200~\x1b[201~']]);
   expect(await app.calls('copiedFiles')).toEqual([]);
+});
+
+test('Ctrl+C over a selection copies it rather than interrupting claude, and the next Ctrl+C reaches claude', async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app);
+  await allowClipboard(page);
+  await selectFirstRow(page, page.locator('.term:visible'));
+  await page.keyboard.press('Control+C');
+  await expect.poll(() => clipboardText(page)).toBe('claude is here');
+  expect(await app.calls('sendTerminalInput')).toEqual([]);
+  await page.keyboard.press('Control+C');
+  await expect.poll(() => app.calls('sendTerminalInput')).toEqual([[FIRST, '\x03']]);
 });
 
 test('Ctrl+Enter and Shift+Enter send claude a newline, once each, and no submit', async ({ app, page }) => {

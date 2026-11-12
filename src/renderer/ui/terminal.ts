@@ -6,11 +6,12 @@ import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
 import { errorText } from '../../shared/helpers/log';
 import { pastedPaths } from '../../shared/helpers/paste';
+import { copyText } from './toast';
 import { hideTooltip, showTooltipAt } from './tooltip';
 
 /**
  * The xterm every terminal in the window is built from — a tab's `claude` and a panel's shell — and the one place their output and exits are routed.
- * One construction rather than two, because the options here are decisions (the font tokens, the neutral foreground, the canvas fallback, clickable links, what Ctrl+V does) that would otherwise be made twice and drift.
+ * One construction rather than two, because the options here are decisions (the font tokens, the neutral foreground, the canvas fallback, clickable links, what Ctrl+C and Ctrl+V do) that would otherwise be made twice and drift.
  */
 
 // The terminal's face comes from the stylesheet's tokens, so a panel showing command output is set in the same type without a second copy of the values.
@@ -59,6 +60,15 @@ export async function askPlatform(): Promise<void> {
  */
 function pastesHere(event: KeyboardEvent): boolean {
   return wsl && event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === 'v';
+}
+
+/**
+ * Whether `event` is a Ctrl+C the terminal copies its selection on, rather than sending it on as an interrupt.
+ * Only while something is selected, so a Ctrl+C with nothing selected still interrupts, and the selection goes with the copy, so the next press interrupts again.
+ * Matched by the letter the key types, as `pastesHere` is, so on a layout whose C key types another letter the key goes on as before.
+ */
+function copiesSelection(term: Terminal, event: KeyboardEvent): boolean {
+  return event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === 'c' && term.hasSelection();
 }
 
 /** Whether `event` is a key Chromium pastes the clipboard on, once `pastesHere` has handed Ctrl+V back: Ctrl+V, Ctrl+Shift+V or Shift+Insert. */
@@ -138,6 +148,12 @@ export function createTerminal(container: HTMLElement, keys?: (event: KeyboardEv
   // A key handed back to the browser is one xterm leaves alone without cancelling, so Chromium's own paste runs into xterm's textarea, which pastes it as one paste, bracketed where the program asked for that.
   let pasteKeyAt = -Infinity;
   term.attachCustomKeyEventHandler((event) => {
+    if (event.type === 'keydown' && copiesSelection(term, event)) {
+      const text = term.getSelection();
+      term.clearSelection();
+      void copyText(text, 'Selection copied.');
+      return false;
+    }
     if (event.type === 'keydown' && isPasteKey(event)) pasteKeyAt = event.timeStamp;
     if (pastesHere(event)) return false;
     return keys ? keys(event) : true;

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { copyImage, copyText } from '../../../support/clipboard';
+import { allowClipboard, clipboardText, copyImage, copyText, selectFirstRow } from '../../../support/clipboard';
 import { type App, expect, test } from '../../../support/harness';
 import { newTerminal, panelTabLabels } from '../../../support/window';
 import { withLayout } from '../../layout/layout';
@@ -40,6 +40,19 @@ test('on WSL, Ctrl+V in a shell with a file copied in Explorer pastes its path, 
   await copyImage(page);
   await page.keyboard.press('Control+V');
   await expect.poll(() => app.calls('sendTerminalInput')).toEqual([[1, '/mnt/c/Users/me/My\\ Pics/shot.png']]);
+});
+
+test('Ctrl+C over a selection copies it and drops it, and the next Ctrl+C interrupts', async ({ app, page }) => {
+  await bootWithShell(app, page, false);
+  expect(await app.emit('onTerminalData', 1, 'hello from the shell')).toBe(1);
+  await allowClipboard(page);
+  await selectFirstRow(page, page.locator('.panel-terminal:visible'));
+  await page.keyboard.press('Control+C');
+  await expect.poll(() => clipboardText(page)).toBe('hello from the shell');
+  await expect(page.locator('#toast')).toHaveText(/Selection copied\./);
+  expect(await app.calls('sendTerminalInput')).toEqual([]);
+  await page.keyboard.press('Control+C');
+  await expect.poll(() => app.calls('sendTerminalInput')).toEqual([[1, '\x03']]);
 });
 
 test('off WSL, Ctrl+V reaches the shell as the key it is', async ({ app, page }) => {

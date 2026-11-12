@@ -340,8 +340,8 @@ Once the app is quitting, main starts no session or shell either, as it starts n
 It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` and `FORCE_HYPERLINK=1` as a session does, and NOT `CLAUDE_UI=1`: a `claude` started by hand in it must not report as one of the app's sessions.
 
 **One xterm, one router.**
-The renderer's `terminal.ts` builds every xterm in the window (the font tokens, the neutral foreground, the canvas fallback, clickable links, what Ctrl+V does) and routes every terminal's output and exit to whichever sink bound its id, a tab or a panel.
-The tab's claude-specific key handling — Ctrl+Enter and Shift+Enter as newline, Ctrl+Z refused, Ctrl+C twice to close — stays with the tab, handed to `createTerminal` rather than attached to the xterm, since xterm holds one key handler and a second would replace the shared one.
+The renderer's `terminal.ts` builds every xterm in the window (the font tokens, the neutral foreground, the canvas fallback, clickable links, what Ctrl+C and Ctrl+V do) and routes every terminal's output and exit to whichever sink bound its id, a tab or a panel.
+The tab's claude-specific key handling — Ctrl+Enter and Shift+Enter as newline, Ctrl+Z refused — stays with the tab, handed to `createTerminal` rather than attached to the xterm, since xterm holds one key handler and a second would replace the shared one.
 
 **Links open whole, and show where they go.**
 A long address claude prints in plain text is broken over rows by claude itself, not wrapped by xterm, so a finder that reads the text sees only the first row's piece.
@@ -349,6 +349,11 @@ A long address claude prints in plain text is broken over rows by claude itself,
 Without it, claude sends hyperlinks only when the app inherited a variable naming a terminal it knows, as from Windows Terminal or VS Code, since nothing xterm sets names one.
 xterm's link handler opens such a link in the OS browser, and main opens http(s) only; the http(s) addresses found in plain text open the same way.
 Hovering either kind shows its address in the app's tooltip, since a program's link shows text of its own choosing.
+
+**Ctrl+C copies a selection** ([decided 2026-11-12](../decisions/0220-ctrl-c-copies-a-selection.md)).
+xterm sends Ctrl+C on as `^C`, and on Linux, where the app has no menu, the only key that copied a selection was Chromium's Ctrl+Insert, which few reach for.
+While something is selected, every terminal copies it on Ctrl+C, says so in a toast as every copy does, and drops the selection, so the next press interrupts again; with nothing selected, Ctrl+C goes on to the program as before.
+The key is matched by the letter it types, as Ctrl+V is, so on a layout whose C key types another letter, such as a Cyrillic one, it goes on as before.
 
 **Ctrl+V pastes under WSL, and only there** ([decided 2026-10-21](../decisions/0096-ctrl-v-pastes-under-wsl-only.md)).
 xterm sends Ctrl+V on as `^V`, and claude reads that as "paste an image": under WSL it looks for an image before it falls back to the text, through xclip or wl-paste where there is one and then `powershell.exe`, whose call took ten seconds the first time it was measured.
