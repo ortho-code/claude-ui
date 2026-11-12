@@ -52,7 +52,10 @@ export const filterStatus = fromMarkup(`
   <div id="filter-status" hidden>
     <div id="filter-chips" hidden></div>
     <span id="filter-count"></span>
-    <button id="filter-clear" type="button">Clear</button>
+    <span class="filter-actions">
+      <button id="filter-clear" type="button">Clear</button>
+      <button id="filter-clear-close" type="button">Clear and close</button>
+    </span>
   </div>`);
 
 const pinnedFilter = byId(filterPanel, 'pinned-filter', HTMLButtonElement);
@@ -87,6 +90,7 @@ searchInput.style.setProperty('--search-clear-size', `${SEARCH_CLEAR_SIZE}px`);
 const filterCount = byId(filterStatus, 'filter-count');
 const filterChips = byId(filterStatus, 'filter-chips');
 const filterClear = byId(filterStatus, 'filter-clear', HTMLButtonElement);
+const filterClearClose = byId(filterStatus, 'filter-clear-close', HTMLButtonElement);
 
 // The filter toggle's mark: a funnel, not the magnifier it used to be.
 // A magnifier promises a search box, which clears when it closes; what this opens is filters, which stay on.
@@ -156,7 +160,7 @@ function setDatePopover(open: boolean): void {
 /**
  * Set the filter: the list, its count and its chips follow the store.
  * Any change of the filter takes the folds made under it (`Folds`), in the same change: new results can sit in a section folded for the old ones, and a filter that ends has no use for them at all.
- * Every change you make to the filter comes here — a character typed or deleted, a pill, a preset, the calendar, a chip's ×, Clear; the launch restores the filter directly, with the folds stored beside it.
+ * Every change you make to the filter comes here — a character typed or deleted, a pill, a preset, the calendar, a chip's ×, Clear, Clear and close; the launch restores the filter directly, with the folds stored beside it.
  */
 function putFilter(next: FilterState): void {
   const { folds } = store.get();
@@ -297,6 +301,8 @@ function filterChip(icon: string, text: string, label: string, remove: () => voi
 
 function updateFilterChips(view: View<'filter' | 'filterPanelOpen'>): void {
   const show = isFiltering(view) && !view.filterPanelOpen;
+  // A shut panel leaves nothing to close, so Clear does it all there.
+  filterClearClose.hidden = !view.filterPanelOpen;
   filterChips.hidden = !show;
   filterStatus.classList.toggle('collapsed', show);
   if (!show) {
@@ -375,6 +381,11 @@ export async function restoreFilter(state: UiState): Promise<FilterState> {
 
 searchInput.addEventListener('input', () => setFilter({ search: searchInput.value }));
 filterClear.addEventListener('click', clearFilter);
+// Closing alone keeps the filter (decided 2026-09-23); this is the one press that ends it and shuts the panel together.
+filterClearClose.addEventListener('click', () => {
+  clearFilter();
+  toggleFilterPanel(false);
+});
 
 /**
  * The filter pills, once, in the order they sit in the panel: each one's button, its mark and the flag it sets.

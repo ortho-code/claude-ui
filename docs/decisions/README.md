@@ -224,3 +224,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0216](0216-every-moment-in-one-format-from-the-language.md) | 2026-11-12 | Every moment in one format, from the language | [The language](../architecture/window.md#the-language) |
 | [0217](0217-a-session-rows-tooltip-says-everything-it-shows.md) | 2026-11-12 | A session row's tooltip says everything it shows | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
 | [0218](0218-a-review-row-reads-like-any-other-row.md) | 2026-11-12 | A review row reads like any other row | [The review](../architecture/session-list.md#the-review) |
+| [0219](0219-clear-and-close-ends-the-filter-in-one-press.md) | 2026-11-12 | Clear and close ends the filter in one press | [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it) |

@@ -42,6 +42,28 @@ test('search and a pill narrow the list and say by how much, a shut panel leaves
   await expect(page.locator('#filter-toggle')).not.toHaveClass(/\bactive\b/);
 });
 
+test('Clear and close empties the filter and shuts the panel in one press, and shows only while the panel is open', async ({ app, page }) => {
+  await app.boot(fixture);
+  await page.locator('#filter-toggle').click();
+  await page.locator('#search').fill('parser');
+  await page.locator('#pinned-filter').click();
+  await expect(titles(page)).toHaveText([parser.title]);
+
+  await page.locator('#filter-toggle').click();
+  await expect(page.locator('#filter-clear')).toBeVisible();
+  await expect(page.locator('#filter-clear-close')).toBeHidden();
+
+  await page.locator('#filter-toggle').click();
+  await page.locator('#filter-clear-close').click();
+  await expect(page.locator('#filter-panel')).toBeHidden();
+  await expect(page.locator('#filter-status')).toBeHidden();
+  await expect(titles(page)).toHaveText([parser.title, docs.title, tests.title]);
+
+  await page.locator('#filter-toggle').click();
+  await expect(page.locator('#search')).toHaveValue('');
+  await expect(page.locator('#pinned-filter')).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('the row of chips opens the panel again', async ({ app, page }) => {
   await app.boot({ ...fixture, uiState: { ...defaultUi(), search: 'parser', filterPanelOpen: false } });
   await page.locator('#filter-chips .filter-chip-text').click();

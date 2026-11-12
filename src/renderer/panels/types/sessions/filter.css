@@ -198,7 +198,12 @@
   color: var(--text);
 }
 
-#filter-clear {
+.filter-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.filter-actions > button {
   padding: 2px 8px;
   background: transparent;
   color: var(--accent);
@@ -208,7 +213,7 @@
   cursor: pointer;
 }
 
-#filter-clear:hover {
+.filter-actions > button:hover {
   background: var(--accent);
   color: var(--surface);
 }

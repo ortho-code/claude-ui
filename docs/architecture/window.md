@@ -52,6 +52,7 @@ The filter panel comes back exactly as it was left, an active filter included �
 The toggle is a funnel rather than a magnifier ([decided 2026-09-23](../decisions/0011-closing-the-filter-panel-keeps-the-filter.md)).
 Closing the panel never hides the filter, though.
 Closed over a filter that is on, the panel folds down to one row of chips, one per thing that is on — the search text, each pill, the date range — each with its own ×, and a press on the row opens the panel again; the count and Clear sit on the line below, where they also sit under the open panel ([decided 2026-09-23](../decisions/0010-a-closed-filter-panel-folds-to-chips.md)).
+Under the open panel, Clear and close beside Clear empties the filter and shuts the panel in one press, so ending a filter is not two; with the panel shut there is nothing to close, so the line keeps only Clear ([decided 2026-11-12](../decisions/0219-clear-and-close-ends-the-filter-in-one-press.md)).
 With nothing on, closing hides it all.
 The count's total is the set the matches were taken from: the same project scope and the same view before the other filters, so the count only ever compares a set with part of itself.
 The finished pill picks that set rather than narrowing it, since the finished view holds only finished sessions and the normal view none, so in the finished view the total is the finished sessions and the count says "finished"; in the normal view it is the number the switcher shows.
@@ -59,7 +60,7 @@ One rule, `inView` in `rules/session-filter.ts`, decides which set a session is 
 
 Folds come in two states, and they are deliberately separate.
 Filtering opens the whole tree so a match inside a folded section is never hidden, and folding from there is a way through the results — shut a project you have already been through — rather than a statement about how the sidebar should look.
-So those folds apply only while a filter is on and are dropped the moment you change it, by any route: a character typed or deleted, a pill, a date preset or the calendar, a chip's ×, Clear.
+So those folds apply only while a filter is on and are dropped the moment you change it, by any route: a character typed or deleted, a pill, a date preset or the calendar, a chip's ×, Clear, Clear and close.
 A change drops them as well as an end, because new results can sit in a section folded for the old ones; a fold kept across changes could hide a match without saying so.
 Collapse-all and a project's group jump act on them as they act on the folds you made without a filter.
 Both states are stored, because the filter itself is restored, and coming back to the same results without the same view is the thing remembering the view is meant to prevent.
