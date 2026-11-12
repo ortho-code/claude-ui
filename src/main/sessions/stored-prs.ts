@@ -1,4 +1,4 @@
-import type { PrNames, PrRole, PrSeen, PrStatus, SessionPr } from '../../shared/types';
+import type { PrDates, PrNames, PrRole, PrSeen, PrStatus, SessionPr } from '../../shared/types';
 import { PR_ROLES, prFromUrl, referenceKey } from '../../shared/sessions/prs';
 
 /** What may stand in each part of an open PR's status, null among them (`PrStatus`). */
@@ -14,12 +14,17 @@ const unknownIfMissing = (value: unknown): unknown => (value === undefined ? nul
 /** Whether a stored value is a field's value or null, by the check for its value. */
 const valueOrNull = (value: unknown, check: (value: unknown) => boolean): boolean => value === null || check(value);
 
-/** A PR's title and author as they were stored, each left out where it is missing or not of its shape. */
-function prNamesOf(fields: Record<string, unknown>): PrNames {
-  const names: PrNames = {};
+/**
+ * A PR's title and author, then when it opened and settled, as they were stored, each left out where it is missing or not of its shape.
+ * In the order `statusOf` gives them, so a status read back is the one kept, and the window, which writes what was seen only when it reads differently, does not write it again.
+ */
+function prNamesAndDatesOf(fields: Record<string, unknown>): PrNames & PrDates {
+  const names: PrNames & PrDates = {};
   if (typeof fields.title === 'string') names.title = fields.title;
   const author = fields.author as Record<string, unknown> | null | undefined;
   if (typeof author === 'object' && author !== null && typeof author.login === 'string' && valueOrNull(author.name, (value) => typeof value === 'string')) names.author = { login: author.login, name: author.name as string | null };
+  if (typeof fields.openedAt === 'string') names.openedAt = fields.openedAt;
+  if (typeof fields.settledAt === 'string') names.settledAt = fields.settledAt;
   return names;
 }
 
@@ -33,7 +38,7 @@ function prStatusOf(raw: unknown): PrStatus | null {
   const { state, draft, review, checks, conflict } = fields;
   const [role, approvals, newCommits, reviewAsked, changesRequested] = [fields.role, fields.approvals, fields.newCommits, fields.reviewAsked, fields.changesRequested].map(unknownIfMissing);
   if (!valueOrNull(role, (value) => PR_ROLES.includes(value as PrRole))) return null;
-  const names = prNamesOf(fields);
+  const names = prNamesAndDatesOf(fields);
   if (state === 'merged' || state === 'closed') return { ...names, state, role: role as PrRole | null };
   if (state !== 'open' || typeof draft !== 'boolean' || !PR_PARTS.review.includes(review) || !PR_PARTS.checks.includes(checks) || !PR_PARTS.conflict.includes(conflict)) return null;
   const counts = valueOrNull(approvals, (value) => Number.isInteger(value) && (value as number) >= 0);

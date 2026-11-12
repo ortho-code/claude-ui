@@ -241,6 +241,28 @@ test("each PR in a mark's list and in a tab's options says its state on a line u
   expect(await dotColours(submenu)).toEqual([await token(page, '--failed'), await token(page, '--muted')]);
 });
 
+test('each PR in a list says when it merged or closed, and since when an open one is open, where GitHub said so', async ({ app, page }) => {
+  await page.clock.setFixedTime(new Date(2026, 10, 12, 15, 0));
+  const dated = marked('7', 'Dated PRs', 21, 22, 23);
+  await app.boot({
+    sessions: [dated],
+    history: { [dated.id]: [] },
+    prStatuses: {
+      'scientanl/demo#21': { state: 'merged', role: 'own', openedAt: '2026-11-02T09:00:00Z', settledAt: '2026-11-09T13:02:00Z' },
+      'scientanl/demo#22': { ...open(), openedAt: '2026-11-10T07:30:00Z' },
+      'scientanl/demo#23': { state: 'closed', role: 'own' },
+    } satisfies Record<string, PrStatus>,
+  });
+  await mark(page, dated.title).click();
+  await expect(items(page)).toHaveCount(3);
+  // The window's time zone is Amsterdam's, an hour past UTC in November.
+  expect(await lines(items(page))).toEqual([
+    ['#21', 'ScientaNL/demo · merged ma 9 nov, 14:02'],
+    ['#22', 'ScientaNL/demo · review required · open since di 10 nov, 08:30'],
+    ['#23', 'ScientaNL/demo · closed'],
+  ]);
+});
+
 /** settings.json with the approvals a repository needs; the PRs here spell it `ScientaNL/demo`. */
 const needsTwo = settingsFileWith('settings.json', { approvals: { 'scientanl/demo': 2 } });
 const oneApproval = { ...states, prStatuses: { ...states.prStatuses, 'scientanl/demo#4': { ...open(), review: 'approved', approvals: 1 } } satisfies Record<string, PrStatus> };

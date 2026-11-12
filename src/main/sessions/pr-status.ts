@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { ipcMain } from 'electron';
 import { prKey, roleOf } from '../../shared/sessions/prs';
-import type { PrNames, PrRef, PrRole, PrStatus, PrStatusRead } from '../../shared/types';
+import type { PrDates, PrNames, PrRef, PrRole, PrStatus, PrStatusRead } from '../../shared/types';
 import { log } from '../logs/log';
 import { inheritedEnv, shellCommand, terminateGroup } from '../pty/shell';
 
@@ -30,9 +30,12 @@ const REVIEWERS = 20;
 /** What a PR is called and who opened it, asked of every PR; a person's name comes only through `User`, since a bot has none. */
 const NAME_FIELDS = 'title author{login ...on User{name}}';
 
+/** When a PR was opened, merged and closed, asked of every PR, so one that settles while the app runs has its date from the ask that sees it settled; a merged PR's date is its `mergedAt`. */
+const DATE_FIELDS = 'createdAt mergedAt closedAt';
+
 /** Every field the colour, the approvals and your review need, for a PR known to be open. */
-const FULL_FIELDS = `state isDraft reviewDecision mergeable commits(last:1){nodes{commit{statusCheckRollup{state}}}} headRefOid latestOpinionatedReviews(first:${REVIEWERS},writersOnly:true){nodes{id state}} ${ROLE_FIELDS} ${NAME_FIELDS}`;
-const STATE_FIELDS = `state ${ROLE_FIELDS} ${NAME_FIELDS}`;
+const FULL_FIELDS = `state isDraft reviewDecision mergeable commits(last:1){nodes{commit{statusCheckRollup{state}}}} headRefOid latestOpinionatedReviews(first:${REVIEWERS},writersOnly:true){nodes{id state}} ${ROLE_FIELDS} ${NAME_FIELDS} ${DATE_FIELDS}`;
+const STATE_FIELDS = `state ${ROLE_FIELDS} ${NAME_FIELDS} ${DATE_FIELDS}`;
 
 /**
  * The most PRs one request asks, by how much it asks of each.
@@ -212,18 +215,27 @@ function namesFrom(node: Record<string, unknown>): PrNames {
   return names;
 }
 
-/** A PR's status from GitHub's node asked every field; a PR that has merged or closed since it was last asked carries its state, your role and its names alone. */
+/** When a PR in `state` was opened and settled, from GitHub's node, each left out where GitHub gave none. */
+function datesFrom(node: Record<string, unknown>, state: PrStatus['state']): PrDates {
+  const dates: PrDates = {};
+  if (typeof node.createdAt === 'string') dates.openedAt = node.createdAt;
+  const settled = state === 'merged' ? node.mergedAt : state === 'closed' ? node.closedAt : null;
+  if (typeof settled === 'string') dates.settledAt = settled;
+  return dates;
+}
+
+/** A PR's status from GitHub's node asked every field; a PR that has merged or closed since it was last asked carries its state, your role, its names and its dates alone. */
 export function statusOf(node: unknown): PrStatus | null {
   const state = stateOf(node);
   if (state === null || !isObject(node)) return null;
   const role = roleFrom(node);
-  const names = namesFrom(node);
-  if (state !== 'open') return { ...names, state, role };
+  const namesAndDates = { ...namesFrom(node), ...datesFrom(node, state) };
+  if (state !== 'open') return { ...namesAndDates, state, role };
   const last: unknown = isObject(node.commits) && Array.isArray(node.commits.nodes) ? node.commits.nodes[0] : null;
   const rollup = isObject(last) && isObject(last.commit) && isObject(last.commit.statusCheckRollup) ? last.commit.statusCheckRollup : null;
   const reviews = opinionatedReviews(node);
   return {
-    ...names,
+    ...namesAndDates,
     state,
     role,
     draft: node.isDraft === true,

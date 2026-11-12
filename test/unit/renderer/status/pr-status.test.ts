@@ -318,7 +318,15 @@ describe('settledState', () => {
 
 describe('prDetails', () => {
   const pr: PrRef = { repository: 'acme/app', number: 1 };
-  const details = (status: PrStatus, approvals = GITHUB_DECIDES): string[] => prDetails(pr, { statuses: { 'acme/app#1': status }, problem: null }, rules(approvals));
+  /** A date as an ISO time, so what the details make of a moment shows plainly. */
+  const iso = (at: number): string => new Date(at).toISOString();
+  const details = (status: PrStatus, approvals = GITHUB_DECIDES): string[] => prDetails(pr, { statuses: { 'acme/app#1': status }, problem: null }, rules(approvals), iso);
+
+  it('says when a merged or closed PR settled after its state, and since when an open one is open last, where known', () => {
+    expect(details({ state: 'merged', role: 'own', openedAt: '2026-11-02T09:00:00.000Z', settledAt: '2026-11-09T13:02:00.000Z' })).toEqual(['merged 2026-11-09T13:02:00.000Z']);
+    expect(details({ ...open(), openedAt: '2026-11-10T07:30:00.000Z' }).at(-1)).toBe('open since 2026-11-10T07:30:00.000Z');
+    expect(details({ state: 'closed', role: 'own' })).toEqual(['closed']);
+  });
 
   it('names the role only for a PR that is not yours', () => {
     expect(details({ state: 'closed', role: 'own' })).toEqual(['closed']);
@@ -350,8 +358,8 @@ describe('prDetails', () => {
   });
 
   it('says nothing while main could not ask, or for a PR it has no status for', () => {
-    expect(prDetails(pr, { statuses: { 'acme/app#1': open() }, problem: 'gh was not found' }, rules())).toEqual([]);
-    expect(prDetails(pr, NO_PR_STATUS, rules())).toEqual([]);
+    expect(prDetails(pr, { statuses: { 'acme/app#1': open() }, problem: 'gh was not found' }, rules(), iso)).toEqual([]);
+    expect(prDetails(pr, NO_PR_STATUS, rules(), iso)).toEqual([]);
   });
 });
 

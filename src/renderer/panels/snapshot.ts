@@ -1,6 +1,6 @@
 import { categoryOf } from '../../shared/status/needs-you';
 import { prKey } from '../../shared/sessions/prs';
-import type { ClosedHow, SetAside, NeedsYou, PrAuthor, PrNames, PrRole, PrStatus } from '../../shared/types';
+import type { ClosedHow, SetAside, NeedsYou, PrAuthor, PrDates, PrNames, PrRole, PrStatus } from '../../shared/types';
 import { sessionLabel } from '../rules/sessions';
 import { asksForYou } from '../status/rollup';
 import { store, type AppState, type View } from '../state/app';
@@ -65,13 +65,19 @@ export interface SnapshotPr {
 const FIELDS: Record<keyof SnapshotSession, true> = { id: true, title: true, project: true, group: true, status: true, read: true, asks: true, running: true, needsYou: true, setAside: true, prs: true };
 export const SNAPSHOT_FIELDS = Object.keys(FIELDS);
 
-/** What GitHub says of a PR, as the file gives it: the status without what only the app's own comparison reads, the ids of the reviews asking for changes, and without its names, which the PR itself carries (`SnapshotPr`). */
-export type SnapshotPrStatus = { state: 'merged' | 'closed'; role: PrRole | null } | Omit<Extract<PrStatus, { state: 'open' }>, 'changesRequested' | keyof PrNames>;
+/**
+ * What GitHub says of a PR, as the file gives it: the status without what only the app's own comparison reads, the ids of the reviews asking for changes, and without its names, which the PR itself carries (`SnapshotPr`).
+ * When it was opened, and for a merged or closed one when it settled, each null where GitHub has not said.
+ */
+export type SnapshotPrStatus = ({ state: 'merged' | 'closed'; role: PrRole | null; settledAt: string | null } | Omit<Extract<PrStatus, { state: 'open' }>, 'changesRequested' | keyof PrNames | keyof PrDates>) & {
+  openedAt: string | null;
+};
 
 function snapshotPrStatus(status: PrStatus): SnapshotPrStatus {
-  if (status.state !== 'open') return { state: status.state, role: status.role };
+  const openedAt = status.openedAt ?? null;
+  if (status.state !== 'open') return { state: status.state, role: status.role, openedAt, settledAt: status.settledAt ?? null };
   const { state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked } = status;
-  return { state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked };
+  return { state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked, openedAt };
 }
 
 export interface SessionsSnapshot {

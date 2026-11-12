@@ -6,6 +6,7 @@ import { entityKey, folderName, sessionLabel, unstartableReason } from '../../..
 import { clockLines, clockOf } from '../../../status/clock';
 import { setAsideUntil } from '../../../status/state-lines';
 import { relativeTime } from '../../../ui/time-words';
+import { momentInLanguage } from '../../../ui/locale';
 import { openMenu, type MenuItem } from '../../../ui/menu';
 import { inkClasses, prDetails, prRulesIn, verdictOf } from '../../../status/pr-status';
 import { store, type TabState } from '../../../state/app';
@@ -69,7 +70,7 @@ function prMenuItems(session: SessionSummary): MenuItem[] {
   const withRepository = spansRepositories(session.prs);
   return session.prs.map((pr) => {
     const verdict = verdictOf(pr, prStatus, rules);
-    const details = [...(withRepository ? [] : [pr.repository]), ...prDetails(pr, prStatus, rules)];
+    const details = [...(withRepository ? [] : [pr.repository]), ...prDetails(pr, prStatus, rules, momentInLanguage)];
     return {
       label: prName(pr, prNames.get(prKey(pr))?.title, withRepository),
       ...(details.length > 0 ? { detail: details.join(' · ') } : {}),

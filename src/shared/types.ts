@@ -195,11 +195,21 @@ export interface PrNames {
 }
 
 /**
+ * When a PR was opened, and when it settled: merged or closed, as its state says; each absent where it is not known, as with `PrNames`.
+ * The app's own names rather than a forge's, so each forge fills them from what it has.
+ */
+export interface PrDates {
+  openedAt?: string;
+  settledAt?: string;
+}
+
+/**
  * What GitHub says of a PR a session links.
- * A merged or closed PR carries its state, your role and its names alone, since nothing else about it changes how the app shows it.
+ * A merged or closed PR carries its state, your role, its names and its dates alone, since nothing else about it changes how the app shows it.
  * A field that is null is not known: GitHub left it out, or the status was kept by a build that did not ask it.
  */
 export type PrStatus = PrNames &
+  PrDates &
   (
   | { state: 'merged' | 'closed'; role: PrRole | null }
   | {

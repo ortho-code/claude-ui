@@ -328,14 +328,17 @@ function approvalWords(status: OpenStatus, required: number | null): string | nu
 }
 
 /**
- * What a PR's menu item says under its name, in order: who it is by and your role where it is not yours (`ownerWords`), its state (`verdictOf`), who it waits on where that state is not yours to act on, and an open PR's approvals; nothing while main could not ask GitHub.
+ * What a PR's menu item says under its name, in order: who it is by and your role where it is not yours (`ownerWords`), its state (`verdictOf`) with when a merged or closed one settled, who it waits on where that state is not yours to act on, an open PR's approvals, and since when an open one is open; nothing while main could not ask GitHub.
+ * `moment` writes a date, as the window writes every moment in full (`momentInLanguage`).
  */
-export function prDetails(pr: PrRef, read: PrStatusRead, rules: PrRules): string[] {
+export function prDetails(pr: PrRef, read: PrStatusRead, rules: PrRules, moment: (at: number) => string): string[] {
   const status = knownStatus(pr, read);
   if (status === null) return [];
   const { words, waitsOn } = verdictOf(pr, read, rules);
   const counted = status.state === 'open' ? approvalWords(status, approvalsRequired(rules.approvals, pr.repository)) : null;
-  return [...ownerWords(status), words, waitsOn && `waiting on ${waitsOn}`, counted].filter((part): part is string => part !== null);
+  const settled = status.state !== 'open' && status.settledAt !== undefined && words !== null ? `${words} ${moment(Date.parse(status.settledAt))}` : words;
+  const since = status.state === 'open' && status.openedAt !== undefined ? `open since ${moment(Date.parse(status.openedAt))}` : null;
+  return [...ownerWords(status), settled, waitsOn && `waiting on ${waitsOn}`, counted, since].filter((part): part is string => part !== null);
 }
 
 /** How a count of PRs reads in a mark's tooltip: by who it waits on where its state is not yours to act on, `1 waiting on the author`, otherwise by its state (`COUNTED`). */

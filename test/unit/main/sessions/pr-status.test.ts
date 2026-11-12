@@ -162,6 +162,23 @@ describe('statusOf', () => {
     expect(statusOf({ ...named, state: 'MERGED' })).toEqual({ state: 'merged', role: 'own', title: 'Scheduler tick per host', author: { login: 'jan', name: 'Jan Jansen' } });
   });
 
+  // The dates as GitHub gave them for cli/cli #9000 (merged), #15035 (closed) and #15040 (open) on 2026-11-12: a merged PR's closedAt is its mergedAt.
+  it('reads when a PR was opened, and when a merged or closed one settled', () => {
+    const merged = { ...OPEN_NODE, state: 'MERGED', createdAt: '2024-04-25T13:32:21Z', mergedAt: '2024-04-29T16:15:49Z', closedAt: '2024-04-29T16:15:49Z' };
+    expect(statusOf(merged)).toEqual({ state: 'merged', role: 'own', openedAt: '2024-04-25T13:32:21Z', settledAt: '2024-04-29T16:15:49Z' });
+    const closed = { ...OPEN_NODE, state: 'CLOSED', createdAt: '2026-11-12T03:17:32Z', mergedAt: null, closedAt: '2026-11-12T03:17:46Z' };
+    expect(statusOf(closed)).toEqual({ state: 'closed', role: 'own', openedAt: '2026-11-12T03:17:32Z', settledAt: '2026-11-12T03:17:46Z' });
+    const open = { ...OPEN_NODE, createdAt: '2026-11-12T14:03:59Z', mergedAt: null, closedAt: null };
+    expect(statusOf(open)).toEqual({ ...OPEN_STATUS, openedAt: '2026-11-12T14:03:59Z' });
+  });
+
+  it('leaves out a date GitHub did not give', () => {
+    const merged = statusOf({ ...OPEN_NODE, state: 'MERGED' });
+    expect(merged).not.toHaveProperty('openedAt');
+    expect(merged).not.toHaveProperty('settledAt');
+    expect(statusOf({ ...OPEN_NODE, state: 'MERGED', createdAt: null, mergedAt: 7 })).not.toHaveProperty('settledAt');
+  });
+
   // GitHub gives a bot no `name`, as `... on User` leaves it out, a person who set none an empty one, and a deleted account as a null author.
   it('reads an author with no name as their login alone, and leaves out what GitHub did not give', () => {
     expect(statusOf({ ...OPEN_NODE, author: { login: 'renovate' } })).toMatchObject({ author: { login: 'renovate', name: null } });
@@ -233,7 +250,7 @@ describe('runGh', () => {
 });
 
 /** The fields a state-only ask may ask of a PR, each answered only where the query names it. */
-const STATE_ASKED = ['state', 'viewerDidAuthor', 'viewerLatestReview', 'viewerLatestReviewRequest'];
+const STATE_ASKED = ['state', 'viewerDidAuthor', 'viewerLatestReview', 'viewerLatestReviewRequest', 'createdAt', 'mergedAt', 'closedAt'];
 
 /**
  * A stand-in `gh` over a GitHub of `nodes`, every field of each PR by reference, answering as GitHub does: every field where a query asks them, the state and the role's fields where it asks those, null for a PR it has not.
@@ -293,6 +310,19 @@ describe('PrStatuses', () => {
       },
       problem: null,
     });
+  });
+
+  it('asks a merged or closed PR when it settled with its state, and an open one when it opened with every field', async () => {
+    const dates = { createdAt: '2026-11-02T09:00:00Z', mergedAt: null, closedAt: null };
+    const { gh } = fakeGh({
+      'acme/app#1': { ...merged, ...dates, mergedAt: '2026-11-09T13:02:00Z', closedAt: '2026-11-09T13:02:00Z' },
+      'acme/app#2': { ...OPEN_NODE, ...dates },
+      'acme/app#3': { ...closed, ...dates, closedAt: '2026-11-10T08:30:00Z' },
+    });
+    const read = await new PrStatuses(gh).ask([pr(1), pr(2), pr(3)]);
+    expect(read.statuses['acme/app#1']).toMatchObject({ openedAt: '2026-11-02T09:00:00Z', settledAt: '2026-11-09T13:02:00Z' });
+    expect(read.statuses['acme/app#2']).toMatchObject({ openedAt: '2026-11-02T09:00:00Z' });
+    expect(read.statuses['acme/app#3']).toMatchObject({ openedAt: '2026-11-02T09:00:00Z', settledAt: '2026-11-10T08:30:00Z' });
   });
 
   it('asks again only what is not merged: an open PR every field, a closed one its state', async () => {

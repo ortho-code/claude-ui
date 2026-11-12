@@ -213,6 +213,16 @@ describe('what was last seen of the PRs', () => {
     expect(await getPrSeen()).toEqual({ 'acme/app#8': { state: 'closed', role: 'own' } });
   });
 
+  // The window writes what was seen again only when it reads differently, field order included, so a status must read back as it was kept.
+  it('keeps when a PR opened and settled, and reads a status back as it was kept, in its order', async () => {
+    const dated = { title: 'Scheduler tick per host', openedAt: '2026-11-02T09:00:00Z', settledAt: '2026-11-09T13:02:00Z', state: 'merged' as const, role: 'own' as const };
+    const open = { openedAt: '2026-11-10T07:30:00Z', state: 'open' as const, role: 'own' as const, draft: false, review: null, checks: null, conflict: false, approvals: 0, newCommits: false, reviewAsked: false, changesRequested: [] };
+    await setPrSeen({ 'acme/app#7': dated, 'acme/app#8': open });
+    expect(JSON.stringify(await getPrSeen())).toBe(JSON.stringify({ 'acme/app#7': dated, 'acme/app#8': open }));
+    await writeMetaFile({ version: 3, prSeen: { 'acme/app#9': { state: 'closed', role: 'own', openedAt: 7, settledAt: null } } });
+    expect(await getPrSeen()).toEqual({ 'acme/app#9': { state: 'closed', role: 'own' } });
+  });
+
   // As a build before roles kept them.
   it('reads a status kept without the role and review fields as not knowing them', async () => {
     await writeMetaFile({ version: 3, prSeen: { 'acme/app#7': { state: 'open', draft: false, review: 'approved', checks: null, conflict: false } } });
