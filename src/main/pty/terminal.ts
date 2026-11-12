@@ -219,6 +219,15 @@ export function describeLaunch(launch: TerminalLaunch, extra: string[]): string 
   return what;
 }
 
+/** Set once the app is quitting (`closeTerminals`): the window can still ask for a start while the quit waits, and nothing would stop that one. */
+let closed = false;
+
+/** A start refused because the app is quitting, logged before the renderer is told. */
+function refuseClosed(what: string): never {
+  log('info', 'terminal', `${what} not started: the app is quitting`);
+  throw new Error('QUITTING');
+}
+
 /** A start refused because its folder is not there, logged before the renderer is told. */
 function refuseMissing(cwd: string): never {
   log('warn', 'terminal', `refused to start: ${cwd ? `${cwd} is not there` : 'no folder given'}`);
@@ -290,6 +299,7 @@ export function registerTerminalIpc(): void {
     // HOW OFTEN depends entirely on how somebody works, so it is not worth guessing: on the machine this was written on exactly one resolved directory was missing, because a session that LEAVES a `claude -w` worktree records its original cwd and the reader follows that.
     // Somebody who removes trees while sessions still point INTO them meets it constantly.
     // Refusing here rather than only in the UI, so nothing can reach a spawn by another route.
+    if (closed) refuseClosed('session');
     if (!cwd || !existsSync(cwd)) refuseMissing(cwd);
     // Guard on the settings file's existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
     // Flags the settings file gives are checked when they are read, and a refused value is never in force, so these parse; read per start, so an edit of the file counts from the next session on.
@@ -314,6 +324,7 @@ export function registerTerminalIpc(): void {
   // Its owner, when the window names one, is which panel's shell it is, so the quit can keep where it was.
   // eslint-disable-next-line @typescript-eslint/require-await -- async for the rejection above, with nothing to await
   ipcMain.handle('terminal:startShell', async (event, cwd: string, context: PanelContext, owner?: unknown): Promise<number> => {
+    if (closed) refuseClosed('panel shell');
     if (!cwd || !existsSync(cwd)) refuseMissing(cwd);
     const file = loginShell();
     const id = spawnPty(event.sender, 'panel shell', file, ['-l', '-i'], cwd, { ...ptyEnv(), ...contextEnv(context) });
@@ -338,6 +349,12 @@ export function registerTerminalIpc(): void {
 
   // Ask claude to leave through its own exit, which is where it asks anything it has to; `thirdPress` where the caller takes the first press to go elsewhere.
   ipcMain.on('terminal:close', (_event, id: number, thirdPress: boolean) => askToLeave(id, thirdPress));
+}
+
+/** Stop every live session and shell as the app quits, and refuse any start the window asks for after. */
+export function closeTerminals(): void {
+  closed = true;
+  terminateAll('quitting');
 }
 
 /**

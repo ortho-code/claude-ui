@@ -259,6 +259,7 @@ Plain text is asked for with `NO_COLOR=1` and `TERM=dumb`, and escape sequences 
 **Stopping is the group.**
 The child is spawned `detached`, so its pid is a group id, and a stop is the same SIGTERM-then-SIGKILL escalation a session gets, shared from `shell.ts`, reading whether it worked from the child's own exit.
 A re-run stops the run before it, removing the panel from the file stops it, and quitting sweeps every live run down the same path; hiding it does not.
+A quit asked for while the window is open leaves the window running while the quit waits for the sweep to land, and it can still ask for a run then, so once the app is quitting main starts none, and the panel hears it as a run the quit stopped (`closePanels`); a window closed on macOS sweeps without refusing, since a window opened again runs its panels afresh.
 The end of the OUTPUT (`close`) and the end of the PROCESS (`exit`) are read separately: something the command started can outlive it holding the pipe, and once the leader is gone nothing may be signalled, since its pid may already belong to somebody else.
 
 **`CLAUDE_UI` is deliberately not set.**
@@ -335,6 +336,7 @@ The header says nothing of an exit, as it did with one shell (`exited N`), since
 **The same pty path as a session.**
 `terminal.ts` has one spawn for both — the terminals map, the data and exit routing, the stop escalation and the quit sweep — with the claude-specific argument building and the plain-shell start as two callers of it.
 A panel's shell is therefore stopped and swept by the same escalation as a session, asked with `SIGHUP` where a session is asked with `SIGTERM`, since an interactive bash, zsh or dash ignores `SIGTERM` ([§ Stopping a session is a request](claude.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question)), and nothing about it is a second implementation of a process the app runs.
+Once the app is quitting, main starts no session or shell either, as it starts no panel run (`closeTerminals`).
 It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` and `FORCE_HYPERLINK=1` as a session does, and NOT `CLAUDE_UI=1`: a `claude` started by hand in it must not report as one of the app's sessions.
 
 **One xterm, one router.**

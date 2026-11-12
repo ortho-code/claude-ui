@@ -287,6 +287,21 @@ describe('a run', () => {
     expect(signals(c.child.pid)).toEqual(['SIGTERM', 'SIGTERM']);
   });
 
+  // A fresh copy of the module, since refusing for good is the point, and the copy every other test runs against must stay open.
+  it('once the app is quitting, starts no run the window asks for, and tells the panel the quit stopped it; a window closed on macOS does not refuse', async () => {
+    vi.resetModules();
+    const fresh = await import('../../../../src/main/panels/panels');
+    fresh.registerPanelsIpc();
+    fresh.stopAllPanels();
+    expect(start({ entryId: 'after-close' }).child.options.cwd).toBe(process.cwd());
+    const before = spawned.length;
+    fresh.closePanels();
+    const { token } = start({ entryId: 'after-quit' });
+    expect(spawned).toHaveLength(before);
+    expect(events(token)).toEqual([{ kind: 'stopped', reason: 'quit' }]);
+    expect(logged).toContain('info panel after-quit not run: the app is quitting');
+  });
+
   it('refuses a context directory that is not there, naming it, and spawns nothing', () => {
     const { token } = start({ context: { ...CONTEXT, cwd: '/definitely/not/here' } });
     expect(spawned).toHaveLength(0);

@@ -500,6 +500,23 @@ describe('stopping a session', () => {
     expect(signals(a.proc.pid)).toContain('SIGKILL');
     expect(signals(b.proc.pid)).toContain('SIGKILL');
   });
+
+  // A fresh copy of the module, since refusing for good is the point, and the copy every other test runs against must stay open.
+  it('once the app is quitting, starts no session or panel shell the window asks for; a window closed on macOS does not refuse', async () => {
+    vi.resetModules();
+    const fresh = await import('../../../../src/main/pty/terminal');
+    fresh.registerTerminalIpc();
+    fresh.terminateAll('the window closed');
+    await start();
+    await startShell();
+    const before = spawned.length;
+    fresh.closeTerminals();
+    logged.length = 0;
+    await expect(start()).rejects.toThrow('QUITTING');
+    await expect(startShell()).rejects.toThrow('QUITTING');
+    expect(spawned).toHaveLength(before);
+    expect(logged).toEqual(['info terminal session not started: the app is quitting', 'info terminal panel shell not started: the app is quitting']);
+  });
 });
 
 describe('describeLaunch', () => {

@@ -313,17 +313,25 @@ function forward(current: Run, stderr: PanelStderr): void {
   });
 }
 
-/** Start a run for an entry, stopping the one it replaces first. */
+/** Set once the app is quitting (`closePanels`): the window can still ask for a run while the quit waits, and nothing would stop that one. */
+let closed = false;
+
+/** Start a run for an entry, stopping the one it replaces first; once the app is quitting, none starts, and the panel hears it as one the quit stopped. */
 export function run(sender: WebContents, request: PanelRunRequest): void {
+  const tell = (event: PanelRunEvent): void => {
+    if (!sender.isDestroyed()) sender.send('panel:run', request.entryId, request.token, event);
+  };
+  if (closed) {
+    log('info', 'panel', `${request.entryId} not run: the app is quitting`);
+    tell({ kind: 'stopped', reason: 'quit' });
+    return;
+  }
   const previous = runs.get(request.entryId);
   if (previous) {
     runs.delete(request.entryId);
     stopRun(previous, 'rerun');
   }
   const { cwd } = request.context;
-  const tell = (event: PanelRunEvent): void => {
-    if (!sender.isDestroyed()) sender.send('panel:run', request.entryId, request.token, event);
-  };
   // Refused rather than left to the spawn, whose error would name the shell rather than the folder.
   if (!cwd || !existsSync(cwd)) {
     const error = `${cwd || 'the context directory'} is not there`;
@@ -362,9 +370,15 @@ export function stop(entryId: string): void {
   if (current) stopRun(current, 'request');
 }
 
-/** Stop every run that is still going as the app quits, or as its window closes on macOS, down the same path as any other stop. */
+/** Stop every run that is still going as its window closes on macOS, where the app stays and a window opened again runs its panels afresh, down the same path as any other stop. */
 export function stopAllPanels(): void {
   for (const current of [...live]) stopRun(current, 'quit');
+}
+
+/** Stop every run as the app quits, and refuse any the window asks for after. */
+export function closePanels(): void {
+  closed = true;
+  stopAllPanels();
 }
 
 /** How many runs have not exited yet, for the quit to wait on. */

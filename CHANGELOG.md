@@ -41,6 +41,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A link that claude breaks over several lines opens whole wherever it is clicked, and hovering a link in a terminal shows where it goes.
   A link claude sends now shows only its text, as in a browser.
 - A session you marked read is unread again when something new needs you there, such as a merge conflict on its PR or the day you set it aside until, instead of the news arriving already read and uncounted.
+- A panel's command, a session or a panel's shell asked for while the app is quitting is no longer started, where the quit, having already stopped the others, would not have stopped it.
 
 ## 0.4.0 — 2026-11-09
 
