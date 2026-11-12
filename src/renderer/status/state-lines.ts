@@ -1,7 +1,7 @@
 import { prName, prOfReference, referenceKey, SHORT_TITLE, spansRepositories } from '../../shared/sessions/prs';
 import { isPrReason, PR_TYPES } from '../../shared/status/needs-you';
 import type { ClosedHow, NeedsYou, PrNeedsYouType, SetAside } from '../../shared/types';
-import { momentLabel } from '../ui/time-words';
+import { momentInLanguage } from '../ui/locale';
 import { isNeeds, mutedGivesWay, needsShown, rankedReasons, rankOf, shownState, showsRead, type Strength } from './shown';
 
 /**
@@ -68,7 +68,7 @@ export function needsYouLines(reasons: readonly NeedsYou[], strength: Strength, 
       return { text: `Needs you — PR ${prName(prOfReference(answer.pr), title, withRepository, SHORT_TITLE)}${title ? ' —' : ''} ${answer.types.map((type) => PR_TYPES[type]).join(', ')}`, state };
     }
     if (reason.type === 'app.was-running') return { text: WAS_RUNNING[reason.how], state };
-    if (reason.type === 'app.reminder') return { text: `Needs you — reminder for ${momentLabel(reason.at)}`, state };
+    if (reason.type === 'app.reminder') return { text: `Needs you — reminder for ${momentInLanguage(reason.at)}`, state };
     return { text: `Needs you — ${reason.type}`, state };
   });
 }
@@ -104,12 +104,12 @@ export function stateLines(states: DotStates, strength: Strength, titles: PrTitl
   });
 }
 
-/** Until when a set-aside mark holds, in the words that follow "Set aside": ", whenever", or " until Mon 3 Nov, 09:00" for one with a day. */
+/** Until when a set-aside mark holds, in the words that follow "Set aside": ", whenever", or " until Tue 3 Nov, 09:00" for one with a day. */
 export function setAsideUntil(due: number | null): string {
-  return due === null ? ', whenever' : ` until ${momentLabel(due)}`;
+  return due === null ? ', whenever' : ` until ${momentInLanguage(due)}`;
 }
 
-/** What a session's set-aside mark says, on its tooltip and in its menu's header: "Set aside, whenever", or "Set aside until Mon 3 Nov, 09:00" for one with a day. */
+/** What a session's set-aside mark says, on its tooltip and in its menu's header: "Set aside, whenever", or "Set aside until Tue 3 Nov, 09:00" for one with a day. */
 export function setAsideLabel(setAside: SetAside): string {
   return `Set aside${setAsideUntil(setAside.due)}`;
 }

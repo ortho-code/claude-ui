@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import type { NeedsYou, PrNeedsYouType } from '../../../../src/shared/types';
+import { settingsView } from '../../../../src/shared/config/settings';
+import { store } from '../../../../src/renderer/state/app';
 import { needsYouLines, setAsideLabel, setAsideUntil, stateLines, statusLabel, type DotStates } from '../../../../src/renderer/status/state-lines';
-import { momentLabel } from '../../../../src/renderer/ui/time-words';
+import { momentInLanguage } from '../../../../src/renderer/ui/locale';
 import { APP_ORDER, strengthOf, wasRunning } from '../fixtures';
+
+// The moments these lines name are written in the language of the settings, so one is set rather than the machine's being taken: Dutch, whose day and month names differ from the app's own English words.
+beforeAll(() => store.set({ settings: settingsView({ name: 'settings.json', status: 'read', error: null, json: { locale: 'nl-NL' } }) }));
 
 describe('statusLabel', () => {
   it('names each status as a state', () => {
@@ -51,7 +56,7 @@ describe('needsYouLines', () => {
   });
 
   it('says which day a reminder was for, from when it was marked', () => {
-    expect(texts([{ type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() }])).toEqual(['Needs you — reminder for Mon 2 Nov, 09:00']);
+    expect(texts([{ type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() }])).toEqual(['Needs you — reminder for ma 2 nov, 09:00']);
   });
 
   it("says which PR changed and into what, by its category's place in the order, newest first within one", () => {
@@ -119,8 +124,8 @@ describe('needsYouLines', () => {
 
   it('lists reasons of one category newest first', () => {
     const reminder: NeedsYou = { type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() };
-    expect(texts([reminder, { ...wasRunning, at: reminder.at + 1 }])).toEqual(['Needs you — was running when the app quit', 'Needs you — reminder for Mon 2 Nov, 09:00']);
-    expect(texts([reminder, { ...wasRunning, at: reminder.at - 1 }])).toEqual(['Needs you — reminder for Mon 2 Nov, 09:00', 'Needs you — was running when the app quit']);
+    expect(texts([reminder, { ...wasRunning, at: reminder.at + 1 }])).toEqual(['Needs you — was running when the app quit', 'Needs you — reminder for ma 2 nov, 09:00']);
+    expect(texts([reminder, { ...wasRunning, at: reminder.at - 1 }])).toEqual(['Needs you — reminder for ma 2 nov, 09:00', 'Needs you — was running when the app quit']);
   });
 });
 
@@ -143,7 +148,7 @@ describe('stateLines', () => {
     expect(texts({ status: 'waiting', acked: true })).toEqual(['Waiting for you (read)']);
     expect(texts({ status: 'ready', reasons: [wasRunning, { type: 'app.reminder', at: 0 }], acked: true })).toEqual([
       'Needs you — was running when the app quit (read)',
-      `Needs you — reminder for ${momentLabel(0)} (read)`,
+      `Needs you — reminder for ${momentInLanguage(0)} (read)`,
       'Ready',
     ]);
     expect(texts({ status: 'busy', reasons: [wasRunning], muted: true })).toEqual(['Busy', 'Needs you — was running when the app quit (read)']);
@@ -168,7 +173,7 @@ describe('the words of a set-aside mark', () => {
   const thursday = new Date(2026, 9, 29, 15, 30).getTime();
 
   it('names a mark by its moment or as whenever', () => {
-    expect(setAsideLabel({ due: new Date(2026, 10, 5, 9).getTime(), at: thursday })).toBe('Set aside until Thu 5 Nov, 09:00');
+    expect(setAsideLabel({ due: new Date(2026, 10, 5, 9).getTime(), at: thursday })).toBe('Set aside until do 5 nov, 09:00');
     expect(setAsideLabel({ due: null, at: thursday })).toBe('Set aside, whenever');
     expect(setAsideUntil(null)).toBe(', whenever');
   });

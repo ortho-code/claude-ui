@@ -4,7 +4,7 @@ import { dayStart, onDayAt, timeOfDay } from '../../shared/helpers/time';
 import type { SetAside } from '../../shared/types';
 import { calendar } from './calendar';
 import { setAsideUntil } from '../status/state-lines';
-import { momentLabel } from '../ui/time-words';
+import { momentInLanguage } from '../ui/locale';
 import { listen, runModal } from '../ui/modal';
 import { store } from '../state/app';
 import '../ui/pill.css';
@@ -108,7 +108,7 @@ export function setAsideDialog(target: SetAsideTarget): Promise<SetAsideAnswer |
   // Dated choices first, then Pick a date…, and Whenever last where the settings have it, so a day is what comes to hand first, since an undated mark brings nothing back by itself (decided 2026-10-29).
   const offers = setAsideOffers(presets, opened, timeOfChoice);
   const buttons: [HTMLButtonElement, Preset | 'pick'][] = [
-    ...offers.filter((offer) => offer.due !== null).map(({ preset, due }) => [choiceButton(`${presetWords(preset)} (${momentLabel(due!)})`), preset] as [HTMLButtonElement, Preset]),
+    ...offers.filter((offer) => offer.due !== null).map(({ preset, due }) => [choiceButton(`${presetWords(preset)} (${momentInLanguage(due!)})`), preset] as [HTMLButtonElement, Preset]),
     [choiceButton('Pick a date…'), 'pick'],
     ...offers.filter((offer) => offer.due === null).map(({ preset }) => [choiceButton(presetWords(preset)), preset] as [HTMLButtonElement, Preset]),
   ];

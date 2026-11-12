@@ -8,8 +8,8 @@ test("the language is the system's until a tag is saved into settings.json, and 
   const dialog = await openSettings(page);
   const language = dialog.getByLabel('Language for times and dates');
   await expect(language).toHaveValue('');
-  // The checks' browser reads its system as en-US, as Chromium reads this machine's C.
-  await expect(language).toHaveAttribute('placeholder', 'en-US');
+  // The checks' browser runs in nl-NL (playwright.config.ts).
+  await expect(language).toHaveAttribute('placeholder', 'nl-NL');
   await expect(dialog).toContainText('Time fields follow this from the next launch; the rest of the app at once.');
 
   // What a machine's LANG holds is no language tag.

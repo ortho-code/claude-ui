@@ -1,18 +1,19 @@
-import { language, onLanguageChange } from './locale';
+import { momentInLanguage, onLanguageChange } from './locale';
 import { setTooltip } from './tooltip';
 
 /**
- * A MOMENT ON SCREEN: an element that says when something happened, in words that may say how long ago ("5 min ago", `relativeTime`), with the moment in full in its tooltip.
+ * A MOMENT ON SCREEN: an element that says when something happened, in words that may say how long ago ("5 min ago", `relativeTime`), with what the moment is and the moment in full in its tooltip ("Last active: Tue 3 Nov, 09:00").
  * Such words go out of date while nothing in the store moves, and the surfaces that draw them draw again only when something does, or never, as the history keeps each exchange it has drawn.
  * So an element that keeps such words on screen is handed here, and drawn again on one clock, once a minute while it is in the page: a minute is the finest step `relativeTime` takes past "just now".
  * What it says is asked again at each tick rather than kept, so one whose moment moved without its surface drawing again, the row of a session claude is writing to, says the new one at the next tick.
  * A change of the language ticks at once, so every tooltip says its moment in the new one.
  */
 
-/** What an element says of a moment, and the moment itself as an ISO time, or null when it is not known. */
+/** What an element says of a moment, the moment itself as an ISO time, or null when it is not known, and what the moment is, "Last active", which leads its tooltip. */
 export interface Moment {
   text: string;
   at: string | null;
+  label: string;
 }
 
 const MINUTE = 60_000;
@@ -46,9 +47,9 @@ function tick(): void {
 }
 
 /** The words only where they changed, since most do not from one minute to the next. */
-function draw(el: HTMLElement, { text, at }: Moment): void {
+function draw(el: HTMLElement, { text, at, label }: Moment): void {
   if (el.textContent !== text) el.textContent = text;
-  setTooltip(el, at && new Date(at).toLocaleString(language()));
+  setTooltip(el, at && `${label}: ${momentInLanguage(Date.parse(at))}`);
 }
 
 onLanguageChange(tick);

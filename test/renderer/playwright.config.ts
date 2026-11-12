@@ -25,6 +25,9 @@ export default defineConfig({
     browserName: 'chromium',
     viewport: { width: 1280, height: 800 },
     timezoneId: TIME_ZONE,
+    // One language wherever the checks run: while the settings name none, the window writes moments and starts a calendar's weeks in the system's language, which differs between machines.
+    // Dutch rather than English, so a date that does not follow the language, written in the app's own English words, shows in every check that reads one.
+    locale: 'nl-NL',
     trace: 'retain-on-failure',
   },
 });

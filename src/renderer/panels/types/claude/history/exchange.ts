@@ -38,7 +38,7 @@ export function exchangeNode(exchange: Exchange, index: number, drawing: Exchang
   meta.className = 'exchange-meta';
   const when = document.createElement('span');
   // On the clock, since an exchange once drawn is kept as it is.
-  const moment = (): Moment => ({ text: `#${index + 1} · ${exchange.time ? relativeTime(exchange.time) : ''}`, at: exchange.time || null });
+  const moment = (): Moment => ({ text: `#${index + 1} · ${exchange.time ? relativeTime(exchange.time) : ''}`, at: exchange.time || null, label: 'Sent' });
   showMoment(when, moment(), moment);
   const marks = [MARKS[exchange.kind], exchange.replaced ? REPLACED : undefined, exchange.rewound ? REWOUND : undefined].filter((m): m is [string, string] => m !== undefined);
   for (const [label, tooltip] of marks) {

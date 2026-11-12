@@ -59,7 +59,7 @@ While such a library moves the elements itself, the surface does not draw: durin
 "5 min ago" goes out of date while nothing in the store moves, so a surface that draws only when the store tells it, or never again, as the history keeps each exchange it has drawn, leaves it frozen; the session list's rows did, until something else redrew the list.
 So such an element is handed to `showMoment` (`moments.ts`) with its words and its moment, and drawn again every minute while it is in the page, a minute being the finest step `relativeTime` takes past "just now": a session row's time, the finished view's, and an exchange's in the history.
 What it says is asked for again at each tick rather than kept: a row asks of the newest listing, which the store keeps even when its equality told nobody ([§ The store](processes.md#the-store)), so a session claude is writing to moves its row's time without the list redrawing for it, and `AFFECTS_ROW.lastActivity` stays `false`.
-Each carries its moment in full as its tooltip where the moment is known, in one format, `toLocaleString`.
+Each carries its moment in full as its tooltip where the moment is known, led by what the moment is, "Last active: Tue 3 Nov, 09:00", "Finished: …" or "Sent: …", in the one format every moment takes ([§ The language](window.md#the-language)).
 A copy of a tick took 1–2 ms over 519 rows in headless Chromium, about 45 of them changing (2026-10-22); the app itself was not measured.
 A menu is written when it opens and is not on the clock, so an open kebab menu's times follow the store, as said above of an open kebab menu.
 

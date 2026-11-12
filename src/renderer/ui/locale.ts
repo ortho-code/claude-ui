@@ -1,4 +1,5 @@
 import { store } from '../state/app';
+import { momentLabel } from './time-words';
 
 /**
  * THE LANGUAGE THE APP FORMATS TIMES AND DATES IN: the language setting's (`Settings.locale`), or the window's own while the setting says the system's.
@@ -17,6 +18,11 @@ export function languageOf(setting: string, system: string): string {
 /** The language in force now, from the store's settings; the window's own before they are read. */
 export function language(): string {
   return languageOf(store.get().settings?.locale.value ?? '', navigator.language);
+}
+
+/** A moment as the language in force writes it (`momentLabel`): how the app gives every moment in full. */
+export function momentInLanguage(at: number): string {
+  return momentLabel(at, language());
 }
 
 /** The day `tag` starts its weeks on, counted as the calendars count, 0 for Sunday to 6 for Saturday. */

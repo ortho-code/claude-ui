@@ -64,7 +64,7 @@ test('news while set aside offers its two choices in words, showing it now until
 test("Set aside…'s dated choices come due at the time the settings say, and Pick a date…'s time starts at it", async ({ app, page }) => {
   await page.clock.setFixedTime(new Date(2026, 9, 29, 15, 30));
   await app.boot({ sessions: [one], settings: settingsFileWith('settings.json', { setAsideTime: '17:30' }) });
-  await expect(await choicesOffered(page)).toHaveText(['Tomorrow (Fri 30 Oct, 17:30)', 'In 1 week (Thu 5 Nov, 17:30)', 'Pick a date…', 'Whenever']);
+  await expect(await choicesOffered(page)).toHaveText(['Tomorrow (vr 30 okt, 17:30)', 'In 1 week (do 5 nov, 17:30)', 'Pick a date…', 'Whenever']);
   await expect(page.locator('#set-aside-time')).toHaveValue('17:30');
 });
 
@@ -87,7 +87,7 @@ test('the choices show as written, a wrong one is refused under the field, and s
   await expect(dialog).toBeHidden();
   expect(await page.evaluate(() => window.__claudeUiFixture.settings.json)).toEqual({ setAside: ['next monday 08:00', 'in 2h', 'whenever'] });
 
-  await expect(await choicesOffered(page)).toHaveText(['In 2 hours (Thu 29 Oct, 17:30)', 'Next Monday (Mon 2 Nov, 08:00)', 'Pick a date…', 'Whenever']);
+  await expect(await choicesOffered(page)).toHaveText(['In 2 hours (do 29 okt, 17:30)', 'Next Monday (ma 2 nov, 08:00)', 'Pick a date…', 'Whenever']);
 });
 
 test("a list in the file with a choice that does not read is not used, and says why under the field, today's three in force", async ({ app, page }) => {
@@ -99,5 +99,5 @@ test("a list in the file with a choice that does not read is not used, and says 
   );
   await dialog.getByRole('button', { name: 'Cancel' }).click();
 
-  await expect(await choicesOffered(page)).toHaveText(['Tomorrow (Fri 30 Oct, 09:00)', 'In 1 week (Thu 5 Nov, 09:00)', 'Pick a date…', 'Whenever']);
+  await expect(await choicesOffered(page)).toHaveText(['Tomorrow (vr 30 okt, 09:00)', 'In 1 week (do 5 nov, 09:00)', 'Pick a date…', 'Whenever']);
 });

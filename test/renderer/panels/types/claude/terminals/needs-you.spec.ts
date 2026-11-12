@@ -105,10 +105,10 @@ test('a strength order with a mistake is not used, and Settings says why', async
 test("a session with two reasons lists both in its dot's tooltip and its menu's header, and a prompt takes both off", async ({ app, page }) => {
   const reminder = { type: 'app.reminder' as const, at: new Date(2026, 10, 2, 9).getTime() };
   await app.boot({ ...fixture, needsYou: { [one.id]: [mark, reminder] } });
-  for (const dot of dots(page)) await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — reminder for Mon 2 Nov, 09:00\nNeeds you — was running when the app quit');
+  for (const dot of dots(page)) await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — reminder for ma 2 nov, 09:00\nNeeds you — was running when the app quit');
   await row(page, one.title).locator('.session-kebab').click();
   const dotted = page.locator('.kebab-menu .menu-header .menu-header-line.dotted');
-  await expect(dotted).toHaveText(['Needs you — reminder for Mon 2 Nov, 09:00', 'Needs you — was running when the app quit']);
+  await expect(dotted).toHaveText(['Needs you — reminder for ma 2 nov, 09:00', 'Needs you — was running when the app quit']);
   for (const line of await dotted.all()) await expect(line.locator('.nudge')).toHaveClass(/\bneeds\b/);
   await page.keyboard.press('Escape');
 

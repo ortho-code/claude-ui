@@ -10,17 +10,13 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
   return `${Math.round(hours / 24)} d ago`;
 }
 
-/** A day in the app's own short form, "Mon 3 Nov", whatever the system's language, as the rest of its words are English. */
-export function dayLabel(at: number): string {
-  const day = new Date(at);
-  return `${WEEKDAYS[day.getDay()]} ${day.getDate()} ${MONTHS[day.getMonth()]}`;
-}
-
-/** A moment as its day (`dayLabel`) and its time in 24 hours, "Mon 3 Nov, 09:00". */
-export function momentLabel(at: number): string {
+/**
+ * A moment as the language `tag` writes its day and its time to the minute: "Tue 3 Nov, 09:00" in en-GB, "Tue, Nov 3, 9:00 AM" in en-US, "di 3 nov, 09:00" in nl-NL.
+ * The year only where it is not the year of `now`, since a weekday and a date name a day well enough within the year.
+ */
+export function momentLabel(at: number, tag: string, now: number = Date.now()): string {
   const moment = new Date(at);
-  return `${dayLabel(at)}, ${String(moment.getHours()).padStart(2, '0')}:${String(moment.getMinutes()).padStart(2, '0')}`;
+  const otherYear = moment.getFullYear() !== new Date(now).getFullYear();
+  const day = new Intl.DateTimeFormat(tag, { weekday: 'short', day: 'numeric', month: 'short', ...(otherYear ? { year: 'numeric' } : {}) }).format(moment);
+  return `${day}, ${new Intl.DateTimeFormat(tag, { timeStyle: 'short' }).format(moment)}`;
 }
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;

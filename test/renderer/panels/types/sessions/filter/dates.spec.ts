@@ -87,13 +87,15 @@ test("the calendar starts its weeks on the language's first day, an open one fol
   await preset(page, 'custom').click();
   await page.locator('#date-range-label').click();
   const firstDayName = page.locator('#date-range .air-datepicker-body--day-name').first();
-  // The checks' browser reads its system as en-US, whose weeks start on Sunday.
-  await expect(firstDayName).toHaveText(/^su$/i);
-
-  await app.settingsOnDisk(settingsFileWith('settings.json', { locale: 'en-GB' }));
+  // The checks' browser runs in nl-NL (playwright.config.ts), whose weeks start on Monday.
   await expect(firstDayName).toHaveText(/^mo$/i);
   // The first of September 2026 is a Tuesday, so a week from Monday puts one day of August before it.
   await expect(page.locator('#date-range .air-datepicker-cell.-day-').first()).toHaveAttribute('data-date', '31');
+
+  await app.settingsOnDisk(settingsFileWith('settings.json', { locale: 'en-US' }));
+  await expect(firstDayName).toHaveText(/^su$/i);
+  // A week from Sunday puts two days of August before it.
+  await expect(page.locator('#date-range .air-datepicker-cell.-day-').first()).toHaveAttribute('data-date', '30');
 });
 
 test('a stored custom range comes back as it was picked', async ({ app, page }) => {

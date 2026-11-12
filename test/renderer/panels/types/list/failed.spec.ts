@@ -14,9 +14,9 @@ test("the failed run's line says its times in the language of the settings, foll
   const { token } = (await runs(app, 'changes'))[1];
   await app.emit('onPanelRun', 'changes', token, { kind: 'exit', code: 1, signal: null });
   const line = page.locator('.list-failed');
-  // The checks' browser reads its system as en-US.
-  await expect(line).toHaveText('The run at 03:30 PM failed: the script exited with 1. This is the list from 03:30 PM.');
-
-  await app.settingsOnDisk(settingsFileWith('settings.json', { locale: 'en-GB' }));
+  // The checks' browser runs in nl-NL (playwright.config.ts).
   await expect(line).toHaveText('The run at 15:30 failed: the script exited with 1. This is the list from 15:30.');
+
+  await app.settingsOnDisk(settingsFileWith('settings.json', { locale: 'en-US' }));
+  await expect(line).toHaveText('The run at 03:30 PM failed: the script exited with 1. This is the list from 03:30 PM.');
 });

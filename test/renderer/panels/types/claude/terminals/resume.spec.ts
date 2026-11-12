@@ -76,7 +76,7 @@ test('a marked session left unopened through a launch is still marked at the nex
 test('a session that was running comes back with how the app closed beside its reminder, listed first', async ({ app, page }) => {
   const day = new Date(2026, 10, 2, 9).getTime();
   await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.reminder', at: day }], [two.id]: [{ type: 'app.was-running', at: 1, how: 'ended' }] } });
-  await expect(tab(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit\nNeeds you — reminder for Mon 2 Nov, 09:00');
+  await expect(tab(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit\nNeeds you — reminder for ma 2 nov, 09:00');
   await expect(tab(page, two.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit');
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou[window.__claudeUiFixture.sessions[0].id])).toEqual([
     { type: 'app.reminder', at: day },

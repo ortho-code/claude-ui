@@ -72,22 +72,32 @@ test("the dialog's days: tomorrow and in a week, the same weekday, named and mar
   await app.boot(fixture);
   await openSetAside(page, one.title);
   await expect(page.locator('#set-aside-title')).toHaveText(`Set aside: ${one.title}`);
-  await expect(choices(page)).toHaveText(['Tomorrow (Fri 30 Oct, 09:00)', 'In 1 week (Thu 5 Nov, 09:00)', 'Pick a date…', 'Whenever']);
+  await expect(choices(page)).toHaveText(['Tomorrow (vr 30 okt, 09:00)', 'In 1 week (do 5 nov, 09:00)', 'Pick a date…', 'Whenever']);
   await choice(page, /^In 1 week/).click();
   await expect(choice(page, /^In 1 week/)).toHaveAttribute('aria-pressed', 'true');
   await ok(page).click();
   expect((await app.calls('markSetAside')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], await momentInPage(page, 2026, 10, 5, 9, 0)]]);
-  for (const mark of marks(page)) await expect(mark).toHaveAttribute('data-tooltip', 'Set aside until Thu 5 Nov, 09:00');
+  for (const mark of marks(page)) await expect(mark).toHaveAttribute('data-tooltip', 'Set aside until do 5 nov, 09:00');
 
   await row(page, one.title).locator('.session-kebab').click();
-  await expect(page.locator('.kebab-menu .menu-header .menu-header-line', { hasText: /^Set aside until Thu 5 Nov, 09:00$/ })).toHaveCount(1);
+  await expect(page.locator('.kebab-menu .menu-header .menu-header-line', { hasText: /^Set aside until do 5 nov, 09:00$/ })).toHaveCount(1);
+});
+
+test("the dialog's days and the mark say their moment in the language of the settings", async ({ app, page }) => {
+  await page.clock.setFixedTime(THURSDAY);
+  await app.boot({ ...fixture, settings: settingsFileWith('settings.json', { locale: 'en-US' }) });
+  await openSetAside(page, one.title);
+  await expect(choices(page)).toHaveText(['Tomorrow (Fri, Oct 30, 9:00 AM)', 'In 1 week (Thu, Nov 5, 9:00 AM)', 'Pick a date…', 'Whenever']);
+  await choice(page, /^In 1 week/).click();
+  await ok(page).click();
+  for (const mark of marks(page)) await expect(mark).toHaveAttribute('data-tooltip', 'Set aside until Thu, Nov 5, 9:00 AM');
 });
 
 test('on a Sunday, in a week is the next Sunday, not the same day as tomorrow', async ({ app, page }) => {
   await page.clock.setFixedTime(new Date(2026, 10, 1, 10, 0));
   await app.boot(fixture);
   await openSetAside(page, one.title);
-  await expect(choices(page)).toHaveText(['Tomorrow (Mon 2 Nov, 09:00)', 'In 1 week (Sun 8 Nov, 09:00)', 'Pick a date…', 'Whenever']);
+  await expect(choices(page)).toHaveText(['Tomorrow (ma 2 nov, 09:00)', 'In 1 week (zo 8 nov, 09:00)', 'Pick a date…', 'Whenever']);
 });
 
 test("the settings' own choices come in the order they would come, Pick a date… before Whenever, and one in hours counts from the press of Set aside", async ({ app, page }) => {
@@ -95,7 +105,7 @@ test("the settings' own choices come in the order they would come, Pick a date�
   await app.boot({ ...fixture, settings: settingsFileWith('settings.json', { setAside: ['whenever', 'next monday', 'in 2h', 'in 1d', 'tomorrow 08:00'] }) });
   await openSetAside(page, one.title);
   // In 1 day and tomorrow at 08:00 fall on the same day at different times, so both stay.
-  await expect(choices(page)).toHaveText(['In 2 hours (Thu 29 Oct, 17:30)', 'Tomorrow (Fri 30 Oct, 08:00)', 'In 1 day (Fri 30 Oct, 09:00)', 'Next Monday (Mon 2 Nov, 09:00)', 'Pick a date…', 'Whenever']);
+  await expect(choices(page)).toHaveText(['In 2 hours (do 29 okt, 17:30)', 'Tomorrow (vr 30 okt, 08:00)', 'In 1 day (vr 30 okt, 09:00)', 'Next Monday (ma 2 nov, 09:00)', 'Pick a date…', 'Whenever']);
   await choice(page, /^In 2 hours/).click();
   await page.clock.runFor(5 * 60_000);
   await ok(page).click();
@@ -111,7 +121,7 @@ test('without whenever in the settings, Pick a date… comes last, and two choic
   await page.clock.setFixedTime(THURSDAY);
   await app.boot({ ...fixture, settings: settingsFileWith('settings.json', { setAside: ['in 1d', 'tomorrow'] }) });
   await openSetAside(page, one.title);
-  await expect(choices(page)).toHaveText(['In 1 day (Fri 30 Oct, 09:00)', 'Pick a date…']);
+  await expect(choices(page)).toHaveText(['In 1 day (vr 30 okt, 09:00)', 'Pick a date…']);
 });
 
 test('Set aside waits for a choice, and Pick a date… opens a day no earlier than tomorrow and a time starting at the settings\' inside the dialog, and marks the session until that moment', async ({ app, page }) => {
@@ -132,7 +142,7 @@ test('Set aside waits for a choice, and Pick a date… opens a day no earlier th
   await ok(page).click();
   await expect(dialog(page)).toBeHidden();
   expect((await app.calls('markSetAside')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], await momentInPage(page, 2026, 9, 31, 14, 15)]]);
-  await expect(row(page, one.title).locator('.set-aside-mark')).toHaveAttribute('data-tooltip', 'Set aside until Sat 31 Oct, 14:15');
+  await expect(row(page, one.title).locator('.set-aside-mark')).toHaveAttribute('data-tooltip', 'Set aside until za 31 okt, 14:15');
 });
 
 test("the dialog holds the session's note as where it stands, the caret at its end, and Set aside leaves an unchanged note unwritten", async ({ app, page }) => {
@@ -193,7 +203,7 @@ test('one already set aside says until when under the title, chooses nothing, an
   await page.clock.setFixedTime(THURSDAY);
   await app.boot({ ...fixture, setAside: { [one.id]: { due: new Date(2026, 10, 5, 9, 0).getTime(), at: 1 } } });
   await openSetAside(page, one.title);
-  await expect(page.locator('#set-aside-now')).toHaveText('Now set aside until Thu 5 Nov, 09:00.');
+  await expect(page.locator('#set-aside-now')).toHaveText('Now set aside until do 5 nov, 09:00.');
   await expect(page.locator('#set-aside-choices button[aria-pressed="true"]')).toHaveCount(0);
   await expect(ok(page)).toBeDisabled();
   await choice(page, /^Whenever$/).click();
@@ -279,7 +289,7 @@ test('a day that came while the app was closed makes the session need you at lau
   const due = new Date(2026, 9, 28, 9, 0).getTime();
   await app.boot({ ...fixture, setAside: { [one.id]: { due, at: 1 } } });
   await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
-  await expect(row(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — reminder for Wed 28 Oct, 09:00');
+  await expect(row(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — reminder for wo 28 okt, 09:00');
   for (const mark of marks(page)) await expect(mark).toBeHidden();
   expect(await app.calls('setAsideCameDue')).toHaveLength(1);
 });
@@ -348,7 +358,7 @@ test('a session marked read whose day comes is unread again, with the reminder',
   await dot.click();
   await expect(dot).toHaveClass(/\backed\b/);
   await page.clock.fastForward('11:00');
-  await expect(dot).toHaveAttribute('data-tooltip', /reminder for Fri 30 Oct, 08:10/);
+  await expect(dot).toHaveAttribute('data-tooltip', /reminder for vr 30 okt, 08:10/);
   await expect(dot).not.toHaveClass(/\backed\b/);
 });
 
