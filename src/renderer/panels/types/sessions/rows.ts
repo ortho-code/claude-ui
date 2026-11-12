@@ -255,14 +255,11 @@ export function showTabMarks(marks: RowTabMarks, id: string, view: View<'schedul
 }
 
 /**
- * What a row drawn flat says ahead of the rest of its line, and in place of what.
- * `lead`: where it sits, where no heading above it says so.
- * `why`: for a row of the review (docs/architecture/session-list.md § The review), the line saying why it is there, in place of what the row says otherwise; null for a row that says it: its time and model, or in the finished view when it was finished.
- * Both worked out again on the minute clock like the time they lead or replace, of the session as the newest listing has it.
+ * What a row drawn flat says ahead of the rest of its line: where it sits, where no heading above it says so.
+ * Worked out again on the minute clock like the time it leads, of the session as the newest listing has it.
  */
 export interface FlatLine {
   lead: (shown: SessionSummary) => string | null;
-  why: ((shown: SessionSummary) => Moment) | null;
 }
 
 /** Bring `row` up to date for `session`; `flat` for a row drawn flat (list.ts), which leads its line with where it sits. */
@@ -322,7 +319,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   // When it was finished in the finished view, where every session is; when it was active everywhere else.
   // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, rules/sessions.ts), and so is the row's tooltip, which says everything the row shows (`rowTooltip`) wherever on the row you hover; a button or mark with a tooltip of its own keeps it, the nearest tooltip being the one shown.
   const moment = (shown: SessionSummary, as: RowView): Moment => {
-    const own = flat?.why?.(shown) ?? (finishedView ? finishedMoment(shown, as) : null) ?? activityMoment(shown, as);
+    const own = (finishedView ? finishedMoment(shown, as) : null) ?? activityMoment(shown, as);
     const lead = flat?.lead(shown) ?? null;
     const text = lead ? `${lead} · ${own.text}` : own.text;
     const tab = tabWith(shown.id, as);

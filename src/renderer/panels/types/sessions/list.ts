@@ -163,7 +163,7 @@ function listShape(view: ListView): ListShape {
 
 /** The keys of the rows a shape draws, in the order it draws them: a project's groups' rows, then its loose rows (`reconcileProjectSections`), each set's rows in turn, or Recent's. */
 function keysOf(shape: ListShape): string[] {
-  if ('review' in shape) return shape.review.flatMap((set) => set.rows.map(({ session }) => entityKey(session)));
+  if ('review' in shape) return shape.review.flatMap((set) => set.rows.map(entityKey));
   if ('recent' in shape) return shape.recent.map(entityKey);
   return shape.tree.flatMap((project) => [...project.groups.flatMap((g) => g.sessions), ...project.loose].map(entityKey));
 }
@@ -200,7 +200,7 @@ function renderList(view: ListView): void {
     if (shape.recent.length === 0) showEmpty(shape.finished ?? nothing, view);
     else {
       // One section without a heading; its id is its own for good, never one of the review's (`FlatSection`).
-      renderSections([{ id: 'recent', heading: null, rows: shape.recent, why: null }], view);
+      renderSections([{ id: 'recent', heading: null, rows: shape.recent }], view);
       updateCollapseToggle(view);
     }
     return;
@@ -247,7 +247,7 @@ function renderSections(sections: readonly FlatSection[], view: ListView): void 
       els.heading.note.hidden = section.heading.note === null;
     }
     // Where it sits, worked out again at each tick from the store as it then is.
-    const line: FlatLine = { lead: (shown) => whereOf(shown, store.get()), why: section.why };
+    const line: FlatLine = { lead: (shown) => whereOf(shown, store.get()) };
     const rows = section.rows.map((session) => {
       const row = drawRow(entityKey(session));
       updateRow(row, session, view, line);

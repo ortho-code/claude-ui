@@ -280,7 +280,7 @@ export function verdictOf(pr: PrRef, read: PrStatusRead, rules: PrRules): PrVerd
 }
 
 /** A PR's status from main's answer, null while main could not ask GitHub, whatever it still holds from before. */
-export function knownStatus(pr: PrRef, read: PrStatusRead): PrStatus | null {
+function knownStatus(pr: PrRef, read: PrStatusRead): PrStatus | null {
   return read.problem === null ? (read.statuses[prKey(pr)] ?? null) : null;
 }
 

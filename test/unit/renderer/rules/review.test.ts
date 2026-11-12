@@ -17,7 +17,7 @@ function session(id: string, days: number, prs: number[] = []): SessionSummary {
 
 function facts(overrides: Partial<ReviewFacts> = {}): ReviewFacts {
   return {
-    tabbed: new Set(), finished: new Set(), pendingDeletes: new Set(), setAside: new Map(), kept: new Map(), notes: new Map(), prNames: new Map(),
+    tabbed: new Set(), finished: new Set(), pendingDeletes: new Set(), setAside: new Map(), kept: new Map(),
     prStatus: {
       statuses: {
         'acme/app#1': { state: 'merged', role: 'own' },
@@ -31,7 +31,7 @@ function facts(overrides: Partial<ReviewFacts> = {}): ReviewFacts {
   };
 }
 
-const ids = (sections: ReturnType<typeof reviewSections>): string[][] => sections.map((section) => section.rows.map((row) => row.session.id));
+const ids = (sections: ReturnType<typeof reviewSections>): string[][] => sections.map((section) => section.rows.map((row) => row.id));
 
 describe('the terms', () => {
   it('untouched: more than the days given since last active, at either side of the bound', () => {
@@ -82,39 +82,6 @@ describe('the sets', () => {
     expect(ids(reviewSections([old], facts({ kept: new Map([['old', NOW - 31 * DAY]]) }), NOW))).toEqual([[], ['old']]);
   });
 
-  it('say why each row is there, naming its PRs, its time when they settled', () => {
-    const dated = facts({
-      prStatus: {
-        statuses: {
-          'acme/app#1': { state: 'merged', role: 'own', settledAt: ago(1) },
-          'acme/app#2': { state: 'closed', role: 'own', settledAt: ago(2) },
-          'acme/app#4': { state: 'merged', role: 'own' },
-        },
-        problem: null,
-      },
-      prNames: new Map([['acme/app#1', { title: 'Scheduler tick per host' }]]),
-      notes: new Map([['noted', 'blocked on design\nmore']]),
-    });
-    const sections = reviewSections([session('one', 2, [1]), session('two', 3, [1, 2]), session('closed', 4, [2]), session('undated', 5, [4]), session('noted', 41)], dated, NOW);
-    expect(sections[0]?.rows.map((row) => row.why)).toEqual([
-      { text: '#4 · merged · active 5 d ago', at: ago(5), label: 'Last active' },
-      { text: '#2 · closed 2 d ago', at: ago(2), label: 'Closed' },
-      { text: '2 PRs: 1 merged, 1 closed · last 1 d ago', at: ago(1), label: 'Last merged or closed' },
-      { text: '#1 · Scheduler tick per host · merged 1 d ago', at: ago(1), label: 'Merged' },
-    ]);
-    expect(sections[1]?.rows.map((row) => row.why)).toEqual([{ text: '41 days · note: “blocked on design”', at: ago(41), label: 'Last active' }]);
-  });
-
-  // A latest settle among some dates could be earlier than one not known.
-  it('take the last activity as the moment of several PRs where any has no date', () => {
-    const some = facts({ prStatus: { statuses: { 'acme/app#1': { state: 'merged', role: 'own', settledAt: ago(1) }, 'acme/app#4': { state: 'merged', role: 'own' } }, problem: null } });
-    expect(reviewSections([session('mixed', 6, [1, 4])], some, NOW)[0]?.rows[0]?.why).toEqual({ text: '2 PRs: 2 merged · active 6 d ago', at: ago(6), label: 'Last active' });
-  });
-
-  it('name the PRs of an untouched session too, between its days and its note', () => {
-    const sections = reviewSections([session('one', 45, [3]), session('two', 50, [1, 3])], facts({ notes: new Map([['one', 'waits for review']]) }), NOW);
-    expect(sections[1]?.rows.map((row) => row.why.text)).toEqual(['50 days · 2 PRs: 1 merged, 1 open', '45 days · #3 · open · note: “waits for review”']);
-  });
 });
 
 describe("Ready to finish's line", () => {

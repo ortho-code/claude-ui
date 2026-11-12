@@ -29,7 +29,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Closing the tab of a session that is set aside says until when, and offers Clear set aside.
 - Undo of a close, a finish or a set aside brings the tab that was on show back on show.
 - Hovering a time says what it is, such as "Last active: Tue 3 Nov, 09:00", and that time, a set-aside date and a reminder's date follow the language in Settings, in one format, to the minute.
-- A row in the review names its PR, by its title once GitHub has given one, or counts its several by state, and a session ready to finish shows when they merged or closed, where GitHub has said, instead of when it was last active.
+- A row in the review reads as it does anywhere in the list, with its time and model, since its set's heading already says why it is there.
+  Its PRs and when they merged or closed are in its tooltip.
 - Hovering anywhere on a session's row shows its name, its line in full, its state, its times, its PRs with their dates where GitHub gave them, and its whole note, where the name and the time each had a tooltip of their own before.
 
 ### Fixed

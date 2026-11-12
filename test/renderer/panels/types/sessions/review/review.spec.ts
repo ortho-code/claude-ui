@@ -4,7 +4,7 @@ import { HOME, PROJECT, session, settingsFileWith } from '../../../../support/fi
 import { expect, test } from '../../../../support/harness';
 import { row, toastButton } from '../../../../support/window';
 
-// The review (docs/architecture/session-list.md § The review): the Review button opens the list in bulk mode on two sets, Ready to finish (every linked PR merged or closed) and Untouched 30+ days, of the sessions without a tab, not finished, not set aside and not kept, each row saying why it is there.
+// The review (docs/architecture/session-list.md § The review): the Review button opens the list in bulk mode on two sets, Ready to finish (every linked PR merged or closed) and Untouched 30+ days, of the sessions without a tab, not finished, not set aside and not kept, each set's heading saying why its rows are there.
 const DAY = 86_400_000;
 // Wednesday 4 November 2026, noon, in the window's own time zone.
 const NOW = new Date(2026, 10, 4, 12, 0);
@@ -31,7 +31,7 @@ const fixture = {
 const button = (page: Page): Locator => page.locator('#review-button');
 const setNames = (page: Page): Locator => page.locator('#sessions .flat-section > .section-heading .label');
 const setRows = (page: Page, name: string): Locator => page.locator('#sessions .flat-section', { has: page.locator('.section-heading .label', { hasText: name }) }).locator('.session .card-title');
-const why = (page: Page, title: string): Locator => row(page, title).locator('.meta-text');
+const line = (page: Page, title: string): Locator => row(page, title).locator('.meta-text');
 const act = (page: Page, name: string): Locator => page.locator(`#bulk-bar [data-act="${name}"]`);
 
 test.beforeEach(async ({ page }) => {
@@ -45,7 +45,7 @@ test("the button counts the review in the project on show, and every project's i
   await expect(button(page).locator('.review-count')).toHaveText('3');
 });
 
-test('opening it shows the two sets, each row saying why it is there, and sets the filter aside until Done', async ({ app, page }) => {
+test('opening it shows the two sets, each row reading as it does anywhere in the list, and sets the filter aside until Done', async ({ app, page }) => {
   await app.boot({ ...fixture, notes: { [old.id]: 'blocked on design' } });
   await page.locator('#filter-toggle').click();
   await page.locator('#search').fill('Fresh');
@@ -53,13 +53,10 @@ test('opening it shows the two sets, each row saying why it is there, and sets t
   await expect(setNames(page)).toHaveText(['Ready to finish', 'Untouched 30+ days']);
   await expect(setRows(page, 'Ready to finish')).toHaveText([ready.title]);
   await expect(setRows(page, 'Untouched 30+ days')).toHaveText([old.title]);
-  await expect(why(page, ready.title)).toHaveText('#1 · Ship the scheduler · merged 1 d ago');
-  await expect(row(page, ready.title)).toHaveAttribute(
-    'data-tooltip',
-    [ready.title, '#1 · Ship the scheduler · merged 1 d ago', 'Merged: di 3 nov, 12:00', 'Last active: zo 1 nov, 12:00', '#1 · Ship the scheduler — acme/app · merged di 3 nov, 12:00'].join('\n'),
-  );
-  await expect(why(page, old.title)).toHaveText('41 days · note: “blocked on design”');
-  await expect(row(page, old.title)).toHaveAttribute('data-tooltip', [old.title, '41 days · note: “blocked on design”', 'Last active: do 24 sep, 13:00', 'Note: blocked on design'].join('\n'));
+  await expect(line(page, ready.title)).toHaveText('3 d ago · Opus 5.5');
+  await expect(row(page, ready.title)).toHaveAttribute('data-tooltip', [ready.title, '3 d ago · Opus 5.5', 'Last active: zo 1 nov, 12:00', '#1 · Ship the scheduler — acme/app · merged di 3 nov, 12:00'].join('\n'));
+  await expect(line(page, old.title)).toHaveText('41 d ago · Opus 5.5');
+  await expect(row(page, old.title)).toHaveAttribute('data-tooltip', [old.title, '41 d ago · Opus 5.5', 'Last active: do 24 sep, 13:00', 'Note: blocked on design'].join('\n'));
   await expect(page.locator('#filter-toggle')).toBeHidden();
   await expect(page.locator('#bulk-line')).toContainText('Review');
   await expect(page.locator('#bulk-line .bulk-count')).toHaveText('demo · 2 to decide · 0 ticked');
@@ -85,11 +82,11 @@ test('opening and ending it are noted in the usage record, with its scope and wh
   ]);
 });
 
-test('in All a row says which project and group it sits in, ahead of why', async ({ app, page }) => {
+test('in All a row says which project and group it sits in, ahead of its time', async ({ app, page }) => {
   await app.boot({ ...fixture, activeProject: null, groupState: { groups: [{ id: 'g-ideas', name: 'Ideas', repoRoot: PROJECT }], groupOf: { [old.id]: 'g-ideas' } } });
   await button(page).click();
-  await expect(why(page, old.title)).toHaveText('demo › Ideas · 41 days');
-  await expect(why(page, elsewhere.title)).toHaveText('other · 60 days');
+  await expect(line(page, old.title)).toHaveText('demo › Ideas · 41 d ago · Opus 5.5');
+  await expect(line(page, elsewhere.title)).toHaveText('other · 60 d ago · Opus 5.5');
 });
 
 test('Keep takes the ticked rows out of the review until 30 days have passed, and Undo brings them back', async ({ app, page }) => {

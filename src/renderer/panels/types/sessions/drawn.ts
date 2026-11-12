@@ -2,7 +2,6 @@ import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup } from '../../../ui/dom';
 import { Keyed } from '../../../ui/keyed';
 import type { ProjectTree } from '../../../rules/session-list';
-import type { Moment } from '../../../ui/moments';
 import './drawn.css';
 
 /**
@@ -74,13 +73,12 @@ export const groupSections = new Keyed<GroupSectionEls>((els) => els.section);
 
 /**
  * A section of the list drawn flat, as the list draws it (list.ts), such as one of the review's sets under its heading; its id names it for good, a heading and all.
- * Its rows in the order they are shown, and the line saying why each is there in place of what the row says otherwise, worked out again on the minute clock, or null where a row says what it says otherwise: its time and model, or in the finished view when it was finished.
+ * Its rows in the order they are shown.
  */
 export interface FlatSection {
   id: string;
   heading: { name: string; count: number; note: string | null } | null;
   rows: readonly SessionSummary[];
-  why: ((shown: SessionSummary) => Moment) | null;
 }
 
 /** A flat section as drawn: its section, the well its rows sit in, and its heading's parts where it has one — its name, its count, and the line saying why it cannot answer. */

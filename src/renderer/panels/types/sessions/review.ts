@@ -1,4 +1,3 @@
-import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup } from '../../../ui/dom';
 import { entityKey } from '../../../rules/sessions';
 import { REVIEW, reviewCount, reviewSections, type ReviewFacts, type ReviewSection } from '../../../rules/review';
@@ -10,7 +9,7 @@ import type { FlatSection } from './drawn';
 import './review.css';
 
 /**
- * THE REVIEW, drawn (docs/architecture/session-list.md § The review): the Review button with its count on the row under the sidebar's header, and what the list needs to draw the review's sets flat in place of its projects (list.ts) — the sets in scope, and each row's line saying why it is there.
+ * THE REVIEW, drawn (docs/architecture/session-list.md § The review): the Review button with its count on the row under the sidebar's header, and what the list needs to draw the review's sets flat in place of its projects (list.ts).
  * Which sessions it offers and why is the pure module's (`review.ts`); this reads the store for it.
  */
 
@@ -20,7 +19,7 @@ const button = reviewButton;
 const count = reviewButton.querySelector<HTMLElement>('.review-count')!;
 
 /** What the review reads of the store. */
-export type ReviewView = View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'setAside' | 'kept' | 'notes' | 'prStatus' | 'prNames' | 'settings' | 'activeProject'>;
+export type ReviewView = View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'setAside' | 'kept' | 'prStatus' | 'settings' | 'activeProject'>;
 
 /** The store's state as the review's terms read it (`ReviewFacts`). */
 function reviewFacts(view: ReviewView): ReviewFacts {
@@ -30,9 +29,7 @@ function reviewFacts(view: ReviewView): ReviewFacts {
     pendingDeletes: view.pendingDeletes,
     setAside: view.setAside,
     kept: view.kept,
-    notes: view.notes,
     prStatus: view.prStatus,
-    prNames: view.prNames,
     // On until the settings are read, as it is by default; nothing has been asked by then, so its line says it is asking.
     prStatusOn: view.settings?.prStatus.value ?? true,
   };
@@ -44,17 +41,9 @@ export function reviewInScope(view: ReviewView, now = Date.now()): ReviewSection
   return reviewSections(sessions, reviewFacts(view), now);
 }
 
-/** The review's sets as the list draws them flat (list.ts): each under its heading, each row's line saying why it is there, worked out again at each tick from the store as it then is. */
+/** The review's sets as the list draws them flat (list.ts), each under its heading. */
 export function reviewFlat(sections: readonly ReviewSection[]): FlatSection[] {
-  return sections.map((set) => {
-    const rule = REVIEW.sets.find((s) => s.id === set.id)!;
-    return {
-      id: set.id,
-      heading: { name: set.name, count: set.rows.length, note: set.note },
-      rows: set.rows.map(({ session }) => session),
-      why: (shown: SessionSummary) => rule.why(shown, reviewFacts(store.get()), Date.now()),
-    };
-  });
+  return sections.map((set) => ({ id: set.id, heading: { name: set.name, count: set.rows.length, note: set.note }, rows: set.rows }));
 }
 
 /** The Review button follows the review in scope: its count, unavailable at none while the list does not show it, since a review with nothing in it would end at once; pressed, and a press that ends it, while the list shows it. */
@@ -78,7 +67,7 @@ const REVIEW_LOOK_EVERY_MS =60 * 60 * 1000;
 
 /** The button's count, now and as the store and the clock move; registered with the sidebar's repaints (watch.ts). */
 export function watchReviewButton(): void {
-  const slices = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'setAside', 'kept', 'notes', 'prStatus', 'prNames', 'settings', 'activeProject', 'reviewing'] as const;
+  const slices = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'setAside', 'kept', 'prStatus', 'settings', 'activeProject', 'reviewing'] as const;
   store.watch(slices, showReviewButton);
   window.setInterval(() => showReviewButton(store.get()), REVIEW_LOOK_EVERY_MS);
   showReviewButton(store.get());
