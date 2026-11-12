@@ -1,4 +1,3 @@
-import { prKey, prName, spansRepositories } from '../../../../shared/sessions/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDanger, confirmDelete, promptText } from '../../../dialogs/dialogs';
 import { leaveAction, leaveLabel, type LeaveAction } from '../../../rules/claude';
@@ -6,9 +5,8 @@ import { entityKey, folderName, sessionLabel, unstartableReason } from '../../..
 import { clockLines, clockOf } from '../../../status/clock';
 import { setAsideUntil } from '../../../status/state-lines';
 import { relativeTime } from '../../../ui/time-words';
-import { momentInLanguage } from '../../../ui/locale';
 import { openMenu, type MenuItem } from '../../../ui/menu';
-import { inkClasses, prDetails, prRulesIn, verdictOf } from '../../../status/pr-status';
+import { inkClasses, prRulesIn, verdictOf } from '../../../status/pr-status';
 import { store, type TabState } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
 import { applyGroupState, moveSessionsToGroup } from '../../../state/groups';
@@ -21,7 +19,7 @@ import { isFiltering, leaveTab, projName, projectGroups, sessionById, sessionSta
 import { copyText, showToast } from '../../../ui/toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
-import { sessionHeader } from './describe';
+import { prItemWords, sessionHeader } from './describe';
 import { currentByKey, renderedSections } from './drawn';
 import { fullRead } from './read';
 import { revealGroup, revealSession } from './reveal';
@@ -59,20 +57,16 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   });
 }
 
-// The PRs a session's transcript links, by their number and title (`prName`), oldest first, each opening its page in the browser.
-// The repository goes before the number where the session's PRs name several, and leads the line under it otherwise.
-// Each led by a dot in its ink, with what GitHub last said on that line (`verdictOf`, `prDetails`), since the name and the words together outrun a menu's width; a PR with no status has the hollow dot of one thing with nothing to report (base.css's `.nudge.single`), and no words.
+// The PRs a session's transcript links, as its list names them (`prItemWords`), each opening its page in the browser.
+// Each led by a dot in its ink, with what GitHub last said on the line under it, since the name and the words together outrun a menu's width; a PR with no status has the hollow dot of one thing with nothing to report (base.css's `.nudge.single`), and no words.
 // Shared by the PR mark and the kebab submenu.
 function prMenuItems(session: SessionSummary): MenuItem[] {
   const view = store.get();
-  const { prStatus, prNames } = view;
   const rules = prRulesIn(view);
-  const withRepository = spansRepositories(session.prs);
-  return session.prs.map((pr) => {
-    const verdict = verdictOf(pr, prStatus, rules);
-    const details = [...(withRepository ? [] : [pr.repository]), ...prDetails(pr, prStatus, rules, momentInLanguage)];
+  return prItemWords(session, view).map(({ pr, label, details }) => {
+    const verdict = verdictOf(pr, view.prStatus, rules);
     return {
-      label: prName(pr, prNames.get(prKey(pr))?.title, withRepository),
+      label,
       ...(details.length > 0 ? { detail: details.join(' · ') } : {}),
       dot: verdict.words === null ? 'nudge single' : ['nudge', 'pr-dot', 'pr-ink', ...inkClasses(verdict)].join(' '),
       onSelect: () => window.claudeUi.openExternal(pr.url),

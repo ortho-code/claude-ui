@@ -9,24 +9,37 @@ import { setTooltip } from './tooltip';
  * A change of the language ticks at once, so every tooltip says its moment in the new one.
  */
 
-/** What an element says of a moment, the moment itself as an ISO time, or null when it is not known, and what the moment is, "Last active", which leads its tooltip. */
+/**
+ * What an element says of a moment, the moment itself as an ISO time, or null when it is not known, and what the moment is, "Last active", which leads its tooltip.
+ * `tooltip`, where given, is the whole tooltip in place of that one line, for a surface that says more around its moment.
+ */
 export interface Moment {
   text: string;
   at: string | null;
   label: string;
+  tooltip?: string;
 }
 
 const MINUTE = 60_000;
 
-/** The elements on the clock, each with what it asks for at a tick; one that has left the page is dropped at the next, and its surface puts it back on when it draws it again. */
-const shown = new Map<HTMLElement, () => Moment>();
+/** The elements on the clock, each with what it asks for at a tick and the element its tooltip goes on; one that has left the page is dropped at the next, and its surface puts it back on when it draws it again. */
+const shown = new Map<HTMLElement, { later: () => Moment; tipOn: HTMLElement }>();
 let clock: number | undefined;
 
-/** Draw `moment` into `el` now, and what `later` says at every tick from here while `el` is in the page; a second call for the same element replaces the first. */
-export function showMoment(el: HTMLElement, moment: Moment, later: () => Moment): void {
-  draw(el, moment);
-  shown.set(el, later);
+/**
+ * Draw `moment` into `el` now, and what `later` says at every tick from here while `el` is in the page; a second call for the same element replaces the first.
+ * Its tooltip goes on `tipOn`, `el` itself unless a surface around it carries the tooltip, as a session row does.
+ */
+export function showMoment(el: HTMLElement, moment: Moment, later: () => Moment, tipOn: HTMLElement = el): void {
+  draw(el, moment, tipOn);
+  shown.set(el, { later, tipOn });
   clock ??= window.setInterval(tick, MINUTE);
+}
+
+/** Draw what `el` says now, off the clock, for a surface whose words around the moment changed while the moment did not; nothing for an element not on the clock. */
+export function redrawMoment(el: HTMLElement): void {
+  const entry = shown.get(el);
+  if (entry) draw(el, entry.later(), entry.tipOn);
 }
 
 /** What else follows the clock, told after the moments are drawn at each tick (`onMinute`). */
@@ -39,17 +52,22 @@ export function onMinute(follow: () => void): void {
 }
 
 function tick(): void {
-  for (const [el, later] of shown) {
-    if (el.isConnected) draw(el, later());
+  for (const [el, { later, tipOn }] of shown) {
+    if (el.isConnected) draw(el, later(), tipOn);
     else shown.delete(el);
   }
   for (const follow of followers) follow();
 }
 
 /** The words only where they changed, since most do not from one minute to the next. */
-function draw(el: HTMLElement, { text, at, label }: Moment): void {
+function draw(el: HTMLElement, { text, at, label, tooltip }: Moment, tipOn: HTMLElement): void {
   if (el.textContent !== text) el.textContent = text;
-  setTooltip(el, at && `${label}: ${momentInLanguage(Date.parse(at))}`);
+  setTooltip(tipOn, tooltip ?? (at && momentLine(label, at)));
+}
+
+/** A moment as one line of a tooltip: what it is and when, "Last active: Tue 3 Nov, 09:00". */
+export function momentLine(label: string, at: string): string {
+  return `${label}: ${momentInLanguage(Date.parse(at))}`;
 }
 
 onLanguageChange(tick);

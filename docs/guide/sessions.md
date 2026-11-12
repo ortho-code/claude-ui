@@ -14,6 +14,7 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
   In either, a session worked on again moves to its place within a minute, never while the pointer or the focus is in the list or a menu from it is open.
 - Search plus filters: pinned, open, live, set aside, worktree, siblings, linked PR, noted, finished, folder gone and a date range.
   A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
+- Hovering a session's row shows what it says in full, whatever the sidebar's width cuts off: its name, its line, its state, when it was last active, its PRs with their dates where GitHub gave them, and its whole note.
 - A project switcher scopes the sidebar and counts the sessions in other projects that need you.
 - A session whose folder is gone says so, in its row and on its tab, and refuses to start, instead of starting somewhere nobody chose; pinning, notes, finishing and deleting still work.
   A project whose folder is gone says so too, in the project switcher, on its heading and in the tab bar.

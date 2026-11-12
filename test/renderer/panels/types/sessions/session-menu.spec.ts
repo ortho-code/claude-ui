@@ -45,9 +45,10 @@ test("a session's menu header is not an item: a click on it leaves the menu up",
 test("a session whose folder is gone says why in its menu's header", async ({ app, page }) => {
   const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });
   await app.boot({ sessions: [gone] });
-  const reason = await row(page, gone.title).locator('.card-title').getAttribute('data-tooltip');
+  // The row's tooltip says why under the session's name.
+  const reason = (await row(page, gone.title).getAttribute('data-tooltip'))!.split('\n')[1];
   await row(page, gone.title).locator('.session-kebab').click();
-  await expect(lines(page).last()).toHaveText(reason!);
+  await expect(lines(page).last()).toHaveText(reason);
 });
 
 // A menu is at most 300px wide: the header's first line, the session's name, stays one line, cut, with its whole text as its tooltip, and the lines under it wrap, a path inside them too, so what they say is all there.
@@ -415,10 +416,11 @@ test("a finished row's trailing controls sit 4px apart, delete second from the r
 test("Open is unavailable, with the reason, for a session whose folder is gone", async ({ app, page }) => {
   const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });
   await app.boot({ sessions: [gone] });
-  const reason = await row(page, gone.title).locator('.card-title').getAttribute('data-tooltip');
+  // The row's tooltip says why under the session's name.
+  const reason = (await row(page, gone.title).getAttribute('data-tooltip'))!.split('\n')[1];
   await row(page, gone.title).locator('.session-kebab').click();
   await expect(item(page, 'Open')).toHaveClass(/\bunavailable\b/);
-  await expect(item(page, 'Open')).toHaveAttribute('data-tooltip', reason!);
+  await expect(item(page, 'Open')).toHaveAttribute('data-tooltip', reason);
   await item(page, 'Open').click({ force: true });
   expect(await app.calls('startTerminal')).toEqual([]);
 });

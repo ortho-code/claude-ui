@@ -1,12 +1,15 @@
-import type { SessionSummary } from '../../../../shared/types';
+import type { SessionPr, SessionSummary } from '../../../../shared/types';
+import { prKey, prName, spansRepositories } from '../../../../shared/sessions/prs';
 import { entityKey, LAST_ACTIVE, modelLabel, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
 import { setAsideLabel } from '../../../status/state-lines';
+import { prDetails, prRulesIn } from '../../../status/pr-status';
 import { relativeTime } from '../../../ui/time-words';
+import { momentInLanguage } from '../../../ui/locale';
 import type { HeaderLine, MenuItem } from '../../../ui/menu';
-import type { Moment } from '../../../ui/moments';
+import { momentLine, type Moment } from '../../../ui/moments';
 import type { View } from '../../../state/app';
 import { groupNameOf, projName } from '../../../state/views';
-import { statusLines } from '../../../status/status-dot';
+import { statusLines, type LinesView } from '../../../status/status-dot';
 
 /**
  * WHAT IS SAID ABOUT A SESSION, in words: its menu's header, and its row's title and its meta line, which draw from here, so the row and the header cannot come to say those differently.
@@ -39,6 +42,45 @@ export function whereOf(session: SessionSummary, view: View<'activeProject' | 'p
   const parts = [...(view.activeProject === null ? [projName(session.repoRoot, view)] : []), ...(group ? [group] : [])];
   return parts.length > 0 ? parts.join(' › ') : null;
 }
+
+/**
+ * Each PR a session links as its list names it, oldest first: its number and title (`prName`), and what GitHub last said of it on a line under it (`prDetails`), led by its repository where the session's PRs are all in one.
+ * The PR menus and the row's tooltip say them alike.
+ */
+export function prItemWords(session: SessionSummary, view: View<'prStatus' | 'prNames' | 'settings' | 'needsYouTypes'>): { pr: SessionPr; label: string; details: string[] }[] {
+  const rules = prRulesIn(view);
+  const withRepository = spansRepositories(session.prs);
+  return session.prs.map((pr) => ({
+    pr,
+    label: prName(pr, view.prNames.get(prKey(pr))?.title, withRepository),
+    details: [...(withRepository ? [] : [pr.repository]), ...prDetails(pr, view.prStatus, rules, momentInLanguage)],
+  }));
+}
+
+/**
+ * What a session row's tooltip says, everything the row shows: its name, why it cannot start, its line in full, each state it is in as its dot says them, its set-aside mark and its worktree, its moment and when it was last active where that is another, each PR with its date, and its whole note.
+ * `line` is the row's line as drawn, `moment` the one it gives (`Moment`).
+ */
+export function rowTooltip(session: SessionSummary, view: RowTooltipView, line: string, moment: Moment): string {
+  const setAside = view.setAside.get(entityKey(session));
+  const note = view.notes.get(entityKey(session));
+  const lines = [
+    sessionLabel(session),
+    unstartableReason(session),
+    line,
+    ...statusLines(session.id, view).map(({ text }) => text),
+    setAside && setAsideLabel(setAside),
+    worktreeMarkState(session)?.tooltip,
+    moment.at && momentLine(moment.label, moment.at),
+    moment.label !== LAST_ACTIVE && momentLine(LAST_ACTIVE, session.lastActivity),
+    ...prItemWords(session, view).map(({ label, details }) => (details.length > 0 ? `${label} — ${details.join(' · ')}` : label)),
+    note && `Note: ${note}`,
+  ];
+  return lines.filter((part): part is string => typeof part === 'string' && part !== '').join('\n');
+}
+
+/** What a row's tooltip reads from the store. */
+export type RowTooltipView = LinesView & View<'notes' | 'prStatus' | 'prNames'>;
 
 /**
  * What a session's menu opens with: its title, then where it is filed, each state it is in on a line of its own with its dot, its set-aside mark, when it was active and on what model, when it was finished, its worktree, its note's first line, and why it cannot run.

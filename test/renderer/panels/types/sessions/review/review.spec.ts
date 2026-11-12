@@ -54,9 +54,12 @@ test('opening it shows the two sets, each row saying why it is there, and sets t
   await expect(setRows(page, 'Ready to finish')).toHaveText([ready.title]);
   await expect(setRows(page, 'Untouched 30+ days')).toHaveText([old.title]);
   await expect(why(page, ready.title)).toHaveText('#1 · Ship the scheduler · merged 1 d ago');
-  await expect(why(page, ready.title)).toHaveAttribute('data-tooltip', 'Merged: di 3 nov, 12:00');
+  await expect(row(page, ready.title)).toHaveAttribute(
+    'data-tooltip',
+    [ready.title, '#1 · Ship the scheduler · merged 1 d ago', 'Merged: di 3 nov, 12:00', 'Last active: zo 1 nov, 12:00', '#1 · Ship the scheduler — acme/app · merged di 3 nov, 12:00'].join('\n'),
+  );
   await expect(why(page, old.title)).toHaveText('41 days · note: “blocked on design”');
-  await expect(why(page, old.title)).toHaveAttribute('data-tooltip', 'Last active: do 24 sep, 13:00');
+  await expect(row(page, old.title)).toHaveAttribute('data-tooltip', [old.title, '41 days · note: “blocked on design”', 'Last active: do 24 sep, 13:00', 'Note: blocked on design'].join('\n'));
   await expect(page.locator('#filter-toggle')).toBeHidden();
   await expect(page.locator('#bulk-line')).toContainText('Review');
   await expect(page.locator('#bulk-line .bulk-count')).toHaveText('demo · 2 to decide · 0 ticked');

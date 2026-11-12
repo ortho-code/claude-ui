@@ -5,7 +5,8 @@ import { setMarkup } from '../../../ui/keyed';
 import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
 import { clockOf } from '../../../status/clock';
 import { kebabButton } from '../../../ui/menu';
-import { showMoment, type Moment } from '../../../ui/moments';
+import { redrawMoment, showMoment, type Moment } from '../../../ui/moments';
+import { notLeftWords } from '../../../rules/claude';
 import { notLeftMark, showNotLeft } from '../../../status/not-left';
 import { inkClasses, PR_INKS, prMark, prRulesIn } from '../../../status/pr-status';
 import { setAsideMark, showSetAside } from '../../../status/set-aside-mark';
@@ -20,7 +21,7 @@ import { setTooltip } from '../../../ui/tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor, unfinishFor } from './actions';
 import { pressRowInBulk, tickBox } from './bulk';
-import { activityMoment, finishedMoment } from './describe';
+import { activityMoment, finishedMoment, rowTooltip } from './describe';
 import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
 import '../../../ui/tone.css';
 import '../../../status/pr-status.css';
@@ -246,7 +247,11 @@ export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | '
 export function showTabMarks(marks: RowTabMarks, id: string, view: View<'scheduledTasks' | 'tabs'>): void {
   const tab = tabWith(id, view);
   showScheduled(marks.clock, clockOf(view.scheduledTasks.get(id), tab));
-  marks.metaText.hidden = showNotLeft(marks.notLeft, tab);
+  const notLeft = showNotLeft(marks.notLeft, tab);
+  if (marks.metaText.hidden === notLeft) return;
+  marks.metaText.hidden = notLeft;
+  // The row's tooltip says the line on show, which these words replace (`rowTooltip`).
+  redrawMoment(marks.metaText);
 }
 
 /**
@@ -271,10 +276,8 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   statusDots.set(session.id, els.dot);
 
   els.title.textContent = sessionLabel(session);
-  // A session that cannot run says why on the row itself, rather than only when you try it: the tooltip is the one place with room for the folder's path.
-  const unstartable = unstartableReason(session);
-  row.classList.toggle('unstartable', unstartable !== null);
-  setTooltip(els.title, unstartable ?? sessionLabel(session));
+  // A session that cannot run says why on the row's own tooltip (`rowTooltip`), rather than only when you try it: the tooltip is the one place with room for the folder's path.
+  row.classList.toggle('unstartable', unstartableReason(session) !== null);
 
   const worktree = worktreeMarkState(session);
   els.badge.hidden = worktree === null;
@@ -317,13 +320,15 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   }
 
   // When it was finished in the finished view, where every session is; when it was active everywhere else.
-  // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, rules/sessions.ts).
+  // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, rules/sessions.ts), and so is the row's tooltip, which says everything the row shows (`rowTooltip`) wherever on the row you hover; a button or mark with a tooltip of its own keeps it, the nearest tooltip being the one shown.
   const moment = (shown: SessionSummary, as: RowView): Moment => {
     const own = flat?.why?.(shown) ?? (finishedView ? finishedMoment(shown, as) : null) ?? activityMoment(shown, as);
     const lead = flat?.lead(shown) ?? null;
-    return lead ? { ...own, text: `${lead} · ${own.text}` } : own;
+    const text = lead ? `${lead} · ${own.text}` : own.text;
+    const tab = tabWith(shown.id, as);
+    return { ...own, text, tooltip: rowTooltip(shown, as, (tab && notLeftWords(tab)) ?? text, own) };
   };
-  showMoment(els.metaText, moment(session, view), () => moment(newest(session), store.get()));
+  showMoment(els.metaText, moment(session, view), () => moment(newest(session), store.get()), row);
 
   // The finished view is a management view: no pinning, and delete replaces it there.
   const isPinned = view.pinned.has(entityKey(session));
