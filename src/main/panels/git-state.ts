@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { promisify } from 'node:util';
 import type { WorkingTree } from '../../shared/panels';
+import { markedEnv } from '../pty/leftovers';
 
 /**
  * A fingerprint of a folder's git working tree, for a panel that runs again when it changes.
@@ -30,7 +31,7 @@ async function git(dir: string, args: string[]): Promise<Buffer> {
     timeout: GIT_TIMEOUT_MS,
     maxBuffer: STATUS_CAP,
     encoding: 'buffer',
-    env: { ...process.env, LC_ALL: 'C' },
+    env: { ...markedEnv(), LC_ALL: 'C' },
   });
   return stdout;
 }

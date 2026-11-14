@@ -302,6 +302,22 @@ describe('a run', () => {
     expect(logged).toContain('info panel after-quit not run: the app is quitting');
   });
 
+  // A fresh copy of the module, since quitting is for good, and the copy every other test runs against must stay open.
+  it('once the app is quitting, does not ask git for a working tree, since no run follows', async () => {
+    vi.resetModules();
+    const { execFile } = await import('node:child_process');
+    const fresh = await import('../../../../src/main/panels/panels');
+    fresh.registerPanelsIpc();
+    const tree = (): Promise<unknown> => handlers.get('panel:tree')!({}, process.cwd()) as Promise<unknown>;
+    vi.mocked(execFile).mockClear();
+    void tree();
+    expect(execFile).toHaveBeenCalled();
+    vi.mocked(execFile).mockClear();
+    fresh.closePanels();
+    expect(await tree()).toEqual({ kind: 'failed', error: 'the app is quitting' });
+    expect(execFile).not.toHaveBeenCalled();
+  });
+
   it('refuses a context directory that is not there, naming it, and spawns nothing', () => {
     const { token } = start({ context: { ...CONTEXT, cwd: '/definitely/not/here' } });
     expect(spawned).toHaveLength(0);

@@ -1,6 +1,7 @@
 # The process group is not swept again after its leader exits
 
 - **Date:** 2026-09-22
+- **Partly replaced** by [0223](0223-a-quit-ends-everything-the-app-started.md) on 2026-11-14: at a quit, what is left in the app's sessions is ended, found by the run's id rather than by a group id.
 - **Area:** [Stopping a session is a request: claude may answer it with a question](../architecture/claude.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question)
 
 ## Decision

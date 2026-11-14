@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { errorText, logOnce } from '../logs/log';
 import { formatDuration } from '../files/stamp';
+import { markedEnv } from '../pty/leftovers';
 
 const execFileAsync = promisify(execFile);
 
@@ -36,7 +37,7 @@ export async function resolveRepo(cwd: string): Promise<RepoInfo> {
     const { stdout } = await execFileAsync(
       'git',
       ['-C', cwd, 'rev-parse', '--path-format=absolute', '--show-toplevel', '--git-common-dir'],
-      { timeout: GIT_TIMEOUT_MS },
+      { timeout: GIT_TIMEOUT_MS, env: markedEnv() },
     );
     const [toplevel, commonDir] = stdout.trim().split('\n');
     if (toplevel && commonDir) {
@@ -85,7 +86,7 @@ export async function checkoutsOf(repoRoot: string): Promise<string[] | null> {
   // A repo deleted since its sessions ran has no checkouts, and git would only say so; claude's `.claude/worktrees/` layout still files those sessions under it.
   if (!(await isDirectory(repoRoot))) return null;
   try {
-    const { stdout } = await execFileAsync('git', ['-C', repoRoot, 'worktree', 'list', '--porcelain'], { timeout: GIT_TIMEOUT_MS });
+    const { stdout } = await execFileAsync('git', ['-C', repoRoot, 'worktree', 'list', '--porcelain'], { timeout: GIT_TIMEOUT_MS, env: markedEnv() });
     const roots = stdout.split('\n').flatMap((line) => (line.startsWith('worktree ') ? [line.slice('worktree '.length)] : []));
     return roots.length > 0 ? await Promise.all(roots.map((root) => fs.realpath(root).catch(() => root))) : null;
   } catch (error) {
@@ -130,7 +131,7 @@ export async function ignoredIn(root: string, files: string[]): Promise<Set<stri
 /** Git with `input` on its stdin: its exit code and output, or a rejection when it could not run or ran past its time. */
 function gitWithInput(args: string[], input: string): Promise<{ code: number; stdout: string }> {
   return new Promise((resolve, reject) => {
-    const child = execFile('git', args, { timeout: GIT_TIMEOUT_MS }, (error, stdout) => {
+    const child = execFile('git', args, { timeout: GIT_TIMEOUT_MS, env: markedEnv() }, (error, stdout) => {
       // An exit code is git's answer; a missing binary has a string code, and a run stopped at its time none.
       if (error && typeof error.code !== 'number') reject(new Error(errorText(error)));
       else resolve({ code: typeof error?.code === 'number' ? error.code : 0, stdout });

@@ -215,7 +215,15 @@ A session that left politely is never killed afterwards, because by then its pid
 It waits for the exits rather than for a fixed time, so a quit with only claude sessions to wait for is usually over well inside the grace.
 A panel's shell is asked with `SIGHUP` rather than `SIGTERM`, the signal a closing terminal sends ([decided 2026-10-07](../decisions/0051-a-panel-shell-is-asked-with-sighup.md)).
 The shell passes the `SIGHUP` on to a command running in it, which sits in a process group of its own, so a command that ignores `SIGHUP` outlives the shell.
-The group is not swept again after its leader exits ([decided 2026-09-22](../decisions/0004-no-group-sweep-after-the-leader-exits.md)).
+The group is not swept again after its leader exits ([decided 2026-09-22](../decisions/0004-no-group-sweep-after-the-leader-exits.md)), except at a quit.
+
+A quit ends everything the app started, not only what its stops reach ([decided 2026-11-14](../decisions/0223-a-quit-ends-everything-the-app-started.md)).
+Every process the app starts carries `CLAUDE_UI_RUN`, an id of that run of the app, and a child inherits it: a session's claude and its MCP servers, a panel's shell and what runs in it, a panel's command, the PR lookups, and every helper main runs itself, git, the status hook and the clipboard's and links' programs among them.
+What the app hands to the system to open, a folder or a link, is the system's, and carries none.
+Once the quit's stops have had their wait, main looks for that id in every process (`leftovers.ts`): one still in a session the app started or in the app's own, such as a child that ignored the stop or a git still running, is asked with `SIGTERM` and killed a second later; one that left those sessions with `setsid`, as a daemon does, is logged and left running, so what a wider sweep would end is known from the log first.
+The id is read again just before each signal, so a pid used again by another process, which does not carry it, is not signalled, short of the moment between the read and the signal.
+What a second instance started from one of this one's sessions starts carries an id of its own, while that instance itself ends with the session that started it, as anything else that session ran.
+It reads `/proc`, so on macOS a quit ends what its stops reach and no more.
 
 ### A session's menu holds everything about it
 

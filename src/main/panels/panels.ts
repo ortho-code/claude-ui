@@ -10,6 +10,7 @@ import { configRoot } from '../paths';
 import { resolvePath } from '../config/config';
 import { workingTree } from './git-state';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup, type ShellInvocation } from '../pty/shell';
+import { ownSession } from '../pty/leftovers';
 import { fsFailure, log } from '../logs/log';
 import { formatDuration } from '../files/stamp';
 import {
@@ -25,6 +26,7 @@ import {
   type PanelRunRequest,
   type PanelSource,
   type PanelStderr,
+  type WorkingTree,
   type PanelStopReason,
 } from '../../shared/panels';
 
@@ -242,6 +244,7 @@ function spawnPanel(request: PanelRunRequest, stderr: PanelStderr, tell: (event:
       detached: true,
       stdio: STDIO[stderr],
     });
+    ownSession(child.pid);
   } catch (error) {
     // Refused before there was a run to end, such as a value Node will not put in an environment: the run's files go with it, and the panel hears it as a run that could not start, as it does an `error` from the spawn, rather than nothing and a busy mark for good.
     if (control !== null) dropRunFile(request.entryId, control, 'control');
@@ -381,6 +384,11 @@ export function closePanels(): void {
   stopAllPanels();
 }
 
+/** The working tree at `dir`, which a panel that watches git asks before it runs; once the app is quitting no run follows, so git is not asked. */
+function treeOf(dir: string): Promise<WorkingTree> {
+  return closed ? Promise.resolve({ kind: 'failed', error: 'the app is quitting' }) : workingTree(dir);
+}
+
 /** How many runs have not exited yet, for the quit to wait on. */
 export function liveRuns(): number {
   return live.size;
@@ -389,5 +397,5 @@ export function liveRuns(): number {
 export function registerPanelsIpc(): void {
   ipcMain.on('panel:run', (event, request: PanelRunRequest) => run(event.sender, request));
   ipcMain.on('panel:stop', (_event, entryId: string) => stop(entryId));
-  ipcMain.handle('panel:tree', (_event, dir: string) => workingTree(dir));
+  ipcMain.handle('panel:tree', (_event, dir: string) => treeOf(dir));
 }

@@ -10,6 +10,7 @@
  */
 
 import { log } from '../logs/log';
+import { runMark } from './leftovers';
 
 /** The user's login shell. */
 export function loginShell(): string {
@@ -35,6 +36,7 @@ export function shellCommand(script: string, argv: string[], arg0: string): Shel
  *
  * When the app is launched from inside a Claude session those get inherited, and a `claude` spawned with them thinks it is a nested SDK / child session and never persists its transcript.
  * `CLAUDE_UI` goes too: it is the marker the status hook fires on, so it is for the caller that WANTS the hooks to set, and only that one.
+ * It carries this run's `CLAUDE_UI_RUN`, which the quit's sweep finds it by (`leftovers.ts`), in place of any it inherited.
  */
 export function inheritedEnv(): Record<string, string> {
   const env: Record<string, string> = {};
@@ -43,7 +45,7 @@ export function inheritedEnv(): Record<string, string> {
     if (key === 'CLAUDECODE' || key.startsWith('CLAUDE_')) continue;
     env[key] = value;
   }
-  return env;
+  return { ...env, ...runMark() };
 }
 
 /**

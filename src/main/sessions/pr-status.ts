@@ -4,6 +4,7 @@ import { prKey, roleOf } from '../../shared/sessions/prs';
 import type { PrDates, PrNames, PrRef, PrRole, PrStatus, PrStatusRead } from '../../shared/types';
 import { log } from '../logs/log';
 import { inheritedEnv, shellCommand, terminateGroup } from '../pty/shell';
+import { ownSession } from '../pty/leftovers';
 
 /**
  * What GitHub says of the PRs the sessions link, asked with `gh api graphql` on the person's own `gh` login, and kept in memory for as long as the app runs.
@@ -69,6 +70,7 @@ export function runGh(args: string[], timeoutMs = GH_TIMEOUT_MS): Promise<GhRun>
     const { file, args: shellArgs } = shellCommand(GH_SCRIPT, args, 'claude-ui-gh');
     // `detached` puts the child in a session of its own, so its pid is a group id the stop can signal (shell.ts).
     const child = spawn(file, shellArgs, { env: inheritedEnv(), detached: true, stdio: ['ignore', 'pipe', 'ignore', 'pipe'] });
+    ownSession(child.pid);
     let stdout = '';
     let stderr = '';
     let exited = false;

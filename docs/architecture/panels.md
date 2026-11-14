@@ -259,7 +259,7 @@ Plain text is asked for with `NO_COLOR=1` and `TERM=dumb`, and escape sequences 
 **Stopping is the group.**
 The child is spawned `detached`, so its pid is a group id, and a stop is the same SIGTERM-then-SIGKILL escalation a session gets, shared from `shell.ts`, reading whether it worked from the child's own exit.
 A re-run stops the run before it, removing the panel from the file stops it, and quitting sweeps every live run down the same path; hiding it does not.
-A quit asked for while the window is open leaves the window running while the quit waits for the sweep to land, and it can still ask for a run then, so once the app is quitting main starts none, and the panel hears it as a run the quit stopped (`closePanels`); a window closed on macOS sweeps without refusing, since a window opened again runs its panels afresh.
+A quit asked for while the window is open leaves the window running while the quit waits for the sweep to land, and it can still ask for a run then, so once the app is quitting main starts none, and the panel hears it as a run the quit stopped (`closePanels`), and asks git about no working tree for a panel that watches it; a window closed on macOS sweeps without refusing, since a window opened again runs its panels afresh.
 The end of the OUTPUT (`close`) and the end of the PROCESS (`exit`) are read separately: something the command started can outlive it holding the pipe, and once the leader is gone nothing may be signalled, since its pid may already belong to somebody else.
 
 **`CLAUDE_UI` is deliberately not set.**

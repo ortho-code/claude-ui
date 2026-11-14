@@ -7,6 +7,7 @@ import { statusDir, hookScriptPath } from '../paths';
 import { errorText, log } from '../logs/log';
 import { readScheduled } from './crons';
 import { SCOPE_ENV, TAB_ENV } from './hooks';
+import { markedEnv } from '../pty/leftovers';
 
 /** Watch the status directory and push per-session status updates to the renderer. */
 export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
@@ -199,7 +200,7 @@ export interface Ending {
 export function reportEnd(id: string, report: Report, ending: Ending): Promise<void> {
   const { tab, ts, runningAt: listedAt } = report;
   return new Promise((resolve) => {
-    const child = spawn(hookScriptPath, [ending.status], { env: { ...process.env, [SCOPE_ENV]: '1', [TAB_ENV]: tab }, stdio: ['pipe', 'ignore', 'ignore'] });
+    const child = spawn(hookScriptPath, [ending.status], { env: { ...markedEnv(), [SCOPE_ENV]: '1', [TAB_ENV]: tab }, stdio: ['pipe', 'ignore', 'ignore'] });
     child.stdin.on('error', () => {});
     child.on('error', (error) => {
       log('warn', 'status', `could not report ${ending.event} for ${id}: ${errorText(error)}`);

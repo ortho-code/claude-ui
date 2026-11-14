@@ -3,6 +3,7 @@ import * as pty from 'node-pty';
 import { existsSync, readlinkSync } from 'node:fs';
 import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from '../status/hooks';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup } from './shell';
+import { ownSession } from './leftovers';
 import { contextEnv } from '../panels/panels';
 import { flagNames, parseLaunchFlags } from '../../shared/config/flags';
 import { settingsNow } from '../config/settings';
@@ -176,6 +177,7 @@ function spawnPty(sender: WebContents, what: string, file: string, args: string[
     cwd,
     env,
   });
+  ownSession(proc.pid);
   terminals.set(id, proc);
   // The pid is what the stop escalation's own lines name (shell.ts), so it is here to match them against.
   log('info', 'terminal', `${id} started, pid ${proc.pid}: ${what} in ${cwd}`);

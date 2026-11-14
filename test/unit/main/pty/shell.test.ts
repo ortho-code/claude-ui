@@ -3,7 +3,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // shell.ts logs through log.ts, which reaches electron; nothing here is about the log.
 vi.mock('../../../../src/main/logs/log', () => ({ log: () => {} }));
 
-import { untilGone } from '../../../../src/main/pty/shell';
+import { inheritedEnv, untilGone } from '../../../../src/main/pty/shell';
+import { runMark, RUN_VARIABLE } from '../../../../src/main/pty/leftovers';
+
+describe('inheritedEnv', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("carries this run's id, in place of one inherited from another instance's session", () => {
+    vi.stubEnv(RUN_VARIABLE, 'another-run');
+    expect(inheritedEnv()[RUN_VARIABLE]).toBe(runMark()[RUN_VARIABLE]);
+    expect(runMark()[RUN_VARIABLE]).not.toBe('another-run');
+  });
+});
 
 /** Whether a promise has settled by now, without waiting for it. */
 async function settled(promise: Promise<void>): Promise<boolean> {

@@ -11,6 +11,7 @@ import { placeWindow, MIN_WIDTH, MIN_HEIGHT } from './bounds';
 import { OWN_CHROME } from './chrome';
 import { correctFramePlacement, isOwnMaximized, setMaximized, trackBounds } from './geometry';
 import { rendererArguments } from './renderer-args';
+import { markedEnv } from '../pty/leftovers';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -36,7 +37,7 @@ const appTitle = `Claude UI ${app.getVersion()}${app.isPackaged ? '' : ' — dev
 function claudeIsInstalled(): Promise<boolean> {
   const shell = process.env.SHELL ?? '/bin/bash';
   return new Promise((resolve) => {
-    execFile(shell, ['-l', '-i', '-c', 'command -v claude'], { timeout: 15_000 }, (error, stdout) => {
+    execFile(shell, ['-l', '-i', '-c', 'command -v claude'], { timeout: 15_000, env: markedEnv() }, (error, stdout) => {
       resolve(!error && stdout.trim().length > 0);
     });
   });

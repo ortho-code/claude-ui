@@ -7,6 +7,7 @@ import { findTranscript, listSessions, trashSessions, worktreeExists } from './s
 import { readHistory } from './sessions/transcript';
 import { closeTerminals, liveTerminals, registerTerminalIpc, shellFolders, terminateAll } from './pty/terminal';
 import { KILL_GRACE_MS, untilGone } from './pty/shell';
+import { sweepLeftovers } from './pty/leftovers';
 import { registerConfig } from './config/config';
 import { registerFolders } from './window/folders';
 import { closePanels, liveRuns, registerPanelsIpc, stopAllPanels } from './panels/panels';
@@ -214,8 +215,10 @@ app.on('before-quit', (event) => {
   closePanels();
   // Until everything stopped has gone and the shells' folders are kept, and never longer than the kill grace and a moment for its SIGKILL: a fixed wait would have to be that long every time, where claude sessions alone have gone within about 1.5 s.
   // A folder write that has not landed by then costs its shells their last `cd`, and holds up nothing.
+  // Then whatever the stops left behind in the app's own sessions is ended (`leftovers.ts`).
   // The quit line goes last, once everything else has had its budget, because it is what tells the next launch this one ended on purpose.
   void Promise.all([allGone(), Promise.race([folders, new Promise((resolve) => setTimeout(resolve, KILL_GRACE_MS + GONE_MARGIN_MS))])])
+    .then(() => sweepLeftovers())
     .then(() => closeLog())
     .then(() => app.quit());
 });
