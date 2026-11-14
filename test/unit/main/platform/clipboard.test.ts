@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { copiedFiles, listsImage, printedPaths, type Run } from '../../../../src/main/platform/clipboard';
+import { copiedFiles, listsImage, printedPaths } from '../../../../src/main/platform/clipboard';
+import type { Run } from '../../../../src/main/platform/platform';
 
 const POWERSHELL_FALLBACK = '/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe';
 

@@ -1,4 +1,13 @@
+import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
+
+/** Runs a program and hands back what it printed; rejects as `execFile` does, with `code` 'ENOENT' for a program that is not there. */
+export type Run = (file: string, args: string[], timeout: number) => Promise<string>;
+
+export const run: Run = async (file, args, timeout) => (await execFileAsync(file, args, { timeout, encoding: 'utf8' })).stdout;
 
 /**
  * Whether claude, started by the app, counts itself as running under WSL: on Linux, with WSL's variables set or a kernel that names Microsoft or WSL.

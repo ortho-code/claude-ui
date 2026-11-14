@@ -1,8 +1,6 @@
 import { ipcMain } from 'electron';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { errorText, log } from '../logs/log';
-import { readProcVersion, runsOnWsl } from './platform';
+import { readProcVersion, run, runsOnWsl, type Run } from './platform';
 
 /**
  * The files copied in Windows, for a paste under WSL that brought no text (docs/architecture/panels.md § The `terminal` type).
@@ -11,8 +9,6 @@ import { readProcVersion, runsOnWsl } from './platform';
  * From Linux a screenshot looks the same, an empty paste, so wl-paste is asked first: an image it lists is left to claude, which reads a png, jpeg, gif, webp or bmp one from Linux without asking Windows, and asking Windows then would only put a powershell.exe call in front of it.
  * Without wl-clipboard there is no such cheap look, so nothing is asked and the paste goes on as it came.
  */
-
-const execFileAsync = promisify(execFile);
 
 /** How long wl-paste or wslpath may take; they took 24 ms and 6 ms when measured. */
 const LINUX_TIMEOUT_MS = 5_000;
@@ -25,11 +21,6 @@ const POWERSHELL_FALLBACK = '/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powe
 
 /** The copied files' Windows paths, one per line, asked for in UTF-8, for a name outside the console's code page. */
 const FILE_LIST = '[Console]::OutputEncoding = [Text.Encoding]::UTF8; (Get-Clipboard -Format FileDropList).FullName';
-
-/** Runs a program and hands back what it printed; rejects as `execFile` does, with `code` 'ENOENT' for a program that is not there. */
-export type Run = (file: string, args: string[], timeout: number) => Promise<string>;
-
-const run: Run = async (file, args, timeout) => (await execFileAsync(file, args, { timeout, encoding: 'utf8' })).stdout;
 
 const missing = (error: unknown): boolean => (error as { code?: unknown }).code === 'ENOENT';
 
