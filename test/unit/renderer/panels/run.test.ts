@@ -415,7 +415,10 @@ describe('endLabel', () => {
     expect(endLabel({ kind: 'stopped', reason: 'timeout' })).toBe('stopped after 30 s');
     expect(endLabel({ kind: 'stopped', reason: 'truncated' })).toBe('output cut at 1 MB');
     expect(endLabel({ kind: 'truncated' })).toBe('output cut at 1 MB');
-    expect(endLabel({ kind: 'stopped', reason: 'request' })).toBe('stopped');
+  });
+
+  it('says nothing about a stop the app asked for itself, as runFailed marks none', () => {
+    for (const reason of ['rerun', 'request', 'quit'] as const) expect(endLabel({ kind: 'stopped', reason })).toBe('');
   });
 });
 

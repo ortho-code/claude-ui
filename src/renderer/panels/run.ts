@@ -151,7 +151,8 @@ export function endLabel(event: PanelRunEvent): string {
         case 'truncated':
           return 'output cut at 1 MB';
         default:
-          return 'stopped';
+          // A stop the app asked for itself — a re-run, a removal, the quit — is not the command's doing.
+          return '';
       }
     default:
       return '';
