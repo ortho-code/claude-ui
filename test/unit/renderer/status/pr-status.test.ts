@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { PR_TYPES, type NeedsYouRegistry } from '../../../../src/shared/status/needs-you';
-import { approvalsIn, createKey, createsToFind, FIND_FOR_MS, firesForRole, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, verdictOf, withNames, type PrInk, type PrRules, type PrVerdict, type PrWords } from '../../../../src/renderer/status/pr-status';
+import { approvalsIn, createKey, createsToFind, FIND_FOR_MS, firesForRole, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, takenBack, verdictOf, withNames, type PrInk, type PrRules, type PrVerdict, type PrWords } from '../../../../src/renderer/status/pr-status';
 import type { Approvals } from '../../../../src/shared/sessions/prs';
 import type { PrRef, PrSeen, PrStatus, SessionPr } from '../../../../src/shared/types';
 import { bundledNeedsYou } from '../../../renderer/support/needs-you';
@@ -169,6 +169,39 @@ describe('needsYouNow', () => {
   it('names an approval only once it reaches the number the repository needs', () => {
     expect(needsYouNow(open({ approvals: 1 }), 2)).toEqual([]);
     expect(needsYouNow(open({ approvals: 2 }), 2)).toEqual(['pr.approved']);
+  });
+});
+
+describe('takenBack', () => {
+  const failed = { type: 'pr.checks-failed' as const, at: 1, pr: 'Acme/App#7' };
+  const conflict = { type: 'pr.conflict' as const, at: 1, pr: 'acme/app#7' };
+  const changes = { type: 'pr.changes-requested' as const, at: 1, pr: 'acme/app#7' };
+  const approved = { type: 'pr.approved' as const, at: 1, pr: 'acme/app#7' };
+  const quit = { type: 'app.was-running' as const, at: 1, how: 'quit' as const };
+  const answer = (status: PrStatus) => ({ statuses: { 'acme/app#7': status }, problem: null });
+  const marked = new Map([['a', [failed, conflict, changes, approved, quit]]]);
+
+  it('takes back failing checks that run again or passed, however the reason spells its PR, and leaves what still holds', () => {
+    expect(takenBack(marked, answer(open({ checks: 'running', conflict: true, review: 'changes-requested' })))).toEqual({ a: [failed] });
+    expect(takenBack(marked, answer(open({ checks: null, conflict: true, review: 'changes-requested' })))).toEqual({ a: [failed] });
+  });
+
+  it('keeps a conflict GitHub is still working out, and takes it back once GitHub says there is none', () => {
+    expect(takenBack(marked, answer(open({ checks: 'failed', conflict: null, review: 'changes-requested' })))).toEqual({});
+    expect(takenBack(marked, answer(open({ checks: 'failed', conflict: false, review: 'changes-requested' })))).toEqual({ a: [conflict] });
+  });
+
+  it('takes back changes requested once the review no longer asks for them', () => {
+    expect(takenBack(marked, answer(open({ checks: 'failed', conflict: true, review: 'review-required' })))).toEqual({ a: [changes] });
+  });
+
+  it('takes back all three once the PR is merged, and never an approval or a reason that is no PR\'s', () => {
+    expect(takenBack(marked, answer({ state: 'merged', role: 'own' }))).toEqual({ a: [failed, conflict, changes] });
+  });
+
+  it('takes back nothing from an answer with a problem, or for a PR the answer has no status for', () => {
+    expect(takenBack(marked, { statuses: { 'acme/app#7': { state: 'merged', role: 'own' } }, problem: 'gh failed' })).toEqual({});
+    expect(takenBack(marked, { statuses: { 'acme/app#8': { state: 'merged', role: 'own' } }, problem: null })).toEqual({});
   });
 });
 

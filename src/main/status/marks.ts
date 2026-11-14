@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import type { NeedsYou, SetAside, SettledBy, SettledNeedsYou } from '../../shared/types';
-import { cameDue, clearedSetAside, keptFrom, markedSetAside, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes, unkept } from '../../shared/status/session-marks';
+import { cameDue, clearedSetAside, keptFrom, markedSetAside, markedWithHistory, resolvedNeedsYou, restoredNeedsYou, settledNeedsYou, settledTypes, unkept } from '../../shared/status/session-marks';
 import { needsYouUsage } from '../logs/usage';
 import { decided, readMeta, serialize, update } from '../sessions/meta-store';
 
@@ -42,6 +42,15 @@ export function settleNeedsYouTypes(types: string[]): Promise<void> {
     const before = meta.needsYou;
     Object.assign(meta, settledTypes(meta, types, Date.now()));
     usage.push(...needsYouUsage(before, meta.needsYou, { by: 'off' }));
+  });
+}
+
+/** Take each session's `resolved` reasons off, each into its history as settled `resolved` (`resolvedNeedsYou`): GitHub took back what they were marked for. */
+export function resolveNeedsYou(resolved: Record<string, NeedsYou[]>): Promise<void> {
+  return update('resolveNeedsYou', (meta, usage) => {
+    const before = meta.needsYou;
+    Object.assign(meta, resolvedNeedsYou(meta, resolved, Date.now()));
+    usage.push(...needsYouUsage(before, meta.needsYou, { by: 'resolved' }));
   });
 }
 
@@ -106,6 +115,9 @@ export function registerMarksIpc(): void {
   ipcMain.handle('meta:getNeedsYou', () => getNeedsYou());
   ipcMain.on('meta:settleNeedsYouTypes', (_event, types: string[]) => {
     void settleNeedsYouTypes(types);
+  });
+  ipcMain.on('meta:resolveNeedsYou', (_event, resolved: Record<string, NeedsYou[]>) => {
+    void resolveNeedsYou(resolved);
   });
   ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reasons: NeedsYou[]) => {
     void markNeedsYou(ids, reasons);

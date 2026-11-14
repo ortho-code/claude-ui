@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, markedWithHistory, mutedBySetAside, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, HISTORY_KEPT, togglePinned, clearedFinished, unkept, withoutSession, withPrLink, type SessionMarks } from '../../../../src/shared/status/session-marks';
+import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, markedWithHistory, mutedBySetAside, purgedSession, resolvedNeedsYou, restoredNeedsYou, settledNeedsYou, settledTypes, HISTORY_KEPT, togglePinned, clearedFinished, unkept, withoutSession, withPrLink, type SessionMarks } from '../../../../src/shared/status/session-marks';
 
 // Main's own tests (test/unit/main/sessions/meta.test.ts and status/marks.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -191,6 +191,23 @@ describe('settledTypes', () => {
       needsYou: { a: [quit], c: [merged] },
       needsYouHistory: { a: [{ ...approved, settled: 9, by: 'off' }], b: [{ ...approved, settled: 9, by: 'off' }] },
     });
+  });
+});
+
+describe('resolvedNeedsYou', () => {
+  const failed = { type: 'pr.checks-failed' as const, at: 2, pr: 'acme/app#1' };
+  const approved = { type: 'pr.approved' as const, at: 2, pr: 'acme/app#1' };
+
+  it("takes each session's resolved reasons off into its history as resolved, and leaves its other reasons and other sessions", () => {
+    expect(resolvedNeedsYou({ needsYou: { a: [failed, approved], b: [failed] }, needsYouHistory: {} }, { a: [failed] }, 9)).toEqual({
+      needsYou: { a: [approved], b: [failed] },
+      needsYouHistory: { a: [{ ...failed, settled: 9, by: 'resolved' }] },
+    });
+  });
+
+  it('leaves a reason a newer one of its kind replaced since, so it is not settled twice', () => {
+    const newer = { ...failed, at: 5 };
+    expect(resolvedNeedsYou({ needsYou: { a: [newer] }, needsYouHistory: {} }, { a: [failed] }, 9)).toEqual({ needsYou: { a: [newer] }, needsYouHistory: {} });
   });
 });
 

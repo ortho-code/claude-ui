@@ -120,6 +120,71 @@ test('a PR turning approved with failing checks marks a reason for each, named t
   ]);
 });
 
+// A reason GitHub takes back is settled as resolved (decided 2026-11-14): checks that run again no longer fail, and the rest of the PR's reasons stand.
+test("failing checks that run again take that reason off, into the session's history as resolved, and leave the approval marked with it", async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot(fixture);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  await gitHubSays(page, { 'acme/app#7': open({ review: 'approved', checks: 'failed' }), 'acme/app#8': open() });
+  await nextAsk(page);
+  const dot = row(page, closed.title).locator('.nudge');
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — PR #7 checks failed, approved');
+
+  await gitHubSays(page, { 'acme/app#7': open({ review: 'approved', checks: 'running' }), 'acme/app#8': open() });
+  await nextAsk(page);
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — PR #7 approved');
+  await expect.poll(() => page.evaluate((id) => window.__claudeUiFixture.needsYou[id], closed.id)).toEqual([{ type: 'pr.approved', at: expect.any(Number), pr: 'acme/app#7' }]);
+  await expect.poll(() => page.evaluate((id) => window.__claudeUiFixture.needsYouHistory[id], closed.id)).toEqual([expect.objectContaining({ type: 'pr.checks-failed', by: 'resolved' })]);
+});
+
+// An answer not kept as what was last seen takes nothing back, so failing checks that come back are still a change from what was kept.
+test('an answer that comes while what was last seen cannot be read takes nothing back, and the next one does', async ({ app, page }) => {
+  await page.clock.install();
+  const failed = { type: 'pr.checks-failed' as const, at: 1, pr: 'acme/app#7' };
+  await app.boot({ ...fixture, prSeenReadFails: 1, prSeen: { ...seenOpen, 'acme/app#7': open({ checks: 'failed' }) }, prStatuses: { 'acme/app#7': open({ checks: 'running' }), 'acme/app#8': open() }, needsYou: { [closed.id]: [failed] } });
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  const dot = row(page, closed.title).locator('.nudge');
+  await needs(dot);
+
+  await nextAsk(page);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(2);
+  await notNeeds(dot);
+});
+
+// GitHub working a conflict out again after a push says nothing yet, so only its answer of no conflict takes the reason off.
+test('a conflict stays while GitHub works it out again, and goes once GitHub says there is none', async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot(fixture);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  await gitHubSays(page, { 'acme/app#7': open({ conflict: true }), 'acme/app#8': open() });
+  await nextAsk(page);
+  const dot = row(page, closed.title).locator('.nudge');
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merge conflict');
+
+  await gitHubSays(page, { 'acme/app#7': open({ conflict: null }), 'acme/app#8': open() });
+  await nextAsk(page);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(3);
+  await needs(dot);
+
+  await gitHubSays(page, { 'acme/app#7': open({ conflict: false }), 'acme/app#8': open() });
+  await nextAsk(page);
+  await notNeeds(dot);
+});
+
+test('changes requested go once the review no longer asks for them', async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot(fixture);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  await gitHubSays(page, { 'acme/app#7': open({ review: 'changes-requested', changesRequested: ['r1'] }), 'acme/app#8': open() });
+  await nextAsk(page);
+  const dot = row(page, closed.title).locator('.nudge');
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — PR #7 changes requested');
+
+  await gitHubSays(page, { 'acme/app#7': open({ changesRequested: ['r1'] }), 'acme/app#8': open() });
+  await nextAsk(page);
+  await notNeeds(dot);
+});
+
 // A PR type `needsYou` switches off marks nothing; the others found in the same answer still do (decided 2026-11-06).
 test('with approved switched off, a PR turning approved with failing checks marks only the failing checks', async ({ app, page }) => {
   await page.clock.install();

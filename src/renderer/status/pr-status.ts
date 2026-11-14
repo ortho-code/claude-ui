@@ -1,7 +1,7 @@
-import { approvalsRequired, authorName, prKey, prReference, type Approvals } from '../../shared/sessions/prs';
-import { firesFor, PR_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
+import { approvalsRequired, authorName, prKey, prReference, referenceKey, type Approvals } from '../../shared/sessions/prs';
+import { firesFor, isPrReason, PR_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import type { SettingsView } from '../../shared/config/settings';
-import type { PrNames, PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, PrToFind, SessionSummary } from '../../shared/types';
+import type { NeedsYou, PrNames, PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, PrToFind, SessionSummary } from '../../shared/types';
 import type { View } from '../state/app';
 import type { Tone } from '../ui/tone';
 import { lookClass } from './looks';
@@ -225,6 +225,30 @@ export function prChanges(seen: PrSeen | null, prs: readonly PrRef[], read: PrSt
     if (found.length > 0) changes.push({ pr: prReference(pr), types: found });
   }
   return { seen: seen === null && prs.every((pr) => read.statuses[prKey(pr)] === undefined) ? null : next, changes };
+}
+
+/**
+ * The PR types GitHub can take back, each with whether a status still holds it: failing checks until they run again or pass, a conflict until GitHub says there is none, changes requested until the review no longer asks for them, and none of them once the PR is merged or closed.
+ * A conflict GitHub is still working out holds, as it does for what a change is (`withKnownConflict`).
+ */
+const TAKEN_BACK: Partial<Record<PrNeedsYouType, (status: PrStatus) => boolean>> = {
+  'pr.checks-failed': (status) => status.state === 'open' && status.checks === 'failed',
+  'pr.conflict': (status) => status.state === 'open' && status.conflict !== false,
+  'pr.changes-requested': (status) => status.state === 'open' && status.review === 'changes-requested',
+};
+
+/**
+ * Each session's reasons that main's answer took back (`TAKEN_BACK`), by session; only those of a PR the answer has a status for, and none from an answer in which a request to GitHub failed, so a PR not known now keeps its reasons (decided 2026-11-14).
+ */
+export function takenBack(needsYou: ReadonlyMap<string, readonly NeedsYou[]>, read: PrStatusRead): Record<string, NeedsYou[]> {
+  if (read.problem !== null) return {};
+  const gone = (reason: NeedsYou): boolean => {
+    if (!isPrReason(reason)) return false;
+    const holds = TAKEN_BACK[reason.type];
+    const status = read.statuses[referenceKey(reason.pr)];
+    return holds !== undefined && status !== undefined && !holds(status);
+  };
+  return Object.fromEntries([...needsYou].map(([id, reasons]) => [id, reasons.filter(gone)] as const).filter(([, reasons]) => reasons.length > 0));
 }
 
 /** The order a session's PRs roll up by, highest first: whatever most needs a person wins, in the needs-you categories' order, so the mark is muted only once every PR is merged or closed. */

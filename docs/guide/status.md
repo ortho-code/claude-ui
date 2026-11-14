@@ -12,6 +12,7 @@
 
 A session marked as needing you has a mauve dot on its row and its tab, saying why on hover, such as that it was running when the app quit, also when the app ended without quitting.
 The mark stays through a resume and a restart until you act on the session, such as typing a prompt there, closing its tab, leaving claude yourself, a `/clear`, marking it finished, or choosing Clear needs you in its kebab, and a click on the dot only marks it seen.
+A PR's failing checks, merge conflict or requested changes go by themselves once GitHub no longer says them, such as when the checks run again, while PR status is on and a session still links the PR.
 
 Each reason a session is marked as needing you for is of a type, and each type belongs to a category:
 

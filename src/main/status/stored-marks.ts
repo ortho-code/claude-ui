@@ -42,7 +42,7 @@ export function needsYouOf(raw: unknown): Record<string, NeedsYou[]> {
   );
 }
 
-const SETTLED_BY: readonly SettledBy[] = ['prompt', 'cleared', 'closed', 'moved', 'finished', 'replaced', 'off'];
+const SETTLED_BY: readonly SettledBy[] = ['prompt', 'cleared', 'closed', 'moved', 'finished', 'replaced', 'off', 'resolved'];
 
 /** Session -> its settled reasons, from whatever was stored: an entry whose reason does not read (`reasonsOf`), or without a moment it was settled or what settled it, left out, the newest `HISTORY_KEPT` kept, and a session left with none dropped. */
 export function needsYouHistoryOf(raw: unknown): Record<string, SettledNeedsYou[]> {

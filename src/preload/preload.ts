@@ -26,6 +26,7 @@ const api: ClaudeUiApi = {
   getNeedsYouTypes: () => ipcRenderer.invoke('needsYou:types'),
   onNeedsYouTypes: (callback) => ipcRenderer.on('needsYou:changed', (_event, registry: NeedsYouRegistry) => callback(registry)),
   settleNeedsYouTypes: (types) => ipcRenderer.send('meta:settleNeedsYouTypes', types),
+  resolveNeedsYou: (resolved) => ipcRenderer.send('meta:resolveNeedsYou', resolved),
   markNeedsYou: (ids, reasons) => ipcRenderer.send('meta:markNeedsYou', ids, reasons),
   clearNeedsYou: (id, by) => ipcRenderer.send('meta:clearNeedsYou', id, by),
   restoreNeedsYou: (id, reasons) => ipcRenderer.send('meta:restoreNeedsYou', id, reasons),

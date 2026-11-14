@@ -116,10 +116,13 @@ describe('sessions that need you', () => {
     const entry = (at: number, more: object = {}) => ({ type: 'app.reminder', at, settled: at, by: 'cleared', ...more });
     await writeMetaFile({
       version: 3,
-      needsYouHistory: { a: [entry(1), entry(2, { by: 'nonsense' }), entry(3, { settled: 'then' }), entry(4, { type: 'nonsense' })], b: 'yes', c: Array.from({ length: 25 }, (_, i) => entry(i)) },
+      needsYouHistory: { a: [entry(1), entry(2, { by: 'nonsense' }), entry(3, { settled: 'then' }), entry(4, { type: 'nonsense' }), entry(5, { by: 'resolved' })], b: 'yes', c: Array.from({ length: 25 }, (_, i) => entry(i)) },
     });
     const history = await getNeedsYouHistory();
-    expect(history.a).toEqual([{ type: 'app.reminder', at: 1, settled: 1, by: 'cleared' }]);
+    expect(history.a).toEqual([
+      { type: 'app.reminder', at: 1, settled: 1, by: 'cleared' },
+      { type: 'app.reminder', at: 5, settled: 5, by: 'resolved' },
+    ]);
     expect(Object.keys(history).sort()).toEqual(['a', 'c']);
     expect(history.c).toHaveLength(20);
   });

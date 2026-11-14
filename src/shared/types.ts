@@ -36,10 +36,10 @@ export type NeedsYou =
   | { type: PrNeedsYouType; at: number; pr: string };
 
 /**
- * What settled a reason: your prompt there, Clear needs you, its tab removed by you or your leaving claude, `/clear` or claude's own `/resume` taking the tab on to another session, a finish, its successor coming (the next close of the app, the same PR's next change), or its type switched off.
+ * What settled a reason: your prompt there, Clear needs you, its tab removed by you or your leaving claude, `/clear` or claude's own `/resume` taking the tab on to another session, a finish, its successor coming (the next close of the app, the same PR's next change), its type switched off, or GitHub taking back the state it was marked for.
  * A delete settles nothing: the session's history goes with it.
  */
-export type SettledBy = 'prompt' | 'cleared' | 'closed' | 'moved' | 'finished' | 'replaced' | 'off';
+export type SettledBy = 'prompt' | 'cleared' | 'closed' | 'moved' | 'finished' | 'replaced' | 'off' | 'resolved';
 
 /** A reason as it stood, with when it was settled (epoch ms) and by what: one entry of a session's needs-you history. */
 export type SettledNeedsYou = NeedsYou & { settled: number; by: SettledBy };
@@ -556,6 +556,8 @@ export interface ClaudeUiApi {
   onNeedsYouTypes(callback: (registry: NeedsYouRegistry) => void): void;
   /** Take every session's reasons of `types` off, each into its history as settled `off`: the types were switched off. */
   settleNeedsYouTypes(types: string[]): void;
+  /** Take each session's `resolved` reasons off, each into its history as settled `resolved`: GitHub took back what they were marked for. */
+  resolveNeedsYou(resolved: Record<string, NeedsYou[]>): void;
   /** Mark sessions as needing you for `reasons`; each is added beside a session's other reasons, replacing one of its kind, which goes to the session's history (`markedWithHistory`). */
   markNeedsYou(ids: string[], reasons: NeedsYou[]): void;
   /** Take a session's needs-you mark off, whether or not it had one, its reasons going to its history as settled by `by`. */

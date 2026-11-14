@@ -1,16 +1,16 @@
 import { approvalsRequired, prKey, prReference, referenceKey } from '../../../../shared/sessions/prs';
 import type { PrRef, PrSeen, PrsFound, PrStatusRead, PrToFind } from '../../../../shared/types';
 import { entityKey } from '../../../rules/sessions';
-import { approvalsIn, createKey, createsToFind, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, withNames } from '../../../status/pr-status';
+import { approvalsIn, createKey, createsToFind, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, takenBack, withNames } from '../../../status/pr-status';
 import { store, type View } from '../../../state/app';
-import { markNeedsYou, marksFor } from '../../../state/needs-you';
+import { markNeedsYou, marksFor, resolveNeedsYou } from '../../../state/needs-you';
 import { RunGate } from '../../run';
 
 /**
  * Asking main what GitHub says of every PR the sessions link (src/main/sessions/pr-status.ts), into the store's `prStatus`.
  * Timed by the gate a panel's runs go through (`RunGate`): an ask whenever the PRs the listing links change, the first listing's included, then each at the delay the answer before it calls for (`nextAsk`).
  * The window regaining focus asks at once, unless the last answer is under a minute old.
- * Each answer also marks the sessions whose PRs changed in a way that needs you, against what was last seen of them (`settleChanges`).
+ * Each answer, once what was last seen is read, first takes off the sessions' reasons GitHub took back (`takenBack`), so that a reason is settled only by an answer that is also kept as what was last seen, and then marks the sessions whose PRs changed in a way that needs you, against what was last seen of them (`settleChanges`).
  * What each PR is called comes into the store's `prNames` from what was last seen, as soon as that is read, and then from each answer.
  * Each ask first looks for the PRs sessions opened in the browser, every five minutes until each is found or 30 days have passed (`findCreates`).
  * An ask overtaken by a later one before main answered is dropped, so an older answer never lands over a newer one.
@@ -66,7 +66,9 @@ async function ask(number: number): Promise<void> {
   answeredAt = Date.now();
   store.set({ prStatus: read, prNames: withNames(store.get().prNames, read.statuses) });
   gate.ended(number, sooner(nextAsk(prs, read), lookAgain));
-  if (known) settleChanges(prs, read);
+  if (!known) return;
+  resolveNeedsYou(takenBack(store.get().needsYou, read));
+  settleChanges(prs, read);
 }
 
 /** The sooner of two delays, `off` being never. */

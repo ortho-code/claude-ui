@@ -44,6 +44,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A panel's command, a session or a panel's shell asked for while the app is quitting is no longer started, where the quit, having already stopped the others, would not have stopped it.
 - Ctrl+C copies what is selected in a claude tab or a panel's shell, where it sent an interrupt and only Ctrl+Insert copied; with nothing selected it still interrupts.
 - Under WSL a link the app cannot hand to Windows now says so, and why, where it did nothing, as when the app's way to Windows had broken.
+- A session marked for a PR's failing checks, merge conflict or requested changes is no longer marked for it once GitHub stops saying it, such as when the checks run again, while PR status is on and a session still links the PR.
 
 ## 0.4.0 — 2026-11-09
 

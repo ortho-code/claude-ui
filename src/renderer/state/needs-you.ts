@@ -1,5 +1,5 @@
 import { firesFor, typeIsOn } from '../../shared/status/needs-you';
-import { clearedNeedsYou, markedNeedsYou, settledTypes } from '../../shared/status/session-marks';
+import { clearedNeedsYou, markedNeedsYou, resolvedNeedsYou, settledTypes } from '../../shared/status/session-marks';
 import type { NeedsYou, PrNeedsYouType, PrRole, SettledBy } from '../../shared/types';
 import { store, withMember, type View } from './app';
 
@@ -27,6 +27,14 @@ export function clearNeedsYou(id: string, by: SettledBy): void {
   if (!store.get().needsYou.has(id)) return;
   store.set({ needsYou: new Map(Object.entries(clearedNeedsYou(Object.fromEntries(store.get().needsYou), id))) });
   window.claudeUi.clearNeedsYou(id, by);
+}
+
+/** Take each session's `resolved` reasons off, main recording each as settled `resolved`: GitHub took back what they were marked for; nothing is sent when there are none. */
+export function resolveNeedsYou(resolved: Readonly<Record<string, readonly NeedsYou[]>>): void {
+  if (Object.keys(resolved).length === 0) return;
+  const { needsYou } = store.get();
+  store.set({ needsYou: new Map(Object.entries(resolvedNeedsYou({ needsYou: Object.fromEntries([...needsYou].map(([id, reasons]) => [id, [...reasons]])), needsYouHistory: {} }, resolved, Date.now()).needsYou)) });
+  window.claudeUi.resolveNeedsYou(Object.fromEntries(Object.entries(resolved).map(([id, reasons]) => [id, [...reasons]])));
 }
 
 /**

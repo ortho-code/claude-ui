@@ -4,7 +4,7 @@ import { NO_NEEDS_YOU_TYPES } from '../../../src/shared/status/needs-you';
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/helpers/path-check';
 import { prKey, withPrLinks } from '../../../src/shared/sessions/prs';
-import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/status/session-marks';
+import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, resolvedNeedsYou, restoredNeedsYou, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/status/session-marks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/config/settings';
 import { withText } from '../../../src/shared/helpers/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -141,6 +141,9 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     onNeedsYouTypes: on('onNeedsYouTypes'),
     settleNeedsYouTypes: (types) => {
       Object.assign(fixture, settledTypes(fixture, types, Date.now()));
+    },
+    resolveNeedsYou: (resolved) => {
+      Object.assign(fixture, resolvedNeedsYou(fixture, resolved, Date.now()));
     },
     markNeedsYou: (ids, reasons) => {
       Object.assign(fixture, markedWithHistory(fixture, ids, reasons, Date.now()));

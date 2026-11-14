@@ -113,18 +113,31 @@ export function settledNeedsYou(marks: NeedsYouMarks, id: string, by: SettledBy,
   return { needsYou: clearedNeedsYou(marks.needsYou, id), needsYouHistory: withSettled(marks.needsYouHistory, id, standing.map((reason) => ({ ...reason, settled: now, by }))) };
 }
 
-/** Every session's reasons of `types` taken off, the others left, each into its session's history as settled `off` at `now`: what switching a type off does to the marks it already made (decided 2026-11-06). */
-export function settledTypes(marks: NeedsYouMarks, types: readonly string[], now: number): NeedsYouMarks {
-  const off = new Set(types);
+/** Every session's reasons that `settles` picks taken off, the others left, each into its session's history as settled by `by` at `now`. */
+function settledWhere(marks: NeedsYouMarks, settles: (id: string, reason: NeedsYou) => boolean, by: SettledBy, now: number): NeedsYouMarks {
   let needsYouHistory = copied(marks.needsYouHistory);
   const needsYou: Record<string, NeedsYou[]> = {};
   for (const [id, reasons] of Object.entries(marks.needsYou)) {
-    const settled = reasons.filter((reason) => off.has(reason.type));
-    const kept = reasons.filter((reason) => !off.has(reason.type));
+    const settled = reasons.filter((reason) => settles(id, reason));
+    const kept = reasons.filter((reason) => !settles(id, reason));
     if (kept.length > 0) needsYou[id] = kept;
-    needsYouHistory = withSettled(needsYouHistory, id, settled.map((reason) => ({ ...reason, settled: now, by: 'off' as const })));
+    needsYouHistory = withSettled(needsYouHistory, id, settled.map((reason) => ({ ...reason, settled: now, by })));
   }
   return { needsYou, needsYouHistory };
+}
+
+/** Every session's reasons of `types` taken off, the others left, each into its session's history as settled `off` at `now`: what switching a type off does to the marks it already made (decided 2026-11-06). */
+export function settledTypes(marks: NeedsYouMarks, types: readonly string[], now: number): NeedsYouMarks {
+  const off = new Set(types);
+  return settledWhere(marks, (_id, reason) => off.has(reason.type), 'off', now);
+}
+
+/**
+ * Each session's `resolved` reasons taken off, each into its history as settled `resolved` at `now`: GitHub took back what they were marked for (decided 2026-11-14).
+ * Only a reason still standing as it was marked goes (`sameReason`), so one that a newer reason of its kind replaced in the meantime is not settled twice.
+ */
+export function resolvedNeedsYou(marks: NeedsYouMarks, resolved: Readonly<Record<string, readonly NeedsYou[]>>, now: number): NeedsYouMarks {
+  return settledWhere(marks, (id, reason) => (resolved[id] ?? []).some((gone) => sameReason(gone, reason)), 'resolved', now);
 }
 
 /** A session's reasons put back as they were, as Undo of a close or a finish does, and taken back off its history, so an undone close leaves no trace there. */

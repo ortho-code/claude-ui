@@ -15,7 +15,7 @@ vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({
 
 import { migrateToSessionKeys, recordClear } from '../../../../src/main/sessions/meta-store';
 import { finish, getFinished, getOpenSessions, getPinned, setActiveProject, setOpenSessions, togglePin, unfinish } from '../../../../src/main/sessions/meta';
-import { clearNeedsYou, clearSetAside, keep, markNeedsYou, markSetAside, restoreNeedsYou, setAsideCameDue, settleNeedsYouTypes, unkeep } from '../../../../src/main/status/marks';
+import { clearNeedsYou, clearSetAside, keep, markNeedsYou, markSetAside, resolveNeedsYou, restoreNeedsYou, setAsideCameDue, settleNeedsYouTypes, unkeep } from '../../../../src/main/status/marks';
 
 useMetaDir();
 
@@ -285,6 +285,9 @@ describe('the usage record', () => {
     await markSetAside(['c'], 5, 1);
     await setAsideCameDue(10);
     await clearNeedsYou('x', 'cleared');
+    const failed = { type: 'pr.checks-failed', at: 3, pr: 'acme/app#1' } as const;
+    await markNeedsYou(['d'], [failed]);
+    await resolveNeedsYou({ d: [failed] });
     expect((await usage()).filter((event) => (event as { kind: string }).kind === 'needsYou')).toEqual([
       { kind: 'needsYou', act: 'marked', id: 'a', types: ['app.was-running'] },
       { kind: 'needsYou', act: 'marked', id: 'b', types: ['app.was-running'] },
@@ -295,6 +298,8 @@ describe('the usage record', () => {
       { kind: 'needsYou', act: 'settled', id: 'a', types: ['app.was-running'], by: 'finished' },
       { kind: 'needsYou', act: 'settled', id: 'b', types: ['app.was-running'], by: 'off' },
       { kind: 'needsYou', act: 'marked', id: 'c', types: ['app.reminder'] },
+      { kind: 'needsYou', act: 'marked', id: 'd', types: ['pr.checks-failed'] },
+      { kind: 'needsYou', act: 'settled', id: 'd', types: ['pr.checks-failed'], by: 'resolved' },
     ]);
   });
 });
