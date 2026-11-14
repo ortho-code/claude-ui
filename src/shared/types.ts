@@ -685,8 +685,10 @@ export interface ClaudeUiApi {
   recordClear(from: string, to: string, title: string): Promise<void>;
   /** Open a folder picker; resolves to the chosen path or null if cancelled. */
   pickFolder(): Promise<string | null>;
-  /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */
+  /** Open an http(s) URL in the browser; one main refuses or could not hand on comes back through `onOpenFailed`. */
   openExternal(url: string): void;
+  /** A link `openExternal` could not hand on, and what went wrong. */
+  onOpenFailed(callback: (url: string, problem: string) => void): void;
   /** What GitHub says of `prs`, asked with `gh` (`src/main/sessions/pr-status.ts`); a merged one is not asked again while the app runs. */
   prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
   /** Find the PRs sessions opened in the browser to be created, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */

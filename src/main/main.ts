@@ -1,7 +1,7 @@
 // First, and for its side effect: paths.ts pins the userData directory, and must run before any module computes a path from it.
 // See the comment there.
 import './paths';
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import { existsSync } from 'node:fs';
 import { findTranscript, listSessions, trashSessions, worktreeExists } from './sessions/sessions';
 import { readHistory } from './sessions/transcript';
@@ -24,6 +24,7 @@ import { readBundledNeedsYou } from './status/needs-you';
 import { registerSettings } from './config/settings';
 import { registerLayoutState } from './panels/layout-state';
 import { registerClipboardIpc } from './platform/clipboard';
+import { registerLinkIpc } from './platform/links';
 import { registerPrFind } from './sessions/pr-find';
 import { registerPrStatus } from './sessions/pr-status';
 import { withPrLinks } from '../shared/sessions/prs';
@@ -91,10 +92,6 @@ ipcMain.handle('history:get', async (_event, id: string, known: number, generati
   return readHistory(file, Number.isInteger(known) && known > 0 ? known : 0, Number.isInteger(generation) ? generation : 0);
 });
 ipcMain.handle('sessions:worktreeExists', (_event, repoRoot: string, name: string) => worktreeExists(repoRoot, name));
-ipcMain.on('shell:openExternal', (_event, url: string) => {
-  // Only ever hand the OS http(s) links, from whichever part of the window sent them — never file://, etc.
-  if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
-});
 ipcMain.handle('sessions:delete', async (_event, id: string) => {
   // The renderer confirms via its own modal (a native dialog flickers under WSLg), so here we just do the deletion: move the files to trash, then drop the session from metadata.
   await trashSessions([id]);
@@ -117,6 +114,7 @@ registerMarksIpc();
 registerWindowIpc();
 registerGeometry(currentWindow);
 registerClipboardIpc();
+registerLinkIpc();
 registerTerminalIpc();
 registerPanelsIpc();
 

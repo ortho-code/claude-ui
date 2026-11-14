@@ -238,6 +238,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     recordClear: () => answer(undefined),
     pickFolder: () => answer(fixture.pickFolder),
     openExternal: sent,
+    onOpenFailed: on('onOpenFailed'),
     // Main answers for the PRs asked about only, each one's last status by its key (`prKey`, `PrStatuses.ask`, src/main/sessions/pr-status.ts), so the fixture keeps them by key too; it also leaves out a PR whose repository is not `owner/name`, which no fixture links.
     prStatuses: (prs) =>
       answer({

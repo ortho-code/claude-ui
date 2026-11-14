@@ -46,6 +46,8 @@ async function refreshFromDisk(): Promise<void> {
 routeTerminals();
 // What Ctrl+V does in every terminal depends on whether this is WSL (terminal.ts).
 void askPlatform();
+// A link main could not open says so wherever it was pressed, since a press that opens nothing would otherwise look like one that was not felt.
+window.claudeUi.onOpenFailed((url, problem) => showToast(`Couldn't open ${url}: ${problem}`));
 
 // --- What the store tells ---
 // Subscribed before start-up sets anything, and told in this order.

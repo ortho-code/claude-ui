@@ -90,3 +90,11 @@ None of these changed the field at runtime: `lang` on the field or the page, the
 So everything the app formats itself names the language rather than taking the window's default (`src/renderer/ui/locale.ts`): a moment in full (`momentInLanguage`), which `moments.ts` draws again in a time's tooltip as soon as the language changes, and a list panel's line under a failed run, which the panel draws again too.
 The calendars take their first weekday from it (`Intl.Locale(tag).getWeekInfo()`, which Chromium has and the renderer's ES2022 lib does not type yet), Monday for en-GB and nl-NL and Sunday for en-US, and an open one turns to the new first day; with the system's language read as en-US the calendars start on Sunday.
 `localeCompare` is left without a language: in the window it orders ISO times, and in main folder names, neither of which the setting is about.
+
+## Links
+
+Every link the window opens, a PR in a menu, a link in a terminal or the history, a panel's row, goes to main, which opens http(s) links only (`src/main/platform/links.ts`); the window itself never sends another kind.
+**Under WSL main hands a link to Windows' own handler for it**, `rundll32.exe url.dll,FileProtocolHandler`, the call `xdg-open` makes there too (xdg-utils 1.2.1), but made by the app, so that a call Windows does not take fails where the app can see it ([decided 2026-11-13](../decisions/0221-links-open-through-windows-under-wsl.md)).
+Elsewhere it uses Electron's `shell.openExternal`.
+**A link that could not be handed on says so**: main logs it, and the window shows "Couldn't open <link>: <why>" in a toast.
+What can be seen is narrow: under WSL that Windows could not be reached, or did not answer within 3 s, since rundll32.exe gives no exit code for whether the browser took the link; elsewhere only that `xdg-open` could not be started, since Electron resolves once it has started, without waiting for it (Electron 43.2.0's source, and probed 2026-11-13: resolved after 9 ms with no browser to open).

@@ -226,3 +226,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0218](0218-a-review-row-reads-like-any-other-row.md) | 2026-11-12 | A review row reads like any other row | [The review](../architecture/session-list.md#the-review) |
 | [0219](0219-clear-and-close-ends-the-filter-in-one-press.md) | 2026-11-12 | Clear and close ends the filter in one press | [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it) |
 | [0220](0220-ctrl-c-copies-a-selection.md) | 2026-11-12 | Ctrl+C copies a selection | [The `terminal` type](../architecture/panels.md#the-terminal-type) |
+| [0221](0221-links-open-through-windows-under-wsl.md) | 2026-11-13 | Links open through Windows under WSL | [Links](../architecture/window.md#links) |

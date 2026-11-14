@@ -28,6 +28,15 @@ test('the mark lists the PRs by their number, oldest first, and opens the one pi
   await expect(tab(page, two.title)).toHaveCount(0);
 });
 
+test('a PR whose page could not be opened says so, and why', async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, two.title).locator('.pr-badge').click();
+  await page.locator('.kebab-menu button', { hasText: '#7' }).click();
+  expect(await app.calls('openExternal')).toEqual([['https://github.com/ScientaNL/demo/pull/7']]);
+  expect(await app.emit('onOpenFailed', 'https://github.com/ScientaNL/demo/pull/7', 'spawn rundll32.exe ENOENT')).toBe(1);
+  await expect(page.locator('#toast')).toHaveText(/Couldn't open https:\/\/github\.com\/ScientaNL\/demo\/pull\/7: spawn rundll32\.exe ENOENT/);
+});
+
 test("a session's options list its PRs, from its row and from its tab, each opening its page", async ({ app, page }) => {
   await app.boot({ ...fixture, openSessions: [two.id] });
   await row(page, two.title).locator('.session-kebab').click();

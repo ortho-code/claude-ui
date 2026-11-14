@@ -13,5 +13,5 @@ How claude-ui is built, by area; what it holds to is in [the principles](../prin
 - [The log and the usage record](logs.md): The log, The usage record.
 - [Config](config.md): the config folder, its files and settings.
 - [Panels](panels.md): Panels.
-- [The window](window.md): The window's own chrome — built, and currently switched off, Reopening the way you left it, The language.
+- [The window](window.md): The window's own chrome — built, and currently switched off, Reopening the way you left it, The language, Links.
 - [UI conventions](ui-conventions.md): UI conventions.
