@@ -5,8 +5,8 @@ import { element } from '../ui/dom';
 import { PINNED_BADGE_ICON, WORKTREE_ICON } from '../ui/svg';
 import { copyText } from '../ui/toast';
 import { setTooltip } from '../ui/tooltip';
-import type { MountedPanel, PanelHost, PanelType, PanelView } from './contract';
-import { actionButton, drawFullScreenButton, showStatus } from './headers';
+import type { MountedPanel, PanelHost, PanelType, PanelView, Refreshed } from './contract';
+import { actionButton, drawFullScreenButton, drawRefreshed, showStatus } from './headers';
 import type { PanelSlot } from './layout';
 import { linkedSessions, pickSession, sessionNamed, startSession } from './links';
 import { optionsOf } from './options';
@@ -50,6 +50,10 @@ export interface Mounted {
   notes: string[];
   /** Its full-screen button, in the header the tree draws, or in a bare panel's own bar (`PanelHost.fullScreenButton`). */
   fullScreenButton: HTMLButtonElement;
+  /** How long ago what it shows came from a run, beside its button, hidden until it says (`setRefreshed`). */
+  refreshed: HTMLElement;
+  /** What it last said of that, which the tree draws again in each header it builds, since the clock lets go of a time once its header has gone. */
+  refreshedAt: Refreshed | null;
 }
 
 /** What mounting a panel needs of the tree that places it. */
@@ -142,15 +146,16 @@ function viewSwitch(slot: PanelSlot, context: MountContext): { element: HTMLElem
   return { element: views, picked: pickedView, show: showViews, keep: keepPick, notes: () => viewNotesNow };
 }
 
-/** The marks the panel's reports change, in its header and on its rail icon, each hidden until the panel says something: the busy mark, the run's last word, the rail's dot, and its count beside its title and on the rail. */
-function reportMarks(): { busy: HTMLElement; end: HTMLElement; badge: HTMLElement; count: HTMLElement; railCount: HTMLElement } {
+/** The marks the panel's reports change, in its header and on its rail icon, each hidden until the panel says something: the busy mark, the run's last word, how long ago it refreshed, the rail's dot, and its count beside its title and on the rail. */
+function reportMarks(): { busy: HTMLElement; end: HTMLElement; refreshed: HTMLElement; badge: HTMLElement; count: HTMLElement; railCount: HTMLElement } {
   const busy = element('span', 'nudge running');
   const end = element('span', 'panel-end');
+  const refreshed = element('span', 'panel-refreshed');
   const badge = element('span', badgeClass(null));
   const count = element('span', 'panel-count');
   const railCount = element('span', 'rail-count');
-  busy.hidden = badge.hidden = count.hidden = railCount.hidden = true;
-  return { busy, end, badge, count, railCount };
+  busy.hidden = refreshed.hidden = badge.hidden = count.hidden = railCount.hidden = true;
+  return { busy, end, refreshed, badge, count, railCount };
 }
 
 /** The panel's full-screen button, in its header or its own bar. */
@@ -167,7 +172,7 @@ function fullScreenToggle(slot: PanelSlot, type: PanelType, context: MountContex
 /** Mount the panel for a slot, with its header's marks and controls and the host it reports through. */
 export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
   const type = context.typeOf(slot.type!);
-  const { busy, end, badge, count, railCount } = reportMarks();
+  const { busy, end, refreshed, badge, count, railCount } = reportMarks();
   // Per entry, since what the button would do can depend on the options; a terminal has none.
   const label = type.bare ? null : type.actionLabel ? type.actionLabel(optionsOf(slot.entry)) : 'Refresh';
   const action = label === null ? null : actionButton(label);
@@ -210,6 +215,11 @@ export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
     setEnd: (label) => {
       end.textContent = label;
     },
+    setRefreshed: (at) => {
+      const current = context.entry(slot.key);
+      if (current) current.refreshedAt = at;
+      drawRefreshed(refreshed, action, at);
+    },
     setStatus: (status, look) => showStatus(badge, status, look),
     setCount: (value) => {
       const current = context.entry(slot.key);
@@ -239,5 +249,5 @@ export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
   // A panel that said its tabs while it was mounting has them from the start.
-  return { panel, slot, viewNotes: views.notes(), view: views.picked, viewTold: views.picked(), signature: context.signatureOf(slot), busy, end, views: views.element, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder: folder.element, fullScreenButton, ...said };
+  return { panel, slot, viewNotes: views.notes(), view: views.picked, viewTold: views.picked(), signature: context.signatureOf(slot), busy, end, views: views.element, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder: folder.element, fullScreenButton, refreshed, refreshedAt: null, ...said };
 }

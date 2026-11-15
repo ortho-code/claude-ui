@@ -25,6 +25,11 @@ export function momentInLanguage(at: number): string {
   return momentLabel(at, language());
 }
 
+/** A moment's time of day alone, to the minute, as the language in force writes it: "15:30", "03:30 PM". */
+export function clockInLanguage(at: Date): string {
+  return at.toLocaleTimeString(language(), { hour: '2-digit', minute: '2-digit' });
+}
+
 /** The day `tag` starts its weeks on, counted as the calendars count, 0 for Sunday to 6 for Saturday. */
 export function firstWeekday(tag: string): number {
   return (new Intl.Locale(tag) as LocaleWithWeek).getWeekInfo().firstDay % 7;

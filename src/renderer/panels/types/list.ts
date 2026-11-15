@@ -1,7 +1,7 @@
 import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, typeFolder, type PanelContext, type PanelRunEvent } from '../../../shared/panels';
 import { stripAnsi } from '../../ui/ansi';
 import { element } from '../../ui/dom';
-import { language, onLanguageChange } from '../../ui/locale';
+import { clockInLanguage, onLanguageChange } from '../../ui/locale';
 import { setTooltip } from '../../ui/tooltip';
 import type { PanelSlot } from '../layout';
 import { intervalOf, optionsOf } from '../options';
@@ -50,7 +50,6 @@ function stderrTail(stderr: string): string[] {
     .slice(-STDERR_LINES);
 }
 
-const clock = (at: Date): string => at.toLocaleTimeString(language(), { hour: '2-digit', minute: '2-digit' });
 
 /** What a list panel runs with: where, and the script where the check found it, so the run starts exactly what was checked. */
 interface ListReady {
@@ -151,6 +150,8 @@ class ListPanel extends RunPanel<ListReady> {
   idle(runnable: boolean): void {
     // A panel that cannot run is drawn by the tree as its problems; this is for one that can, with nowhere to run.
     this.noContext = runnable;
+    // The list is out of sight either way, so its time goes with it.
+    this.host.setRefreshed(null);
     this.show();
   }
 
@@ -190,6 +191,7 @@ class ListPanel extends RunPanel<ListReady> {
       if (read.doc) {
         this.good = { doc: read.doc, at };
         this.failure = null;
+        this.host.setRefreshed({ at, failedAt: null });
         this.host.setEnd('');
         this.host.setStatus(null);
         this.host.setCount(read.doc.badge);
@@ -203,6 +205,8 @@ class ListPanel extends RunPanel<ListReady> {
       this.host.setEnd('no list');
     }
     this.host.setStatus('fail');
+    // The list from the last good run stays on show, and its time with it.
+    if (this.good) this.host.setRefreshed({ at: this.good.at, failedAt: at });
     // A count stands only beside the list it counts.
     if (!this.good) this.host.setCount(null);
     this.show();
@@ -219,7 +223,7 @@ class ListPanel extends RunPanel<ListReady> {
     this.unavailable.hidden = !unavailable;
     if (list && this.failure) {
       const { clause, lines, at } = this.failure;
-      this.failedLine.textContent = `The run at ${clock(at)} failed: ${clause}. This is the list from ${clock(this.good!.at)}.`;
+      this.failedLine.textContent = `The run at ${clockInLanguage(at)} failed: ${clause}. This is the list from ${clockInLanguage(this.good!.at)}.`;
       setTooltip(this.failedLine, lines.join('\n'));
     }
     if (unavailable) {

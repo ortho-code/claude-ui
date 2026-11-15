@@ -16,7 +16,7 @@ import { mountPanel, type MountContext, type Mounted } from './mount';
 import type { Asks, PanelType, Where } from './contract';
 import { commandType } from './types/command';
 import { terminalType } from './types/terminal';
-import { drawFullScreenButton, header, notesLine, problemList, tabsHeader } from './headers';
+import { drawFullScreenButton, drawRefreshed, header, notesLine, problemList, tabsHeader, watchHeaderFit } from './headers';
 import { foldedNow, initTreeState, keep, stateFileNotesNow, stateNotesOf, stateOf, takeState } from './tree-state';
 
 /**
@@ -330,10 +330,12 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   if (shown.problems.length > 0) {
     content.prepend(header(shown.title), problemList(shown.problems));
   } else if (!types[shown.type!]!.bare) {
-    const { count, folder, busy, end, views, action, problems, tabs, fullScreenButton } = mountedFor(shown);
-    const controls = [busy, end, views, ...(action ? [action] : []), fullScreenButton];
+    const { count, folder, busy, end, refreshed, refreshedAt, views, action, problems, tabs, fullScreenButton } = mountedFor(shown);
+    const controls = [busy, end, refreshed, views, ...(action ? [action] : []), fullScreenButton];
     // Tabs take the title's place, and its count and folder with it: the tabs are there to count, and each shell names its own folder.
     const row = tabs ? tabsHeader(tabs, controls) : header(shown.title, [folder, count, ...controls]);
+    if (refreshedAt) drawRefreshed(refreshed, action, refreshedAt);
+    watchHeaderFit(row);
     // The layout's refusals and the panel's own are one list, drawn the same way.
     if (problems.length > 0) content.prepend(row, problemList(problems));
     else content.prepend(row);

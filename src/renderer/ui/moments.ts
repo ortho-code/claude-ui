@@ -36,6 +36,11 @@ export function showMoment(el: HTMLElement, moment: Moment, later: () => Moment,
   clock ??= window.setInterval(tick, MINUTE);
 }
 
+/** Take `el` off the clock while it stays in the page, for a surface that no longer has a moment to say there. */
+export function forgetMoment(el: HTMLElement): void {
+  shown.delete(el);
+}
+
 /** Draw what `el` says now, off the clock, for a surface whose words around the moment changed while the moment did not; nothing for an element not on the clock. */
 export function redrawMoment(el: HTMLElement): void {
   const entry = shown.get(el);

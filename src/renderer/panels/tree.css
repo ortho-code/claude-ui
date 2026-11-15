@@ -165,11 +165,18 @@
   text-overflow: ellipsis;
 }
 
-.panel-end {
+/* The run's last word, and how long ago what the panel shows came from a run. */
+.panel-end,
+.panel-refreshed {
   font-size: var(--text-meta);
   font-weight: 400;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* The time gives way before the title is cut (`fitHeader`); Refresh's tooltip still gives it. */
+.panel-refreshed.dropped {
+  display: none;
 }
 
 /* A panel's switch between its views, beside its one button: the buttons side by side, 2px apart, so they read as one control and the one on show as part of it. */

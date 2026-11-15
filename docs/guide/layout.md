@@ -178,6 +178,10 @@ A panel's options are checked by the panel itself, when it appears and before ea
 - Any panel, the sidebar and the terminal included, fills the window from a button in its header, and the same button puts the layout back as it was.
 - Show in list, a project's or group's name in the tab bar, and a click on the tab on show while you are typing in it bring the session list into view when it is folded, behind another panel or under another panel's full screen.
 - A panel follows its tab's session into the worktree claude is changing files in, by path, after a `cd` or by claude's own worktree tools, and names the folder it looks in beside its title.
+- A panel with Refresh says beside it how long ago what it shows came from a run, "3 min ago", with the moment in full when you point at it, and at Refresh too.
+  A list whose last run failed keeps the time of the list still on show, and its tooltip says when the run failed; a command panel shows its last run's output, failed or not, so the time is that run's.
+  A run under way leaves the last time, and a panel that cannot run, or has nowhere to, shows none.
+  In a header too narrow for the time and the whole title, the time goes first.
 
 ## Panel types of your own
 

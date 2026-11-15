@@ -113,7 +113,9 @@ The dot is the status dot the rest of the app uses (`.nudge`), with one state of
 Clicking an icon shows that panel and unfolds the group, and clicking the shown panel's own icon folds the group, as VS Code's activity bar does, so a panel is put away from the icon that brought it out.
 The icon and the chevron call the one fold (`toggleFold`), so they cannot fold a group two ways, and the icon's tooltip and its `aria-label`, one string, say it folds ([decided 2026-09-28](../decisions/0024-shown-icon-folds-group.md)).
 In a group that cannot fold the shown icon still does nothing, and has neither a pointer nor a hover to suggest otherwise.
-A panel's own marks — the busy mark, the run's last word, its button — sit in a header over it, unless its type is bare.
+A panel's own marks — the busy mark, the run's last word, how long ago what it shows came from a run, its button — sit in a header over it, unless its type is bare.
+The time is the panel's to say (`PanelHost.setRefreshed`), since only the type knows which run what it shows came from: a list's last good run, with a later failed run's time beside it, and a command's last run, whose output is on show however it ended, and none while it shows why it cannot run or that it has nowhere to ([decided 2026-11-14](../decisions/0224-a-panels-header-says-when-it-last-refreshed.md)).
+The tree draws it on the clock every "x ago" ages on (`moments.ts`), and gives its moment to Refresh's tooltip too, so a header too narrow for it and the whole title drops it (`fitHeader` in `headers.ts`, on a `ResizeObserver`, since CSS cannot tell a title that is cut) and the moment stays one point away.
 A panel can put tabs in that header in place of its title (`PanelHost.setTabs`, § The `terminal` type).
 
 The fold control and the switcher each live in one function, `foldControls` in `split.ts` and `switcher` in `tree.ts`, so trying one of the other variants from the mock — a header button, a tab strip — is a local change there, and none of it is in the file format.
