@@ -4,6 +4,7 @@ import type { PanelSlot } from './layout';
 import { optionsOf, watchesGit, watchesSessions } from './options';
 import { NO_CONTROL, RunGate, readControl, resolveContext, runFailed, runKey, type Watched } from './run';
 import { listenForRuns } from './run-events';
+import { POLL_MS, TreeWatch } from './tree-watch';
 
 /**
  * A panel's runs, for the types that run a script and show what it gave — `command` and the `list` kind — written once: when it runs (`RunGate`), the check before every run, each run's token and number, asking main to run and to stop, what a run said in its control file about the next, for a panel that watches git, a run when its working tree changes, and for one that watches sessions, a run when the sessions snapshot does.
@@ -26,11 +27,6 @@ export interface Checked<Ready> {
   watched?: Watched;
 }
 
-/**
- * How often git is asked about a panel's working tree: for a change, while the panel watches one, and again after a check it did not answer, the retries.
- * One period for both, which the retry's own message names.
- */
-const POLL_MS = 30_000;
 /** How many times a check git did not answer is asked again, before the panel waits for a Refresh. */
 const RETRIES = 3;
 /** How long the sessions have to stay as they are before a panel that watches them runs again, so the changes of one moment, a turn's end and its read mark, are one run (decided 2026-11-02). */
@@ -81,14 +77,8 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
    * By number, so the end of a run a newer one replaced neither clears it nor sets the baseline.
    */
   private activeRun: number | null = null;
-  /**
-   * The watched tree as the latest run left it, for the folder last seen: a fingerprint that differs from this, in the same folder, is a change.
-   * Another folder replaces it and is no change: a switch is the gate's to answer, as any context change is.
-   */
-  private baseline: Watched | null = null;
-  /** A changed fingerprint seen once, waiting for the next poll to find it again: a run only once the tree has been still for one poll, so a burst of writes is one run. */
-  private pending: string | null = null;
-  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  /** For a panel that watches git: a change in its working tree runs it, once the tree has been still for one look, so a burst of writes is one run. */
+  private readonly tree: TreeWatch;
   /** The sessions snapshot the latest run was given, for a panel that watches sessions: a snapshot that differs from it is a change; null until a run has been given one. */
   private sentSessions: string | null = null;
   /** Waiting for the sessions to stay as they are, after a change to what they are made of. */
@@ -110,6 +100,13 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
       (number, tick) => void this.run(number, tick),
       interval,
     );
+    this.tree = new TreeWatch({
+      watching: () => watchesGit(optionsOf(this.slot.entry)),
+      runnable: () => this.runnable === true,
+      running: () => this.activeRun !== null,
+      look: async () => (await this.hooks.check()).watched ?? null,
+      changed: () => this.gate.changed(),
+    });
     // Checked at once rather than on first show, so a panel behind another already wears `alert` on its rail.
     void this.check();
   }
@@ -128,7 +125,7 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     this.shown = visible;
     if (!this.live) {
       this.live = true;
-      this.schedulePoll();
+      this.tree.start();
     }
     const ran = this.gate.setVisible(visible);
     // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
@@ -163,8 +160,7 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   unmount(): void {
     this.disposed = true;
     this.stopRetrying();
-    if (this.pollTimer !== null) clearTimeout(this.pollTimer);
-    this.pollTimer = null;
+    this.tree.stop();
     if (this.sessionsTimer !== null) clearTimeout(this.sessionsTimer);
     this.sessionsTimer = null;
     this.stopWatchingSessions();
@@ -211,46 +207,6 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     this.retries = 0;
   }
 
-  /** The next look at the watched tree, for a panel whose options watch git as they are then. */
-  private schedulePoll(): void {
-    if (this.disposed || !watchesGit(optionsOf(this.slot.entry))) return;
-    this.pollTimer = setTimeout(() => {
-      this.pollTimer = null;
-      void this.poll().then(() => this.schedulePoll());
-    }, POLL_MS);
-  }
-
-  /**
-   * Look at the watched tree, shown or not, through the panel's own check so the folder is the one it would run in now, without saying anything it finds: a problem waits for the next run's check, and git not answering says nothing either way.
-   * Not while a run goes, nor for a panel that cannot run, which is waiting on its own check.
-   */
-  private async poll(): Promise<void> {
-    if (this.activeRun !== null || this.runnable !== true) return;
-    const checked = await this.hooks.check();
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- a run can start during the await, which TypeScript's narrowing does not see
-    if (this.disposed || this.activeRun !== null || !checked.watched) return;
-    this.compare(checked.watched);
-  }
-
-  /** A fingerprint against the baseline: the same is no change; another folder becomes its own baseline; a change runs the panel once a second poll finds the same. */
-  private compare(watched: Watched): void {
-    if (this.baseline?.dir !== watched.dir) {
-      this.baseline = watched;
-      this.pending = null;
-      return;
-    }
-    if (watched.fingerprint === this.baseline.fingerprint) {
-      this.pending = null;
-      return;
-    }
-    if (watched.fingerprint !== this.pending) {
-      this.pending = watched.fingerprint;
-      return;
-    }
-    this.pending = null;
-    this.gate.changed();
-  }
-
   /**
    * Run `number` has ended: when it is still the latest, the tree as it left it is the baseline, so what the run changed itself is no change, and looks count again.
    * Git not answering then leaves no baseline, so the next look takes the tree as it is rather than count the run's own writes as a change.
@@ -259,8 +215,7 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   private async rebase(number: number): Promise<void> {
     const checked = watchesGit(optionsOf(this.slot.entry)) ? await this.hooks.check() : null;
     if (this.disposed || this.activeRun !== number) return;
-    this.baseline = checked?.watched ?? null;
-    this.pending = null;
+    this.tree.settle(checked?.watched ?? null);
     this.activeRun = null;
     this.sessionsMoved();
   }
