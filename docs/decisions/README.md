@@ -229,3 +229,5 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0221](0221-links-open-through-windows-under-wsl.md) | 2026-11-13 | Links open through Windows under WSL | [Links](../architecture/window.md#links) |
 | [0222](0222-a-pr-reason-github-takes-back-is-settled.md) | 2026-11-14 | A PR reason GitHub takes back is settled | [Reading sessions](../architecture/sessions.md#reading-sessions) |
 | [0223](0223-a-quit-ends-everything-the-app-started.md) | 2026-11-14 | A quit ends everything the app started | [Stopping a session is a request: claude may answer it with a question](../architecture/claude.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question) |
+| [0225](0225-the-diff-is-a-panel-beside-the-session.md) | 2026-11-14 | The diff is a panel beside the session | [The `diff` type](../architecture/panels.md#the-diff-type) |
+| [0226](0226-a-diff-base-comes-in-three-layers.md) | 2026-11-14 | A diff's base comes in three layers | [The `diff` type](../architecture/panels.md#the-diff-type) |

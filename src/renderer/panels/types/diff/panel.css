@@ -1,0 +1,10 @@
+/* THE DIFF PANEL: its row of controls, then its list, scrolling under it, and in the list's place a sentence when there is nothing to list. */
+.diff-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.diff-note {
+  padding: 8px 14px;
+}

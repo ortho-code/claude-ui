@@ -3,6 +3,7 @@ import type { FolderName } from '../../../src/shared/helpers/folders';
 import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../../src/shared/status/needs-you';
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/helpers/path-check';
+import type { DiffQuestion, DiffSummary } from '../../../src/shared/diff/types';
 import type { SettingsFileRead } from '../../../src/shared/config/settings';
 import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, SettledNeedsYou, PrSeen, PrStatus, ScheduledTask, SessionPr, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
@@ -84,6 +85,11 @@ export interface BridgeFixture {
    * A check sets one while the window runs to start a command in it.
    */
   foreground: Record<number, string>;
+  /**
+   * What main's diff reads answer for each folder, by question; a folder left out is in no working tree, which main answers with git's refusal.
+   * A check changes one while the window runs to make a change in that checkout.
+   */
+  diffs: Record<string, Partial<Record<DiffQuestion, DiffSummary>>>;
 }
 
 /** One call the window made, as it arrived; a callback argument is recorded as the string `<callback>`. */
@@ -194,5 +200,6 @@ export function defaultFixture(): BridgeFixture {
     pickFolder: null,
     trees: {},
     foreground: {},
+    diffs: {},
   };
 }

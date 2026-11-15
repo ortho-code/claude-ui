@@ -7,6 +7,7 @@ import { prKey, withPrLinks } from '../../../src/shared/sessions/prs';
 import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, resolvedNeedsYou, restoredNeedsYou, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/status/session-marks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/config/settings';
 import { withText } from '../../../src/shared/helpers/text';
+import { soundDiffPicks } from '../../../src/shared/diff/picks';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
 import { posix } from './posix';
@@ -317,13 +318,23 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       const tree = fixture.trees[dir];
       return answer(typeof tree === 'string' ? { kind: 'tree' as const, fingerprint: tree } : { kind: 'failed' as const, error: tree.error });
     },
-    // No window check reaches the diff panel's reads yet.
-    diffSummary: unmodelled('diffSummary'),
+    // Main's reads of a checkout are the fixture's table in their place, read when asked, so a check can change one mid-run; a folder left out is in no working tree, which main answers with git's refusal.
+    diffSummary: (dir, question) => {
+      const summary = Object.hasOwn(fixture.diffs, dir) ? fixture.diffs[dir][question] : undefined;
+      return answer(summary ? { kind: 'summary' as const, summary } : { kind: 'failed' as const, error: 'fatal: not a git repository (or any of the parent directories): .git' });
+    },
     diffFile: unmodelled('diffFile'),
     diffCommits: unmodelled('diffCommits'),
     diffBaseCandidates: unmodelled('diffBaseCandidates'),
     diffBaseCount: unmodelled('diffBaseCount'),
     setDiffBase: unmodelled('setDiffBase'),
+    // Main keeps the picks when they are sound (`soundDiffPicks`), in the panel's data, writing nothing for a key that is not an entry's id, and answers nothing.
+    setDiffPicks: (entryId, picks) => {
+      const data = fixture.panelData[entryId] ?? { sessions: {}, lastGroup: {} };
+      const sound = soundDiffPicks(picks);
+      if (sound && ID_PATTERN.test(entryId)) fixture.panelData[entryId] = { ...data, diff: sound };
+      return answer(undefined);
+    },
     // A panel with nothing kept has no file, which main answers as empty data.
     getPanelData: (entryId) => answer(fixture.panelData[entryId] ?? { sessions: {}, lastGroup: {} }),
     // Main keeps the sound part of what it is sent (`soundShells`, src/shared/panels.ts), in the panel's data, writing nothing for a key that is not an entry's id, and answers nothing.

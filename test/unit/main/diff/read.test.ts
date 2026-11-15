@@ -26,6 +26,7 @@ describe('the summary', () => {
     write('new.txt', 'fresh\n');
     const summary = await diffSummary(repo(), 'since');
     expect(summary.against).toBe(base);
+    expect(summary.root).toBe(git('rev-parse', '--show-toplevel'));
     expect(summary.files.map((f) => [f.path, f.status, f.added, f.deleted])).toEqual([
       ['a.txt', 'M', 1, 0],
       ['b.txt', 'M', 1, 1],
@@ -61,6 +62,13 @@ describe('the summary', () => {
     expect(byPath['package-lock.json'].generated).toBe(true);
     expect(byPath['yarn.lock'].generated).toBe(false);
     expect(byPath['build.js'].generated).toBe(true);
+  });
+
+  it('covers the whole checkout from a subfolder, with paths from its root', async () => {
+    branched({ 'top.txt': 'one\n', 'sub/inner.txt': 'two\n' });
+    write('top.txt', 'changed\n');
+    const summary = await diffSummary(`${repo()}/sub`, 'uncommitted');
+    expect(summary.files.map((f) => f.path)).toEqual(['top.txt']);
   });
 
   it('has nothing to list for Since branched without a base, and says so by naming none', async () => {

@@ -6,6 +6,8 @@ import { writeFileAtomic } from '../files/atomic';
 import { errorText, fsFailure, log } from '../logs/log';
 import { inTurn } from '../files/queue';
 import { ID_PATTERN, soundShells, withLink, type PanelData, type PanelLink, type PanelShells } from '../../shared/panels';
+import { soundDiffPicks } from '../../shared/diff/picks';
+import type { DiffPicks } from '../../shared/diff/types';
 
 /**
  * What the app keeps for each panel, a file per entry: the sessions its rows started, and the group last picked for one (`PanelData`).
@@ -83,6 +85,11 @@ export async function readPanelData(entryId: string): Promise<PanelData> {
     const read = soundShells(json.shells);
     data.shells = read.shells;
     dropped += read.dropped;
+  }
+  if (json.diff !== undefined) {
+    const picks = soundDiffPicks(json.diff);
+    if (picks) data.diff = picks;
+    else dropped += 1;
   }
   if (dropped > 0) log('warn', 'panel-data', `${file}: dropped ${dropped} ${dropped === 1 ? 'entry' : 'entries'} that ${dropped === 1 ? 'was' : 'were'} not sound`);
   return data;
@@ -172,6 +179,19 @@ export async function keepShells(entryId: string, shells: unknown): Promise<void
   });
 }
 
+/**
+ * Keep a diff panel's picks as the window says them now, when they are sound; the window holds them, so nothing is told back.
+ * Exported for the tests.
+ */
+export async function keepDiffPicks(entryId: string, picks: unknown): Promise<void> {
+  const sound = soundDiffPicks(picks);
+  if (!sound) return;
+  await update(entryId, (current) => {
+    current.diff = sound;
+    return true;
+  });
+}
+
 /** Where a terminal panel's shell was when the app quit: its panel's entry, its own id, and its folder. */
 export interface ShellFolder {
   entryId: string;
@@ -248,4 +268,5 @@ export function registerPanelData(getWindow: () => BrowserWindow | null, session
     return data;
   });
   ipcMain.handle('panelData:setShells', (_event, entryId: string, shells: PanelShells) => keepShells(entryId, shells));
+  ipcMain.handle('panelData:setDiffPicks', (_event, entryId: string, picks: DiffPicks) => keepDiffPicks(entryId, picks));
 }

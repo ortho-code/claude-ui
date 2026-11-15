@@ -6,6 +6,8 @@
  * And nothing in it is trusted at the type level: main hands the parsed JSON over as `unknown`, and the renderer's validator names every mistake in its place rather than dropping it — a person wrote the file, so a silent drop would be a lie about what they wrote.
  */
 
+import type { DiffPicks } from './diff/types';
+
 /**
  * A node's or an entry's id: a slug, lowercase letters, digits, hyphens and underscores, not starting with a hyphen or underscore.
  * What panel state keys on.
@@ -344,6 +346,8 @@ export interface PanelData {
   lastGroup: Record<string, string | null>;
   /** A terminal panel's shells, kept for the next launch; absent where its file has none. */
   shells?: PanelShells;
+  /** A diff panel's picks; absent where its file has none. */
+  diff?: DiffPicks;
 }
 
 /** A shell a terminal panel holds, as kept for the next launch: its tab, and where its next shell starts. */

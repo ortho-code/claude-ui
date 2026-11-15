@@ -50,7 +50,7 @@ What is about the whole area is the whole's: the history's Ctrl+Shift+↑ and �
 Both are made by one factory (`builtinType`, in `panels/types/builtin.ts`), so the re-attaching mount is written once rather than in each: it puts the element back, and hands the new host the type's rail status as it is now (`railStatus`), since a remount is a new host; after that, a watcher of the type's own hands its host every change.
 Its being a singleton is said there, where the type is, rather than special-cased in the tree, which drives a built-in exactly as it drives any panel.
 These two are the only singletons, for the reason above: what runs in them has to outlive any layout.
-Every other type, `command` and `terminal` among them and any built-in added from here on, is an ordinary one: an instance per entry, built by its `mount`, its store watchers, if it has any, taken there and dropped in `unmount` (`store.watch` answers the unsubscribe), and its asks made through the host its mount was handed rather than `hostOf`.
+Every other type, `command`, `terminal` and `diff` among them and any built-in added from here on, is an ordinary one: an instance per entry, built by its `mount`, its store watchers, if it has any, taken there and dropped in `unmount` (`store.watch` answers the unsubscribe), and its asks made through the host its mount was handed rather than `hostOf`.
 The two ask each other through the host every panel is given (`Asks`, in `panels/contract.ts`, the contract every type is written against), the same route a list panel's row takes to open or start a session: the terminal area answers opening a session or just its tab, starting, forking, stopping and closing sessions, and showing a project's tabs; the session list answers selecting a project and bringing a session, a project or a group into view.
 Each type's answers are one object in its `asks.ts`, which `renderer.ts` hands the tree, and every panel's host carries them as they are, so an ask is the answer itself rather than a hop through the tree; a surface never imports the other type's modules: what they share is the store and these asks.
 An ask names a session by its id or a project by its folder, never a tab by its token, which is the terminal area's own; a built-in reaches its host outside a mount by `hostOf`, and none can ask before the tree has placed both, which it does as it first draws.
@@ -372,6 +372,31 @@ Asking Windows took 0.4 to 1 s warm when measured, and nothing shows meanwhile.
 Each shell fits its xterm from a `ResizeObserver` on its own box rather than when it is made, because a shell is made before its box is on screen and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
 The same observer covers every later reveal — its tab picked, a switch on the rail, an unfold, a divider reopening a squeezed node — since each gives the box a size again.
 
+### The `diff` type
+
+What changed in the checkout a panel looks in, read from git: a type of the app's own, an instance per entry like `command` and `terminal`, which a layout places beside the session ([decided 2026-11-14](../decisions/0225-the-diff-is-a-panel-beside-the-session.md)).
+Its one option is `cwd`, the same declaration and rule as a `command` panel's, so it looks where one would run and names that folder in its header.
+The diff covers the whole working tree of the checkout that folder is in, untracked files included, with paths from the checkout's root, and it watches that whole checkout for changes whatever subfolder it looks in.
+
+**Three questions, picked from the menu over its list**: Since branched, everything the branch did since it left its base, committed or not; Unpushed, against the parent of the oldest commit no remote has, so what the next push sends plus what is not committed; and Uncommitted, against `HEAD`.
+All three end at the files on disk.
+Since branched is taken against the merge-base of `HEAD` with the base, never the base's tip, or the base's newer commits would read as this branch removing them.
+Its base comes from three layers, the branch's pick, the project's, the convention's guess (`upstream`'s default branch, else `origin`'s), the first two kept per project in `meta.json`, and nothing fetches ([decided 2026-11-14](../decisions/0226-a-diff-base-comes-in-three-layers.md)).
+Main reads all three; nothing in the window keeps a pick yet, so the base on screen is the convention's.
+The row over the list names the base, marks a guessed one so, and puts where it came from in its tooltip.
+The menu shows beside Since branched and Unpushed the commits each counts, and the row says how far the branch is behind its base, while it is, as a count with no action.
+The question picked is kept in the panel's own data file (`panel-data/<entry id>.json`); the list's view, flat or a tree, is switched in the panel's header and kept as a list panel's view is.
+
+Main does the reading (`src/main/diff/`), on git through the one runner main's read-only calls share (`src/main/git.ts`), and the parsing of git's output is shared and pure (`src/shared/diff/`).
+A summary lists the files with git's letter (a copy as added, a change of type as modified, and `U` for a file git does not track), their counts, a rename's old path, and whether each is binary or generated (a lockfile by name, or `linguist-generated` in the repository's attributes); untracked files come after the rest, one row each up to 500, the rest counted under the list.
+A summary that cannot be read comes back as git's own words rather than a refusal, which would reach the window wrapped in the bridge's message and git's whole command line.
+
+**When it reads**: through the same `RunGate` every panel that runs something goes through, so on first being shown, on Refresh, and on a context change once it has read, when it moves where it would read; and unasked when the checkout's working tree changes, through the same `TreeWatch` a panel's `watch: git` uses, so 30 to 60 seconds after a change, and when the session on show changes status, a turn's start or its end, and then stays as it is for 2 seconds, which is how a turn's end reaches it while you work beside the session.
+Each read checks the panel first, so it reads where its header says it looks.
+A folder git cannot read says so in git's words, and nothing to list says so by question.
+
+The list is the compact row of a list panel of changed files (`list.css`): the letter in its status's tone, the name after its folder, muted, in the flat list, and the lines added and removed at its end; the tree puts a chain of folders that each hold only the next on one row, as a file tree compacts them, folders first and each level by name, and a folder folds as a list panel's row holding rows does, from its chevron or a press anywhere on it, kept in memory while the panel stays mounted.
+
 ### Types from the config folder
 
 A folder under `panel-types/` is a panel type of the person's own: a `panel.json` manifest and the script it runs.
@@ -482,7 +507,7 @@ A link whose session the app no longer has is simply not drawn, whether or not m
 A second Review on such a row opens the dialog on CONTINUING the latest session, since that session holds what the first look found: stopped, it is resumed with the prompt as its first (`--resume <id> -- <prompt>`, checked against claude in print mode before this was built); running, it is brought into view and the prompt is not sent, which the dialog says before anything happens, because typing into a live session could land mid-turn or on a question and is never the app's to do.
 
 **Which session a row started is the panel's data, kept by the app.**
-One file per entry, `panel-data/<entry id>.json` in the app's data directory, with the sessions its rows started (by session id: the item's key, its text, its link, when) and the group last picked per project; a `terminal` panel keeps its shells in it too (§ The `terminal` type).
+One file per entry, `panel-data/<entry id>.json` in the app's data directory, with the sessions its rows started (by session id: the item's key, its text, its link, when) and the group last picked per project; a `terminal` panel keeps its shells in it too (§ The `terminal` type), and a `diff` panel its question (§ The `diff` type).
 Not in `meta.json`, so a panel's data cannot damage the app's, and not in the config folder, which is what gets shared while a session id means something only on this machine.
 The app writes it, never the script, which never learns a session id: the id is minted before the tab exists and the link written first, so the row can lead back to the session from the start.
 A file that does not parse, or is of another version, is kept beside itself rather than overwritten, and an entry that is not sound is dropped and logged.

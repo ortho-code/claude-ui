@@ -20,7 +20,7 @@ vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
-import { forgetSessions, keepShellFolders, keepShells, linkSession, readPanelData, registerPanelData } from '../../../../src/main/panels/panel-data';
+import { forgetSessions, keepDiffPicks, keepShellFolders, keepShells, linkSession, readPanelData, registerPanelData } from '../../../../src/main/panels/panel-data';
 import { panelDataDir } from '../../../../src/main/paths';
 import type { PanelData, PanelShells } from '../../../../src/shared/panels';
 
@@ -133,6 +133,26 @@ describe('a panel’s own data', () => {
     expect((await readPanelData('ci')).sessions).toEqual({});
     // Not rewritten: nothing in it changed.
     expect((await fs.stat(file('other'))).mtimeMs).toBe(before.mtimeMs);
+  });
+});
+
+describe('a diff panel’s picks', () => {
+  it('keeps the question, as the window says it, and reads it back beside a link', async () => {
+    await handlers.get('panelData:setDiffPicks')?.(null, 'changes', { question: 'unpushed' });
+    await linkSession('changes', 's1', LINK, { repoRoot: '/repo', groupId: null });
+    expect((await readPanelData('changes')).diff).toEqual({ question: 'unpushed' });
+  });
+
+  it('writes nothing for picks that are not sound', async () => {
+    await keepDiffPicks('bad', { question: 'everything' });
+    await expect(fs.access(file('bad'))).rejects.toThrow();
+  });
+
+  it('drops picks in the file that are not sound, saying so', async () => {
+    await fs.mkdir(panelDataDir, { recursive: true });
+    await fs.writeFile(file('odd'), JSON.stringify({ version: 1, sessions: {}, lastGroup: {}, diff: { question: 'nope' } }));
+    expect(await readPanelData('odd')).toEqual({ sessions: {}, lastGroup: {} });
+    expect(logged).toEqual([expect.stringMatching(/^warn panel-data .+odd\.json: dropped 1 entry that was not sound$/)]);
   });
 });
 

@@ -1,0 +1,32 @@
+/* THE DIFF PANEL'S ROW OVER ITS LIST: the question as a button that opens its menu, then what the list is measured from, which gives way first in a narrow panel. */
+.diff-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: var(--text-meta);
+}
+
+.diff-question {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.diff-question-caret {
+  display: inline-flex;
+}
+
+.diff-base {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.diff-muted {
+  color: var(--muted);
+}

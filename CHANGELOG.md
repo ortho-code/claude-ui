@@ -17,6 +17,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - `setAsideNews` in Settings can keep news on a set-aside session, such as a change on its PR, dimmed and uncounted while the session stays set aside (`"wait"`), instead of showing it at once (`"show"`, as before).
 - A session's list of PRs says when each merged or closed, or since when it is open, and a panel type is given those dates too.
 - Clear and close, beside Clear under the open filter panel, empties the filter and shuts the panel in one press.
+- A `diff` panel lists the files that changed in the checkout it looks in: since the branch left its base, not pushed yet, or not committed, flat or as a tree.
+  It reads again as files change and when the session beside it finishes a turn.
 
 ### Changed
 

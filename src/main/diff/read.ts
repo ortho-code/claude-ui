@@ -92,7 +92,7 @@ export async function diffSummary(dir: string, question: DiffQuestion): Promise<
   const { base, missing } = await baseOf(root);
   const [against, counts] = await Promise.all([againstOf(root, question, base), countsOf(root, base)]);
   const { files, untrackedLeftOut } = against === null ? { files: [], untrackedLeftOut: 0 } : await filesOf(root, against);
-  return { against, base, missing, files, untrackedLeftOut, counts };
+  return { root, against, base, missing, files, untrackedLeftOut, counts };
 }
 
 /** An untracked file as added from nothing: `--no-index` exits 1 when the two differ, which here they always do, so its output comes with that exit. */

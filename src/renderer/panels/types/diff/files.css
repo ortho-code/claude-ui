@@ -1,0 +1,19 @@
+/* THE DIFF PANEL'S FILE LIST: the compact row of a list panel (list.css), a step in for each folder in the tree by the same `--depth`, and the counts in the colours a status takes. */
+
+/* A file's folder in the flat list, muted, so a column of paths scans by name. */
+.diff-folder-part {
+  color: var(--muted);
+}
+
+/* A folder row of the tree names what it holds rather than a change, so it reads quieter than the files under it. */
+.diff-folder .card-title {
+  color: var(--muted);
+}
+
+.diff-added {
+  color: var(--ready);
+}
+
+.diff-deleted {
+  color: var(--failed);
+}

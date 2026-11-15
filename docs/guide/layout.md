@@ -62,7 +62,7 @@ Clicking the icon of the panel on show folds a group that can fold, and clicking
 
 Every id, of a node or a panel, is unique in the file and uses lowercase letters, digits, hyphens and underscores.
 A panel needs an `id` and a `type`; `title`, `icon`, `view` and `hidden` are optional, and whatever the type itself takes goes under `options`.
-`icon` picks its icon by name: `git`, `list`, `tree`, `check`, `eye`, `bug`, `book`, `clock`, `server`, `play`, `search`, `bell`, `terminal`, `command`, `sessions`, `claude` or `alert`.
+`icon` picks its icon by name: `git`, `diff`, `list`, `tree`, `check`, `eye`, `bug`, `book`, `clock`, `server`, `play`, `search`, `bell`, `terminal`, `command`, `sessions`, `claude` or `alert`.
 `view` picks, by id, the view a panel shows until another is picked in its header, for a type that offers several, such as a list of files flat or as a tree; an edit of it shows from the panel's next run, and a pick in the header is kept on this machine instead.
 The session list offers `grouped` and `recent`, switched under its header rather than in one, and shows an edit of its `view` at once, since it has no run, unless a pick of its own is kept on this machine.
 A panel that cannot run wears `alert` whatever it names, so a broken one stands out on a strip of icons too.
@@ -75,6 +75,7 @@ A panel that cannot run wears `alert` whatever it names, so a broken one stands 
   `cwd` picks the folder it runs in, `interval` how often it runs again on its own, and `watch` whether it runs again when that folder's git working tree changes.
 - `terminal` holds plain shells, the same login shell your sessions run in, as tabs in its header.
   `cwd` picks the folder they start in, and `scope` whether its tabs are the selected project's (`project`) or the same in every project (`global`).
+- `diff` shows what changed in the checkout it looks in, which it finds as a `command` panel finds its folder, and takes a `cwd` the same way; see [The diff panel](#the-diff-panel) below.
 - A folder under `panel-types/` in the config folder is a type of your own, named after the folder; see [Panel types of your own](#panel-types-of-your-own) below.
 
 This one puts a shell in a drawer under the terminal area and two commands behind icons on the right, and lets the sidebar, the drawer and the right side fold:
@@ -172,6 +173,29 @@ The variables tell the panel where it runs: `CLAUDE_UI_CWD` is that folder, and 
 
 A mistake in the file — an unknown type, a missing id, a size it cannot read, an option the type does not have, a script that is not there or not executable — is named in the place of the thing that is wrong, and a file that does not parse leaves the last good layout up and says what is wrong and at which line and column.
 A panel's options are checked by the panel itself, when it appears and before each run, so a missing script is named a moment after the rest.
+
+## The diff panel
+
+A `diff` panel lists the files that changed in the checkout it looks in, beside the session that is changing them:
+
+```json
+{ "id": "changes", "type": "diff" }
+```
+
+It looks where a `command` panel would run, follows the session into a worktree the same way, and takes a `cwd` the same way.
+The menu over its list picks what it lists, and is kept for the panel:
+
+- **Since branched**: everything the branch did since it left its base, committed or not.
+- **Unpushed**: what the next push would send, plus what is not committed yet.
+- **Uncommitted**: only what is not committed.
+
+Beside the first two, the menu counts the commits each covers.
+Since branched measures from a base branch: the default branch of the remote named `upstream`, or else of `origin`, which the row over the list names, marked as guessed, with how many commits on it the branch does not have yet.
+Nothing is fetched for it, so it is measured as your last fetch left the remote branches.
+Each file shows its letter (`M` changed, `A` added, `D` removed, `R` renamed, `U` not tracked yet), its name after its folder, and the lines it adds and removes; a renamed file's tooltip says where it came from.
+The switch in its header shows the files as a flat list or as a tree of their folders, where a press on a folder folds it.
+The list reads again when a switch of tab or project moves where it looks, within a minute of a file in the checkout changing, and when the session on show starts or finishes a turn.
+Untracked files past the first 500 are counted under the list rather than listed.
 
 ## Panels and the session list
 

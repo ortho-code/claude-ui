@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
-import type { DiffQuestion } from '../../shared/diff/types';
+import type { DiffQuestion, DiffSummaryRead } from '../../shared/diff/types';
+import { failure } from '../git';
 import { resolveRepo } from '../sessions/repo';
 import { keepBase } from '../sessions/diff-bases';
 import { baseCount, branchOf, candidates } from './bases';
@@ -12,8 +13,17 @@ async function setDiffBase(dir: string, scope: 'branch' | 'project', ref: string
   await keepBase(repoRoot, scope === 'branch' ? branch : null, ref);
 }
 
+/** A summary, or git's own words when it cannot give one: a rejection would reach the window wrapped in the bridge's message and git's whole command line. */
+async function summaryRead(dir: string, question: DiffQuestion): Promise<DiffSummaryRead> {
+  try {
+    return { kind: 'summary', summary: await diffSummary(dir, question) };
+  } catch (error) {
+    return { kind: 'failed', error: failure(error) };
+  }
+}
+
 export function registerDiffIpc(): void {
-  ipcMain.handle('diff:summary', (_event, dir: string, question: DiffQuestion) => diffSummary(dir, question));
+  ipcMain.handle('diff:summary', (_event, dir: string, question: DiffQuestion) => summaryRead(dir, question));
   ipcMain.handle('diff:file', (_event, dir: string, against: string, file: string, from: string | null, context: number, ignoreWs: boolean) => fileDiff(dir, against, file, from, context, ignoreWs));
   ipcMain.handle('diff:commits', (_event, dir: string, against: string) => diffCommits(dir, against));
   ipcMain.handle('diff:baseCandidates', (_event, dir: string) => candidates(dir));

@@ -6,6 +6,13 @@
 /** What a diff is taken against: everything since the branch left its base, what no remote has yet, or what is not committed. */
 export type DiffQuestion = 'since' | 'unpushed' | 'uncommitted';
 
+export const DIFF_QUESTIONS: readonly DiffQuestion[] = ['since', 'unpushed', 'uncommitted'];
+
+/** What a diff panel keeps of what was picked in it, in its own data file. */
+export interface DiffPicks {
+  question: DiffQuestion;
+}
+
 /** Where the base of Since branched came from: a pick for this branch, the project's, or the convention's guess. */
 export type BaseSource = 'branch' | 'project' | 'convention';
 
@@ -44,6 +51,8 @@ export interface DiffCounts {
 }
 
 export interface DiffSummary {
+  /** The root of the checkout the diff covers, which the paths are relative to. */
+  root: string;
   /** The commit the diff is taken against; null when Since branched has no base to measure from. */
   against: string | null;
   /** The base Since branched is measured from, whichever question this is; null when there is none. */
@@ -55,6 +64,9 @@ export interface DiffSummary {
   untrackedLeftOut: number;
   counts: DiffCounts;
 }
+
+/** A summary, or what git said when it could not give one, in its own words. */
+export type DiffSummaryRead = { kind: 'summary'; summary: DiffSummary } | { kind: 'failed'; error: string };
 
 export interface DiffRow {
   kind: 'context' | 'add' | 'del';

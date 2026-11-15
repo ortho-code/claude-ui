@@ -503,7 +503,7 @@ export interface UiState {
 
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './helpers/folders';
-import type { BaseCandidate, DiffCommit, DiffQuestion, DiffSummary, FileDiff } from './diff/types';
+import type { BaseCandidate, DiffCommit, DiffPicks, DiffQuestion, DiffSummaryRead, FileDiff } from './diff/types';
 import type { NeedsYouChange, NeedsYouRegistry } from './status/needs-you';
 import type { LogLevel } from './helpers/log';
 import type { Look } from './status/looks';
@@ -786,7 +786,7 @@ export interface ClaudeUiApi {
   /** Fires when a panel's data changed: a session linked, or one forgotten because it is gone. */
   onPanelDataChanged(callback: (entryId: string, data: PanelData) => void): void;
   /** The files `question` lists for the checkout `dir` is in, with the base and the commit it is measured against (src/main/diff/read.ts). */
-  diffSummary(dir: string, question: DiffQuestion): Promise<DiffSummary>;
+  diffSummary(dir: string, question: DiffQuestion): Promise<DiffSummaryRead>;
   /** One file's hunks against the commit a summary named, with `context` unchanged lines around each change, whitespace-only changes left out with `ignoreWs`. */
   diffFile(dir: string, against: string, file: string, from: string | null, context: number, ignoreWs: boolean): Promise<FileDiff>;
   /** The commits between the commit a summary named and `HEAD`, newest first. */
@@ -797,6 +797,8 @@ export interface ClaudeUiApi {
   diffBaseCount(dir: string, ref: string): Promise<number | null>;
   /** Keep `ref` as the base for the branch `dir` has out, or for its whole project, or clear it with `null`. */
   setDiffBase(dir: string, scope: 'branch' | 'project', ref: string | null): Promise<void>;
+  /** Keep a diff panel's picks as they are now, whole, in its data file. */
+  setDiffPicks(entryId: string, picks: DiffPicks): Promise<void>;
   /** Where each of the app's own folders is, for Settings to show. */
   getFolders(): Promise<Record<FolderName, string>>;
   /** Open one of the app's own folders in the OS file manager, by name; the window never sends a path. */
