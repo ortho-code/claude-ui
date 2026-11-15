@@ -20,6 +20,7 @@ import { localTimestamp } from './files/stamp';
 import { getOpenSessions, getPrLinks, purgeSession, registerMetaIpc } from './sessions/meta';
 import { migrateToSessionKeys } from './sessions/meta-store';
 import { registerGroupsIpc } from './sessions/groups';
+import { registerDiffIpc } from './diff/ipc';
 import { registerMarksIpc } from './status/marks';
 import { readBundledNeedsYou } from './status/needs-you';
 import { registerSettings } from './config/settings';
@@ -118,6 +119,7 @@ registerClipboardIpc();
 registerLinkIpc();
 registerTerminalIpc();
 registerPanelsIpc();
+registerDiffIpc();
 
 void app.whenReady().then(async () => {
   installAppMenu();

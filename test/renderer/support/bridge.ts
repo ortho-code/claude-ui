@@ -317,6 +317,13 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       const tree = fixture.trees[dir];
       return answer(typeof tree === 'string' ? { kind: 'tree' as const, fingerprint: tree } : { kind: 'failed' as const, error: tree.error });
     },
+    // No window check reaches the diff panel's reads yet.
+    diffSummary: unmodelled('diffSummary'),
+    diffFile: unmodelled('diffFile'),
+    diffCommits: unmodelled('diffCommits'),
+    diffBaseCandidates: unmodelled('diffBaseCandidates'),
+    diffBaseCount: unmodelled('diffBaseCount'),
+    setDiffBase: unmodelled('setDiffBase'),
     // A panel with nothing kept has no file, which main answers as empty data.
     getPanelData: (entryId) => answer(fixture.panelData[entryId] ?? { sessions: {}, lastGroup: {} }),
     // Main keeps the sound part of what it is sent (`soundShells`, src/shared/panels.ts), in the panel's data, writing nothing for a key that is not an entry's id, and answers nothing.

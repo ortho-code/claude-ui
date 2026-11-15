@@ -7,6 +7,8 @@ import { parseBounds, type WindowBounds } from '../window/bounds';
 import { normalizeUi } from '../window/ui-state';
 import { needsYouHistoryOf, needsYouOf, scheduledBySession, setAsideOf, setAsideWithPaused, storedNeedsYou } from '../status/stored-marks';
 import { prLinksOf, prSeenOf } from './stored-prs';
+import { keptBasesOf } from '../../shared/diff/kept';
+import type { DiffBases } from '../../shared/diff/types';
 import { appendStamped } from '../files/stamp';
 import { goodCopy, writeWithBackups } from '../files/backup';
 import { errorText, fsFailure, log, logOnce } from '../logs/log';
@@ -123,6 +125,8 @@ export interface Meta {
   groups: SessionGroup[];
   /** Session id -> group id; a session is in at most one group. */
   groupOf: Record<string, string>;
+  /** The diff panel's base for Since branched, kept per project by repoRoot: the project's own, and one per branch, which wins over it. */
+  diffBases: Record<string, DiffBases>;
   /** Schema version; 3 = keyed by session id; 2 was conversation-keyed; 1 raw ids. */
   version: number;
   /**
@@ -176,6 +180,7 @@ const KNOWN_KEYS = new Set([
   'prSeen',
   'groups',
   'groupOf',
+  'diffBases',
   'version',
   'appVersion',
 ]);
@@ -185,7 +190,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, finished: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, needsYouHistory: {}, setAside: {}, kept: {}, prLinks: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, finished: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, needsYouHistory: {}, setAside: {}, kept: {}, prLinks: {}, prSeen: null, groups: [], groupOf: {}, diffBases: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -313,6 +318,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     prSeen: prSeenOf(parsed.prSeen),
     groups,
     groupOf,
+    // The same again: absent means no base was ever kept.
+    diffBases: keptBasesOf(parsed.diffBases),
     version: typeof parsed.version === 'number' ? parsed.version : 1,
     appVersion: typeof parsed.appVersion === 'string' ? parsed.appVersion : '',
     // Anything a newer build wrote that this one has never heard of.
