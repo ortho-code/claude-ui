@@ -5,6 +5,7 @@ import { optionsOf, watchesGit, watchesSessions } from './options';
 import { NO_CONTROL, RunGate, readControl, resolveContext, runFailed, runKey, type Watched } from './run';
 import { listenForRuns } from './run-events';
 import { POLL_MS, TreeWatch } from './tree-watch';
+import { Driven, GateDriver } from './gate-driver';
 
 /**
  * A panel's runs, for the types that run a script and show what it gave — `command` and the `list` kind — written once: when it runs (`RunGate`), the check before every run, each run's token and number, asking main to run and to stop, what a run said in its control file about the next, for a panel that watches git, a run when its working tree changes, and for one that watches sessions, a run when the sessions snapshot does.
@@ -49,7 +50,7 @@ export interface RunHooks<Ready> {
   ended(event: RunEnd): void;
 }
 
-export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'contextChanged' | 'setVisible' | 'recheck' | 'unmount'> {
+export class PanelRuns<Ready> extends Driven implements Pick<MountedPanel, 'unmount'> {
   /**
    * The current run's token, or null while nothing is running.
    * Every event is checked against it, so once a run starts, the run it replaced lands nothing more.
@@ -68,10 +69,8 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   /** How many times the check has been asked again since git last failed to answer it, and the next time, if one is waiting. */
   private retries = 0;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Whether the tree last said the panel is on show. */
-  private shown = false;
-  /** The tree has shown or hidden the panel at least once: a panel that watches git is asked about from then on, shown or not. */
-  private live = false;
+  /** What the tree asks of the panel, through its gate; a panel that watches git is asked about from when it goes live, shown or not. */
+  protected readonly driver: GateDriver;
   /**
    * The number of the latest run, from its start until its end has been looked at (`rebase`), or null for none going: what a run changes itself is no change, so no look counts meanwhile.
    * By number, so the end of a run a newer one replaced neither clears it nor sets the baseline.
@@ -92,6 +91,7 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     interval: () => number | null,
     private readonly hooks: RunHooks<Ready>,
   ) {
+    super();
     this.stopListening = listenForRuns(slot.key, (token, event) => this.handle(token, event));
     this.stopWatchingSessions = host.watchSessions(() => this.sessionsMoved());
     // Keyed by where the run would go, so a tab or project change that lands on the same place does not run again, and a fixed `cwd` never does.
@@ -107,42 +107,10 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
       look: async () => (await this.hooks.check()).watched ?? null,
       changed: () => this.gate.changed(),
     });
+    // `fresh` starts git's retries afresh, which the retry timer's own look does not.
+    this.driver = new GateDriver(this.gate, { check: (fresh) => this.check(fresh), runnable: () => this.runnable, wentLive: () => this.tree.start() });
     // Checked at once rather than on first show, so a panel behind another already wears `alert` on its rail.
     void this.check();
-  }
-
-  refresh(): void {
-    this.gate.refresh();
-  }
-
-  contextChanged(): void {
-    this.gate.contextChanged();
-  }
-
-  setVisible(visible: boolean): void {
-    // The tree calls this on every redraw, with the panel's visibility as it is, so a reveal is a change from hidden; a redraw is no reason to look at the panel again.
-    const revealed = visible && !this.shown;
-    this.shown = visible;
-    if (!this.live) {
-      this.live = true;
-      this.tree.start();
-    }
-    const ran = this.gate.setVisible(visible);
-    // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
-    if (revealed && this.runnable === false && !ran) this.look(true);
-  }
-
-  recheck(): void {
-    this.look(true);
-  }
-
-  /** Check the panel again; `fresh` starts git's retries afresh, which the retry timer's own look does not. */
-  private look(fresh: boolean): void {
-    const was = this.runnable;
-    void this.check(fresh).then((checked) => {
-      // A panel that could not run and now can runs again, when its gate says (`rerun`); one that already could is left alone, since a change elsewhere in the folder is no reason to re-run it.
-      if (checked?.problems.length === 0 && was === false) this.gate.rerun();
-    });
   }
 
   /** The panel's own notes, which go to the host beside the last run's control notes rather than in their place. */
@@ -196,7 +164,7 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     this.retryTimer ??= setTimeout(() => {
       this.retryTimer = null;
       this.retries += 1;
-      this.look(false);
+      this.driver.look(false);
     }, POLL_MS);
     return [`Trying again in ${POLL_MS / 1000} s (retry ${this.retries + 1} of ${RETRIES}).`];
   }
