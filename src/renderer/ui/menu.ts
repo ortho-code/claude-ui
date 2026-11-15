@@ -223,15 +223,31 @@ function notchAt(centre: number, start: number, border: number, length: number):
   return Math.max(10, Math.min(centre - start - border - NOTCH_HALF, length - NOTCH_CLEAR_END));
 }
 
+/** A menu's popover and the list inside it that holds its rows and scrolls, so the popover's notch, which stands out of its edge, is never clipped (menu.css). */
+function menuShell(className: string): { menu: HTMLElement; list: HTMLElement } {
+  const menu = document.createElement('div');
+  menu.className = className;
+  const list = document.createElement('div');
+  list.className = 'menu-list';
+  menu.append(list);
+  return { menu, list };
+}
+
+/** Cap a menu's list at `room`, the height the window has for the whole menu, inside its border; past that its rows scroll. */
+function capList(menu: HTMLElement, list: HTMLElement, room: number): void {
+  const style = getComputedStyle(menu);
+  list.style.maxHeight = `${room - parseFloat(style.borderTopWidth) - parseFloat(style.borderBottomWidth)}px`;
+}
+
 // Open a child list beside its parent item; prefer the right, flip left when it would overflow.
 function openSubmenu(item: HTMLElement, items: MenuItem[]): void {
   if (openSubmenuOwner === item) return; // already open for this item; don't rebuild/flicker
   closeSubmenu();
-  const menu = document.createElement('div');
-  menu.className = 'kebab-menu popover submenu';
-  fillMenu(menu, items, false);
+  const { menu, list } = menuShell('kebab-menu popover submenu');
+  fillMenu(list, items, false);
   document.body.append(menu);
   tipCutLines(menu);
+  capList(menu, list, window.innerHeight - 8 - 8);
   const r = item.getBoundingClientRect();
   const flipped = r.right + menu.offsetWidth + 8 > window.innerWidth;
   menu.classList.add(flipped ? 'attach-left' : 'attach-right');
@@ -261,12 +277,11 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[], follow?: () => 
     return;
   }
   closeMenu();
-  const menu = document.createElement('div');
-  menu.className = 'kebab-menu popover';
-  fillMenu(menu, items, true);
+  const { menu, list } = menuShell('kebab-menu popover');
+  fillMenu(list, items, true);
   document.body.append(menu);
   tipCutLines(menu);
-  placeMenu(menu, anchor);
+  placeMenu(menu, list, anchor);
   openMenuEl = menu;
   openMenuAnchor = anchor;
   anchor.classList.add('menu-open'); // trigger shows an open/active state while its menu is up
@@ -287,10 +302,10 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[], follow?: () => 
     // An open submenu goes with the row it hangs from, and is opened again under the row drawn in its place, found by its label, so it stays under the pointer wherever that row is drawn where it was.
     const reopen = openSubmenuOwner?.dataset.submenu;
     closeSubmenu();
-    menu.replaceChildren();
-    fillMenu(menu, now, true);
+    list.replaceChildren();
+    fillMenu(list, now, true);
     tipCutLines(menu);
-    placeMenu(menu, anchor);
+    placeMenu(menu, list, anchor);
     // Available, as the rows `fillMenu` marks are, so the item and the row are the same one.
     const parent = now.find((item) => item.submenu && !item.disabled && item.label === reopen);
     const row = [...menu.querySelectorAll<HTMLElement>('.has-submenu')].find((button) => button.dataset.submenu === reopen);
@@ -303,12 +318,16 @@ function menuShape(items: MenuItem[]): string {
   return JSON.stringify(items, (_key, value: unknown) => (typeof value === 'function' ? undefined : value));
 }
 
-/** Put a menu under its anchor, or above it where there is no room below, its notch pointing at the anchor. */
-function placeMenu(menu: HTMLElement, anchor: HTMLElement): void {
+/** Put a menu under its anchor, or above it where there is no room below, its notch pointing at the anchor, and its list capped at the room on that side. */
+function placeMenu(menu: HTMLElement, list: HTMLElement, anchor: HTMLElement): void {
   const r = anchor.getBoundingClientRect();
+  // Measured at its full height, which a cap from an earlier placing would hide.
+  list.style.maxHeight = '';
   // Below the trigger, and above it when the menu would run off the bottom of the window and there is more room above — a row near the bottom of the list opened its menu half out of sight.
   const roomBelow = window.innerHeight - r.bottom - 5 - 8;
-  const flipped = menu.offsetHeight > roomBelow && r.top - 5 - 8 > roomBelow;
+  const roomAbove = r.top - 5 - 8;
+  const flipped = menu.offsetHeight > roomBelow && roomAbove > roomBelow;
+  capList(menu, list, flipped ? roomAbove : roomBelow);
   menu.classList.toggle('attach-bottom', flipped);
   menu.classList.toggle('attach-top', !flipped);
   menu.style.top = `${flipped ? Math.max(8, r.top - 5 - menu.offsetHeight) : r.bottom + 5}px`;

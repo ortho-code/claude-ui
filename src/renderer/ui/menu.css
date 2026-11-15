@@ -5,6 +5,19 @@
   min-width: 130px;
 }
 
+/* The list carries the padding, so that it scrolls with the list. */
+.kebab-menu.popover {
+  padding: 0;
+}
+
+/* The rows scroll inside the menu rather than the menu itself, which would clip the notch standing out of its edge: a menu taller than the window has room for stops at the window's edge (menu.ts caps the list), and its rows scroll.
+   Its padding scrolls with it, and its corners follow the menu's inside its border, so a scrollbar sits where the menu's own would. */
+.menu-list {
+  overflow-y: auto;
+  padding: 4px;
+  border-radius: calc(var(--radius-surface) - 1px);
+}
+
 /* Shape and hover come from the menu row (menu-row.css); nothing here is specific enough to need its own. */
 
 /* An action that is there but cannot be taken: no hover, no pointer, and dimmed as base.css's `.unavailable` dims every control that cannot act, muted as an icon button already is.

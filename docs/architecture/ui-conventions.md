@@ -21,6 +21,7 @@ A row holding the trigger keeps its own hover look too, the card by `:has(.menu-
 
 Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an `attach-top`/`attach-bottom`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a small notch on the menu's edge pointing at the trigger's center.
 Anything new that floats near an anchor should go through those helpers so it gets the notch (and the active-state stamping) for free rather than reinventing positioning.
+A menu taller than the room the window has for it on its side stops at the window's edge, and its rows scroll inside it, in a list of their own (`.menu-list`), since the menu scrolling itself would clip its notch; a submenu stops at the window's top and bottom alike.
 The notch straddles the edge, so its inner half lies over the row beside that edge, the first one for a popover below its trigger, and it is drawn beneath the popover's content (`z-index: -1` inside the popover's own stacking context): drawn on top, it bit a notch-shaped piece out of any row with a fill of its own under it, a hovered item, the switcher's entry on show, or a row scrolled up under it.
 
 **An open kebab menu follows what it lists.**

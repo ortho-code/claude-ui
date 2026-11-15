@@ -47,6 +47,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Under WSL a link the app cannot hand to Windows now says so, and why, where it did nothing, as when the app's way to Windows had broken.
 - A session marked for a PR's failing checks, merge conflict or requested changes is no longer marked for it once GitHub stops saying it, such as when the checks run again, while PR status is on and a session still links the PR.
 - Quitting the app on Linux ends what a session, a panel's shell or a panel's command left running, such as a process that ignored the stop or a background job started with `nohup`, and a PR lookup or git still under way, where those ran on after the app had gone.
+- A menu taller than the window stops at the window's edge and its items scroll, where the items past the edge could not be reached.
 
 ## 0.4.0 — 2026-11-09
 

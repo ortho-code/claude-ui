@@ -32,7 +32,7 @@ const jumpButton = (page: Page, name: string): Locator => projectHeading(page, n
 
 /** The open menu as it reads: each entry's name and count, a rule as "—". */
 const menuLines = (page: Page): Promise<string[]> =>
-  page.locator('.kebab-menu').evaluate((menu) =>
+  page.locator('.kebab-menu > .menu-list').evaluate((menu) =>
     [...menu.children].map((child) =>
       child.classList.contains('menu-separator') ? '—' : `${child.querySelector('.menu-item-label')?.textContent} ${child.querySelector('.menu-item-count')?.textContent}`,
     ),
