@@ -50,10 +50,10 @@
   color: var(--accent);
 }
 
+/* Every item's label wraps in full, breaking a name that has no break point wherever the line runs out, so a session's name or a PR's title is all there in a menu at most 300px wide. */
 .menu-item-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .menu-item-label.muted {
@@ -65,12 +65,6 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   row-gap: 1px;
-}
-
-/* The label wraps too, as its detail does, so a name too long for a menu at most 300px wide, such as a PR's title, is all there. */
-.menu-row.two-line > .menu-item-label {
-  overflow-wrap: anywhere;
-  white-space: normal;
 }
 
 /* Muted and smaller, as a header's lines under its name are, and wrapping, so what it says is all there in a menu at most 300px wide. */
@@ -89,7 +83,7 @@
 }
 
 /* What a menu is about, at its top (MenuItem.header): text, not a row, so no hover and the arrow pointer, padded as a menu row is so its text lines up with the labels of items that have no tick or dot ahead of them.
-   A long line widens the menu only as far as every menu's cap (popover.css), where its first line is cut and the lines under it wrap. */
+   A long line widens the menu only as far as every menu's cap (popover.css), where it wraps. */
 .menu-header {
   padding: 6px 9px;
   cursor: default;
@@ -113,11 +107,8 @@
   align-self: center;
 }
 
-/* The first line names the thing: an item's size, bolder, and one line, cut when too long, with its whole text as its tooltip (menu.ts), since a session's name read from its transcript runs to 200 characters. */
+/* The first line names the thing: an item's size and bolder, wrapping as the lines under it do, so a session's name read from its transcript, which runs to 200 characters, is all there. */
 .menu-header-line:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--text);
   font-size: var(--text-body);
   font-weight: 600;

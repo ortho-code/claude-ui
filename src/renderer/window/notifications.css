@@ -38,14 +38,15 @@
   flex-direction: column;
 }
 
+/* The session's whole name, wrapped: a toast mostly goes away after a few seconds, so a cut name would leave which session called a guess. */
 .notif-title {
   font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
+/* Wrapping too, so a project's folder name without a break point stays inside the toast. */
 .notif-proj {
+  overflow-wrap: anywhere;
   color: var(--muted);
   font-size: var(--text-small);
 }

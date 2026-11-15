@@ -79,13 +79,12 @@
 
 /* Shape, hover and the fill of the entry on show come from the menu row (menu-row.css). */
 
-/* The name takes only its own width, so a dead project's mark sits against it rather than out by the roll-up; the roll-up and the count are pushed to the right instead, together, whether the roll-up shows or not. */
+/* The name takes only its own width, so a dead project's mark sits against it rather than out by the roll-up; the roll-up and the count are pushed to the right instead, together, whether the roll-up shows or not.
+   It wraps, a folder name without a break point breaking wherever the line runs out, so the list says every project's whole name where the title above it is cut. */
 .switcher-item-name {
   flex: 0 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .switcher-item-end {

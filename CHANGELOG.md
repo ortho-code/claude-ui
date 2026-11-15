@@ -34,6 +34,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A row in the review reads as it does anywhere in the list, with its time and model, since its set's heading already says why it is there.
   Its PRs and when they merged or closed are in its tooltip.
 - Hovering anywhere on a session's row shows its name, its line in full, its state, its times, its PRs with their dates where GitHub gave them, and its whole note, where the name and the time each had a tooltip of their own before.
+- A session's whole name shows at the top of its menu, a project's whole name in the project switcher's list, and a session's whole name in a notification, wrapped rather than cut short.
+  A session's or group's name in a menu wraps in full too, where it was cut on one line, and a name without spaces wraps rather than running out of the menu.
 
 ### Fixed
 

@@ -49,7 +49,7 @@ export interface MenuItem {
   disabled?: string;
   /**
    * Not an item but what the menu is about, at its top: the label as its first line and these after it, muted, taking no hover and no click.
-   * The first line, too long for the menu, is cut with an ellipsis and carries its whole text as its tooltip; the lines after it wrap (menu.css).
+   * Every line wraps, the first too, so what a header says is all there in a menu at most 300px wide (menu.css).
    * A line can lead with a dot, classed by whoever lists it, such as each state a session is in.
    */
   header?: HeaderLine[];
@@ -110,7 +110,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'menu-row';
-    button.textContent = item.label;
+    button.append(menuLabel(item));
     if (item.disabled) {
       // Nothing is wired below: it takes no click and opens no submenu, and it carries the reason as its tooltip.
       setUnavailable(button, item.disabled);
@@ -119,7 +119,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       menu.append(button);
       continue;
     }
-    // A row led by a dot: a session's own, one its lister classes, or the roll-up of something countable (a group, say), whose count then sits in its own column at the right; the label takes the room it needs and ellipsizes.
+    // A row led by a dot: a session's own, one its lister classes, or the roll-up of something countable (a group, say), whose count then sits in its own column at the right.
     if (item.count !== undefined || item.session || item.dot !== undefined) dottedRow(button, item);
     if (item.checked !== undefined) button.prepend(tickColumn(item.checked));
     if (item.submenu) {
@@ -170,16 +170,20 @@ function menuHeader(label: string, lines: HeaderLine[]): HTMLElement {
   return header;
 }
 
-/** A row led by a dot, in place of its plain label: the dot, the label, and its detail line and count where it has them. */
-function dottedRow(button: HTMLButtonElement, item: MenuItem): void {
+/** An item's label, which wraps in full (menu.css). */
+function menuLabel(item: MenuItem): HTMLElement {
   const label = document.createElement('span');
   label.className = 'menu-item-label';
   label.textContent = item.label;
   if (item.muted) label.classList.add('muted');
+  return label;
+}
+
+/** A row led by a dot, ahead of its label: the dot, and its detail line and count where it has them. */
+function dottedRow(button: HTMLButtonElement, item: MenuItem): void {
   const dot = document.createElement('span');
   dot.className = item.session ? sessionDotClass(item.session.status, item.session.acked) : (item.dot ?? badgeClass(item.badge ?? null));
-  button.textContent = '';
-  button.append(dot, label);
+  button.prepend(dot);
   if (item.detail !== undefined) {
     const detail = document.createElement('span');
     detail.className = 'menu-item-detail';
@@ -201,13 +205,6 @@ function tickColumn(checked: boolean): HTMLElement {
   tick.className = 'menu-tick';
   tick.innerHTML = checked ? tickIcon(11) : '';
   return tick;
-}
-
-/** Give each header line the menu had to cut, a first line, its whole text as its tooltip; measured once the menu is in the page, since only then has it a width. */
-function tipCutLines(menu: HTMLElement): void {
-  for (const line of menu.querySelectorAll<HTMLElement>('.menu-header-line')) {
-    if (line.scrollWidth > line.clientWidth) setTooltip(line, line.textContent);
-  }
 }
 
 /** How far from the end of its edge a popover's notch may start, clear of the rounded corner there (popover.css). */
@@ -246,7 +243,6 @@ function openSubmenu(item: HTMLElement, items: MenuItem[]): void {
   const { menu, list } = menuShell('kebab-menu popover submenu');
   fillMenu(list, items, false);
   document.body.append(menu);
-  tipCutLines(menu);
   capList(menu, list, window.innerHeight - 8 - 8);
   const r = item.getBoundingClientRect();
   const flipped = r.right + menu.offsetWidth + 8 > window.innerWidth;
@@ -280,7 +276,6 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[], follow?: () => 
   const { menu, list } = menuShell('kebab-menu popover');
   fillMenu(list, items, true);
   document.body.append(menu);
-  tipCutLines(menu);
   placeMenu(menu, list, anchor);
   openMenuEl = menu;
   openMenuAnchor = anchor;
@@ -304,7 +299,6 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[], follow?: () => 
     closeSubmenu();
     list.replaceChildren();
     fillMenu(list, now, true);
-    tipCutLines(menu);
     placeMenu(menu, list, anchor);
     // Available, as the rows `fillMenu` marks are, so the item and the row are the same one.
     const parent = now.find((item) => item.submenu && !item.disabled && item.label === reopen);
