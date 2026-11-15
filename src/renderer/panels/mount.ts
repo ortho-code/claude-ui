@@ -142,26 +142,36 @@ function viewSwitch(slot: PanelSlot, context: MountContext): { element: HTMLElem
   return { element: views, picked: pickedView, show: showViews, keep: keepPick, notes: () => viewNotesNow };
 }
 
+/** The marks the panel's reports change, in its header and on its rail icon, each hidden until the panel says something: the busy mark, the run's last word, the rail's dot, and its count beside its title and on the rail. */
+function reportMarks(): { busy: HTMLElement; end: HTMLElement; badge: HTMLElement; count: HTMLElement; railCount: HTMLElement } {
+  const busy = element('span', 'nudge running');
+  const end = element('span', 'panel-end');
+  const badge = element('span', badgeClass(null));
+  const count = element('span', 'panel-count');
+  const railCount = element('span', 'rail-count');
+  busy.hidden = badge.hidden = count.hidden = railCount.hidden = true;
+  return { busy, end, badge, count, railCount };
+}
+
+/** The panel's full-screen button, in its header or its own bar. */
+function fullScreenToggle(slot: PanelSlot, type: PanelType, context: MountContext): HTMLButtonElement {
+  const button = element('button', 'icon-btn full-screen-toggle');
+  button.type = 'button';
+  // A bare panel's own bar sizes it with its other buttons; the tree's header takes the compact box its Refresh has.
+  if (!type.bare) button.classList.add('compact');
+  button.addEventListener('click', () => context.toggleFullScreen(slot.key));
+  drawFullScreenButton(button, false);
+  return button;
+}
+
 /** Mount the panel for a slot, with its header's marks and controls and the host it reports through. */
 export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
   const type = context.typeOf(slot.type!);
-  const busy = element('span', 'nudge running');
-  busy.hidden = true;
-  const end = element('span', 'panel-end');
+  const { busy, end, badge, count, railCount } = reportMarks();
   // Per entry, since what the button would do can depend on the options; a terminal has none.
   const label = type.bare ? null : type.actionLabel ? type.actionLabel(optionsOf(slot.entry)) : 'Refresh';
   const action = label === null ? null : actionButton(label);
-  const fullScreenButton = element('button', 'icon-btn full-screen-toggle');
-  fullScreenButton.type = 'button';
-  // A bare panel's own bar sizes it with its other buttons; the tree's header takes the compact box its Refresh has.
-  if (!type.bare) fullScreenButton.classList.add('compact');
-  fullScreenButton.addEventListener('click', () => context.toggleFullScreen(slot.key));
-  drawFullScreenButton(fullScreenButton, false);
-  const badge = element('span', badgeClass(null));
-  badge.hidden = true;
-  const count = element('span', 'panel-count');
-  const railCount = element('span', 'rail-count');
-  count.hidden = railCount.hidden = true;
+  const fullScreenButton = fullScreenToggle(slot, type, context);
   const folder = folderMark();
   const views = viewSwitch(slot, context);
   // What the panel reports about itself, held here so a report made while it is still mounting is not lost; a change re-renders, since both the panel's place and its rail icon draw from it.
