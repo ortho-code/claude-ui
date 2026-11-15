@@ -1,23 +1,14 @@
-import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { promisify } from 'node:util';
 import type { WorkingTree } from '../../shared/panels';
-import { markedEnv } from '../pty/leftovers';
+import { failure, git as gitCapped } from '../git';
 
 /**
  * A fingerprint of a folder's git working tree, for a panel that runs again when it changes.
  *
  * GIT'S OWN VIEW, ASKED, NOT A WATCH OF EVERY FILE (measured 2026-10-08 on a large repository): one watch per directory, skipping a fixed list of heavy folders, took 44,287 watches and 160 MB of memory, and Node's recursive watch takes one per file and per directory, past the system's limit there unfiltered; `git status --porcelain=v2 --branch -uall` there took 0.07 s.
  * Git's ignore rules come with it, so build output and `node_modules` never count where git ignores them.
- * `--no-optional-locks` keeps every call from refreshing the index, which `git status` otherwise writes after a change, holding its lock meanwhile, which `man git-status` warns may make other git processes running then fail.
- * `status.showStash` is switched off whatever the person's config says, since its line is the whole repository's, and git's messages are asked for in English, since which refusal is which is read from them.
  */
-
-const execFileAsync = promisify(execFile);
-
-/** How long one git call may take; a look that cannot answer in this says nothing either way. */
-const GIT_TIMEOUT_MS = 10_000;
 
 /** The most one `git status` may print, every changed and untracked path under the folder; past it the look says nothing either way rather than hold more. */
 const STATUS_CAP = 16 * 1024 * 1024;
@@ -25,28 +16,14 @@ const STATUS_CAP = 16 * 1024 * 1024;
 const NUL = 0;
 const SPACE = 0x20;
 
-/** Git in `dir`, with no optional locks, as raw bytes: a path git prints is the file system's bytes, which need not be UTF-8. */
-async function git(dir: string, args: string[]): Promise<Buffer> {
-  const { stdout } = await execFileAsync('git', ['--no-optional-locks', '-c', 'status.showStash=false', '-C', dir, ...args], {
-    timeout: GIT_TIMEOUT_MS,
-    maxBuffer: STATUS_CAP,
-    encoding: 'buffer',
-    env: { ...markedEnv(), LC_ALL: 'C' },
-  });
-  return stdout;
-}
+/** Every call here is held to the status cap, the largest of them. */
+const git = (dir: string, args: string[]): Promise<Buffer> => gitCapped(dir, args, STATUS_CAP);
 
 /**
  * Git's refusals that mean the folder is in no working tree: outside any repository, inside a `.git` or a bare one, and, through `-C`, a folder that is not there.
  * Git exits 128 for every fatal error, a broken repository or one it does not trust among them, so the exit alone cannot tell these from git not answering.
  */
 const NOT_A_TREE = /not a git repository|must be run in a work tree|cannot change to/;
-
-/** What a failed git call said, on stderr where git says it. */
-function failure(error: unknown): string {
-  const stderr = (error as { stderr?: Buffer }).stderr?.toString('utf8').trim();
-  return stderr || (error instanceof Error ? error.message : String(error));
-}
 
 /** The field of a `--porcelain=v2` record the path starts at, by the record's first letter: ordinary, renamed or copied, unmerged, untracked. */
 const PATH_FIELD: Record<string, number> = { '1': 8, '2': 9, u: 10, '?': 1 };
