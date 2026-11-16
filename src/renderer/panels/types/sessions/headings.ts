@@ -4,7 +4,7 @@ import { kebabButton, openMenu, type MenuItem } from '../../../ui/menu';
 import { groupJumpTargets, type GroupJumpTarget } from '../../../rules/session-list';
 import { store } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
-import { mutedNeedsYou, strengthNow } from '../../../state/views';
+import { mutedNeedsYou, projName, strengthNow } from '../../../state/views';
 import { pressHeadingBox, rowsUnder, tickBox } from './bulk';
 import { folderIcon, layersIcon } from '../../../ui/svg';
 import { copyText } from '../../../ui/toast';
@@ -120,6 +120,8 @@ export function createProjectSection(name: string): ProjectSectionEls {
   // The button is left out below two places for the room on the heading, which a menu has, so there the item stays, saying why.
   const kebab = kebabButton('project-kebab', 'Project options', () =>
     withMoves(projectMoveItems(name), [
+      // The heading's name is cut at the sidebar's width: here it is whole, with the folder it stands for.
+      { label: projName(name, store.get()), header: [name] },
       ...newSessionItems(name),
       newSessionInGroupItem(name),
       { label: 'New group…', onSelect: () => void promptNewGroup(name) },
@@ -171,8 +173,11 @@ export function createGroupSection(id: string): GroupSectionEls {
   });
   // Group options: the ways to start a session in it, the "+" and its caret's, the group's own, and the moves last (`withMoves`).
   const kebab = kebabButton('group-kebab', 'Group options', () => {
-    const repoRoot = store.get().groupState.groups.find((g) => g.id === id)?.repoRoot;
+    const group = store.get().groupState.groups.find((g) => g.id === id);
+    const repoRoot = group?.repoRoot;
     return withMoves(groupMoveItems(id), [
+      // The heading's name is cut at the sidebar's width: here it is whole, with the project it is in.
+      ...(group ? [{ label: group.name, header: repoRoot ? [projName(repoRoot, store.get())] : [] }] : []),
       ...(repoRoot ? [...newSessionItems(repoRoot, id), { label: '', separator: true }] : []),
       selectItem(section),
       { label: 'Rename…', onSelect: () => void renameGroupById(id) },

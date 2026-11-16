@@ -27,11 +27,11 @@ for (const [surface, kebab] of [
     await tabLabel(page, full.title).click();
     await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
     expect(await app.emit('onSessionStatus', full.id, 'waiting', '', '')).toBe(1);
-    const meta = await row(page, full.title).locator('.meta-text').textContent();
+    // The moment in full, as the row's tooltip gives it, where the row says how long ago, with the model the row names.
+    const lastActive = (await row(page, full.title).getAttribute('data-tooltip'))!.split('\n').find((line) => line.startsWith('Last active: '));
+    expect(lastActive).toBeDefined();
     await kebab(page).click();
-    await expect(lines(page)).toHaveText([full.title, 'demo · Bugs', 'Waiting for you', meta!, 'Linked git worktree: feat-drag', 'Check it on a mac']);
-    // Outside the finished view, the row's meta line and the header's are one rule.
-    expect(meta).toMatch(/ · Opus 5\.5$/);
+    await expect(lines(page)).toHaveText([full.title, 'demo · Bugs', 'Waiting for you', `${lastActive!} · Opus 5.5`, 'Linked git worktree: feat-drag', 'Check it on a mac']);
   });
 }
 
@@ -381,10 +381,10 @@ test("a finished session's menu holds its note, its id, Unfinished and Delete, S
   await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
   await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Unfinished', 'Delete session…', 'Select…']);
-  // When it was finished, as its row says it, below when it was last active.
-  const finished = await row(page, full.title).locator('.meta-text').textContent();
+  // When it was finished, in full as the row's tooltip gives it, where the row says how long ago, below when it was last active.
+  const finished = (await row(page, full.title).getAttribute('data-tooltip'))!.split('\n').find((line) => line.startsWith('Finished: '));
+  expect(finished).toBeDefined();
   await expect(lines(page).nth(3)).toHaveText(finished!);
-  expect(finished).toMatch(/^finished /);
 });
 
 test("Unfinished in a finished session's menu takes it out of the finished view, as the row's button does", async ({ app, page }) => {

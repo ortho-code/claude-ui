@@ -17,6 +17,21 @@ const menuLines = (page: Page): Promise<string[]> =>
 const item = (page: Page, label: string, scope = '.kebab-menu:not(.submenu)'): Locator => page.locator(`${scope} button.menu-row`).filter({ hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) });
 
 
+// A heading's name is cut at the sidebar's width, so its menu opens with the name in full and where it is: a project's folder, a group's project.
+const headerLines = (page: Page): Locator => page.locator('.kebab-menu:not(.submenu) .menu-header .menu-header-line');
+
+test("a project's menu opens with its name and its folder's path", async ({ page, app }) => {
+  await app.boot(fixture);
+  await projectHeading(page, 'demo').locator('.project-kebab').click();
+  await expect(headerLines(page)).toHaveText(['demo', PROJECT]);
+});
+
+test("a group's menu opens with its name and its project's", async ({ page, app }) => {
+  await app.boot(fixture);
+  await groupHeading(page, 'Work').locator('.group-kebab').click();
+  await expect(headerLines(page)).toHaveText(['Work', 'demo']);
+});
+
 test("a project's menu holds the ways to start a session there, together, before its own items", async ({ page, app }) => {
   await app.boot(fixture);
   await projectHeading(page, 'demo').locator('.project-kebab').click();

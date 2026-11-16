@@ -8,7 +8,8 @@ import { momentInLanguage } from '../../../ui/locale';
 import type { HeaderLine, MenuItem } from '../../../ui/menu';
 import { momentLine, type Moment } from '../../../ui/moments';
 import type { View } from '../../../state/app';
-import { groupNameOf, projName } from '../../../state/views';
+import { groupNameOf, projName, tabWith } from '../../../state/views';
+import { notLeftSentence } from '../../../rules/claude';
 import { statusLines, type LinesView } from '../../../status/status-dot';
 
 /**
@@ -82,9 +83,15 @@ export function rowTooltip(session: SessionSummary, view: RowTooltipView, line: 
 /** What a row's tooltip reads from the store. */
 export type RowTooltipView = LinesView & View<'notes' | 'prStatus' | 'prNames'>;
 
+/** A moment as a header line says it, in full where it is known ("Finished: Tue 3 Nov, 09:00"), else its label alone. */
+function exactMoment({ label, at }: Moment): string {
+  return at ? momentLine(label, at) : label;
+}
+
 /**
- * What a session's menu opens with: its title, then where it is filed, each state it is in on a line of its own with its dot, its set-aside mark, when it was active and on what model, when it was finished, its worktree, its note's first line, and why it cannot run.
+ * What a session's menu opens with: its title, then where it is filed, each state it is in on a line of its own with its dot, a stop claude has not left, its set-aside mark, when it was active and on what model, when it was finished, its worktree, its note's first line, and why it cannot run.
  * Every state, where its one dot shows the strongest: a session ready and needing you says both (decided 2026-10-28).
+ * Its moments are given in full, where its row says how long ago (decided 2026-11-16).
  */
 export function sessionHeader(
   session: SessionSummary,
@@ -93,7 +100,18 @@ export function sessionHeader(
   const where = [projName(session.repoRoot, view), groupNameOf(session, view)].filter(Boolean).join(' · ');
   const note = view.notes.get(entityKey(session))?.split('\n')[0];
   const setAside = view.setAside.get(entityKey(session));
-  const after = [setAside && setAsideLabel(setAside), activityMoment(session, view).text, finishedMoment(session, view)?.text, worktreeMarkState(session)?.tooltip, note, unstartableReason(session)];
+  const tab = tabWith(session.id, view);
+  const model = modelLabel(modelOf(session, view));
+  const finished = finishedMoment(session, view);
+  const after = [
+    tab && notLeftSentence(tab),
+    setAside && setAsideLabel(setAside),
+    [exactMoment(activityMoment(session, view)), model].filter(Boolean).join(' · '),
+    finished && exactMoment(finished),
+    worktreeMarkState(session)?.tooltip,
+    note,
+    unstartableReason(session),
+  ];
   const lines: HeaderLine[] = [...(where ? [where] : []), ...statusLines(session.id, view), ...after.filter((line): line is string => Boolean(line))];
   return { label: sessionLabel(session), header: lines };
 }

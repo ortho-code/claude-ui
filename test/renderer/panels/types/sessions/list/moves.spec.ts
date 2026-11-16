@@ -31,10 +31,12 @@ const GROUP_OWN = ['New session', 'New worktree session…', '—', 'Select sess
 const PROJECT_OWN = ['New session', 'New worktree session…', 'New session in group', 'New group…', '—', 'Select sessions…', 'Rename…', 'Copy path', '—', 'Jump to group'];
 const ALL_MOVES = ['Move to top', 'Move up', 'Move down', 'Move to bottom'];
 
-/** Open the options behind `kebab` and read them as they are listed, a rule as "—". */
+/** Open the options behind `kebab` and read them as they are listed, a rule as "—", after the header that names the heading. */
 async function optionsOf(page: Page, kebab: Locator): Promise<string[]> {
   await kebab.click();
-  return page.locator('.kebab-menu:not(.submenu) > .menu-list').evaluate((menu) => [...menu.children].map((child) => (child.classList.contains('menu-separator') ? '—' : child.textContent)));
+  return page
+    .locator('.kebab-menu:not(.submenu) > .menu-list')
+    .evaluate((menu) => [...menu.children].filter((child) => !child.classList.contains('menu-header')).map((child) => (child.classList.contains('menu-separator') ? '—' : child.textContent)));
 }
 const groupOptions = (page: Page, name: string): Promise<string[]> => optionsOf(page, groupHeading(page, name).locator('.group-kebab'));
 const projectOptions = (page: Page, name: string): Promise<string[]> => optionsOf(page, projectHeading(page, name).locator('.project-kebab'));

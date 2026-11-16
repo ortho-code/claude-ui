@@ -222,7 +222,7 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0214](0214-a-new-needs-you-reason-is-unread.md) | 2026-11-11 | A new needs-you reason is unread | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0215](0215-news-while-set-aside-can-wait-for-its-day.md) | 2026-11-12 | News while set aside can wait for its day | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0216](0216-every-moment-in-one-format-from-the-language.md) | 2026-11-12 | Every moment in one format, from the language | [The language](../architecture/window.md#the-language) |
-| [0217](0217-a-session-rows-tooltip-says-everything-it-shows.md) | 2026-11-12 | A session row's tooltip says everything it shows | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
+| [0217](0217-a-session-rows-tooltip-says-everything-it-shows.md) | 2026-11-12 | A session row's tooltip says everything it shows — **Partly replaced** by [0226](0226-a-menus-header-says-what-only-a-tooltip-said.md): the session's menu header says a stop claude has not left and its moments in full | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
 | [0218](0218-a-review-row-reads-like-any-other-row.md) | 2026-11-12 | A review row reads like any other row | [The review](../architecture/session-list.md#the-review) |
 | [0219](0219-clear-and-close-ends-the-filter-in-one-press.md) | 2026-11-12 | Clear and close ends the filter in one press | [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it) |
 | [0220](0220-ctrl-c-copies-a-selection.md) | 2026-11-12 | Ctrl+C copies a selection | [The `terminal` type](../architecture/panels.md#the-terminal-type) |
@@ -231,3 +231,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0223](0223-a-quit-ends-everything-the-app-started.md) | 2026-11-14 | A quit ends everything the app started | [Stopping a session is a request: claude may answer it with a question](../architecture/claude.md#stopping-a-session-is-a-request-claude-may-answer-it-with-a-question) |
 | [0224](0224-a-panels-header-says-when-it-last-refreshed.md) | 2026-11-14 | A panel's header says when it last refreshed | [Several panels in a group](../architecture/panels.md#several-panels-in-a-group) |
 | [0225](0225-a-tooltip-only-repeats.md) | 2026-11-15 | A tooltip only repeats what can be read without it | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
+| [0226](0226-a-menus-header-says-what-only-a-tooltip-said.md) | 2026-11-16 | A menu's header says what only a tooltip said | [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it) |

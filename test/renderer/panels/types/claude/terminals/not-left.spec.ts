@@ -71,6 +71,17 @@ test("a stop claude has not left 3 s after the ask says so beside the name and i
   await expectUnsaid(page);
 });
 
+test("a stop claude has not left says so in the session's menu header too, in the toast's words, and not before", async ({ app, page }) => {
+  await startBoth(page, app);
+  await askToStop(page, app);
+  const said = page.locator('.kebab-menu .menu-header .menu-header-line', { hasText: /^Claude hasn't left — it may be asking you something$/ });
+  await page.clock.runFor(2999);
+  await row(page, stuck.title).locator('.session-kebab').click();
+  await expect(said).toHaveCount(0);
+  await page.clock.runFor(1);
+  await expect(said).toHaveCount(1);
+});
+
 test('a click on the toast brings the tab that has not left on show', async ({ app, page }) => {
   await startBoth(page, app);
   await askToStop(page, app);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { leaveAction, leaveLabel, leaveUnderWay, notLeftWords, tabButton } from '../../../../src/renderer/rules/claude';
+import { leaveAction, leaveLabel, leaveUnderWay, notLeftSentence, notLeftWords, tabButton } from '../../../../src/renderer/rules/claude';
 
 describe('notLeftWords', () => {
   const LIVE = 3;
@@ -12,6 +12,18 @@ describe('notLeftWords', () => {
     expect(notLeftWords({ terminalId: LIVE, stopping: true, forceable: true })).toBe(null);
     expect(notLeftWords({ terminalId: LIVE, notLeft: true })).toBe(null);
     expect(notLeftWords({ terminalId: null })).toBe(null);
+  });
+});
+
+describe('notLeftSentence', () => {
+  const LIVE = 3;
+
+  it('says it in a sentence exactly when the words beside the name say it', () => {
+    const notLeft = { terminalId: LIVE, stopping: true, forceable: true, notLeft: true };
+    const notYet = { terminalId: LIVE, stopping: true, forceable: true };
+    expect(notLeftSentence(notLeft)).toBe("Claude hasn't left — it may be asking you something");
+    expect(notLeftSentence(notYet)).toBe(null);
+    expect(notLeftWords(notYet)).toBe(null);
   });
 });
 
