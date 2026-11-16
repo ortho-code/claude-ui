@@ -8,10 +8,20 @@ export type DiffQuestion = 'since' | 'unpushed' | 'uncommitted';
 
 export const DIFF_QUESTIONS: readonly DiffQuestion[] = ['since', 'unpushed', 'uncommitted'];
 
+/** How a file's diff is drawn: split once the panel is wide enough and unified below that, or one of the two whatever the width. */
+export type DiffView = 'fit' | 'split' | 'unified';
+
+export const DIFF_VIEWS: readonly DiffView[] = ['fit', 'split', 'unified'];
+
 /** What a diff panel keeps of what was picked in it, in its own data file. */
 export interface DiffPicks {
   question: DiffQuestion;
+  view: DiffView;
+  /** Changes that only touch whitespace left out of a file's diff. */
+  ignoreWs: boolean;
 }
+
+export const DEFAULT_DIFF_PICKS: DiffPicks = { question: 'since', view: 'fit', ignoreWs: false };
 
 /** Where the base of Since branched came from: a pick for this branch, the project's, or the convention's guess. */
 export type BaseSource = 'branch' | 'project' | 'convention';

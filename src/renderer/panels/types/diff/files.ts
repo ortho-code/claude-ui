@@ -41,19 +41,30 @@ export class FileList {
   /** The tree's folded folders, by path. */
   private readonly folded = new Set<string>();
   /** What was drawn last, which a fold draws again. */
-  private drawn: { files: readonly DiffFile[]; view: FilesView } = { files: [], view: 'flat' };
+  private drawn: { files: readonly DiffFile[]; view: FilesView; picked: string | null } = { files: [], view: 'flat', picked: null };
+  /** The files' paths in the order their rows stand, folded ones left out. */
+  private shown: string[] = [];
 
-  /** Draw `files` as `view` says, each row's place and words set again and nothing else rebuilt. */
-  draw(files: readonly DiffFile[], view: FilesView): void {
-    this.drawn = { files, view };
+  /** `pick` is a press on a file's row. */
+  constructor(private readonly pick: (path: string) => void) {}
+
+  /** Draw `files` as `view` says, `picked` marked as the one on show, each row's place and words set again and nothing else rebuilt. */
+  draw(files: readonly DiffFile[], view: FilesView, picked: string | null): void {
+    this.drawn = { files, view, picked };
+    this.shown = [];
     const placed = view === 'flat' ? files.map((file) => this.fileRow(file, 0, true)) : this.treeRows(files);
     placeChildren(this.el, placed);
     this.rows.sweep();
   }
 
+  /** The files' paths in the order their rows stand, what stepping from file to file follows. */
+  order(): readonly string[] {
+    return this.shown;
+  }
+
   private toggle(path: string): void {
     if (!this.folded.delete(path)) this.folded.add(path);
-    this.draw(this.drawn.files, this.drawn.view);
+    this.draw(this.drawn.files, this.drawn.view, this.drawn.picked);
   }
 
   /** The tree's rows: each folder before what it holds, a chain of folders that each hold only the next one on one row, as a file tree compacts them, then the files. */
@@ -103,7 +114,8 @@ export class FileList {
     row.fold.setAttribute('aria-expanded', String(open));
     row.fold.setAttribute('aria-label', open ? `Fold ${label}` : `Unfold ${label}`);
     row.card.style.setProperty('--depth', String(depth));
-    row.title.textContent = label;
+    // In the isolated span a file's name sits in too, or the row's right-to-left cut moves a leading dot, `.claude`, to its end.
+    row.title.replaceChildren(span('list-text', label));
     row.title.title = path;
     row.trail.textContent = String(files);
     placeChildren(row.line, [row.fold, row.title, row.trail]);
@@ -111,7 +123,15 @@ export class FileList {
   }
 
   private fileRow(file: DiffFile, depth: number, flat: boolean): HTMLElement {
-    const row = this.rows.draw(`file\n${file.path}`, () => this.build('diff-file'));
+    const row = this.rows.draw(`file\n${file.path}`, () => {
+      const built = this.build('diff-file');
+      built.card.classList.remove('still');
+      built.card.addEventListener('click', () => this.pick(file.path));
+      return built;
+    });
+    this.shown.push(file.path);
+    row.card.classList.toggle('picked', file.path === this.drawn.picked);
+    row.card.setAttribute('aria-current', String(file.path === this.drawn.picked));
     row.card.style.setProperty('--depth', String(depth));
     row.lead.className = `list-lead tone-${TONE[file.status]}`;
     row.lead.textContent = file.status;
@@ -162,9 +182,10 @@ function pathText(path: string, flat: boolean): HTMLElement {
   return text;
 }
 
-/** What a row says at its end: its added and removed lines, `new` for an untracked file, whose every line is new, or `binary` for a file with no lines to count. */
+/** What a row says at its end: the lines it adds and those it removes, each only when there are any, `new` for an untracked file, whose every line is new, or `binary` for a file with no lines to count. */
 function trailOf(file: DiffFile): Node[] {
   if (file.binary) return [document.createTextNode('binary')];
   if (file.status === 'U') return [span('diff-added', 'new')];
-  return [span('diff-added', `+${file.added}`), document.createTextNode(' '), span('diff-deleted', `−${file.deleted}`)];
+  const parts = [...(file.added ? [span('diff-added', `+${file.added}`)] : []), ...(file.deleted ? [span('diff-deleted', `−${file.deleted}`)] : [])];
+  return parts.flatMap((part, at) => (at ? [document.createTextNode(' '), part] : [part]));
 }

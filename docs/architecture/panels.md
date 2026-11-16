@@ -384,8 +384,19 @@ Since branched is taken against the merge-base of `HEAD` with the base, never th
 Its base comes from three layers, the branch's pick, the project's, the convention's guess (`upstream`'s default branch, else `origin`'s), the first two kept per project in `meta.json`, and nothing fetches ([decided 2026-11-14](../decisions/0226-a-diff-base-comes-in-three-layers.md)).
 Main reads all three; nothing in the window keeps a pick yet, so the base on screen is the convention's.
 The row over the list names the base, marks a guessed one so, and puts where it came from in its tooltip.
-The menu shows beside Since branched and Unpushed the commits each counts, and the row says how far the branch is behind its base, while it is, as a count with no action.
-The question picked is kept in the panel's own data file (`panel-data/<entry id>.json`); the list's view, flat or a tree, is switched in the panel's header and kept as a list panel's view is.
+The menu says beside Since branched and Unpushed how many commits each counts, in words, so the number is not read as files, and the row says how far the branch is behind its base, while it is, as a count with no action.
+The question picked is kept in the panel's own data file (`panel-data/<entry id>.json`), with the diff's view and whether whitespace is hidden; the list's view, flat or a tree, is switched in the panel's header and kept as a list panel's view is.
+
+**A file picked in the list shows its diff** beside or under the list, as the panel's own width says: below 600px the list sits above the diff, from 600px beside it, by a container query on the panel, and Fit, the default view, draws the diff unified below 600px and split from it, where Split and Unified hold at any width ([decided 2026-11-14](../decisions/0227-the-diff-panel-lays-itself-out-by-its-width.md)).
+A file is read against the commit its list was measured from, so the two describe the same diff, and read again with the list, its folds and the stepper's place kept, while the list still has it.
+Split view is one grid of three columns in one scroller, so the two sides scroll together with nothing keeping them in step; a run of removed lines stands beside the run of added lines after it, the shorter padded.
+The unchanged lines between changes are folded, five or more of them, fewer being shown, since a fold takes the room of what it hides, and drawn from the file as it is on disk, which main reads up to 2 MB: the whole fold on a press, or, on a fold hiding more than 20 lines, 20 at a time from the change beside it; for a file it could not read, such as a deleted one, a fold between changes asks git for that many more lines of context around every change, and the end of the file after the last change is not shown.
+A fold opened stays open by its place among the hunks, so after the file changes it can open a different gap.
+Git's heading for a change stands over it, sticky, while the lines above it are folded.
+The words that changed are marked in a removed line and an added one only where a run of removed lines meets a run of added lines of the same length, paired row by row, since lines of runs of different lengths need not be edits of each other.
+A generated file is one line until it is asked for, a binary file and a file with nothing to show each say so in a sentence, and hiding whitespace reads the file again with git's `-w`.
+A stepper walks the changes, by the buttons in the diff's header or `j` and `k` in it, on into the next file in the list's order that has a change, round from the last to the first, and round within the file on show when no other file has one, and says which change of which file it is on; a generated file still folded has no change to step to; a map at the diff's right edge has a tick per change, placed from the laid-out rows, and a press on one goes to it.
+Line numbers are drawn from an attribute, so a copied selection carries none.
 
 Main does the reading (`src/main/diff/`), on git through the one runner main's read-only calls share (`src/main/git.ts`), and the parsing of git's output is shared and pure (`src/shared/diff/`).
 A summary lists the files with git's letter (a copy as added, a change of type as modified, and `U` for a file git does not track), their counts, a rename's old path, and whether each is binary or generated (a lockfile by name, or `linguist-generated` in the repository's attributes); untracked files come after the rest, one row each up to 500, the rest counted under the list.
@@ -395,7 +406,7 @@ A summary that cannot be read comes back as git's own words rather than a refusa
 Each read checks the panel first, so it reads where its header says it looks.
 A folder git cannot read says so in git's words, and nothing to list says so by question.
 
-The list is the compact row of a list panel of changed files (`list.css`): the letter in its status's tone, the name after its folder, muted, in the flat list, and the lines added and removed at its end; the tree puts a chain of folders that each hold only the next on one row, as a file tree compacts them, folders first and each level by name, and a folder folds as a list panel's row holding rows does, from its chevron or a press anywhere on it, kept in memory while the panel stays mounted.
+The list is the compact row of a list panel of changed files (`list.css`): the letter in its status's tone, the name after its folder, muted, in the flat list, and the lines added and removed at its end, each only when there are any; the tree puts a chain of folders that each hold only the next on one row, as a file tree compacts them, folders first and each level by name, and a folder folds as a list panel's row holding rows does, from its chevron or a press anywhere on it, kept in memory while the panel stays mounted.
 
 ### Types from the config folder
 

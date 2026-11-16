@@ -189,11 +189,16 @@ The menu over its list picks what it lists, and is kept for the panel:
 - **Unpushed**: what the next push would send, plus what is not committed yet.
 - **Uncommitted**: only what is not committed.
 
-Beside the first two, the menu counts the commits each covers.
+Beside the first two, the menu says how many commits each covers.
 Since branched measures from a base branch: the default branch of the remote named `upstream`, or else of `origin`, which the row over the list names, marked as guessed, with how many commits on it the branch does not have yet.
 Nothing is fetched for it, so it is measured as your last fetch left the remote branches.
 Each file shows its letter (`M` changed, `A` added, `D` removed, `R` renamed, `U` not tracked yet), its name after its folder, and the lines it adds and removes; a renamed file's tooltip says where it came from.
 The switch in its header shows the files as a flat list or as a tree of their folders, where a press on a folder folds it.
+A press on a file shows its diff: under the list while the panel is narrower than 600px, beside it from there, and drawn side by side once the panel is that wide, or one above the other below that.
+The menu in the diff's header picks Fit, which does that, Split or Unified whatever the width, and hides changes that only touch whitespace; all three are kept for the panel.
+Five or more unchanged lines between changes are folded: press a fold to show them all, or, on a fold of more than twenty lines, its `↑ 20` and `↓ 20` to show twenty more beside the change below or above it.
+The words that changed inside a line are marked, a lockfile or generated file is folded to one line until you press it, and the map at the right edge has a mark for each change.
+`j` and `k` in the diff, or the arrows in its header, step from change to change and on into the next file.
 The list reads again when a switch of tab or project moves where it looks, within a minute of a file in the checkout changing, and when the session on show starts or finishes a turn.
 Untracked files past the first 500 are counted under the list rather than listed.
 

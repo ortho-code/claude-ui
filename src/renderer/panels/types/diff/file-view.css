@@ -1,0 +1,65 @@
+/* THE DIFF OF THE FILE PICKED: a header naming it, with where the stepper is, the stepper and the view's menu, then its hunks scrolling beside the change map. */
+.diff-file-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.diff-file-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: var(--text-meta);
+  border-bottom: 1px solid var(--border);
+}
+
+.diff-file-path {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+}
+
+.diff-grow {
+  flex: 1;
+}
+
+.diff-position {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-view-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+/* The hunks scroll, the map stands beside them over the scroller's right edge. */
+.diff-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* Positioned, so its rows' offsets, which the stepper and the map read, are measured from it. */
+.diff-frame .diff-hunks {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding-right: 10px;
+  outline: none;
+}
+
+.diff-file-note {
+  padding: 8px 14px;
+}

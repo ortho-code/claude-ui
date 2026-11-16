@@ -323,7 +323,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       const summary = Object.hasOwn(fixture.diffs, dir) ? fixture.diffs[dir][question] : undefined;
       return answer(summary ? { kind: 'summary' as const, summary } : { kind: 'failed' as const, error: 'fatal: not a git repository (or any of the parent directories): .git' });
     },
-    diffFile: unmodelled('diffFile'),
+    // A file's diff is the fixture's, by root and path; one left out has no changes, as git says of a file that matches its base.
+    diffFile: (root, _against, path) => answer(Object.hasOwn(fixture.fileDiffs, root) && Object.hasOwn(fixture.fileDiffs[root], path) ? fixture.fileDiffs[root][path] : { path, hunks: [], binary: false, lines: null }),
     diffCommits: unmodelled('diffCommits'),
     diffBaseCandidates: unmodelled('diffBaseCandidates'),
     diffBaseCount: unmodelled('diffBaseCount'),

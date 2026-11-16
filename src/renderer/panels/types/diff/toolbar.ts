@@ -47,16 +47,15 @@ export class Toolbar {
     this.base.title = question === 'since' && summary?.base ? SOURCE_WORDS[summary.base.source] : '';
   }
 
-  /** The three questions, the one on show ticked, each with the commits it counts where it counts any. */
+  /** The three questions, the one on show ticked, each with the commits it counts where it counts any, said as commits, so the number is not read as files. */
   private items(): MenuItem[] {
     const counts = this.summary()?.counts;
     const sizes: Record<DiffQuestion, number | null | undefined> = { since: counts?.ahead, unpushed: counts?.unpushed, uncommitted: undefined };
-    return DIFF_QUESTIONS.map((question) => ({
-      label: QUESTION_NAMES[question],
-      checked: question === this.current(),
-      ...(typeof sizes[question] === 'number' ? { count: sizes[question] } : {}),
-      onSelect: () => this.pick(question),
-    }));
+    return DIFF_QUESTIONS.map((question) => {
+      const size = sizes[question];
+      const commits = typeof size === 'number' ? ` · ${size} commit${size === 1 ? '' : 's'}` : '';
+      return { label: `${QUESTION_NAMES[question]}${commits}`, checked: question === this.current(), onSelect: () => this.pick(question) };
+    });
   }
 
   /** What the list is measured from, in words: the base and whether it was guessed, and how far the branch is behind it, for Since branched; what the other two questions mean otherwise. */

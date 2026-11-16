@@ -10,6 +10,11 @@
   color: var(--muted);
 }
 
+/* The file whose diff is on show, in the fill the session row on show wears, without its edge, which says a session has a tab. */
+.diff-files .diff-file.picked {
+  background: var(--active);
+}
+
 .diff-added {
   color: var(--ready);
 }

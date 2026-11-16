@@ -170,22 +170,16 @@ function menuHeader(label: string, lines: HeaderLine[]): HTMLElement {
   return header;
 }
 
-/**
- * A row led by a dot, in place of its plain label: the dot, the label, and its detail line and count where it has them.
- * A row with a count and nothing to dot, no session, class or roll-up, leads with its label, so it lines up with a plain row beside it.
- */
+/** A row led by a dot, in place of its plain label: the dot, the label, and its detail line and count where it has them. */
 function dottedRow(button: HTMLButtonElement, item: MenuItem): void {
   const label = document.createElement('span');
   label.className = 'menu-item-label';
   label.textContent = item.label;
   if (item.muted) label.classList.add('muted');
+  const dot = document.createElement('span');
+  dot.className = item.session ? sessionDotClass(item.session.status, item.session.acked) : (item.dot ?? badgeClass(item.badge ?? null));
   button.textContent = '';
-  if (item.session || item.dot !== undefined || item.badge !== undefined) {
-    const dot = document.createElement('span');
-    dot.className = item.session ? sessionDotClass(item.session.status, item.session.acked) : (item.dot ?? badgeClass(item.badge ?? null));
-    button.append(dot);
-  }
-  button.append(label);
+  button.append(dot, label);
   if (item.detail !== undefined) {
     const detail = document.createElement('span');
     detail.className = 'menu-item-detail';

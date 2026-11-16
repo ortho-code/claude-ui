@@ -1,0 +1,112 @@
+/* A FILE'S DIFF: monospaced rows, a line number from an attribute so a copied selection carries none, removed and added rows in the colours a status takes, and the words that changed marked within them.
+   Split view is one grid of three columns, both sides and a gutter between, so a row of each side always shares its height. */
+.diff-hunks {
+  display: block;
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+
+.diff-hunks.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr);
+  align-content: start;
+}
+
+.diff-line {
+  display: flex;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+
+.diff-line > i {
+  flex: none;
+  width: 4ch;
+  padding-right: 1ch;
+  text-align: right;
+  color: var(--muted);
+  font-style: normal;
+  user-select: none;
+}
+
+.diff-line > i::before {
+  content: attr(data-n);
+}
+
+.diff-line > s {
+  flex: 1;
+  min-width: 0;
+  padding-left: 4px;
+  text-decoration: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff-line.add {
+  background: color-mix(in srgb, var(--ready) 12%, transparent);
+}
+
+.diff-line.del {
+  background: color-mix(in srgb, var(--failed) 12%, transparent);
+}
+
+/* The side a block leaves empty, hatched so it reads as no line rather than an empty one. */
+.diff-line.empty {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted) 10%, transparent) 0 3px, transparent 3px 6px);
+}
+
+.word-add {
+  background: color-mix(in srgb, var(--ready) 34%, transparent);
+  border-radius: 2px;
+}
+
+.word-del {
+  background: color-mix(in srgb, var(--failed) 36%, transparent);
+  border-radius: 2px;
+}
+
+/* The change the stepper is on, marked on its first row. */
+.diff-line.current {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* A fold of unchanged lines and git's heading for the change under it, each across the whole width. */
+.diff-fold,
+.diff-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+}
+
+.diff-fold {
+  width: 100%;
+  margin: 2px 0;
+  color: var(--muted);
+  background: var(--surface);
+  text-align: left;
+}
+
+.diff-fold:hover {
+  color: var(--text);
+}
+
+.diff-fold-step {
+  padding: 0 6px;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.diff-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--accent);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
