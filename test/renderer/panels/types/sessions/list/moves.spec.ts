@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { HOME, PROJECT, session } from '../../../../support/fixture';
+import { DIMMED, HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { chooseProject, groupHeading, projectHeading } from '../../../../support/window';
 
@@ -24,6 +24,8 @@ const fixture = {
     ],
     groupOf: { [inFirst.id]: 'g-first', [inMiddle.id]: 'g-middle', [inLast.id]: 'g-last', [inLone.id]: 'g-lone' },
   },
+  // Every item listed, a Jump to group with nowhere to go among them, so each heading's options read the same whatever can be done now.
+  settings: DIMMED,
 };
 
 // The ways to add something there, the heading's own, on a project Jump to group, and the moves last of all (heading-menu.spec.ts).

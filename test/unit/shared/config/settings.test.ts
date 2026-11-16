@@ -11,7 +11,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', undoRunning: 'start', setAsideRunning: 'stop-close', setAsideNews: 'show', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {} });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', undoRunning: 'start', setAsideRunning: 'stop-close', setAsideNews: 'show', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'ready', 'closed'], looks: {}, needsYou: {}, approvals: {}, unavailableItems: 'hide' });
   });
 
   it("take the file's approvals by repository, none unless told otherwise, and none of an object with a mistake", () => {
@@ -74,6 +74,14 @@ describe('the settings in force', () => {
     expect(settingsView(holding({ undoRunning: 'cold' })).undoRunning).toEqual({ value: 'cold', problem: null });
     for (const wrong of ['resume', true, null]) {
       expect(settingsView(holding({ undoRunning: wrong })).undoRunning).toEqual({ value: 'start', problem: 'It has to be one of "start", "cold".' });
+    }
+  });
+
+  it('take a choice of the file for what a menu does with what cannot be done now, leaving it out unless told otherwise, and leave out one that is no choice', () => {
+    expect(settingsView(missing).unavailableItems.value).toBe('hide');
+    expect(settingsView(holding({ unavailableItems: 'dim' })).unavailableItems).toEqual({ value: 'dim', problem: null });
+    for (const wrong of ['grey', false, null]) {
+      expect(settingsView(holding({ unavailableItems: wrong })).unavailableItems).toEqual({ value: 'hide', problem: 'It has to be one of "hide", "dim".' });
     }
   });
 

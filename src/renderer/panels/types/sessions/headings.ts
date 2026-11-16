@@ -117,7 +117,7 @@ export function createProjectSection(name: string): ProjectSectionEls {
   });
   heading.append(split);
   // Project options: the ways to add something here together, the "+" and its caret's among them; the project's own; the jump button's places; and the moves last (`withMoves`).
-  // The button is left out below two places for the room on the heading, which a menu has, so there the item stays, saying why.
+  // The button is left out below two places for the room on the heading, which a menu has, so there the item is listed, unavailable and saying why.
   const kebab = kebabButton('project-kebab', 'Project options', () =>
     withMoves(projectMoveItems(name), [
       // The heading's name is cut at the sidebar's width: here it is whole, with the folder it stands for.

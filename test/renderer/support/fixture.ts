@@ -141,6 +141,9 @@ const noSettingsFile = (name: string): SettingsFileRead => ({ name, status: 'mis
 /** A settings file holding `json`, as main reads one. */
 export const settingsFileWith = (name: string, json: unknown): SettingsFileRead => ({ name, status: 'read', error: null, json });
 
+/** Settings under which a menu shows what cannot be done now, dimmed with why on its hover, for a check of an item's reason or of a menu's every item. */
+export const DIMMED = settingsFileWith('settings.json', { unavailableItems: 'dim' });
+
 /** The titles of `sessions`, sorted: what a check expects the list to show, against `sortedTitles`. */
 export const sorted = (...sessions: { title: string }[]): string[] => sessions.map((s) => s.title).sort();
 

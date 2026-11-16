@@ -38,6 +38,9 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A session's or group's name in a menu wraps in full too, where it was cut on one line, and a name without spaces wraps rather than running out of the menu.
 - A session's menu says when claude has not left a stop, and when the session was last active and when it was finished, where that is known, as a date and time rather than how long ago.
   A project's menu opens with its name and its folder's path, and a group's with its name and its project.
+- A menu leaves out what cannot be done now, such as Clear needs you on a session nothing marked, where it showed it dimmed with why in its tooltip.
+  `unavailableItems` in Settings set to `"dim"` shows them dimmed, as before.
+  A session's Siblings and Worktrees still list every one, a finished sibling or a gone checkout dimmed.
 
 ### Fixed
 

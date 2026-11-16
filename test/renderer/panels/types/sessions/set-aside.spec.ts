@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { session, settingsFileWith } from '../../../support/fixture';
+import { DIMMED, session, settingsFileWith } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
 import { needsYouFile, switchedOff } from '../../../support/needs-you';
@@ -48,7 +48,7 @@ const momentInPage = (page: Page, year: number, month: number, day: number, hour
   page.evaluate(([y, mo, d, h, mi]) => new Date(y, mo, d, h, mi).getTime(), [year, month, day, hours, minutes] as const);
 
 test('Set aside… marks the session on its row and its tab by one class, and Clear set aside takes it off, with the tab left as it was', async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await setAside(page, one.title, /^Whenever$/);
   for (const mark of marks(page)) {
     await expect(mark).toBeVisible();

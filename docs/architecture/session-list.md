@@ -26,7 +26,7 @@ In the finished view the bar has two acts instead:
 - **Delete…** asks once for every ticked session, as a row's Delete asks for one (`confirmAndDelete`, which both call), then moves each to the trash, hiding them all at once and reading the list again once every delete has answered; one that fails comes back, and the toast names it, or says how many.
 
 Move to group and Stop raise no toast, as alone; a batch that finishes or closes running sessions raises one toast for those that were not running and one more for each running one as it goes.
-An act that would do nothing for any ticked row is unavailable and says why, as a menu's items are: Finished while every ticked session has a tab starting, Close tab while none has a tab it can close now, Stop while none runs or each is stopping already.
+An act that would do nothing for any ticked row is unavailable and says why in its tooltip: Finished while every ticked session has a tab starting, Close tab while none has a tab it can close now, Stop while none runs or each is stopping already.
 Main takes each of these writes as a list (`finish`, `unfinish`, `markSetAside`, `clearSetAside`, `keep`, `unkeep`, `moveSessionsToGroup`), so a batch is one write of `meta.json` and one line of its audit log, not one per session.
 
 ## The review

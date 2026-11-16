@@ -48,12 +48,12 @@ function siblingsOf(session: SessionSummary): SessionSummary[] {
 }
 
 // Menu items for a sibling list; siblings often share a title, so each shows title + when.
-// One that cannot be opened, a finished one say, stays in the list, unavailable and saying why (`unopenableReason`).
+// One that cannot be opened, a finished one say, stays in the list whatever `unavailableItems` says, dimmed and saying why (`unopenableReason`), since the list says what siblings there are.
 function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   return siblings.map((sibling) => {
     const label = `${sessionLabel(sibling)} · ${relativeTime(sibling.lastActivity)}`;
     const refused = unopenableReason(sibling);
-    return refused ? { label, disabled: refused } : { label, onSelect: () => hostOf('sessions').openSession(sibling.id) };
+    return refused ? { label, disabled: refused, listed: true } : { label, onSelect: () => hostOf('sessions').openSession(sibling.id) };
   });
 }
 
@@ -75,14 +75,14 @@ function prMenuItems(session: SessionSummary): MenuItem[] {
 }
 
 // The checkouts a session worked in (`SessionSummary.checkouts`), as a pick-one list of where the panels look for it, under a line saying so, since nothing else in a session's menu moves the panels: "Follow the session" first, ticked while nothing is picked, then each checkout, newest change first, by its folder's name, as a panel's header names it, and when the session last changed a file there; the worktree its mark names says where the session is instead, where it changed nothing.
-// A pick is the session's (`pickCheckout`), so it is made alike from every surface, a tab or none, and holds while the session is on show; a gone checkout has nothing to look at, so it stays in the list, unavailable and saying why.
+// A pick is the session's (`pickCheckout`), so it is made alike from every surface, a tab or none, and holds while the session is on show; a gone checkout has nothing to look at, so it is unavailable and says why, and stays in the list whatever `unavailableItems` says, since the list says where the session worked, and a pick of it shows by its tick.
 // Shared by the worktree mark and the kebab submenu.
 function worktreeItems(session: SessionSummary): MenuItem[] {
   const picked = pickedFor(session);
   const checkouts = session.checkouts.map(({ root, at, gone }): MenuItem => ({
     label: `${folderName(root)} · ${at ? relativeTime(at) : session.worktree ? 'runs here' : 'left'}`,
     checked: root === picked,
-    ...(gone ? { disabled: 'Its folder is gone' } : { onSelect: () => pickCheckout(session.id, root) }),
+    ...(gone ? { disabled: 'Its folder is gone', listed: true } : { onSelect: () => pickCheckout(session.id, root) }),
   }));
   return [
     // The first line short, since a menu cuts it when too long for it; the line under it wraps.
@@ -219,7 +219,7 @@ export async function confirmAndDelete(keys: readonly string[]): Promise<void> {
 // Every press on the session's row or a panel's row naming it is here too, and the tab's button, dot and middle-click, and its select while that starts it, so a button is a shortcut to an item; the row and the tab leave out the item that would be themselves.
 // `own` is what the surface itself offers beyond its buttons, such as a panel row's actions: under the header, before the session's items, behind a rule of their own.
 export function sessionMenuItems(session: SessionSummary, from: SessionSurface, own: readonly MenuItem[] = []): MenuItem[] {
-  // Opening can start claude in the session's folder, and forking always does, so both need that folder to be there — but the items stay in the list, dimmed and carrying the reason, rather than vanishing.
+  // Opening can start claude in the session's folder, and forking always does, so both need that folder to be there; without it they are unavailable, carrying the reason, which the menu shows or leaves out as `unavailableItems` says.
   // Everything below is bookkeeping about a session rather than a way to start one, so it stays available: cleaning up after a folder that has gone is exactly when you need it.
   const cannotRun = unstartableReason(session);
   const items: MenuItem[] = [

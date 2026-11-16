@@ -439,6 +439,8 @@ export interface Settings {
   needsYou: Record<string, NeedsYouChange>;
   /** How many approvals a PR needs before it counts as approved, by repository as `owner/name`; a repository not named counts as approved when GitHub says so (shared/sessions/prs.ts). */
   approvals: Record<string, number>;
+  /** What a menu does with an item that cannot be taken now: leaves it out, or shows it dimmed with why on its hover. */
+  unavailableItems: UnavailableItems;
 }
 
 export interface UiState {
@@ -506,7 +508,7 @@ import type { FolderName } from './helpers/folders';
 import type { NeedsYouChange, NeedsYouRegistry } from './status/needs-you';
 import type { LogLevel } from './helpers/log';
 import type { Look } from './status/looks';
-import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView, SetAsideNews, SetAsideRunning, UndoRunning } from './config/settings';
+import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView, SetAsideNews, SetAsideRunning, UnavailableItems, UndoRunning } from './config/settings';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;

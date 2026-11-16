@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../src/shared/config/defaults';
-import { HOME, PROJECT, session } from '../../../support/fixture';
+import { DIMMED, HOME, PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { row, tab, tabLabel } from '../../../support/window';
 
@@ -179,7 +179,7 @@ test("a finished row's dot is no control, whatever status it still shows", async
 });
 
 test('Mark as read is unavailable, with the reason, while the session is busy', async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await tabLabel(page, full.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   expect(await app.emit('onSessionStatus', full.id, 'busy', '', '')).toBe(1);
@@ -190,7 +190,7 @@ test('Mark as read is unavailable, with the reason, while the session is busy', 
 
 // The tab's button is a shortcut to one of the menu's leave items: one rule for the two (`leaveAction`), so the item says and does what the button would.
 test("Stop session in a row's menu stops it as the tab's button does, and then offers the force, unavailable while it says it is stopping", async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await tabLabel(page, full.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await row(page, full.title).locator('.session-kebab').click();
@@ -232,7 +232,7 @@ test("Close tab in a running session's menu asks claude to leave, keeps the tab 
 });
 
 test("a cold tab's menu has nothing to stop, and closes and finishes it", async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await row(page, full.title).locator('.session-kebab').click();
   await expect(item(page, 'Stop session')).toHaveClass(/\bunavailable\b/);
   await expect(item(page, 'Stop session')).toHaveAttribute('data-tooltip', 'Not running');
@@ -301,7 +301,7 @@ test("the tab button's item pressed after its tab moved on does what it said or 
 
 // An open menu follows its session, as the tab and its button do, so what it offers is what can be done now.
 test("a session's menu open while its stop waits for claude turns into a stopped tab's once claude has gone", async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await tabLabel(page, full.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await row(page, full.title).locator('.session-kebab').click();
@@ -355,7 +355,7 @@ test("Close tab in a row's menu closes a session's cold tab, set aside or not", 
 });
 
 test('Close tab is unavailable, with the reason, for a session with no tab', async ({ app, page }) => {
-  await app.boot({ sessions: [full] });
+  await app.boot({ sessions: [full], settings: DIMMED });
   await row(page, full.title).locator('.session-kebab').click();
   await expect(item(page, 'Close tab')).toHaveClass(/\bunavailable\b/);
   await expect(item(page, 'Close tab')).toHaveAttribute('data-tooltip', 'Not open in a tab');
@@ -415,7 +415,7 @@ test("a finished row's trailing controls sit 4px apart, delete second from the r
 
 test("Open is unavailable, with the reason, for a session whose folder is gone", async ({ app, page }) => {
   const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });
-  await app.boot({ sessions: [gone] });
+  await app.boot({ sessions: [gone], settings: DIMMED });
   // The row's tooltip says why under the session's name.
   const reason = (await row(page, gone.title).getAttribute('data-tooltip'))!.split('\n')[1];
   await row(page, gone.title).locator('.session-kebab').click();

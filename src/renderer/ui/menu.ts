@@ -1,5 +1,6 @@
 import type { NudgeStatus } from '../status/rollup';
 import { store, type AppState } from '../state/app';
+import { defaultSettings } from '../../shared/config/defaults';
 import { badgeClass, sessionDotClass } from '../status/status-dot';
 import { chevronIcon, strokeIcon } from './svg';
 import { setTooltip } from './tooltip';
@@ -43,10 +44,11 @@ export interface MenuItem {
   /** Dims the label — used for "Ungrouped", which is a place rather than a named thing. */
   muted?: boolean;
   /**
-   * The action exists but cannot be taken right now, with `disabled` saying why.
-   * Kept in the list rather than dropped: a menu that changes SHAPE is one you have to re-read, and an action that silently disappears looks like it was never there — where a dimmed one with a reason answers the question you opened the menu to ask.
+   * The action exists but cannot be taken right now, with `disabled` saying why: left out of the menu, or drawn dimmed with the reason as its tooltip, as `unavailableItems` says (`shownItems`).
    */
   disabled?: string;
+  /** An entry of a list of what there is, such as a session's siblings, whose being there is what the list says: drawn dimmed when it cannot be taken, whatever `unavailableItems` says. */
+  listed?: boolean;
   /**
    * Not an item but what the menu is about, at its top: the label as its first line and these after it, muted, taking no hover and no click.
    * Every line wraps, the first too, so what a header says is all there in a menu at most 300px wide (menu.css).
@@ -92,11 +94,29 @@ function onMenuOutside(event: MouseEvent): void {
     closeMenu();
 }
 
+/**
+ * The items a menu draws, as `unavailableItems` in the settings says: all of them with `"dim"`; with `"hide"`, none that cannot be taken now but an entry of a list of what there is (`listed`), and no submenu left with no item or header in it.
+ * A rule is kept only between what is kept, so leaving items out never leaves two rules together or one at either end.
+ */
+function shownItems(items: MenuItem[]): MenuItem[] {
+  if ((store.get().settings?.unavailableItems.value ?? defaultSettings().unavailableItems) === 'dim') return items;
+  // A header is something to read, as Scheduled's tasks are, so a submenu that keeps one is not empty.
+  const kept = items.filter((item) => (!item.disabled || item.listed) && (!item.submenu || shownItems(item.submenu).some((child) => !child.separator)));
+  const shown: MenuItem[] = [];
+  for (const item of kept) {
+    const last = shown.at(-1);
+    if (item.separator && (last === undefined || last.separator)) continue;
+    shown.push(item);
+  }
+  if (shown.at(-1)?.separator) shown.pop();
+  return shown;
+}
+
 // Render `items` as buttons into `menu`.
 // A leaf runs its onSelect and closes everything; a submenu-parent opens its child list on hover (and on click, for non-hover input).
 // `isRoot` marks the top menu: only its leaves close an open submenu on hover — a submenu's own leaves must not, or hovering toward them would close the very submenu being reached for.
 function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
-  for (const item of items) {
+  for (const item of shownItems(items)) {
     if (item.separator) {
       const rule = document.createElement('div');
       rule.className = 'menu-separator';

@@ -16,7 +16,7 @@ import type { Settings } from '../types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'undoRunning', 'setAsideRunning', 'setAsideNews', 'setAside', 'setAsideTime', 'locale', 'strength', 'looks', 'needsYou', 'approvals'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'undoRunning', 'setAsideRunning', 'setAsideNews', 'setAside', 'setAsideTime', 'locale', 'strength', 'looks', 'unavailableItems', 'needsYou', 'approvals'];
 
 /**
  * The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them: start them again, or bring their tabs back cold.
@@ -43,6 +43,10 @@ export type SetAsideRunning = (typeof SET_ASIDE_RUNNING)[number];
 /** The choices for a reason that marks a set-aside session after it was set aside (`Settings.setAsideNews`), in the order Settings offers them: it shows and counts now, or it is muted until the day comes. */
 export const SET_ASIDE_NEWS = ['show', 'wait'] as const;
 export type SetAsideNews = (typeof SET_ASIDE_NEWS)[number];
+
+/** The choices for a menu item that cannot be taken now (`Settings.unavailableItems`), in the order Settings offers them: left out, or shown dimmed with why on its hover. */
+export const UNAVAILABLE_ITEMS = ['hide', 'dim'] as const;
+export type UnavailableItems = (typeof UNAVAILABLE_ITEMS)[number];
 
 /** The check of a setting that is one of a fixed list of words. */
 const oneOf =
@@ -116,6 +120,7 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
   undoRunning: oneOf(UNDO_RUNNING),
   setAsideRunning: oneOf(SET_ASIDE_RUNNING),
   setAsideNews: oneOf(SET_ASIDE_NEWS),
+  unavailableItems: oneOf(UNAVAILABLE_ITEMS),
   setAside: (value) => {
     const why = presetsProblem(value);
     return why === null ? { ok: true, value: [...(value as string[])] } : { ok: false, why };
@@ -249,6 +254,7 @@ export function settingsView(file: SettingsFileRead, read = 0, bundled: NeedsYou
     looks: viewOf('looks'),
     needsYou: viewOf('needsYou'),
     approvals: viewOf('approvals'),
+    unavailableItems: viewOf('unavailableItems'),
     read,
     notes,
     file: { name: file.name, status: file.status, error: file.error, duplicates: file.duplicates ?? [] },
@@ -259,7 +265,7 @@ export function settingsView(file: SettingsFileRead, read = 0, bundled: NeedsYou
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, undoRunning: view.undoRunning.value, setAsideRunning: view.setAsideRunning.value, setAsideNews: view.setAsideNews.value, setAside: view.setAside.value, setAsideTime: view.setAsideTime.value, locale: view.locale.value, strength: view.strength.value, looks: view.looks.value, needsYou: view.needsYou.value, approvals: view.approvals.value };
+  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, undoRunning: view.undoRunning.value, setAsideRunning: view.setAsideRunning.value, setAsideNews: view.setAsideNews.value, setAside: view.setAside.value, setAsideTime: view.setAsideTime.value, locale: view.locale.value, strength: view.strength.value, looks: view.looks.value, needsYou: view.needsYou.value, approvals: view.approvals.value, unavailableItems: view.unavailableItems.value };
 }
 
 /**
