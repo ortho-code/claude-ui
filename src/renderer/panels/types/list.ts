@@ -2,7 +2,6 @@ import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, typeFolder, type PanelContext, type
 import { stripAnsi } from '../../ui/ansi';
 import { element } from '../../ui/dom';
 import { clockInLanguage, onLanguageChange } from '../../ui/locale';
-import { setTooltip } from '../../ui/tooltip';
 import type { PanelSlot } from '../layout';
 import { intervalOf, optionsOf } from '../options';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
@@ -60,7 +59,10 @@ interface ListReady {
 class ListPanel extends RunPanel<ListReady> {
   readonly el = element('div', 'panel-body');
   private readonly placeholder = element('div', 'pane-placeholder');
-  private readonly failedLine = element('div', 'panel-note list-failed');
+  /** The failed run's line, which unfolds what the script wrote on stderr under it, folded at first so the list keeps its place. */
+  private readonly failedLine = element('details', 'panel-note list-failed');
+  private readonly failedSummary = element('summary', 'list-failed-summary');
+  private readonly failedOutput = element('div', 'list-failed-output');
   private readonly view: ListView;
   private readonly unavailable = element('div', 'panel-problems');
   protected readonly runs: PanelRuns<ListReady>;
@@ -86,6 +88,11 @@ class ListPanel extends RunPanel<ListReady> {
     super();
     this.view = new ListView(host, { from: () => this.slot.title, dir: () => this.lastDir });
     this.placeholder.textContent = WAITING;
+    this.failedLine.append(this.failedSummary, this.failedOutput);
+    // A failure that wrote nothing has nothing to unfold.
+    this.failedSummary.addEventListener('click', (event) => {
+      if (this.failedLine.classList.contains('bare')) event.preventDefault();
+    });
     this.el.append(this.placeholder, this.failedLine, this.view.el, this.unavailable);
     this.show();
     this.stopLanguage = onLanguageChange(() => this.show());
@@ -223,8 +230,10 @@ class ListPanel extends RunPanel<ListReady> {
     this.unavailable.hidden = !unavailable;
     if (list && this.failure) {
       const { clause, lines, at } = this.failure;
-      this.failedLine.textContent = `The run at ${clockInLanguage(at)} failed: ${clause}. This is the list from ${clockInLanguage(this.good!.at)}.`;
-      setTooltip(this.failedLine, lines.join('\n'));
+      this.failedSummary.textContent = `The run at ${clockInLanguage(at)} failed: ${clause}. This is the list from ${clockInLanguage(this.good!.at)}.`;
+      this.failedOutput.textContent = lines.join('\n');
+      this.failedLine.classList.toggle('bare', lines.length === 0);
+      if (lines.length === 0) this.failedLine.open = false;
     }
     if (unavailable) {
       const { clause, lines } = this.failure!;

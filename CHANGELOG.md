@@ -42,6 +42,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A menu leaves out what cannot be done now, such as Clear needs you on a session nothing marked, where it showed it dimmed with why in its tooltip.
   `unavailableItems` in Settings set to `"dim"` shows them dimmed, as before.
   A session's Siblings and Worktrees still list every one, a finished sibling or a gone checkout dimmed.
+- A list panel's line saying its last run failed unfolds, on a press, what the script wrote about it, where that was on hover only.
 
 ### Fixed
 

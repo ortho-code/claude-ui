@@ -434,7 +434,8 @@ Not before the panel has run, nor while a run goes, whose end looks again, nor f
 
 **Never an empty list for a broken run** ([decided 2026-09-30](../decisions/0044-broken-run-keeps-list.md)).
 A run that fails, or prints something that is not a list, says so.
-With a good list already there, the list stays under a line saying when the run failed and why, and that list's count stays beside it; without one the panel says it is unavailable, quoting stderr's last lines.
+With a good list already there, the list stays under a line saying when the run failed and why, and that list's count stays beside it; the line unfolds stderr's last lines, or the list's mistakes, under it, folded at first so the list keeps its place, and a failure that wrote nothing has nothing to unfold ([decided 2026-11-16](../decisions/0230-a-failed-runs-lines-unfold-under-its-line.md)).
+Without a good list the panel says it is unavailable, quoting stderr's last lines.
 Before the first run has ended it says it is waiting, which is neither state.
 
 **What it looks like is the app's.**

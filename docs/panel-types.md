@@ -356,7 +356,7 @@ A field the app does not know is ignored, so a script written for a later versio
 ## What the app does with it
 
 A panel runs its script when it is first shown, or with an interval as soon as it is placed, shown or not; on Refresh; when you switch project or tab if its folder moves with them and it has run before; and on its `interval`, when its last run said (`next`, above), or when what it watches changes, any of which also runs while it is out of sight so the count on its icon stays current.
-A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why; without one, the panel says it is unavailable, quoting stderr for a run that failed and every mistake for a list that breaks a rule.
+A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why, which a press unfolds to what the script wrote on stderr or the list's mistakes; without one, the panel says it is unavailable, quoting stderr for a run that failed and every mistake for a list that breaks a rule.
 Before the first run has ended it says it is waiting.
 
 A `session` opens the app's own dialog, which says which panel asks and about what: the project, the one the panel runs in first; the group, the one last picked from that panel there first; the name and the prompt, both to change.

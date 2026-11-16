@@ -235,3 +235,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0227](0227-a-menu-leaves-out-what-cannot-be-done.md) | 2026-11-16 | A menu leaves out what cannot be done now | [A session whose folder is gone](../architecture/claude.md#a-session-whose-folder-is-gone) |
 | [0228](0228-a-panel-rows-tooltip-stays-on-hover-and-a-kebab-comes-with-actions.md) | 2026-11-16 | A panel row's tooltip stays on hover, and a kebab comes only with actions | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
 | [0229](0229-a-panels-folder-mark-opens-a-menu.md) | 2026-11-16 | A panel's folder mark opens a menu | [Where a panel runs: the `cwd` option](../architecture/panels.md#where-a-panel-runs-the-cwd-option) |
+| [0230](0230-a-failed-runs-lines-unfold-under-its-line.md) | 2026-11-16 | A failed run's lines unfold under its line | [Types from the config folder](../architecture/panels.md#types-from-the-config-folder) |
