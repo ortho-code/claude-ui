@@ -197,6 +197,7 @@ The switch in its header shows the files as a flat list or as a tree of their fo
 A press on a file shows its diff: under the list while the panel is narrower than 600px, beside it from there, and drawn side by side once the panel is that wide, or one above the other below that.
 The menu in the diff's header picks Fit, which does that, Split or Unified whatever the width, and hides changes that only touch whitespace; all three are kept for the panel.
 Five or more unchanged lines between changes are folded: press a fold to show them all, or, on a fold of more than twenty lines, its `↑ 20` and `↓ 20` to show twenty more beside the change below or above it.
+The code is coloured by its language: PHP, TypeScript, JavaScript, JSON (with JSONC and JSON5), HTML, SCSS, CSS, Markdown, YAML, shell scripts, Twig, XML, SQL, a file named `Dockerfile`, INI, TOML, Python, PowerShell, Go and Rust; anything else is plain text.
 The words that changed inside a line are marked, a lockfile or generated file is folded to one line until you press it, and the map at the right edge has a mark for each change.
 `j` and `k` in the diff, or the arrows in its header, step from change to change and on into the next file.
 The list reads again when a switch of tab or project moves where it looks, within a minute of a file in the checkout changing, and when the session on show starts or finishes a turn.

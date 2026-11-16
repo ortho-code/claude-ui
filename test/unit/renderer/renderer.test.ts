@@ -62,6 +62,7 @@ const ORDER = [
   'src/renderer/panels/tabs.css',
   'src/renderer/panels/types/command.css',
   'src/renderer/panels/types/terminal.css',
+  'src/renderer/ui/syntax.css',
   'src/renderer/panels/types/diff/hunks.css',
   'src/renderer/panels/types/diff/steps.css',
   'src/renderer/panels/types/diff/file-view.css',

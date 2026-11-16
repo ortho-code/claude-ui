@@ -1,0 +1,15 @@
+/* THE SYNTAX COLOURS: what each kind of token is drawn in, named as the colouring names them (`--syntax-token-*`), from the app's own colours where it has one that fits and hues beside them where it has none. */
+:root {
+  --syntax-token-keyword: #cba6f7;
+  --syntax-token-function: var(--accent);
+  --syntax-token-string: #94e2d5;
+  --syntax-token-string-expression: #94e2d5;
+  --syntax-token-constant: #fab387;
+  --syntax-token-parameter: #f5c2e7;
+  --syntax-token-comment: var(--muted);
+  --syntax-token-punctuation: #bac2de;
+  --syntax-token-link: var(--accent);
+  --syntax-token-inserted: var(--ready);
+  --syntax-token-deleted: var(--failed);
+  --syntax-token-changed: var(--waiting);
+}

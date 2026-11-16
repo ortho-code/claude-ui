@@ -65,6 +65,14 @@ test('fewer than five unchanged lines are shown rather than folded', async ({ ap
   await expect(diffLines(page).filter({ hasText: /^line 1$/ })).toHaveCount(1);
 });
 
+test('a tab in the code is four columns wide, not the browser’s eight', async ({ app, page }) => {
+  const tabbed = fileDiff('src/a.ts', [{ old: 1, new: 1, rows: ['-\told', '+\tnew'] }], ['\tnew']);
+  await bootDiff(app, { since: listed }, { files: { 'src/a.ts': tabbed } });
+  await rows(page).first().click();
+  const text = diffLines(page).filter({ hasText: 'new' }).locator('s');
+  expect(await text.evaluate((el) => getComputedStyle(el).tabSize)).toBe('4');
+});
+
 test("git's heading for a change stands over it while the lines above it are folded", async ({ app, page }) => {
   await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited } });
   await rows(page).first().click();

@@ -232,3 +232,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0225](0225-the-diff-is-a-panel-beside-the-session.md) | 2026-11-14 | The diff is a panel beside the session | [The `diff` type](../architecture/panels.md#the-diff-type) |
 | [0226](0226-a-diff-base-comes-in-three-layers.md) | 2026-11-14 | A diff's base comes in three layers | [The `diff` type](../architecture/panels.md#the-diff-type) |
 | [0227](0227-the-diff-panel-lays-itself-out-by-its-width.md) | 2026-11-14 | The diff panel lays itself out by its own width | [The `diff` type](../architecture/panels.md#the-diff-type) |
+| [0228](0228-syntax-colour-by-shiki.md) | 2026-11-14 | Syntax colour by Shiki, with the grammars picked | [The `diff` type](../architecture/panels.md#the-diff-type) |

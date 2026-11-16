@@ -32,10 +32,12 @@
   content: attr(data-n);
 }
 
+/* A tab is four columns, as editors show one by default, where a browser's default of eight pushes indented code off the side. */
 .diff-line > s {
   flex: 1;
   min-width: 0;
   padding-left: 4px;
+  tab-size: 4;
   text-decoration: none;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
