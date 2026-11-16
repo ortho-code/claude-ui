@@ -228,13 +228,14 @@ Only a panel the selection places names one: one with a fixed `cwd` does not, si
 The app says it rather than each type, since where a panel looks is the app's decision ([decided 2026-10-26](../decisions/0111-app-names-panel-folder.md)).
 It names the folder and not the branch, which the window cannot know without asking git.
 The count keeps its place at the end, before the controls, and the mark gives way first when the header is narrow.
+A press on the mark, or Enter on it, opens a menu naming the folder in full with that path, then the session's list of where the panels look, the one its worktree badge opens (`checkoutMenu`), and Copy path, so neither the cut name nor the path is on a hover alone ([decided 2026-11-16](../decisions/0229-a-panels-folder-mark-opens-a-menu.md)).
 
 **A checkout picked from the session's worktree list holds the panels there while the session is on show** (`AppState.picks`, read through `pickedFor` in `state/picks.ts`), whatever the session goes on to change: an entry of the list its worktree badge opens, or of Worktrees in its menu, points them at that checkout, and "Follow the session", first in the same list, lets go.
 The list opens with a line saying so, since nothing else in a session's menu moves the panels.
 The pick is the session's, not its tab's, so the list is the same and does the same on every surface it is on, a tab or none ([decided 2026-10-27](../decisions/0114-checkout-pick-is-the-sessions.md)); kept in memory only.
 So closing a tab leaves its session's pick, and a `/clear` or claude's own `/resume`, which put another session in the tab, leave the panels following that session.
 While the checkout picked is gone or no longer in the session's list, the panels follow the session, and the list ticks "Follow the session", the two read from the one rule.
-The header's folder mark says a pick holds with the star a pinned session wears (`PINNED_BADGE_ICON`), and its tooltip says how to let go ([decided 2026-10-28](../decisions/0129-pick-holds-until-let-go.md)).
+The header's folder mark says a pick holds with the star a pinned session wears (`PINNED_BADGE_ICON`), and its tooltip says how to let go ([decided 2026-10-28](../decisions/0129-pick-holds-until-let-go.md)), as its menu does, whose list ticks the pick and offers "Follow the session".
 The session's badge does not follow a pick, which is where you look and not what the session did, so while one holds the header can name another checkout than the badge's tone says.
 
 A relative `cwd` resolves against the project and never falls back to the config folder ([decided 2026-09-24](../decisions/0019-relative-cwd-no-config-fallback.md)).

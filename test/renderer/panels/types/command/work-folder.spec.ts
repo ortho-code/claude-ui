@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import type { SessionCheckout, TerminalLaunch } from '../../../../../src/shared/types';
+import { allowClipboard, clipboardText } from '../../../support/clipboard';
 import { type BridgeFixture, HOME, PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { row, tabLabel } from '../../../support/window';
@@ -211,4 +212,32 @@ test('a pick for a session without a tab holds once the session is on show', asy
   await row(page, one.title).click();
   await expect.poll(async () => (await places(app)).at(-1)).toBe(`${OTHER} in ${PROJECT}`);
   await expect(star(page)).toBeVisible();
+});
+
+// The mark cuts the folder's name at the header's width, so a press on it opens a menu naming the folder in full with its path, then the session's worktree list to pick from, and Copy path.
+test('a press on the folder mark names the folder in full and its path, and offers the session’s checkouts and Copy path', async ({ app, page }) => {
+  await allowClipboard(page);
+  await app.boot({ ...layout, ...onShow(listing()) });
+  await expect.poll(() => places(app)).toEqual([`${WORKTREE} in ${PROJECT}`]);
+  await finish(app);
+  await mark(page).click();
+  await expect(page.locator('.kebab-menu .menu-header').first().locator('.menu-header-line')).toHaveText(['fix', WORKTREE]);
+  await expect(entry(page, 'Follow the session')).toBeVisible();
+  await entry(page, 'Copy path').click();
+  expect(await clipboardText(page)).toBe(WORKTREE);
+
+  // From the keyboard too, and a pick there points the panels at it as the session's list does.
+  await mark(page).focus();
+  await page.keyboard.press('Enter');
+  await entry(page, /^other · /).click();
+  await expect.poll(async () => (await places(app)).at(-1)).toBe(`${OTHER} in ${PROJECT}`);
+});
+
+test('with no session on show, the folder mark’s menu names the project’s folder and offers Copy path alone', async ({ app, page }) => {
+  const one = listing();
+  await app.boot({ ...layout, sessions: [one], activeProject: PROJECT, history: { [one.id]: [] } });
+  await expect.poll(() => places(app)).toEqual([`${PROJECT} in ${PROJECT}`]);
+  await mark(page).click();
+  await expect(page.locator('.kebab-menu .menu-header-line')).toHaveText(['demo', PROJECT]);
+  await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Copy path']);
 });

@@ -5,7 +5,8 @@ import { element } from '../ui/dom';
 import { PINNED_BADGE_ICON, WORKTREE_ICON } from '../ui/svg';
 import { copyText } from '../ui/toast';
 import { setTooltip } from '../ui/tooltip';
-import type { MountedPanel, PanelHost, PanelType, PanelView, Refreshed } from './contract';
+import { openMenu } from '../ui/menu';
+import type { Asks, MountedPanel, PanelFolder, PanelHost, PanelType, PanelView, Refreshed } from './contract';
 import { actionButton, drawFullScreenButton, drawRefreshed, showStatus } from './headers';
 import type { PanelSlot } from './layout';
 import { linkedSessions, pickSession, sessionNamed, startSession } from './links';
@@ -72,9 +73,15 @@ export interface MountContext {
   bringIntoView(key: string): void;
 }
 
-/** The folder a panel looks in, beside its title: the worktree mark and the checkout's name, in the badge a session row wears, and the star of a pin while that checkout was picked for the session rather than followed. */
-function folderMark(): { element: HTMLElement; set: PanelHost['setFolder'] } {
+/**
+ * The folder a panel looks in, beside its title: the worktree mark and the checkout's name, in the badge a session row wears, and the star of a pin while that checkout was picked for the session rather than followed.
+ * A press on it opens a menu naming the folder in full with its path, which the header cuts at its width, then the session's list of where the panels look to pick from, and Copy path.
+ */
+function folderMark(asks: Pick<Asks, 'checkoutMenu'>): { element: HTMLElement; set: PanelHost['setFolder'] } {
   const folder = element('span', 'panel-folder');
+  folder.setAttribute('role', 'button');
+  folder.setAttribute('aria-haspopup', 'menu');
+  folder.tabIndex = 0;
   const folderIcon = element('span', 'badge-icon');
   folderIcon.innerHTML = WORKTREE_ICON;
   const folderName = element('span', 'badge-text');
@@ -82,8 +89,25 @@ function folderMark(): { element: HTMLElement; set: PanelHost['setFolder'] } {
   folderPicked.innerHTML = PINNED_BADGE_ICON;
   folder.append(folderIcon, folderName, folderPicked);
   folder.hidden = true;
+  let shown: PanelFolder | null = null;
+  const open = (): void => {
+    if (!shown) return;
+    const { name, path, session } = shown;
+    const checkouts = session === null ? null : asks.checkoutMenu(session);
+    openMenu(folder, [{ label: name, header: [path] }, { label: '', separator: true }, ...(checkouts ? [...checkouts, { label: '', separator: true }] : []), { label: 'Copy path', onSelect: () => void copyText(path, 'Path copied.') }]);
+  };
+  folder.addEventListener('click', (event) => {
+    event.stopPropagation();
+    open();
+  });
+  folder.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    open();
+  });
   // In place, as the count is: the element stands in the header whatever it says.
   const set: PanelHost['setFolder'] = (named) => {
+    shown = named;
     folder.hidden = named === null;
     if (!named) return;
     folder.classList.toggle('main', !named.worktree);
@@ -177,7 +201,7 @@ export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
   const label = type.bare ? null : type.actionLabel ? type.actionLabel(optionsOf(slot.entry)) : 'Refresh';
   const action = label === null ? null : actionButton(label);
   const fullScreenButton = fullScreenToggle(slot, type, context);
-  const folder = folderMark();
+  const folder = folderMark(context.host.asks);
   const views = viewSwitch(slot, context);
   // What the panel reports about itself, held here so a report made while it is still mounting is not lost; a change re-renders, since both the panel's place and its rail icon draw from it.
   const said = { problems: [] as string[], notes: [] as string[] };

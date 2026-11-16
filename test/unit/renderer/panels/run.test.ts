@@ -341,22 +341,22 @@ describe('folderOf', () => {
   const inMain = { tab: { cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '', picked: false }, project: '/repo' };
   const context = { projectRoot: '/repo', cwd: '/repo/.claude/worktrees/fix', sessionId: 's1' };
 
-  it('names the worktree the tab puts the panel in, with the whole path its run goes to', () => {
-    expect(folderOf({ kind: 'context' }, inWorktree, context, '/repo/.claude/worktrees/fix')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix', picked: false });
+  it('names the worktree the tab puts the panel in, with the whole path its run goes to and the session it is that of', () => {
+    expect(folderOf({ kind: 'context' }, inWorktree, context, '/repo/.claude/worktrees/fix')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix', picked: false, session: 's1' });
   });
 
   it('says the checkout was picked for the session on show', () => {
-    expect(folderOf({ kind: 'context' }, { ...inWorktree, tab: { ...inWorktree.tab, picked: true } }, context, '/repo/.claude/worktrees/fix')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix', picked: true });
+    expect(folderOf({ kind: 'context' }, { ...inWorktree, tab: { ...inWorktree.tab, picked: true } }, context, '/repo/.claude/worktrees/fix')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix', picked: true, session: 's1' });
   });
 
-  it('names the main checkout by the project’s folder, with a tab in it and with only the project chosen', () => {
+  it('names the main checkout by the project’s folder, with a tab in it and with only the project chosen, which has no session', () => {
     const main = { name: 'repo', worktree: false, path: '/repo', picked: false };
-    expect(folderOf({ kind: 'context' }, inMain, { ...context, cwd: '/repo' }, '/repo')).toEqual(main);
-    expect(folderOf({ kind: 'context' }, { tab: null, project: '/repo' }, { projectRoot: '/repo', cwd: '/repo', sessionId: '' }, '/repo')).toEqual(main);
+    expect(folderOf({ kind: 'context' }, inMain, { ...context, cwd: '/repo' }, '/repo')).toEqual({ ...main, session: 's1' });
+    expect(folderOf({ kind: 'context' }, { tab: null, project: '/repo' }, { projectRoot: '/repo', cwd: '/repo', sessionId: '' }, '/repo')).toEqual({ ...main, session: null });
   });
 
   it('names the checkout for a relative cwd, with the subfolder in the path, and nothing for a fixed one', () => {
-    expect(folderOf({ kind: 'under', value: 'packages/api' }, inWorktree, context, '/repo/.claude/worktrees/fix/packages/api')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix/packages/api', picked: false });
+    expect(folderOf({ kind: 'under', value: 'packages/api' }, inWorktree, context, '/repo/.claude/worktrees/fix/packages/api')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix/packages/api', picked: false, session: 's1' });
     expect(folderOf({ kind: 'fixed', value: '/srv/app' }, inWorktree, context, '/srv/app')).toBeNull();
   });
 });

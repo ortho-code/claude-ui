@@ -50,6 +50,8 @@ export interface PanelFolder {
   worktree: boolean;
   path: string;
   picked: boolean;
+  /** The session whose checkout it is, the tab on show's; null where the panel looks in the project chosen, with no session on show. */
+  session: string | null;
 }
 
 /**
@@ -143,6 +145,8 @@ export interface Asks {
   revealGroup(repoRoot: string, groupId: string | null): void;
   /** A session's menu, as the kebab on `from` lists it, with `own`, what that surface offers beyond its buttons, under its header: null for a session the app no longer has. */
   sessionMenu(id: string, from: SessionSurface, own?: readonly MenuItem[]): MenuItem[] | null;
+  /** A session's list of where the panels look, as its Worktrees submenu lists it, to pick a checkout from: null for a session the app no longer has. */
+  checkoutMenu(id: string): MenuItem[] | null;
   /** Open a session's note to edit, as a press on its note mark in the list does; nothing for an id the app has no session for. */
   editNote(id: string): void;
   /** Set sessions aside through Set aside…'s dialog, as the bar of selecting several does: once written, what a toast says of it and an Undo that puts each mark and the one's note back; null when the dialog was cancelled. */

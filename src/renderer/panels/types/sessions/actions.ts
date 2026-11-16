@@ -76,8 +76,8 @@ function prMenuItems(session: SessionSummary): MenuItem[] {
 
 // The checkouts a session worked in (`SessionSummary.checkouts`), as a pick-one list of where the panels look for it, under a line saying so, since nothing else in a session's menu moves the panels: "Follow the session" first, ticked while nothing is picked, then each checkout, newest change first, by its folder's name, as a panel's header names it, and when the session last changed a file there; the worktree its mark names says where the session is instead, where it changed nothing.
 // A pick is the session's (`pickCheckout`), so it is made alike from every surface, a tab or none, and holds while the session is on show; a gone checkout has nothing to look at, so it is unavailable and says why, and stays in the list whatever `unavailableItems` says, since the list says where the session worked, and a pick of it shows by its tick.
-// Shared by the worktree mark and the kebab submenu.
-function worktreeItems(session: SessionSummary): MenuItem[] {
+// Shared by the worktree mark, the kebab submenu and a panel's folder mark (`checkoutMenu`).
+export function worktreeItems(session: SessionSummary): MenuItem[] {
   const picked = pickedFor(session);
   const checkouts = session.checkouts.map(({ root, at, gone }): MenuItem => ({
     label: `${folderName(root)} · ${at ? relativeTime(at) : session.worktree ? 'runs here' : 'left'}`,
@@ -85,7 +85,7 @@ function worktreeItems(session: SessionSummary): MenuItem[] {
     ...(gone ? { disabled: 'Its folder is gone', listed: true } : { onSelect: () => pickCheckout(session.id, root) }),
   }));
   return [
-    // The first line short, since a menu cuts it when too long for it; the line under it wraps.
+    // The first line short, a title, and the line under it saying what a pick does.
     { label: 'Where the panels look', header: ['A pick holds them there until you follow the session again'] },
     { label: 'Follow the session', checked: picked === '', onSelect: () => pickCheckout(session.id, '') },
     { label: '', separator: true },

@@ -18,6 +18,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's list of PRs says when each merged or closed, or since when it is open, and a panel type is given those dates too.
 - Clear and close, beside Clear under the open filter panel, empties the filter and shuts the panel in one press.
 - A panel with Refresh says beside it how long ago what it shows came from a run, with the moment in full when you point at it.
+- A press on the folder a panel names beside its title opens a menu with the folder's whole name and path, the session's worktrees to point the panels at, and Copy path.
 
 ### Changed
 
