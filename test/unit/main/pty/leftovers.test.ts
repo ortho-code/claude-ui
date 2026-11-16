@@ -29,6 +29,18 @@ function alive(pid: number): boolean {
   }
 }
 
+/**
+ * The command `pid` runs, its arguments joined, as the sweep reads it; '' once it is gone.
+ * A process is there, and alive, before it has run the script: until then it carries the starting process's environment, without the run's mark the sweep looks for, so a check waits for the command the script runs rather than for the process.
+ */
+function commandOf(pid: number): string {
+  try {
+    return readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0').join(' ').trim();
+  } catch {
+    return '';
+  }
+}
+
 /** The pids in the session `session` leads. */
 function inSession(session: number): number[] {
   const out: number[] = [];
@@ -68,7 +80,7 @@ describe.runIf(process.platform === 'linux')('sweepLeftovers', () => {
   it('ends a process still in a session the app started', async () => {
     const pid = start('exec sleep 30', runMark());
     ownSession(pid);
-    await until(() => alive(pid));
+    await until(() => commandOf(pid) === 'sleep 30');
     await sweepLeftovers();
     await until(() => !alive(pid));
     expect(alive(pid)).toBe(false);
@@ -89,7 +101,7 @@ describe.runIf(process.platform === 'linux')('sweepLeftovers', () => {
   it('kills one that ignores SIGTERM once the grace has passed', async () => {
     const pid = start("trap '' TERM; while :; do sleep 0.1; done", runMark());
     ownSession(pid);
-    await until(() => alive(pid));
+    await until(() => commandOf(pid).startsWith('/bin/sh -c trap'));
     await sweepLeftovers();
     await until(() => !alive(pid));
     expect(alive(pid)).toBe(false);
@@ -98,7 +110,7 @@ describe.runIf(process.platform === 'linux')('sweepLeftovers', () => {
 
   it("ends one main ran in the app's own session, such as git", async () => {
     const pid = start('exec sleep 30', runMark(), false);
-    await until(() => alive(pid));
+    await until(() => commandOf(pid) === 'sleep 30');
     await sweepLeftovers();
     await until(() => !alive(pid));
     expect(alive(pid)).toBe(false);
@@ -106,7 +118,7 @@ describe.runIf(process.platform === 'linux')('sweepLeftovers', () => {
 
   it('logs one that left the sessions the app started, and leaves it running', async () => {
     const pid = start('exec sleep 30', runMark());
-    await until(() => alive(pid));
+    await until(() => commandOf(pid) === 'sleep 30');
     await sweepLeftovers();
     expect(alive(pid)).toBe(true);
     expect(logged).toContain(`info process pid ${pid} left the app's sessions and is still running, not ended: sleep 30`);
@@ -115,7 +127,7 @@ describe.runIf(process.platform === 'linux')('sweepLeftovers', () => {
   it("leaves alone a process carrying another run's id, such as a second instance's", async () => {
     const pid = start('exec sleep 30', { [RUN_VARIABLE]: 'another-run' });
     ownSession(pid);
-    await until(() => alive(pid));
+    await until(() => commandOf(pid) === 'sleep 30');
     await sweepLeftovers();
     expect(alive(pid)).toBe(true);
     expect(logged.filter((line) => line.includes(`pid ${pid} `))).toEqual([]);
