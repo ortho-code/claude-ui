@@ -242,7 +242,7 @@ An entry naming a view the list does not offer is a note on the group's note lin
 | `text` | Required: the row's first line. |
 | `cut` | Where `text` too long for its line is cut short: at its end, or at its start, which keeps its end in view, such as a path's file name; a text cut at its start keeps to one line. |
 | `trail` | A short text at the end of the first line, such as a count, which the text gives way to. |
-| `tooltip` | What hovering the row's first line shows, such as all of what that line shortens, its line breaks kept. |
+| `tooltip` | What hovering the row's first line shows, such as all of what that line shortens, its line breaks kept; it shows on hover alone, so it says more about what the row shows, never what the row is there to tell. |
 | `detail` | Lines under the first, smaller: an array of lines, each an array of parts (below), drawn in order with the `separator` between them. |
 | `separator` | What goes between the parts of its own `detail` lines, in place of the list's; a row it holds takes the list's, not this. |
 | `press` | What a press on the row does: a verb (below). |

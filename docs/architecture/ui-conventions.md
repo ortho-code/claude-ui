@@ -171,6 +171,10 @@ The filter pills are icon-only because words cost the panel an extra line at a 3
 **A tooltip only repeats what can be read without it** ([decided 2026-11-15](../decisions/0225-a-tooltip-only-repeats.md)).
 Text is cut only in a strip of a fixed size, such as a session row, a tab, a panel's header, a heading or the switcher's title, with the text in full one press away: in the menu it opens, or for a filter chip in the filter panel.
 A menu, a popover and a notification's lines wrap in full instead: a menu's header, every menu item's label (`.menu-item-label`), the switcher's list and a notification's title and project, a name with no break point breaking wherever the line runs out (`overflow-wrap: anywhere`).
+What a panel type puts in a `tooltip` is the type's, and shows on hover alone: it says more about what the row shows, never what the row is there to tell ([decided 2026-11-16](../decisions/0228-a-panel-rows-tooltip-stays-on-hover-and-a-kebab-comes-with-actions.md)).
+
+**A kebab comes only with actions** ([decided 2026-11-16](../decisions/0228-a-panel-rows-tooltip-stays-on-hover-and-a-kebab-comes-with-actions.md)).
+Its header may say what the row or a tooltip also says, such as a name in full, but a kebab holding nothing but words is never added.
 
 ### Traps worth knowing
 

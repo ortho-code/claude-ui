@@ -2,6 +2,7 @@
 
 - **Date:** 2026-11-15
 - **Area:** [UI conventions](../architecture/ui-conventions.md#ui-conventions)
+- **Partly replaced** by [0228](0228-a-panel-rows-tooltip-stays-on-hover-and-a-kebab-comes-with-actions.md) on 2026-11-16: what a panel type puts in a row's, a section heading's or a part's `tooltip` shows on hover alone, and may say more than the row shows.
 
 ## Decision
 
