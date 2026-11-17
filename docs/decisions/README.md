@@ -237,3 +237,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0229](0229-a-panels-folder-mark-opens-a-menu.md) | 2026-11-16 | A panel's folder mark opens a menu | [Where a panel runs: the `cwd` option](../architecture/panels.md#where-a-panel-runs-the-cwd-option) |
 | [0230](0230-a-failed-runs-lines-unfold-under-its-line.md) | 2026-11-16 | A failed run's lines unfold under its line | [Types from the config folder](../architecture/panels.md#types-from-the-config-folder) |
 | [0231](0231-setting-aside-again-settles-the-old-reminder.md) | 2026-11-17 | Setting aside again settles the old reminder | [Status cues](../architecture/status-cues.md#status-cues) |
+| [0232](0232-the-sessions-file-gives-each-sessions-rank.md) | 2026-11-17 | The sessions file gives each session's rank | [Types from the config folder](../architecture/panels.md#types-from-the-config-folder) |

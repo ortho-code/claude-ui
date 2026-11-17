@@ -423,6 +423,7 @@ Main writes it to a file made as the control file is, readable by the user alone
 It is data, never the app's words: a reason is its `reason`, `at` and PR changes, since the app's own lines (`needsYouLines`) open with "Needs you —", which is the tooltip's and wrong under a Needs you heading.
 The fields are the ones a type needed, sorted by id so a new order is no change; pins, notes, worktrees and when a session was last active stay out until a type asks, the last above all, since it changes on every message.
 A status is what the session's claude last reported, filtered to the ones the docs name, and null rather than guessed for a session with no report, never having sent one or its report forgotten when its claude went.
+**A session's place in the strength order comes with it** ([decided 2026-11-17](../decisions/0232-the-sessions-file-gives-each-sessions-rank.md)): `rank` is where what its dot shows stands (`rankOf` of `shownState`, the dot's own rule, without a tab's `stopping`), `muted` whether its set-aside mark holds its reasons back (`mutedNeedsYou`), and its reasons come in the order the app ranks them (`rankedReasons`), so a type sorts as the app does instead of keeping a copy of the order and of the mute.
 On this machine's scale, about 550 sessions not finished, a snapshot of that shape measured about 200 KB and under a millisecond to serialise (synthetic sessions, 2026-11-02), so every list run gets it rather than only a type that asks; asking first comes if that stops being small.
 Its shape is the one the `page` kind's API would serve.
 

@@ -19,6 +19,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Clear and close, beside Clear under the open filter panel, empties the filter and shuts the panel in one press.
 - A panel with Refresh says beside it how long ago what it shows came from a run, with the moment in full when you point at it.
 - A press on the folder a panel names beside its title opens a menu with the folder's whole name and path, the session's worktrees to point the panels at, and Copy path.
+- A panel type is given each session's place in the order its dot follows, and whether its set-aside mark holds its reasons back, with its reasons strongest first, so it can sort sessions as the app does.
 
 ### Changed
 
