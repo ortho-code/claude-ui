@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, markedWithHistory, mutedBySetAside, purgedSession, resolvedNeedsYou, restoredNeedsYou, settledNeedsYou, settledTypes, HISTORY_KEPT, togglePinned, clearedFinished, unkept, withoutSession, withPrLink, type SessionMarks } from '../../../../src/shared/status/session-marks';
+import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedSetAsideAnew, markedNeedsYou, markedWithHistory, mutedBySetAside, purgedSession, resolvedNeedsYou, restoredNeedsYou, settledNeedsYou, settledTypes, HISTORY_KEPT, togglePinned, clearedFinished, unkept, withoutSession, withPrLink, type SessionMarks } from '../../../../src/shared/status/session-marks';
 
 // Main's own tests (test/unit/main/sessions/meta.test.ts and status/marks.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -123,6 +123,28 @@ describe('markedSetAside', () => {
     expect(markedSetAside(setAside, 'a', null, 42)).toEqual({ a: { due: null, at: 42 } });
     expect(markedSetAside(setAside, 'b', 200, 42)).toEqual({ a: { due: 100, at: 1 }, b: { due: 200, at: 42 } });
     expect(setAside).toEqual({ a: { due: 100, at: 1 } });
+  });
+});
+
+describe('markedSetAsideAnew', () => {
+  const reminder = { type: 'app.reminder' as const, at: 100 };
+  const wasRunning = { type: 'app.was-running' as const, at: 50, how: 'quit' as const };
+
+  it("replaces each chosen session's mark and settles its reminder into its history as set-aside, every other reason left standing", () => {
+    const marks = { setAside: {}, needsYou: { a: [reminder, wasRunning] }, needsYouHistory: {} };
+    expect(markedSetAsideAnew(marks, ['a'], 900, 42)).toEqual({
+      setAside: { a: { due: 900, at: 42 } },
+      needsYou: { a: [wasRunning] },
+      needsYouHistory: { a: [{ ...reminder, settled: 42, by: 'set-aside' }] },
+    });
+    expect(marks.needsYou).toEqual({ a: [reminder, wasRunning] });
+  });
+
+  it('leaves the reminder of a session it does not set aside', () => {
+    const marks = { setAside: {}, needsYou: { a: [reminder], b: [reminder] }, needsYouHistory: {} };
+    const next = markedSetAsideAnew(marks, ['a'], null, 42);
+    expect(next.needsYou).toEqual({ b: [reminder] });
+    expect(Object.keys(next.needsYouHistory)).toEqual(['a']);
   });
 });
 

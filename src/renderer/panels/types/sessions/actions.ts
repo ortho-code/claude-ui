@@ -11,8 +11,8 @@ import { store, type TabState } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
 import { applyGroupState, moveSessionsToGroup } from '../../../state/groups';
 import { pickCheckout, pickedFor } from '../../../state/picks';
-import { clearSetAside, markSetAside } from '../../../state/set-aside';
-import { clearNeedsYou } from '../../../state/needs-you';
+import { clearSetAside, markSetAside, setAsideAnew } from '../../../state/set-aside';
+import { clearNeedsYou, restoreNeedsYou } from '../../../state/needs-you';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
 import { setAsideDialog } from '../../../dialogs/set-aside-dialog';
 import { isFiltering, leaveTab, projName, projectGroups, sessionById, sessionStarting, tabWith, unopenableReason } from '../../../state/views';
@@ -333,7 +333,7 @@ function setAsideItems(session: SessionSummary): MenuItem[] {
 /**
  * Set sessions aside through Set aside…, one act for a session's menu and the bar of selecting several: `what` names them in its title, a session's title or a count.
  * One session's dialog holds its note as where it stands, and the note is written when it changed; several leave their notes as they are (decided 2026-11-05).
- * Resolves, once written, to the moment chosen and an Undo that puts back each mark and the note as they were, or to null when the dialog was cancelled.
+ * Resolves, once written, to the moment chosen and an Undo that puts back each mark, the reminder it settled and the note as they were, or to null when the dialog was cancelled.
  */
 async function askSetAside(keys: readonly string[], what: string): Promise<{ due: number | null; undo: () => void } | null> {
   const { setAside, notes } = store.get();
@@ -343,7 +343,7 @@ async function askSetAside(keys: readonly string[], what: string): Promise<{ due
   const answer = await setAsideDialog({ what, mark: one === undefined ? undefined : setAside.get(one), note });
   if (!answer) return null;
   const before = new Map(keys.map((key) => [key, store.get().setAside.get(key)]));
-  markSetAside(keys, answer.due);
+  const reminders = setAsideAnew(keys, answer.due);
   const noteChanged = one !== undefined && answer.note !== null && answer.note !== note;
   if (noteChanged) await writeNote(one, answer.note!);
   return {
@@ -351,6 +351,7 @@ async function askSetAside(keys: readonly string[], what: string): Promise<{ due
     undo: () => {
       clearSetAside(keys.filter((key) => before.get(key) === undefined));
       for (const [key, mark] of before) if (mark) markSetAside([key], mark.due, mark.at);
+      for (const [key, settled] of reminders) restoreNeedsYou(key, settled);
       if (noteChanged) void writeNote(one, note!);
     },
   };

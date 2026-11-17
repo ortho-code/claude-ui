@@ -166,6 +166,20 @@ export function markedSetAside(setAside: Readonly<Record<string, SetAside>>, id:
   return { ...setAside, [id]: { due, at: now } };
 }
 
+/** The set-aside and needs-you marks, as setting a session aside changes them together, in one write. */
+export type SetAsideMarks = NeedsYouMarks & Pick<SessionMarks, 'setAside'>;
+
+/**
+ * Sessions set aside by your choice, until `due` or whenever for null, from `now`: each mark replaced (`markedSetAside`), and each one's standing reminder settled into its history as `set-aside`.
+ * The reminder is what an earlier mark left when its moment came, so the new mark, which brings its own, settles it; every other reason stays, muted by the new mark (decided 2026-11-17).
+ */
+export function markedSetAsideAnew(marks: SetAsideMarks, ids: readonly string[], due: number | null, now: number): SetAsideMarks {
+  const chosen = new Set(ids);
+  let setAside = { ...marks.setAside };
+  for (const id of chosen) setAside = markedSetAside(setAside, id, due, now);
+  return { ...settledWhere(marks, (id, reason) => chosen.has(id) && reason.type === 'app.reminder', 'set-aside', now), setAside };
+}
+
 /** A set-aside mark gone, whether or not it was there. */
 export function clearedSetAside(setAside: Readonly<Record<string, SetAside>>, id: string): Record<string, SetAside> {
   const next = { ...setAside };

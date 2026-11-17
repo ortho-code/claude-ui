@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import type { NeedsYou, SetAside, SettledBy, SettledNeedsYou } from '../../shared/types';
-import { cameDue, clearedSetAside, keptFrom, markedSetAside, markedWithHistory, resolvedNeedsYou, restoredNeedsYou, settledNeedsYou, settledTypes, unkept } from '../../shared/status/session-marks';
+import { cameDue, clearedSetAside, keptFrom, markedSetAside, markedWithHistory, resolvedNeedsYou, markedSetAsideAnew, restoredNeedsYou, settledNeedsYou, settledTypes, unkept } from '../../shared/status/session-marks';
 import { needsYouUsage } from '../logs/usage';
 import { decided, readMeta, serialize, update } from '../sessions/meta-store';
 
@@ -72,6 +72,16 @@ export function markSetAside(ids: string[], due: number | null, at = Date.now())
   });
 }
 
+/** Set sessions aside by your choice, in one write, `due` the moment they come back, or null for whenever: each mark replaced, and each one's standing reminder into its history as settled `set-aside` (`markedSetAsideAnew`). */
+export function setAsideAnew(ids: string[], due: number | null): Promise<void> {
+  return update('setAsideAnew', (meta, usage) => {
+    usage.push(...decided('setAside', ids));
+    const before = meta.needsYou;
+    Object.assign(meta, markedSetAsideAnew(meta, ids, due, Date.now()));
+    usage.push(...needsYouUsage(before, meta.needsYou, { by: 'set-aside' }));
+  });
+}
+
 /** Take sessions' set-aside marks off, in one write, whether or not each had one; `by` says a prompt there did, rather than you. */
 export function clearSetAside(ids: string[], by?: 'prompt'): Promise<void> {
   return update('clearSetAside', (meta, usage) => {
@@ -138,6 +148,9 @@ export function registerMarksIpc(): void {
   });
   ipcMain.on('meta:markSetAside', (_event, ids: string[], due: number | null, at?: number) => {
     void markSetAside(ids, due, at);
+  });
+  ipcMain.on('meta:setAsideAnew', (_event, ids: string[], due: number | null) => {
+    void setAsideAnew(ids, due);
   });
   ipcMain.on('meta:clearSetAside', (_event, ids: string[], by: unknown) => {
     void clearSetAside(ids, by === 'prompt' ? by : undefined);

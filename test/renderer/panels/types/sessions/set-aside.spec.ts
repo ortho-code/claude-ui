@@ -55,7 +55,7 @@ test('Set aside… marks the session on its row and its tab by one class, and Cl
     await expect(mark).toHaveAttribute('data-tooltip', 'Set aside, whenever');
   }
   await expect(row(page, one.title).locator('.set-aside-mark')).toHaveClass(/\bset-aside-badge\b/);
-  expect((await app.calls('markSetAside')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], null]]);
+  expect((await app.calls('setAsideAnew')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], null]]);
   expect(await app.calls('startTerminal')).toEqual([]);
   await expect(tab(page, one.title)).toHaveCount(1);
   // Every set aside says so in a toast with its Undo, the menu's too (decided 2026-11-11).
@@ -76,7 +76,7 @@ test("the dialog's days: tomorrow and in a week, the same weekday, named and mar
   await choice(page, /^In 1 week/).click();
   await expect(choice(page, /^In 1 week/)).toHaveAttribute('aria-pressed', 'true');
   await ok(page).click();
-  expect((await app.calls('markSetAside')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], await momentInPage(page, 2026, 10, 5, 9, 0)]]);
+  expect((await app.calls('setAsideAnew')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], await momentInPage(page, 2026, 10, 5, 9, 0)]]);
   for (const mark of marks(page)) await expect(mark).toHaveAttribute('data-tooltip', 'Set aside until do 5 nov, 09:00');
 
   await row(page, one.title).locator('.session-kebab').click();
@@ -110,7 +110,7 @@ test("the settings' own choices come in the order they would come, Pick a date�
   await page.clock.runFor(5 * 60_000);
   await ok(page).click();
   // The installed clock runs on between steps, so two hours from the press is a moment in the second after 17:35, never 17:30 as the label said.
-  const [[ids, due]] = (await app.calls('markSetAside')) as [string[], number][];
+  const [[ids, due]] = (await app.calls('setAsideAnew')) as [string[], number][];
   const from = await momentInPage(page, 2026, 9, 29, 17, 35);
   expect(ids).toEqual([one.id]);
   expect(due).toBeGreaterThanOrEqual(from);
@@ -141,7 +141,7 @@ test('Set aside waits for a choice, and Pick a date… opens a day no earlier th
   await page.locator('#set-aside-time').fill('14:15');
   await ok(page).click();
   await expect(dialog(page)).toBeHidden();
-  expect((await app.calls('markSetAside')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], await momentInPage(page, 2026, 9, 31, 14, 15)]]);
+  expect((await app.calls('setAsideAnew')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], await momentInPage(page, 2026, 9, 31, 14, 15)]]);
   await expect(row(page, one.title).locator('.set-aside-mark')).toHaveAttribute('data-tooltip', 'Set aside until za 31 okt, 14:15');
 });
 
@@ -168,7 +168,7 @@ test('a changed line is written as the note, and the note mark shows it', async 
   await ok(page).click();
   await expect.poll(() => app.calls('setNote')).toEqual([[one.id, 'waiting for Anna']]);
   await expect(row(page, one.title).locator('.note-badge')).toBeVisible();
-  expect(await app.calls('markSetAside')).toHaveLength(1);
+  expect(await app.calls('setAsideAnew')).toHaveLength(1);
 });
 
 test('Cancel and Esc change nothing, the line typed included', async ({ app, page }) => {
@@ -183,7 +183,7 @@ test('Cancel and Esc change nothing, the line typed included', async ({ app, pag
   await choice(page, /^Whenever$/).click();
   await page.keyboard.press('Escape');
   await expect(dialog(page)).toBeHidden();
-  expect(await app.calls('markSetAside')).toEqual([]);
+  expect(await app.calls('setAsideAnew')).toEqual([]);
   expect(await app.calls('setNote')).toEqual([]);
 });
 
@@ -196,7 +196,7 @@ test('Ctrl+Enter sets aside from the line, once a choice is made', async ({ app,
   await note(page).focus();
   await page.keyboard.press('Control+Enter');
   await expect(dialog(page)).toBeHidden();
-  expect((await app.calls('markSetAside')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], null]]);
+  expect((await app.calls('setAsideAnew')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], null]]);
 });
 
 test('one already set aside says until when under the title, chooses nothing, and Set aside replaces its mark', async ({ app, page }) => {
@@ -212,6 +212,41 @@ test('one already set aside says until when under the title, chooses nothing, an
 
   await openSetAside(page, two.title);
   await expect(page.locator('#set-aside-now')).toBeHidden();
+});
+
+// The reminder an earlier mark left is that mark's, so a new mark settles it and brings its own (decided 2026-11-17).
+const OLD_REMINDER = { type: 'app.reminder' as const, at: new Date(2026, 9, 28, 9, 0).getTime() };
+
+test("setting aside again settles the reminder the earlier mark left, and the new moment's reminder names the new day", async ({ app, page }) => {
+  await page.clock.install({ time: THURSDAY });
+  await app.boot({ ...fixture, needsYou: { [one.id]: [OLD_REMINDER] } });
+  const dot = row(page, one.title).locator('.nudge');
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — reminder for wo 28 okt, 09:00');
+  await setAside(page, one.title, /^Tomorrow/);
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({});
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYouHistory)).toEqual({ [one.id]: [{ ...OLD_REMINDER, settled: expect.any(Number), by: 'set-aside' }] });
+  await expect(dot).not.toHaveClass(/\bneeds\b/);
+
+  await page.clock.fastForward('18:00:00');
+  await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — reminder for vr 30 okt, 09:00');
+});
+
+test('setting aside again leaves every reason but the reminder standing', async ({ app, page }) => {
+  const wasRunning = { type: 'app.was-running' as const, at: 5, how: 'quit' as const };
+  await app.boot({ ...fixture, needsYou: { [one.id]: [OLD_REMINDER, wasRunning] } });
+  await setAside(page, one.title, /^Whenever$/);
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({ [one.id]: [wasRunning] });
+});
+
+test("Undo of setting aside again gives the earlier mark's reminder back, and takes it off the history", async ({ app, page }) => {
+  await app.boot({ ...fixture, needsYou: { [one.id]: [OLD_REMINDER] } });
+  await setAside(page, one.title, /^Whenever$/);
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({});
+  await toastButton(page, 'Undo').click();
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({ [one.id]: [OLD_REMINDER] });
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYouHistory)).toEqual({});
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.setAside)).toEqual({});
+  await expect(row(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — reminder for wo 28 okt, 09:00');
 });
 
 test("Set aside…'s title and the Note dialog's, naming the session, break a long word to fit", async ({ app, page }) => {

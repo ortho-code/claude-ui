@@ -34,6 +34,7 @@ const api: ClaudeUiApi = {
   setPrSeen: (seen) => ipcRenderer.send('meta:setPrSeen', seen),
   getSetAside: () => ipcRenderer.invoke('meta:getSetAside'),
   markSetAside: (ids, due, at) => ipcRenderer.send('meta:markSetAside', ids, due, at),
+  setAsideAnew: (ids, due) => ipcRenderer.send('meta:setAsideAnew', ids, due),
   clearSetAside: (ids, by) => ipcRenderer.send('meta:clearSetAside', ids, by),
   setAsideCameDue: (now, remind) => ipcRenderer.send('meta:setAsideCameDue', now, remind),
   getKept: () => ipcRenderer.invoke('meta:getKept'),

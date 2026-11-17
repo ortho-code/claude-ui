@@ -1,5 +1,6 @@
 import { typeIsOn } from '../../shared/status/needs-you';
-import { cameDue, clearedSetAside, markedSetAside } from '../../shared/status/session-marks';
+import { cameDue, clearedSetAside, markedSetAside, markedSetAsideAnew } from '../../shared/status/session-marks';
+import type { NeedsYou } from '../../shared/types';
 import { store, withMember } from './app';
 
 /**
@@ -17,6 +18,24 @@ export function markSetAside(ids: readonly string[], due: number | null, at = Da
   for (const id of ids) setAside = markedSetAside(setAside, id, due, at);
   store.set({ setAside: new Map(Object.entries(setAside)) });
   window.claudeUi.markSetAside([...ids], due, at);
+}
+
+/**
+ * Set sessions aside by your choice, in one write, `due` the moment they come back, or null for whenever, by main's own rule (`markedSetAsideAnew`): each mark replaced, and each one's standing reminder settled.
+ * Returns the reminders it settled, by session, for an Undo to put back (`restoreNeedsYou`).
+ */
+export function setAsideAnew(ids: readonly string[], due: number | null): Map<string, NeedsYou[]> {
+  const { setAside, needsYou } = store.get();
+  const reminders = new Map<string, NeedsYou[]>();
+  for (const id of ids) {
+    const settled = (needsYou.get(id) ?? []).filter((reason) => reason.type === 'app.reminder');
+    if (settled.length > 0) reminders.set(id, settled);
+  }
+  if (ids.length === 0) return reminders;
+  const next = markedSetAsideAnew({ setAside: Object.fromEntries(setAside), needsYou: Object.fromEntries([...needsYou].map(([id, reasons]) => [id, [...reasons]])), needsYouHistory: {} }, ids, due, Date.now());
+  store.set({ setAside: new Map(Object.entries(next.setAside)), needsYou: new Map(Object.entries(next.needsYou)) });
+  window.claudeUi.setAsideAnew([...ids], due);
+  return reminders;
 }
 
 /** Take sessions' set-aside marks off, in one write; nothing is sent for those that have none; `by` says a prompt there did, rather than you. */

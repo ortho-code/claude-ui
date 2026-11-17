@@ -4,7 +4,7 @@ import { NO_NEEDS_YOU_TYPES } from '../../../src/shared/status/needs-you';
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/helpers/path-check';
 import { prKey, withPrLinks } from '../../../src/shared/sessions/prs';
-import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, resolvedNeedsYou, restoredNeedsYou, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/status/session-marks';
+import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, resolvedNeedsYou, restoredNeedsYou, markedSetAsideAnew, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/status/session-marks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/config/settings';
 import { withText } from '../../../src/shared/helpers/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -167,6 +167,9 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getSetAside: () => answer(fixture.setAside),
     markSetAside: (ids, due, at) => {
       for (const id of ids) fixture.setAside = markedSetAside(fixture.setAside, id, due, at ?? Date.now());
+    },
+    setAsideAnew: (ids, due) => {
+      Object.assign(fixture, markedSetAsideAnew(fixture, ids, due, Date.now()));
     },
     clearSetAside: (ids) => {
       for (const id of ids) fixture.setAside = clearedSetAside(fixture.setAside, id);

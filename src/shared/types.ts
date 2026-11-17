@@ -36,10 +36,10 @@ export type NeedsYou =
   | { type: PrNeedsYouType; at: number; pr: string };
 
 /**
- * What settled a reason: your prompt there, Clear needs you, its tab removed by you or your leaving claude, `/clear` or claude's own `/resume` taking the tab on to another session, a finish, its successor coming (the next close of the app, the same PR's next change), its type switched off, or GitHub taking back the state it was marked for.
+ * What settled a reason: your prompt there, Clear needs you, its tab removed by you or your leaving claude, `/clear` or claude's own `/resume` taking the tab on to another session, a finish, its successor coming (the next close of the app, the same PR's next change), its type switched off, GitHub taking back the state it was marked for, or, for a reminder an earlier set-aside mark left, setting the session aside again.
  * A delete settles nothing: the session's history goes with it.
  */
-export type SettledBy = 'prompt' | 'cleared' | 'closed' | 'moved' | 'finished' | 'replaced' | 'off' | 'resolved';
+export type SettledBy = 'prompt' | 'cleared' | 'closed' | 'moved' | 'finished' | 'replaced' | 'off' | 'resolved' | 'set-aside';
 
 /** A reason as it stood, with when it was settled (epoch ms) and by what: one entry of a session's needs-you history. */
 export type SettledNeedsYou = NeedsYou & { settled: number; by: SettledBy };
@@ -574,6 +574,8 @@ export interface ClaudeUiApi {
   getSetAside(): Promise<Record<string, SetAside>>;
   /** Set sessions aside in one write, `due` the moment they come back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
   markSetAside(ids: string[], due: number | null, at?: number): void;
+  /** Set sessions aside by your choice, in one write, `due` the moment they come back, or null for whenever: each mark replaced, and each one's standing reminder settled into its history as `set-aside` (`markedSetAsideAnew`). */
+  setAsideAnew(ids: string[], due: number | null): void;
   /** Take sessions' set-aside marks off in one write, whether or not each had one; `by` says a prompt there did, rather than you. */
   clearSetAside(ids: string[], by?: 'prompt'): void;
   /** When each session was last kept out of the review, by session id (epoch ms). */

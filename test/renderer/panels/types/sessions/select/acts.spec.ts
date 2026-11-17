@@ -62,7 +62,7 @@ test('Set aside… with several ticked asks without a line, leaves each note, ma
   await expect(page.locator('#set-aside-now')).toBeHidden();
   await page.locator('#set-aside-choices button', { hasText: /^Tomorrow/ }).click();
   await page.locator('#set-aside-ok').click();
-  const [[ids, due]] = (await app.calls('markSetAside')) as [string[], number][];
+  const [[ids, due]] = (await app.calls('setAsideAnew')) as [string[], number][];
   expect(ids).toEqual([a.id, b.id]);
   expect(due).toBeGreaterThan(0);
   expect(await app.calls('setNote')).toEqual([]);
@@ -154,7 +154,7 @@ test('Esc in a dialog an act opened closes the dialog and leaves bulk mode on', 
   await page.keyboard.press('Escape');
   await expect(dialog(page)).toBeHidden();
   await expect(page.locator('#bulk-line')).toBeVisible();
-  expect(await app.calls('markSetAside')).toEqual([]);
+  expect(await app.calls('setAsideAnew')).toEqual([]);
 });
 
 test('Finished and Close tab are unavailable while every ticked session has a tab starting, since neither would do anything', async ({ app, page }) => {
