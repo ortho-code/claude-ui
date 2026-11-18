@@ -2,7 +2,7 @@ import type { SessionSummary } from '../../../../shared/types';
 // Its rows are the card a list panel draws too.
 import { listCard } from '../../../ui/card';
 import { setMarkup } from '../../../ui/keyed';
-import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
+import { entityKey, rowLine, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
 import { clockOf } from '../../../status/clock';
 import { kebabButton } from '../../../ui/menu';
 import { redrawMoment, showMoment, type Moment } from '../../../ui/moments';
@@ -22,7 +22,7 @@ import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor } from './actions';
 import { pressRowInBulk, tickBox } from './bulk';
 import { activityMoment, finishedMoment, rowTooltip } from './describe';
-import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
+import { currentByKey, rowInputs, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
 import '../../../ui/tone.css';
 import '../../../status/pr-status.css';
 import '../../../ui/badge.css';
@@ -240,9 +240,18 @@ function newest(session: SessionSummary): SessionSummary {
   return byId.get(session.id) ?? session;
 }
 
-// Refresh a reused row's content for the tip it now shows.
-/** What a row draws from the store besides the session it shows. */
-export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'switchedModel' | 'pinned' | 'finished' | 'notes' | 'filter' | 'tabs' | 'prStatus' | 'reviewing' | 'settings' | 'needsYouTypes' | 'prNames'>;
+/** What a row draws from the store besides the session it shows and whether the finished view is on, which it reads from the filter. */
+export const ROW_SLICES = ['statuses', 'backgroundTasks', 'scheduledTasks', 'acked', 'needsYou', 'setAside', 'switchedModel', 'pinned', 'finished', 'notes', 'tabs', 'prStatus', 'reviewing', 'settings', 'needsYouTypes', 'prNames'] as const;
+export type RowView = View<(typeof ROW_SLICES)[number] | 'filter'>;
+
+/** What a row was last brought up to date for. */
+interface DrawnFor {
+  /** Its session's line (`rowLine`) and its last activity, which the line leaves out and the row's time and tooltip say. */
+  session: string;
+  generation: number;
+  finishedView: boolean;
+}
+const drawnFor = new WeakMap<HTMLElement, DrawnFor>();
 
 /** Show what a row has from the tab running its session: its clock (`clockOf`), and the words for a stop claude has not left (not-left.ts), in place of its time and model while they show. */
 export function showTabMarks(marks: RowTabMarks, id: string, view: View<'scheduledTasks' | 'tabs'>): void {
@@ -263,12 +272,23 @@ export interface FlatLine {
   lead: (shown: SessionSummary) => string | null;
 }
 
-/** Bring `row` up to date for `session`; `flat` for a row drawn flat (list.ts), which leads its line with where it sits. */
+/**
+ * Bring `row` up to date for `session`; `flat` for a row drawn flat (list.ts), which leads its line with where it sits.
+ * A row on the page already drawn for the same session at the same count of changes (`rowInputs`) is left as it is, its dot and tab marks only counted in again for this draw; one drawn flat is always brought up to date, since where it sits is not in the count.
+ */
 export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView, flat?: FlatLine): void {
-  row.dataset.sid = session.id;
   const els = rowEls.get(row)!;
   // The review sets the filter aside, the finished view with it.
   const finishedView = view.filter.filters.finished && !view.reviewing;
+  const now: DrawnFor = { session: `${rowLine(session)}\0${session.lastActivity}`, generation: rowInputs.generation, finishedView };
+  const was = drawnFor.get(row);
+  if (!flat && row.isConnected && was?.session === now.session && was.generation === now.generation && was.finishedView === now.finishedView) {
+    statusDots.set(session.id, els.dot);
+    rowTabMarks.set(session.id, els);
+    return;
+  }
+  drawnFor.set(row, now);
+  row.dataset.sid = session.id;
 
   applyStatus(els.dot, session.id, view);
   statusDots.set(session.id, els.dot);

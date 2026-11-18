@@ -231,6 +231,11 @@ Only two are `false`, each with its reason written beside it — `lastActivity`,
 `lastActivity` had once been marked as drawn by nothing, and every row's time stayed what it was at the list's last redraw.
 The general rule this stands for: **where stale is worse than an extra rebuild, make the exhaustive case the one the compiler enforces**, rather than trusting a list to be complete.
 
+The same line decides, row by row, which rows a redraw brings up to date: a row on the page is left as it is when its session's line and last activity are what it was drawn for, and nothing else it draws from has changed since (`updateRow`, `rows.ts`), so a key in the search costs the rows it changes rather than all of them.
+What else a row draws from is one list, `ROW_SLICES`, and the type of what a row may read is made from it, so a row that reads a slice the list leaves out does not compile; each draw compares those slices with what the last one read, by the store's own equality (`store.same`), and counts a change for every row when one moved (`rowsFollow`, `list.ts`).
+That comparison is with the last draw rather than with `before`, because the statuses and the other slices the list is not told of change between draws.
+A row drawn flat, in Recent or the review, is always brought up to date, since where it sits leads its line and is not in the count.
+
 **Two surfaces can disagree about the same list, because only one of them re-rendered.**
 The session list is assigned before that signature check decides whether to draw, so a transcript merely growing updates the data and skips the render.
 A surface rebuilt by the next status event then draws from the newer list while the sidebar still shows the older one, and seems to reorder itself on a dot changing.

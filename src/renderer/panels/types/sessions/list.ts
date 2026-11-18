@@ -12,7 +12,7 @@ import { setUnavailable } from '../../../ui/unavailable';
 import { recentOrder } from '../../../rules/recent';
 import { reviewCount, type ReviewSection } from '../../../rules/review';
 import { endBulk } from '../../../state/bulk';
-import { container, currentByKey, drawnKeys, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
+import { container, currentByKey, drawnKeys, rowInputs, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
@@ -20,7 +20,7 @@ import { createFlatSection, createGroupSection, createProjectSection } from './h
 import { whereOf } from './describe';
 import { reviewFlat, reviewInScope } from './review';
 import { syncStickyOffset } from './reveal';
-import { drawRow, showTabMarks, updateRow, type FlatLine, type RowView } from './rows';
+import { drawRow, ROW_SLICES, showTabMarks, updateRow, type FlatLine, type RowView } from './rows';
 import './list.css';
 
 /**
@@ -98,6 +98,8 @@ const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'needsYou', 'folds',
 
 /** Everything the list draws from the store. */
 type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (typeof LIST_QUIET)[number]>;
+
+type RowSlice = (typeof ROW_SLICES)[number];
 
 /** The list's watchers, registered in the sidebar's repaints (watch.ts), each slice named once above. */
 export function watchList(): void {
@@ -184,7 +186,20 @@ function catchUp(): void {
   if (!sameOrder(keysOf(listShape(view)), drawnKeys())) renderList(view);
 }
 
+/** The slices rows draw from, as the last draw read them. */
+const rowsDrewFrom = new Map<RowSlice, unknown>();
+
+/**
+ * Count a change for the rows (`rowInputs`) when anything they draw from besides their sessions changed since the last draw, by each slice's own equality: compared with that draw rather than with `before`, since the statuses and the other slices the list is not told of change between draws without a call here.
+ */
+function rowsFollow(view: ListView): void {
+  const moved = (slice: RowSlice): boolean => !rowsDrewFrom.has(slice) || !store.same(slice, rowsDrewFrom.get(slice) as never, view[slice]);
+  if (ROW_SLICES.some(moved)) rowInputs.generation++;
+  for (const slice of ROW_SLICES) rowsDrewFrom.set(slice, view[slice]);
+}
+
 function renderList(view: ListView): void {
+  rowsFollow(view);
   const shape = listShape(view);
   if ('review' in shape) {
     // A review left with nothing in it ends, as an empty review has nothing to decide; said by nothing of its own: the act that emptied it raises its toast after this, with the Undo that matters more, and the Review button then says there is nothing to review.
