@@ -2,7 +2,9 @@ import type { DiffFile, DiffView, FileDiff } from '../../../../../shared/diff/ty
 import { element } from '../../../../ui/dom';
 import { setMarkup } from '../../../../ui/keyed';
 import { openMenu, type MenuItem } from '../../../../ui/menu';
-import { caretIcon, chevronIcon } from '../../../../ui/svg';
+import { chevronIcon } from '../../../../ui/svg';
+import { menuCaret } from '../../../../ui/menu-caret';
+import { mutedText } from '../../../../ui/muted';
 import { languageOf } from '../../../../ui/syntax';
 import { HunkDrawer, type Reveal } from './hunks';
 import { drawMap, markCursor } from './steps';
@@ -264,22 +266,16 @@ export class FileView {
   }
 
   private redrawButton(): void {
-    this.viewButton.replaceChildren(VIEW_NAMES[this.host.view()], this.caret());
-  }
-
-  private caret(): HTMLElement {
-    const caret = element('span', 'diff-question-caret');
-    setMarkup(caret, caretIcon(false, 10));
-    return caret;
+    this.viewButton.replaceChildren(VIEW_NAMES[this.host.view()], menuCaret());
   }
 
   private drawPath(): void {
     const file = this.file;
     this.path.replaceChildren();
     if (!file) return;
-    if (file.status === 'R' && file.from) this.path.append(muted(`${file.from} → `));
+    if (file.status === 'R' && file.from) this.path.append(mutedText(`${file.from} → `));
     const cut = file.path.lastIndexOf('/');
-    this.path.append(muted(file.path.slice(0, cut + 1)), file.path.slice(cut + 1));
+    this.path.append(mutedText(file.path.slice(0, cut + 1)), file.path.slice(cut + 1));
     this.path.title = file.path;
   }
 
@@ -288,10 +284,4 @@ export class FileView {
     this.note.hidden = words === '';
     this.frame.hidden = words !== '';
   }
-}
-
-function muted(words: string): HTMLElement {
-  const span = element('span', 'diff-muted');
-  span.textContent = words;
-  return span;
 }

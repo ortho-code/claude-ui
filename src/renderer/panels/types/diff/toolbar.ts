@@ -1,8 +1,8 @@
 import { DIFF_QUESTIONS, type BaseSource, type DiffQuestion, type DiffSummary } from '../../../../shared/diff/types';
 import { element } from '../../../ui/dom';
 import { openMenu, type MenuItem } from '../../../ui/menu';
-import { caretIcon } from '../../../ui/svg';
-import { setMarkup } from '../../../ui/keyed';
+import { menuCaret } from '../../../ui/menu-caret';
+import { mutedText } from '../../../ui/muted';
 import './toolbar.css';
 
 /**
@@ -23,7 +23,7 @@ export class Toolbar {
   readonly el = element('div', 'diff-toolbar');
   private readonly button = element('button', 'diff-question');
   private readonly label = element('span');
-  private readonly caret = element('span', 'diff-question-caret');
+  private readonly caret = menuCaret();
   private readonly base = element('span', 'diff-base');
 
   constructor(
@@ -32,7 +32,6 @@ export class Toolbar {
     private readonly pick: (question: DiffQuestion) => void,
   ) {
     this.button.type = 'button';
-    setMarkup(this.caret, caretIcon(false, 10));
     this.button.append(this.label, this.caret);
     this.button.title = 'Pick what the list shows';
     this.button.addEventListener('click', () => openMenu(this.button, this.items()));
@@ -64,20 +63,14 @@ export class Toolbar {
     if (question === 'unpushed') return [text('what the next push sends')];
     if (question === 'uncommitted') return [text('on top of the last commit')];
     const words: Node[] = [];
-    if (summary.missing) words.push(muted(`${summary.missing} is gone; `));
+    if (summary.missing) words.push(mutedText(`${summary.missing} is gone; `));
     if (!summary.base) return [...words, text('no base to measure from')];
     words.push(text(`from ${summary.base.ref}`));
-    if (summary.base.source === 'convention') words.push(muted(' · guessed'));
+    if (summary.base.source === 'convention') words.push(mutedText(' · guessed'));
     const behind = summary.counts.behind;
-    if (behind) words.push(muted(` · ${behind} behind`));
+    if (behind) words.push(mutedText(` · ${behind} behind`));
     return words;
   }
 }
 
 const text = (words: string): Text => document.createTextNode(words);
-
-function muted(words: string): HTMLElement {
-  const span = element('span', 'diff-muted');
-  span.textContent = words;
-  return span;
-}

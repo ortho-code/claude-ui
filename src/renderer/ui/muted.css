@@ -1,0 +1,4 @@
+/* Words in the muted ink beside text in the normal one (ui/muted.ts). */
+.muted-text {
+  color: var(--muted);
+}

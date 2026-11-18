@@ -1,0 +1,4 @@
+/* The caret after a button's label that opens a menu (ui/menu-caret.ts). */
+.menu-caret {
+  display: inline-flex;
+}

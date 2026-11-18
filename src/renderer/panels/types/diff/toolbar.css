@@ -16,17 +16,9 @@
   font-weight: 600;
 }
 
-.diff-question-caret {
-  display: inline-flex;
-}
-
 .diff-base {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.diff-muted {
-  color: var(--muted);
 }

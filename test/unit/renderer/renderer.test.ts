@@ -66,6 +66,8 @@ const ORDER = [
   'src/renderer/panels/types/command.css',
   'src/renderer/panels/types/terminal.css',
   'src/renderer/panels/types/diff/files.css',
+  'src/renderer/ui/menu-caret.css',
+  'src/renderer/ui/muted.css',
   'src/renderer/panels/types/diff/toolbar.css',
   'src/renderer/panels/types/diff/panel.css',
   'src/renderer/ui/syntax.css',
