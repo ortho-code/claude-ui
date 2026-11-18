@@ -72,6 +72,8 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 
 - A history of each session, from its transcript and laid out as claude shows it: every request, message, tool call and subagent's report since the session began, compactions included, with pins for the ones to come back to.
 - A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
+- It opens as a drawer over the terminal; Dock in its head puts it in a column beside claude instead, so you can read back while you type, with a divider to drag its width, and Undock puts it back.
+  The window remembers which, and Close hides the docked column until the bar opens it again.
 
 ## The window
 

@@ -1,4 +1,4 @@
-import type { EditorUi, UiState } from '../../shared/types';
+import type { EditorUi, HistoryUi, UiState } from '../../shared/types';
 import { isDiffView } from '../../shared/diff/picks';
 import type { PanelState } from '../../shared/panels';
 import { defaultUi } from '../../shared/config/defaults';
@@ -18,6 +18,12 @@ function normalizeEditor(raw: unknown, bool: (value: unknown, fallback: boolean)
     ignoreWs: bool(editor.ignoreWs, base.ignoreWs),
     changesOnly: bool(editor.changesOnly, base.changesOnly),
   };
+}
+
+/** The history's part, field by field, as the Editor's is. */
+function normalizeHistory(raw: unknown, bool: (value: unknown, fallback: boolean) => boolean, px: (value: unknown) => number | null): HistoryUi {
+  const history = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return { docked: bool(history.docked, defaultUi().history.docked), width: px(history.width) };
 }
 
 function normalizePanelState(raw: unknown, px: (value: unknown) => number | null, strings: (value: unknown) => string[]): PanelState {
@@ -73,6 +79,7 @@ export function normalizeUi(raw: unknown): UiState {
     filterPanelOpen: bool(ui.filterPanelOpen, base.filterPanelOpen),
     tabBarExpanded: bool(ui.tabBarExpanded, base.tabBarExpanded),
     editor: normalizeEditor(ui.editor, bool),
+    history: normalizeHistory(ui.history, bool, px),
     collapsedProjects: strings(ui.collapsedProjects),
     collapsedGroups: strings(ui.collapsedGroups),
     filterCollapsedProjects: strings(ui.filterCollapsedProjects),

@@ -73,6 +73,21 @@ describe('the Editor', () => {
   });
 });
 
+describe('the history', () => {
+  it('starts as a drawer, its docked width never set', async () => {
+    expect((await getUiState()).history).toEqual({ docked: false, width: null });
+  });
+
+  it('gives each field that is missing or of the wrong kind its default, keeping the rest', async () => {
+    await writeMetaFile({ ui: { history: { docked: true, width: 0 } }, version: 3 });
+    expect((await getUiState()).history).toEqual({ docked: true, width: null });
+    await writeMetaFile({ ui: { history: { docked: 'yes', width: 640 } }, version: 3 });
+    expect((await getUiState()).history).toEqual({ docked: false, width: 640 });
+    await writeMetaFile({ ui: { history: 'docked' }, version: 3 });
+    expect((await getUiState()).history).toEqual({ docked: false, width: null });
+  });
+});
+
 describe('ui state', () => {
   const view = {
     search: 'psalm',
@@ -83,6 +98,7 @@ describe('ui state', () => {
     filterPanelOpen: true,
     tabBarExpanded: false,
     editor: { docked: true, view: 'split' as const, ignoreWs: true, changesOnly: true },
+    history: { docked: true, width: 520 },
     collapsedProjects: ['/home/me/work'],
     collapsedGroups: ['g1'],
     filterCollapsedProjects: ['/home/me/other'],
@@ -106,6 +122,7 @@ describe('ui state', () => {
       filterPanelOpen: false,
       tabBarExpanded: true,
       editor: { docked: false, view: 'fit', ignoreWs: false, changesOnly: false },
+      history: { docked: false, width: null },
       collapsedProjects: [],
       collapsedGroups: [],
       filterCollapsedProjects: [],

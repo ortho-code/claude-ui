@@ -49,7 +49,9 @@
   background: var(--border);
 }
 
-.split.columns > .divider::after {
+/* `between-columns` for a divider between two columns that are not a split's, such as the docked history's (claude/history/dock.ts). */
+.split.columns > .divider::after,
+.divider.between-columns::after {
   top: 0;
   bottom: 0;
   left: 2px;
@@ -63,7 +65,8 @@
   height: 1px;
 }
 
-.split.columns > .divider.drag {
+.split.columns > .divider.drag,
+.divider.drag.between-columns {
   cursor: col-resize;
 }
 

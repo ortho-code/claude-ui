@@ -29,6 +29,7 @@ function uiSnapshot(view: StoredView = store.get()): UiState {
     ...sidebarSnapshot(view),
     ...terminalAreaSnapshot(view),
     editor: view.editorUi,
+    history: view.historyUi,
     // Adopted into the layout tree's sizes on the first launch that has them, and not written again: the tree owns the sidebar's width now.
     sidebarWidth: null,
     panelState: heldPanelState,
@@ -64,7 +65,7 @@ export async function restoreUiState(): Promise<{ scrollTop: number; view: Store
   heldPanelState = state.panelState;
   holdLegacyState(state.panelState, state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth')));
   const sidebar = await restoreSidebar(state);
-  const view: StoredView = { ...sidebar.view, ...restoreTerminalArea(state), editorUi: state.editor };
+  const view: StoredView = { ...sidebar.view, ...restoreTerminalArea(state), editorUi: state.editor, historyUi: state.history };
   // Seed the signature from what was just restored, so an opening render that changed nothing writes nothing.
   lastUiSignature = JSON.stringify(uiSnapshot(view));
   return { scrollTop: sidebar.scrollTop, view };

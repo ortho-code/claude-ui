@@ -5,7 +5,7 @@ import { showToast } from '../../../ui/toast';
 import { jumpToSession } from './asks';
 import { toastAttention, toastNotLeft } from './attention';
 import { railStatusFollowsTabs } from './index';
-import { history, paneFollows } from './pane';
+import { history, historyDockFollows, paneFollows } from './pane';
 import { renderTabBar, tabBarFollowsStatuses } from './tab-bar';
 import { leaveCalledOff, leftAtExit } from './closing';
 import { promptSubmitted, whenCalledOff } from './leave';
@@ -50,6 +50,8 @@ export const claudeWatch = {
     store.watch(['activeProject', 'tabs', 'statuses', 'acked', 'needsYou', 'setAside', 'settings', 'needsYouTypes'], railStatusFollowsTabs);
     // The pane shows the tab on show, or says why there is none, which turns on the listing and the project on show too.
     store.watch(['sessions', 'activeProject', 'tabs', 'activeTab'], paneFollows);
+    // The history docks beside the live terminal or opens in the drawer, at the width it was dragged to, as kept for the window.
+    store.watch(['historyUi'], historyDockFollows);
   },
 
   /** A claude starting on a session in a tab: the session the tab runs from now, and why. */

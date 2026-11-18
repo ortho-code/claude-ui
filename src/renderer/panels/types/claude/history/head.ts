@@ -1,5 +1,6 @@
 import { chevronIcon, PINNED_ICON } from '../../../../ui/svg';
 import { setTooltip } from '../../../../ui/tooltip';
+import { drawDockButton } from '../../../headers';
 // The filter pill its All · Pinned wear, shared with the sidebar's filter.
 import '../../../../ui/pill.css';
 import './head.css';
@@ -10,8 +11,10 @@ export interface HeadActions {
   filter(pinnedOnly: boolean): void;
   /** Go to the previous (-1) or next (+1) request. */
   step(by: number): void;
-  /** Back to the live session, or close a history standing in for one. */
+  /** Back to the live session, or close a history standing in for one or docked beside it. */
   leave(): void;
+  /** Dock it beside the live session, or put it back in the drawer. */
+  toggleDock(): void;
 }
 
 /** The history's head: its title, the switch between every request and the pinned ones with their counts, the steps between requests, and the way back to live. */
@@ -19,6 +22,8 @@ export class HistoryHead {
   readonly el = document.createElement('div');
   private readonly allButton = document.createElement('button');
   private readonly pinnedButton = document.createElement('button');
+  private readonly dockButton = document.createElement('button');
+  private readonly leaveButton = document.createElement('button');
   private onlyPinned = false;
 
   constructor(private readonly actions: HeadActions) {
@@ -48,14 +53,27 @@ export class HistoryHead {
     grow.className = 'grow';
     const previous = this.stepButton('up', 'Previous request (Ctrl+Shift+↑)', -1);
     const next = this.stepButton('down', 'Next request (Ctrl+Shift+↓)', 1);
+    this.dockButton.type = 'button';
+    this.dockButton.className = 'icon-btn compact history-dock-button';
+    this.dockButton.addEventListener('click', () => this.actions.toggleDock());
     // The way out, labelled and always in view at the head, with its key on it: a floating pill at the foot was not found.
-    const leave = document.createElement('button');
-    leave.type = 'button';
-    leave.className = 'history-leave';
-    leave.innerHTML = 'Back to live <kbd>Esc</kbd>';
-    setTooltip(leave, 'Back to the live session');
-    leave.addEventListener('click', () => this.actions.leave());
-    this.el.append(title, show, grow, previous, next, leave);
+    this.leaveButton.type = 'button';
+    this.leaveButton.className = 'history-leave';
+    this.leaveButton.addEventListener('click', () => this.actions.leave());
+    this.el.append(title, show, grow, previous, next, this.dockButton, this.leaveButton);
+    this.setDocked(false, true);
+  }
+
+  /**
+   * Say whether it is docked, and whether it can be: not while it stands in for a cold tab, where there is no terminal to dock beside.
+   * Docked, the way out is Close, since the tab's terminal is in view beside it.
+   */
+  setDocked(docked: boolean, canDock: boolean): void {
+    this.dockButton.hidden = !canDock;
+    drawDockButton(this.dockButton, docked);
+    const closes = docked && canDock;
+    this.leaveButton.innerHTML = closes ? 'Close' : 'Back to live <kbd>Esc</kbd>';
+    setTooltip(this.leaveButton, closes ? 'Close the history' : 'Back to the live session');
   }
 
   /** Whether only the requests holding a pin are on show. */

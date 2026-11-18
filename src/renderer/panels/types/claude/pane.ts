@@ -3,8 +3,10 @@ import { store, type TabState, type View } from '../../../state/app';
 import { projectGone, tabOnShow, visibleTabs } from '../../../state/views';
 import { setUnavailable, unavailable } from '../../../ui/unavailable';
 import { element, fromMarkup } from '../../../ui/dom';
-import { Drawer } from './drawer';
+import type { DrawerEntry } from '../../contract';
+import { Drawer, type DrawerState } from './drawer';
 import { HistoryBar } from './history/bar';
+import { HistoryDock } from './history/dock';
 import { HistoryView } from './history/view';
 import { activateTab } from './terminals';
 import { isOnShow, terminalOf, terminalsEl } from './tab-state';
@@ -28,19 +30,57 @@ export const history = new HistoryView({
   openExternal: (url) => window.claudeUi.openExternal(url),
   leave: () => showHistory(false),
   open: () => openHistory(),
-  place: (state) => drawer.set(history.el, state),
+  place: (state) => placeHistory(state),
+  toggleDock: () => {
+    const ui = store.get().historyUi;
+    store.set({ historyUi: { ...ui, docked: !ui.docked } });
+  },
 });
 // A press on the scrim or its rail icon gives the pane back to the live terminal, with the keys, or, standing for a cold tab, back to the pane's sentence; the Editor taking the drawer only closes the history, standing or not, keeping its place and the keys for itself.
 // Listed on the drawer's rail while the tab on show has requests to show.
-drawer.hold(history.el, {
+const historyEntry: DrawerEntry = {
   icon: 'clock',
   label: 'History',
   count: () => null,
   listed: () => history.size > 0,
   open: openHistory,
   close: (taken) => (taken ? history.close() : history.standing ? history.setStandalone(null) : showHistory(false)),
-});
-terminalsEl.append(drawer.scrim, drawer.frame);
+};
+drawer.hold(history.el, historyEntry);
+// The terminals and the history docked beside them, which the drawer covers both of: a file opened with the history docked slides in from the right, the side the default layout docks the Editor on, rather than between claude and the history.
+const stageEl = element('div', 'terminal-stage');
+stageEl.append(terminalsEl, drawer.scrim, drawer.frame);
+// The column the history docks in, beside the tab's terminal (history/dock.ts); a drag of its divider keeps the width for the window.
+const historyDock = new HistoryDock(terminalsEl, (width) => store.set({ historyUi: { ...store.get().historyUi, width } }));
+
+/**
+ * Put the history where it stands: docked beside the tab's terminal while it is open over it and docking is picked, else in the drawer, as `state` says.
+ * Closed, it goes back to the drawer, where it stays laid out out of sight, so the bar can go on measuring it.
+ */
+function placeHistory(state: DrawerState): void {
+  if (state === 'over' && history.docked) {
+    if (!historyDock.holds(history.el)) {
+      history.keepingPlace(() => {
+        drawer.release(history.el);
+        historyDock.hold(history.el);
+      });
+    }
+    return;
+  }
+  if (historyDock.holds(history.el)) {
+    history.keepingPlace(() => {
+      historyDock.empty();
+      drawer.hold(history.el, historyEntry);
+    });
+  }
+  drawer.set(history.el, state);
+}
+
+/** The history's part of the window's view changed: docked or not, and the docked column's width; a watcher the terminal area registers (watch.ts). */
+export function historyDockFollows(view: View<'historyUi'>): void {
+  historyDock.setWidth(view.historyUi.width);
+  history.setDocked(view.historyUi.docked);
+}
 // Its bar, beside the terminal area: picking an entry on it opens the history there, from live or not.
 const historyBar = new HistoryBar(
   history,
@@ -56,19 +96,19 @@ history.onLayout = () => {
 };
 history.onScroll = () => historyBar.moveBand();
 
-/** The pane, built here and placed by the terminal area (index.ts) under the tab bar: the terminals, with the history over them, and the history's bar beside them. */
+/** The pane, built here and placed by the terminal area (index.ts) under the tab bar: the terminals, with the history over them or docked beside them, and the history's bar beside them. */
 export const paneEl = element('div');
 paneEl.id = 'terminal-body';
-paneEl.append(terminalsEl, historyBar.el);
+paneEl.append(stageEl, historyBar.el);
 
 /**
  * Ctrl+Shift+↑ / ↓, which the terminal area catches (index.ts): the previous / next request.
- * From live, ↑ opens the history at your last request and ↓ does nothing; in the history they step, and ↓ past the last request goes back to live.
+ * From live, ↑ opens the history at your last request and ↓ does nothing; in the history they step, and ↓ past the last request goes back to live, unless it is docked, where the terminal is in view beside it already.
  */
 export function stepHistory(up: boolean): void {
   if (!history.shown) {
     if (up) historyBar.pickLast();
-  } else if (!history.step(up ? -1 : 1) && !up && !history.standing) showHistory(false);
+  } else if (!history.step(up ? -1 : 1) && !up && !history.standing && !history.docked) showHistory(false);
 }
 
 /**

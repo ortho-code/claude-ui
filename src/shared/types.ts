@@ -452,6 +452,14 @@ export interface EditorUi {
   changesOnly: boolean;
 }
 
+/** What the window keeps of the history beside the terminal. */
+export interface HistoryUi {
+  /** Docking picked: open over a tab's terminal, it is a column beside it rather than a drawer over it. */
+  docked: boolean;
+  /** The docked column's width in px; null before it was dragged, taking about the drawer's width. */
+  width: number | null;
+}
+
 export interface UiState {
   /** The search box's contents. */
   search: string;
@@ -495,6 +503,8 @@ export interface UiState {
   tabBarExpanded: boolean;
   /** The Editor's part: whether it is docked beside the terminal or opens as a drawer over it, and how it draws a file's diff. */
   editor: EditorUi;
+  /** The history's part: whether it is docked beside the terminal or opens as a drawer over it, and the docked column's width. */
+  history: HistoryUi;
   /** Folded-away projects, by repo root. */
   collapsedProjects: string[];
   /** Folded-away groups, by group id. */

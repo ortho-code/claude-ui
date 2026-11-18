@@ -19,8 +19,10 @@ export interface HistoryHost {
   leave(): void;
   /** Open the history on the tab on show, the way every other way in does. */
   open(): void;
-  /** Put the drawer the history is drawn in as it now stands: closed, over a live claude, or over the whole pane. */
+  /** Put the history where it now stands: closed, over a live claude (in the drawer, or docked beside it), or over the whole pane. */
   place(state: DrawerState): void;
+  /** Dock it beside the live claude, or put it back in the drawer, for the window. */
+  toggleDock(): void;
 }
 
 /** How long one slice of drawing may hold the window. */
@@ -33,7 +35,7 @@ type Place = { at: number; offset: number } | null;
 
 /**
  * The app's own view of a session's requests and claude's replies, read from its transcript.
- * It opens in the drawer over the terminal area (claude/drawer.ts), from the bar beside it, and stays laid out in it while the live terminal is on show, so what is drawn can still be measured, which is how the bar places its marks.
+ * It opens in the drawer over the terminal area (claude/drawer.ts), or docked beside the live terminal (history/dock.ts), from the bar beside it, and stays laid out in the drawer while it is closed, so what is drawn can still be measured, which is how the bar places its marks.
  * One view for the active tab: switching tabs points it at the new tab's session.
  */
 export class HistoryView implements BarSource {
@@ -45,7 +47,10 @@ export class HistoryView implements BarSource {
     },
     step: (by) => void this.step(by),
     leave: () => this.leave(),
+    toggleDock: () => this.host.toggleDock(),
   });
+  /** Docking picked for the window; it docks only while it has a live claude to dock beside (`docked`). */
+  private dockPicked = false;
   private readonly scroller = document.createElement('div');
   private readonly list = document.createElement('div');
   private readonly note = document.createElement('div');
@@ -98,7 +103,8 @@ export class HistoryView implements BarSource {
     this.scroller.tabIndex = -1;
     this.scroller.addEventListener('scroll', () => this.onScroll?.());
     this.scroller.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape' || event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
+      // Docked, Close is the way out, so the history does not take Esc.
+      if (event.key !== 'Escape' || event.ctrlKey || event.shiftKey || event.altKey || event.metaKey || this.docked) return;
       event.preventDefault();
       this.leave();
     });
@@ -175,13 +181,34 @@ export class HistoryView implements BarSource {
     this.note.hidden = note === null;
     if (note === null && was) this.setShown(false);
     this.el.classList.toggle('standalone', note !== null);
+    this.head.setDocked(this.dockPicked, note === null);
     if (note !== null) this.setShown(true);
-    this.placeDrawer();
+    this.placeAgain();
   }
 
-  /** The drawer as the history now stands: over the whole pane while it stands in for a cold tab, over a live claude while it is open, else closed. */
-  private placeDrawer(): void {
+  /** Dock it beside the tab's terminal, or not, as picked for the window; standing in for a cold tab, it stays where it stands. */
+  setDocked(docked: boolean): void {
+    this.dockPicked = docked;
+    this.head.setDocked(docked, this.standalone === null);
+    this.placeAgain();
+  }
+
+  /** Whether docking applies: picked, and not standing in for a cold tab; while it is open, it is then in the column beside the tab's terminal. */
+  get docked(): boolean {
+    return this.dockPicked && this.standalone === null;
+  }
+
+  /** Ask the host to put it where it now stands: over the whole pane while it stands in for a cold tab, over the tab's terminal while it is open, else closed. */
+  placeAgain(): void {
     this.host.place(!this.shown ? 'closed' : this.standalone !== null ? 'whole' : 'over');
+  }
+
+  /** Do `move`, which takes it from one place to another, and bring it back to the request it was at, since a move resets its scroll. */
+  keepingPlace(move: () => void): void {
+    const where = this.place();
+    move();
+    if (where === null) this.scrollToEnd();
+    else this.scroller.scrollTop = this.anchor(where.at) + where.offset;
   }
 
   /** Close it, standing for a cold tab or open over a live one, without handing the keys anywhere, and keeping its place for its next opening: for something else taking the drawer it is drawn in. */
@@ -198,17 +225,17 @@ export class HistoryView implements BarSource {
 
   /**
    * Take the pane from the live terminal, or give it back; says whether anything changed.
-   * Taking it starts at the end, where the live view was, or where it was when something else took the drawer from it (`close`), with the keys here.
+   * Taking it starts at the end, where the live view was, or where it was when something else took the drawer from it (`close`), with the keys here, unless it is docked, where they stay where they were.
    */
   setShown(shown: boolean): boolean {
     if (shown === this.shown) return false;
     // Opened or closed by hand before its history came back: that says where it should be now, not where it was left.
     this.reopen = undefined;
     this.el.classList.toggle('shown', shown);
-    this.placeDrawer();
+    this.placeAgain();
     if (shown) {
       if (!this.keptPlace) this.scrollToEnd();
-      this.scroller.focus({ preventScroll: true });
+      if (!this.docked) this.scroller.focus({ preventScroll: true });
     }
     this.keptPlace = false;
     this.onScroll?.();

@@ -2,7 +2,7 @@ import { defaultUi } from '../../shared/config/defaults';
 import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/config/settings';
-import type { EditorUi, GroupState, SetAside, NeedsYou, PrNames, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
+import type { EditorUi, GroupState, HistoryUi, SetAside, NeedsYou, PrNames, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../rules/sessions';
 import { NO_PR_STATUS } from '../status/pr-status';
 import type { EditorTabs } from './editor-tabs';
@@ -141,6 +141,8 @@ export interface AppState {
   editorDrawer: boolean;
   /** The Editor's part of the view kept for the next launch: docked or not, and how it draws a file's diff. */
   editorUi: EditorUi;
+  /** The history's part of the view kept for the next launch: docked beside a running claude or not, and the docked column's width. */
+  historyUi: HistoryUi;
 }
 
 /** How the session list lays its sessions out: by project and group, or flat, last worked on first. */
@@ -181,7 +183,7 @@ export function noFilter(): FilterState {
 }
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
-export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'tabBarExpanded' | 'editorUi'>;
+export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'tabBarExpanded' | 'editorUi' | 'historyUi'>;
 
 /** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
 export interface TabState {
@@ -372,6 +374,7 @@ export const store = createStore<AppState>(
     editorDock: false,
     editorDrawer: false,
     editorUi: defaultUi().editor,
+    historyUi: defaultUi().history,
   },
   {
     sessions: sameRows,
@@ -397,5 +400,6 @@ export const store = createStore<AppState>(
     prNames: (a, b) => sameEntries(a, b, sameData),
     settings: sameData,
     editorUi: sameData,
+    historyUi: sameData,
   },
 );

@@ -23,6 +23,7 @@ export function defaultUi(): UiState {
     filterPanelOpen: false,
     tabBarExpanded: true,
     editor: { docked: false, view: 'fit', ignoreWs: false, changesOnly: false },
+    history: { docked: false, width: null },
     collapsedProjects: [],
     collapsedGroups: [],
     filterCollapsedProjects: [],

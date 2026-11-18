@@ -40,7 +40,7 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0032](0032-each-tab-keeps-its-history-place.md) | 2026-09-29 | Each tab keeps its place in the history | [Opening it, and getting out](../architecture/history.md#opening-it-and-getting-out) |
 | [0033](0033-history-drawn-in-slices.md) | 2026-09-29 | The history is drawn in slices, newest first and then oldest up | [Opening it, and getting out](../architecture/history.md#opening-it-and-getting-out) |
 | [0034](0034-history-in-claudes-face.md) | 2026-09-29 | The history reads in claude's face, a step smaller | [What it looks like](../architecture/history.md#what-it-looks-like) |
-| [0035](0035-history-is-a-drawer.md) | 2026-09-29 | The history is a drawer from the bar | [Opening it, and getting out](../architecture/history.md#opening-it-and-getting-out) |
+| [0035](0035-history-is-a-drawer.md) | 2026-09-29 | The history is a drawer from the bar — **Partly replaced** by [0231](0231-the-history-docks-beside-the-terminal.md): it docks beside the tab's terminal on request | [Opening it, and getting out](../architecture/history.md#opening-it-and-getting-out) |
 | [0036](0036-history-opens-only-on-purpose.md) | 2026-09-29 | The history opens only on purpose | [Opening it, and getting out](../architecture/history.md#opening-it-and-getting-out) |
 | [0037](0037-loupe-for-exact-entries.md) | 2026-09-29 | A loupe reaches one exact entry from the bar | [The bar and the loupe](../architecture/history.md#the-bar-and-the-loupe) |
 | [0038](0038-markdown-it-with-html-off.md) | 2026-09-29 | A reply is rendered by markdown-it with raw HTML off | [A reply is untrusted text](../architecture/history.md#a-reply-is-untrusted-text) |
@@ -235,3 +235,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0228](0228-syntax-colour-by-shiki.md) | 2026-11-14 | Syntax colour by Shiki, with the grammars picked | [The `diff` type](../architecture/panels.md#the-diff-type) |
 | [0229](0229-files-open-in-an-editor-beside-the-session.md) | 2026-11-18 | Files open in an Editor beside the session — **Partly replaced** by [0230](0230-the-editor-opens-as-a-drawer-or-docks.md): it opens as a drawer, and docks on request | [The `editor` type](../architecture/panels.md#the-editor-type) |
 | [0230](0230-the-editor-opens-as-a-drawer-or-docks.md) | 2026-11-18 | The Editor opens as a drawer, or docks | [The `editor` type](../architecture/panels.md#the-editor-type) |
+| [0231](0231-the-history-docks-beside-the-terminal.md) | 2026-11-18 | The history docks beside the terminal | [Opening it, and getting out](../architecture/history.md#opening-it-and-getting-out) |

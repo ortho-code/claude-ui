@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { DEFAULT_DIFF_PICKS, type DiffFile, type DiffPicks, type DiffQuestion, type DiffRow, type DiffSummary, type FileDiff } from '../../../../../src/shared/diff/types';
 import type { LayoutReport, PanelData } from '../../../../../src/shared/panels';
-import type { EditorUi, Exchange, SessionSummary } from '../../../../../src/shared/types';
+import type { EditorUi, Exchange, HistoryUi, SessionSummary } from '../../../../../src/shared/types';
 import { defaultUi } from '../../../../../src/shared/config/defaults';
 import { type BridgeFixture, PROJECT } from '../../../support/fixture';
 import type { App } from '../../../support/harness';
@@ -43,12 +43,12 @@ export const picksData = (picks: Partial<DiffPicks>): PanelData => ({ sessions: 
 
 /**
  * Boot with the project's session on show, the Editor and the diff panel beside it, and main answering each question from `diffs`.
- * `data` is what the diff panel's own file keeps and `editor` what the window keeps of the Editor (docked, how it draws a diff), `tree` the project's working tree's fingerprint, `files` each file's diff by path, `width` the docked Editor's, null to leave it out of the file, `editorOff` the Editor panel switched off, `also` a second session of the project open in a tab of its own, and `history` the requests of the session on show.
+ * `data` is what the diff panel's own file keeps and `editor` what the window keeps of the Editor (docked, how it draws a diff), `tree` the project's working tree's fingerprint, `files` each file's diff by path, `width` the docked Editor's, null to leave it out of the file, `editorOff` the Editor panel switched off, `also` a second session of the project open in a tab of its own, `history` the requests of the session on show, and `historyUi` what the window keeps of the history (docked, its width).
  */
 export async function bootDiff(
   app: App,
   diffs: Partial<Record<DiffQuestion, DiffSummary>>,
-  options: { data?: PanelData; editor?: Partial<EditorUi>; width?: string | null; editorOff?: boolean; tree?: string; files?: Record<string, FileDiff>; also?: SessionSummary; history?: Exchange[] } = {},
+  options: { data?: PanelData; editor?: Partial<EditorUi>; width?: string | null; editorOff?: boolean; tree?: string; files?: Record<string, FileDiff>; also?: SessionSummary; history?: Exchange[]; historyUi?: Partial<HistoryUi> } = {},
 ): Promise<void> {
   const also = options.also ? [options.also] : [];
   await app.boot({
@@ -60,7 +60,7 @@ export async function bootDiff(
     diffs: { [PROJECT]: diffs },
     fileDiffs: { [PROJECT]: options.files ?? {} },
     panelData: options.data ? { changes: options.data } : {},
-    uiState: { ...defaultUi(), editor: { ...defaultUi().editor, ...options.editor } },
+    uiState: { ...defaultUi(), editor: { ...defaultUi().editor, ...options.editor }, history: { ...defaultUi().history, ...options.historyUi } },
     ...(options.tree ? { trees: { [PROJECT]: options.tree } } : {}),
   });
 }

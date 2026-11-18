@@ -23,6 +23,15 @@ Claude stays in view on the left, live and at its real size under a scrim that d
 The scrim takes that click rather than passing it to claude, as a drawer's does.
 **Getting out is otherwise one labelled control**, "Back to live", in the history's head and always in view, with Esc as its key; the focus goes back to the terminal.
 
+**Dock in its head puts it beside the tab's terminal instead** ([decided 2026-11-18](../decisions/0231-the-history-docks-beside-the-terminal.md)): a column inside the terminal area, after the terminals and before the bar, with a divider that drags its width (`src/renderer/panels/types/claude/history/dock.ts`), and Undock puts it back in the drawer, open.
+Docked or not, and the column's width, are the window's (`UiState.history`), as the Editor's Dock is; until it is dragged the column takes about the drawer's width, and it shrinks with a narrower pane.
+The pane decides where it goes (`placeHistory` in `pane.ts`): docked while it is open over the tab's terminal and Dock is on, a failed start's included, else the drawer; closed, it goes back to the drawer, where it stays laid out for the bar, and a move between the two keeps the request on show, since a move resets its scroll.
+Docked, opening it leaves the keys where they were, so typing goes on; the bar and Ctrl+Shift+↑ and ↓ scroll it, ↓ past the last request leaves it open, the history does not take Esc, and "Back to live" becomes Close, which hides the column while Dock stays on, so the bar opens it docked again.
+The terminal refits as the divider moves, as it does for every divider of the layout, through the terminal area's own size.
+A cold tab has no terminal to dock beside, so its history stands over the pane as below, with no Dock in its head; resuming the tab closes it, and it opens docked the next time.
+Docked, it is out of the drawer, and so off the drawer's rail.
+The drawer covers the terminals and the docked column together (`.terminal-stage` in `pane.ts`), so a file opened while the history is docked slides in over both from the right, the side the default layout docks the Editor on, and the history is in view again when it closes.
+
 The history is ONE view, for the active tab, rebuilt when the tab changes.
 **Each tab keeps its own state**: leaving a tab with its history open remembers where — the request at the top and how far past it, or the end, where it keeps following what claude adds — and coming back reopens it there once it has been read again; a tab left live comes back live ([decided 2026-09-29](../decisions/0032-each-tab-keeps-its-history-place.md)).
 Coming back shows the tab live until that read is done, since there is nothing to draw before it.

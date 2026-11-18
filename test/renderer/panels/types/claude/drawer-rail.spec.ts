@@ -114,3 +114,21 @@ test("standing for a cold tab, the history closed from its own rail icon opens a
   await page.locator('#term-placeholder').getByRole('button', { name: 'Show history' }).click();
   expect(await historyAtTop(page)).toBe(end);
 });
+
+test('a file opened with the history docked slides in over the history, from the side the Editor docks on, and the docked history is not on the rail', async ({ app, page }) => {
+  await bootDiff(app, { since: listed }, { files, history: asked, historyUi: { docked: true } });
+  await goLive(page, app, tab(page, here.title));
+  await page.locator('.history-bar').click();
+  await expect(page.locator('.history-dock .history')).toBeVisible();
+  await rows(page).nth(0).click();
+  await expect(page.locator('.drawer .editor-view')).toBeVisible();
+  const docked = (await page.locator('.history-dock').boundingBox())!;
+  const drawn = async (): Promise<{ left: number; right: number }> => {
+    const box = (await page.locator('.drawer').boundingBox())!;
+    return { left: box.x, right: Math.round(box.x + box.width) };
+  };
+  // Read once it has slid in.
+  await expect.poll(async () => (await drawn()).right).toBe(Math.round(docked.x + docked.width));
+  expect((await drawn()).left).toBeLessThan(docked.x);
+  await expect(rail(page)).toHaveCount(0);
+});

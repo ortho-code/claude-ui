@@ -25,6 +25,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A single press opens a preview the next file takes the place of; a double click or Pin keeps it.
   `"hidden": true` on its layout entry keeps it from docking.
 - With both the history and files open in the drawer over the terminal area, a rail on its left edge switches between them, and the history comes back where it was when the files took its place.
+- Dock in the history's head puts it in a column beside claude, so you can read back while you type, at a width you drag; the window remembers it.
 
 ### Changed
 
