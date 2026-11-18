@@ -173,7 +173,7 @@ export type PrToFind = PendingPr & { id: string };
 
 /** What main found of the PRs asked for: each found one, as it was asked for, with the page of the PR now linked to its session, and why the asking failed, null when it did not. */
 export interface PrsFound {
-  found: { create: PrToFind; url: string }[];
+  found: { asked: PrToFind; url: string }[];
   problem: string | null;
 }
 
@@ -698,7 +698,7 @@ export interface ClaudeUiApi {
   /** What GitHub says of `prs`, asked with `gh` (`src/main/sessions/pr-status.ts`); a merged one is not asked again while the app runs. */
   prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
   /** Find the PRs sessions opened in the browser to be created, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */
-  findCreatedPrs(creates: PrToFind[]): Promise<PrsFound>;
+  findPrs(toFind: PrToFind[]): Promise<PrsFound>;
   /** Current status per session id (busy | ready | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
   /**

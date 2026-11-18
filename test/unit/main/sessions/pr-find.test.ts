@@ -4,7 +4,7 @@ vi.mock('electron', () => ({ ipcMain: { handle: () => {}, on: () => {} } }));
 vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../../../src/main/logs/log')>()), log: () => {} }));
 vi.mock('../../../../src/main/sessions/meta', () => ({ addPrLink: () => Promise.resolve() }));
 
-import { findCreated, findQueryArgs, foundUrl } from '../../../../src/main/sessions/pr-find';
+import { findAndLink, findQueryArgs, foundUrl } from '../../../../src/main/sessions/pr-find';
 import type { GhRun } from '../../../../src/main/sessions/pr-status';
 import type { PrToFind } from '../../../../src/shared/types';
 
@@ -53,27 +53,27 @@ describe('foundUrl', () => {
   });
 });
 
-describe('findCreated', () => {
+describe('findAndLink', () => {
   const answering = (data: unknown): GhRun => ({ code: 0, stdout: JSON.stringify({ data }), stderr: '' });
 
   it('links each found PR to the session that opened it, and says which', async () => {
     const link = vi.fn(() => Promise.resolve());
     const other: PrToFind = { id: 's2', repository: 'acme/app', head: 'none-yet', at: FORK.at };
-    const result = await findCreated([FORK, other], () => Promise.resolve(answering({ r0: ANSWERED, r1: { pullRequests: { nodes: [] } } })), link);
-    expect(result).toEqual({ found: [{ create: FORK, url: 'https://github.com/ScientaNL/scienta/pull/36788' }], problem: null });
+    const result = await findAndLink([FORK, other], () => Promise.resolve(answering({ r0: ANSWERED, r1: { pullRequests: { nodes: [] } } })), link);
+    expect(result).toEqual({ found: [{ asked: FORK, url: 'https://github.com/ScientaNL/scienta/pull/36788' }], problem: null });
     expect(link.mock.calls).toEqual([['s1', 'https://github.com/ScientaNL/scienta/pull/36788']]);
   });
 
   it('links nothing and says why when gh gives no answer', async () => {
     const link = vi.fn(() => Promise.resolve());
-    const result = await findCreated([FORK], () => Promise.resolve({ code: 4, stdout: '', stderr: '' }), link);
+    const result = await findAndLink([FORK], () => Promise.resolve({ code: 4, stdout: '', stderr: '' }), link);
     expect(result).toEqual({ found: [], problem: 'gh is not logged in; run gh auth login' });
     expect(link).not.toHaveBeenCalled();
   });
 
   it('never asks for a repository that is not owner/name', async () => {
     const gh = vi.fn(() => Promise.resolve(answering({})));
-    expect(await findCreated([{ ...FORK, repository: 'nobody' }], gh)).toEqual({ found: [], problem: null });
+    expect(await findAndLink([{ ...FORK, repository: 'nobody' }], gh)).toEqual({ found: [], problem: null });
     expect(gh).not.toHaveBeenCalled();
   });
 });

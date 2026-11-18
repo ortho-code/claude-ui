@@ -429,7 +429,7 @@ const createdUrl = 'https://github.com/ScientaNL/demo/pull/40';
 test('a PR opened in the browser is looked for every five minutes, linked to its session once it exists, and then asked about as any other', async ({ app, page }) => {
   await page.clock.install({ time: new Date('2026-11-09T09:22:00.000Z') });
   await app.boot({ sessions: [opener], history: { [opener.id]: [] }, prStatuses: { 'scientanl/demo#40': { ...open(), title: 'Fix the thing' } } });
-  await expect.poll(() => app.calls('findCreatedPrs')).toEqual([[[{ id: opener.id, repository: 'ScientaNL/demo', head: 'me:fix', at: COMMAND_AT }]]]);
+  await expect.poll(() => app.calls('findPrs')).toEqual([[[{ id: opener.id, repository: 'ScientaNL/demo', head: 'me:fix', at: COMMAND_AT }]]]);
   await expect(mark(page, opener.title)).toBeHidden();
 
   // Submitted in the browser.
@@ -444,15 +444,15 @@ test('a PR opened in the browser is looked for every five minutes, linked to its
   // Found, it is looked for no more.
   await page.clock.fastForward(5 * MINUTE);
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(2);
-  expect(await app.calls('findCreatedPrs')).toHaveLength(2);
+  expect(await app.calls('findPrs')).toHaveLength(2);
 });
 
 test('a PR opened in the browser is looked for no longer than 30 days after the command', async ({ app, page }) => {
   await page.clock.install({ time: new Date('2026-12-09T09:21:00.000Z') });
   await app.boot({ sessions: [opener], history: { [opener.id]: [] } });
-  await expect.poll(() => app.calls('findCreatedPrs')).toHaveLength(1);
+  await expect.poll(() => app.calls('findPrs')).toHaveLength(1);
   await page.clock.fastForward(5 * MINUTE);
-  expect(await app.calls('findCreatedPrs')).toHaveLength(1);
+  expect(await app.calls('findPrs')).toHaveLength(1);
 });
 
 test('with PR status off, a PR opened in the browser is not looked for', async ({ app, page }) => {
@@ -460,5 +460,5 @@ test('with PR status off, a PR opened in the browser is not looked for', async (
   await app.boot({ sessions: [opener], history: { [opener.id]: [] }, settings: prStatusIs(false) });
   await expect(row(page, opener.title)).toBeVisible();
   await page.clock.fastForward(5 * MINUTE);
-  expect(await app.calls('findCreatedPrs')).toEqual([]);
+  expect(await app.calls('findPrs')).toEqual([]);
 });

@@ -27,11 +27,11 @@ const MINUTE = 60_000;
 export const FIND_FOR_MS = 30 * 24 * 60 * MINUTE;
 
 /** What tells one PR opened in the browser from another: its session, repository, branch and when the command ran. */
-export const createKey = (create: PrToFind): string => [create.id, create.repository.toLowerCase(), create.head, create.at].join('\n');
+export const findKey = (create: PrToFind): string => [create.id, create.repository.toLowerCase(), create.head, create.at].join('\n');
 
-/** The PRs sessions opened in the browser that are still looked for at `now`: within `FIND_FOR_MS` of the command, and not found yet (`found`, by `createKey`). */
-export function createsToFind(sessions: readonly Pick<SessionSummary, 'id' | 'webCreates'>[], found: ReadonlySet<string>, now: number): PrToFind[] {
-  return sessions.flatMap(({ id, webCreates }) => webCreates.map((create) => ({ ...create, id }))).filter((create) => now - Date.parse(create.at) < FIND_FOR_MS && !found.has(createKey(create)));
+/** The PRs sessions opened in the browser that are still looked for at `now`: within `FIND_FOR_MS` of the command, and not found yet (`found`, by `findKey`). */
+export function stillToFind(sessions: readonly Pick<SessionSummary, 'id' | 'webCreates'>[], found: ReadonlySet<string>, now: number): PrToFind[] {
+  return sessions.flatMap(({ id, webCreates }) => webCreates.map((create) => ({ ...create, id }))).filter((create) => now - Date.parse(create.at) < FIND_FOR_MS && !found.has(findKey(create)));
 }
 
 /**

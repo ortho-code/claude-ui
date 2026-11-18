@@ -60,7 +60,7 @@ export function foundUrl(create: PrToFind, repository: unknown): string | null {
 }
 
 /** Find what each of `creates` became, a request per `PER_REQUEST`, linking each found one to its session; the first request with no answer stops the rest, and says why. */
-export async function findCreated(creates: readonly PrToFind[], gh: RunGh = (args) => runGh(args), link: (id: string, url: string) => Promise<void> = addPrLink): Promise<PrsFound> {
+export async function findAndLink(creates: readonly PrToFind[], gh: RunGh = (args) => runGh(args), link: (id: string, url: string) => Promise<void> = addPrLink): Promise<PrsFound> {
   const named = creates.filter((create) => /^[^/\s]+\/[^/\s]+$/.test(create.repository) && branchOf(create.head) !== '');
   const found: PrsFound['found'] = [];
   for (let start = 0; start < named.length; start += PER_REQUEST) {
@@ -81,7 +81,7 @@ export async function findCreated(creates: readonly PrToFind[], gh: RunGh = (arg
       const url = foundUrl(create, data[`r${at}`]);
       if (url === null) continue;
       await link(create.id, url);
-      found.push({ create, url });
+      found.push({ asked: create, url });
     }
   }
   return { found, problem: null };
@@ -94,5 +94,5 @@ function prsToFind(value: unknown): PrToFind[] {
 }
 
 export function registerPrFind(): void {
-  ipcMain.handle('prs:find', (_event, creates: unknown) => findCreated(prsToFind(creates)));
+  ipcMain.handle('prs:find', (_event, toFind: unknown) => findAndLink(prsToFind(toFind)));
 }
