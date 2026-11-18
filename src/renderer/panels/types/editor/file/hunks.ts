@@ -1,6 +1,6 @@
-import type { DiffHunk, DiffRow, FileDiff } from '../../../../shared/diff/types';
-import { element } from '../../../ui/dom';
-import { colourLines, type Colour } from '../../../ui/syntax';
+import type { DiffHunk, DiffRow, FileDiff } from '../../../../../shared/diff/types';
+import { element } from '../../../../ui/dom';
+import { colourLines, type Colour } from '../../../../ui/syntax';
 import './hunks.css';
 
 /**

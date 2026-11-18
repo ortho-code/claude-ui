@@ -1,4 +1,4 @@
-import { element } from '../../../ui/dom';
+import { element } from '../../../../ui/dom';
 import './steps.css';
 
 /**

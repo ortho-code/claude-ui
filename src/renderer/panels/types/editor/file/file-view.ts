@@ -1,9 +1,9 @@
-import type { DiffFile, DiffView, FileDiff } from '../../../../shared/diff/types';
-import { element } from '../../../ui/dom';
-import { setMarkup } from '../../../ui/keyed';
-import { openMenu, type MenuItem } from '../../../ui/menu';
-import { caretIcon, chevronIcon } from '../../../ui/svg';
-import { languageOf } from '../../../ui/syntax';
+import type { DiffFile, DiffView, FileDiff } from '../../../../../shared/diff/types';
+import { element } from '../../../../ui/dom';
+import { setMarkup } from '../../../../ui/keyed';
+import { openMenu, type MenuItem } from '../../../../ui/menu';
+import { caretIcon, chevronIcon } from '../../../../ui/svg';
+import { languageOf } from '../../../../ui/syntax';
 import { HunkDrawer, type Reveal } from './hunks';
 import { drawMap, markCursor } from './steps';
 import './file-view.css';

@@ -6,7 +6,7 @@ import { NO_CONTEXT, RunGate, prepare, resolveContext, runKey, type Watched } fr
 import { TreeWatch } from '../../tree-watch';
 import { Driven, GateDriver } from '../../gate-driver';
 import { element } from '../../../ui/dom';
-import { FileView } from './file-view';
+import { FileView } from '../editor/file/file-view';
 import { FileList, type FilesView } from './files';
 import { QUESTION_NAMES, Toolbar } from './toolbar';
 import './panel.css';
