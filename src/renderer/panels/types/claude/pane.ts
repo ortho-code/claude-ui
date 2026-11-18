@@ -3,6 +3,7 @@ import { store, type TabState, type View } from '../../../state/app';
 import { projectGone, tabOnShow, visibleTabs } from '../../../state/views';
 import { setUnavailable, unavailable } from '../../../ui/unavailable';
 import { element, fromMarkup } from '../../../ui/dom';
+import { Drawer } from './drawer';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
 import { activateTab } from './terminals';
@@ -18,15 +19,19 @@ import './pane.css';
 
 const placeholder = fromMarkup(`<div id="term-placeholder" class="pane-placeholder">Pick a tab above, or a session in the sidebar, to resume it.</div>`);
 terminalsEl.prepend(placeholder);
-// The active tab's history, over the terminal area (history/view.ts): one view, pointed at whichever session the pane shows.
+// The one drawer over the terminal area (drawer.ts); a press on its scrim gives the pane back to the live terminal.
+const drawer = new Drawer(() => showHistory(false));
+// The active tab's history, in that drawer (history/view.ts): one view, pointed at whichever session the pane shows.
 export const history = new HistoryView({
   getHistory: (id, known, generation) => window.claudeUi.getHistory(id, known, generation),
   toggleHistoryPin: (id, pin) => window.claudeUi.toggleHistoryPin(id, pin),
   openExternal: (url) => window.claudeUi.openExternal(url),
   leave: () => showHistory(false),
   open: () => openHistory(),
+  place: (state) => drawer.set(state),
 });
-terminalsEl.append(history.scrim, history.el);
+drawer.frame.append(history.el);
+terminalsEl.append(drawer.scrim, drawer.frame);
 // Its bar, beside the terminal area: picking an entry on it opens the history there, from live or not.
 const historyBar = new HistoryBar(
   history,

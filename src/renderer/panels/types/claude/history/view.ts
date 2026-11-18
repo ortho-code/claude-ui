@@ -4,6 +4,7 @@ import { flash } from '../../../../ui/flash';
 import { setTooltip } from '../../../../ui/tooltip';
 import { drawPins, exchangeNode, type ExchangeDrawing } from './exchange';
 import { HistoryHead } from './head';
+import type { DrawerState } from '../drawer';
 import './view.css';
 import type { BarSource } from './bar';
 import type { Band } from './marks';
@@ -18,6 +19,8 @@ export interface HistoryHost {
   leave(): void;
   /** Open the history on the tab on show, the way every other way in does. */
   open(): void;
+  /** Put the drawer the history is drawn in as it now stands: closed, over a live claude, or over the whole pane. */
+  place(state: DrawerState): void;
 }
 
 /** How long one slice of drawing may hold the window. */
@@ -30,16 +33,11 @@ type Place = { at: number; offset: number } | null;
 
 /**
  * The app's own view of a session's requests and claude's replies, read from its transcript.
- * It opens as a drawer over the terminal area, from the bar beside it, and is KEPT LAID OUT while the live terminal is on show — hidden by visibility, not display — so what is drawn can still be measured, which is how the bar places its marks.
+ * It opens in the drawer over the terminal area (claude/drawer.ts), from the bar beside it, and stays laid out in it while the live terminal is on show, so what is drawn can still be measured, which is how the bar places its marks.
  * One view for the active tab: switching tabs points it at the new tab's session.
  */
 export class HistoryView implements BarSource {
   readonly el = document.createElement('section');
-  /**
-   * What dims claude beside it while it is open over the live terminal; a click on it closes the history.
-   * Goes into the terminal area just before `el`.
-   */
-  readonly scrim = document.createElement('div');
   private readonly head = new HistoryHead({
     filter: () => {
       this.applyFilter();
@@ -105,12 +103,6 @@ export class HistoryView implements BarSource {
     routeLinks(this.scroller, (url) => this.host.openExternal(url));
     // Its width is the drawer's over a live tab and the whole pane's on a cold one, and the window's besides: every change rewraps the replies, and so moves the marks.
     new ResizeObserver(() => this.onLayout?.()).observe(this.list);
-
-    this.scrim.className = 'history-scrim';
-    this.scrim.addEventListener('mousedown', (event) => {
-      event.preventDefault();
-      this.leave();
-    });
 
     this.note.className = 'history-note';
     this.note.hidden = true;
@@ -178,19 +170,15 @@ export class HistoryView implements BarSource {
     close.addEventListener('click', () => this.setStandalone(null));
     this.note.replaceChildren(text, ...(resume ? [resume] : []), close);
     this.note.hidden = note === null;
-    // Hidden before it turns back into the drawer, so closing it does not slide a drawer out; reading its style makes the browser take the hiding first, where it would otherwise take both changes at once and slide.
-    if (note === null && was) {
-      this.setShown(false);
-      getComputedStyle(this.el).getPropertyValue('visibility');
-    }
+    if (note === null && was) this.setShown(false);
     this.el.classList.toggle('standalone', note !== null);
     if (note !== null) this.setShown(true);
-    this.drawScrim();
+    this.placeDrawer();
   }
 
-  /** The scrim is up while the history is open as the drawer, over a live claude. */
-  private drawScrim(): void {
-    this.scrim.classList.toggle('shown', this.shown && this.standalone === null);
+  /** The drawer as the history now stands: over the whole pane while it stands in for a cold tab, over a live claude while it is open, else closed. */
+  private placeDrawer(): void {
+    this.host.place(!this.shown ? 'closed' : this.standalone !== null ? 'whole' : 'over');
   }
 
   private leave(): void {
@@ -207,7 +195,7 @@ export class HistoryView implements BarSource {
     // Opened or closed by hand before its history came back: that says where it should be now, not where it was left.
     this.reopen = undefined;
     this.el.classList.toggle('shown', shown);
-    this.drawScrim();
+    this.placeDrawer();
     if (shown) {
       this.scrollToEnd();
       this.scroller.focus({ preventScroll: true });

@@ -1,65 +1,11 @@
-/* THE HISTORY: the app's own view of a session's requests and claude's replies, over the terminal area.
-   Hidden by visibility, never display, while the live terminal is on show: it stays laid out, so what it draws can be measured, which is how the bar beside it places its marks. */
+/* THE HISTORY: the app's own view of a session's requests and claude's replies, drawn in the drawer over the terminal area (claude/drawer.css), which places it, slides it and hides it. */
 .history {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
-  visibility: hidden;
   /* The app sets its type per component and the body sets none, so without this the history fell to the browser's 16px and read louder than everything around it. */
   font-size: var(--text-body);
-}
-
-.history.shown {
-  visibility: visible;
-}
-
-/* Over the live terminal it is a drawer from the bar beside it: it slides in from the right over about two-thirds of the pane, and claude stays in view on the left, dimmed, at its real size, so it never redraws; a click there is the way back.
-   Two-thirds but never narrower than a reply reads at, and the whole pane when the pane is narrower than that.
-   Standing in for a cold tab there is no live view under it, and it takes the whole pane. */
-.history:not(.standalone) {
-  left: clamp(0px, 34%, 100% - 560px);
-  border-left: 1px solid var(--border);
-  /* Cast to the left, onto the claude it slides over, rather than below as a floating surface's (--shadow-raised) is. */
-  box-shadow: -8px 0 18px #00000080;
-  transform: translateX(100%);
-  /* Hidden only once it has slid out, and shown at once when it slides in. */
-  transition:
-    transform 0.16s ease-out,
-    visibility 0s 0.16s;
-}
-
-.history.shown:not(.standalone) {
-  transform: none;
-  transition: transform 0.16s ease-out;
-}
-
-/* What dims claude beside the drawer, and takes the click that closes it.
-   Lighter than a dialog's backdrop: claude is meant to stay readable beside the history, not to be put out of reach. */
-.history-scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.16s ease-out,
-    visibility 0s 0.16s;
-}
-
-.history-scrim.shown {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.16s ease-out;
-}
-
-/* While either is on its way out it is still visible, and must not take the click meant for claude. */
-.history:not(.shown),
-.history-scrim:not(.shown) {
-  pointer-events: none;
 }
 
 /* Positioned, so an exchange's offsetTop is measured from here: that is what goTo scrolls by. */

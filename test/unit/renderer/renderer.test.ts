@@ -37,6 +37,7 @@ const ORDER = [
   'src/renderer/ui/terminal.css',
   'src/renderer/panels/types/claude/terminals.css',
   'src/renderer/panels/types/claude/tab-bar.css',
+  'src/renderer/panels/types/claude/drawer.css',
   'src/renderer/panels/types/claude/history/bar.css',
   'src/renderer/panels/types/claude/history/exchange.css',
   'src/renderer/ui/pill.css',

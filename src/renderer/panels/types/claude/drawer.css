@@ -1,0 +1,61 @@
+/* THE DRAWER over the terminal area (claude/drawer.ts), which the history is drawn in.
+   Hidden by visibility, never display, while it is closed: it stays laid out, so what it holds can be measured, which is how the history's bar places its marks. */
+.drawer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  visibility: hidden;
+}
+
+.drawer.shown {
+  visibility: visible;
+}
+
+/* Over a live claude it slides in from the right over about two-thirds of the pane, and claude stays in view on the left, dimmed, at its real size, so it never redraws; a click there is the way back.
+   Two-thirds but never narrower than a reply reads at, and the whole pane when the pane is narrower than that.
+   Standing in for a cold tab there is no live view under it, and it takes the whole pane. */
+.drawer:not(.whole) {
+  left: clamp(0px, 34%, 100% - 560px);
+  border-left: 1px solid var(--border);
+  /* Cast to the left, onto the claude it slides over, rather than below as a floating surface's (--shadow-raised) is. */
+  box-shadow: -8px 0 18px #00000080;
+  transform: translateX(100%);
+  /* Hidden only once it has slid out, and shown at once when it slides in. */
+  transition:
+    transform 0.16s ease-out,
+    visibility 0s 0.16s;
+}
+
+.drawer.shown:not(.whole) {
+  transform: none;
+  transition: transform 0.16s ease-out;
+}
+
+/* What dims claude beside the drawer, and takes the click that closes it.
+   Lighter than a dialog's backdrop: claude is meant to stay readable beside the drawer, not to be put out of reach. */
+.drawer-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.16s ease-out,
+    visibility 0s 0.16s;
+}
+
+.drawer-scrim.shown {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.16s ease-out;
+}
+
+/* While either is on its way out it is still visible, and must not take the click meant for claude. */
+.drawer:not(.shown),
+.drawer-scrim:not(.shown) {
+  pointer-events: none;
+}
