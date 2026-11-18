@@ -12,7 +12,7 @@ import { RunGate } from '../../run';
  * The window regaining focus asks at once, unless the last answer is under a minute old.
  * Each answer, once what was last seen is read, first takes off the sessions' reasons GitHub took back (`takenBack`), so that a reason is settled only by an answer that is also kept as what was last seen, and then marks the sessions whose PRs changed in a way that needs you, against what was last seen of them (`settleChanges`).
  * What each PR is called comes into the store's `prNames` from what was last seen, as soon as that is read, and then from each answer.
- * Each ask first looks for the PRs sessions opened in the browser, every five minutes until each is found or 30 days have passed (`findWaiting`).
+ * Each ask first looks for the PRs sessions opened in the browser, and those their reviews or comments named only by an id, every five minutes until each is found or 30 days have passed (`findWaiting`).
  * An ask overtaken by a later one before main answered is dropped, so an older answer never lands over a newer one.
  * Only while the setting allows it (`Settings.prStatus`), which is not known before the settings are read: until then, and while it is off, an ask asks nothing and leaves no status, so a launch with it off never runs `gh`; turning it on asks at once.
  */
@@ -26,16 +26,16 @@ let answeredAt = 0;
 /** Whether the setting lets the window ask; null until the settings are read. */
 let allowed: boolean | null = null;
 
-/** How often a PR opened in the browser is looked for while it has not been found. */
+/** How often a PR to find is looked for while it has not been found. */
 const FIND_EVERY_MS = 5 * 60_000;
 
-/** The PRs opened in the browser that were found, by `findKey`, so each is looked for until it is; kept for the life of the window, since a found one is a link from then on. */
+/** The PRs to find that were found, by `findKey`, so each is looked for until it is; kept for the life of the window, since a found one is a link from then on. */
 const foundPrs = new Set<string>();
 
-/** The PRs opened in the browser still looked for now (`stillToFind`). */
+/** The PRs to find still looked for now (`stillToFind`). */
 const waitingPrs = (): PrToFind[] => stillToFind(store.get().sessions, foundPrs, Date.now());
 
-/** The PRs to ask about and the ones opened in the browser to look for, as one key in an order of its own, so the gate asks again only when either set changes, not when the listing reorders the sessions naming them. */
+/** The PRs to ask about and the ones to look for, as one key in an order of its own, so the gate asks again only when either set changes, not when the listing reorders the sessions naming them. */
 const linkedKey = (): string => [...linkedPrs(store.get().sessions).map(prKey), ...waitingPrs().map(findKey)].sort().join('\n');
 
 const gate = new RunGate(linkedKey, (number) => void ask(number));
@@ -78,7 +78,7 @@ function sooner(a: number | 'off', b: number | 'off'): number | 'off' {
 }
 
 /**
- * Ask main to find the PRs sessions opened in the browser (src/main/sessions/pr-find.ts), which it links to their sessions as the app's own links; the listing is read again once any is found, so the session shows it and its status is asked from then on.
+ * Ask main to find the PRs sessions opened in the browser or posted on by an id (src/main/sessions/pr-find.ts), which it links to their sessions as the app's own links; the listing is read again once any is found, so the session shows it and its status is asked from then on.
  * Whether any of `toFind` is still not found, so the asking goes on; a failed ask finds nothing, and so leaves them all to look for.
  */
 async function findWaiting(toFind: readonly PrToFind[]): Promise<boolean> {

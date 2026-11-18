@@ -51,6 +51,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   prs: true,
   // Not drawn, but the window asks GitHub for the PR each one becomes, so a new one has to reach the store.
   webCreates: true,
+  // Not drawn either, and asked about the same way: GitHub says which PR each posted id belongs to.
+  postedNodes: true,
   // Both change what the row IS — a session whose folder is gone cannot be opened, and says so — and both can flip while the app is running, with nothing in the transcript moving to announce it.
   cwdExists: true,
   repoRootExists: true,

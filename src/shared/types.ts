@@ -123,6 +123,11 @@ export interface SessionSummary {
    */
   webCreates: PendingPr[];
   /**
+   * The ids a review or comment the session posted through GraphQL names, each once, the latest command for it kept; empty when none.
+   * The command names no PR, so the window asks GitHub which PR each id belongs to and links it as the app's own.
+   */
+  postedNodes: PendingNode[];
+  /**
    * First user/assistant uuid after each compaction boundary.
    * A fork of a compacted session adopts one of these as its own conversationId, which is how such a fork is linked into the family.
    * Main-process bookkeeping; the renderer doesn't use it.
@@ -168,8 +173,14 @@ export interface PendingPr {
   at: string;
 }
 
-/** A PR opened in the browser that the window asks main to find, with the session that opened it. */
-export type PrToFind = PendingPr & { id: string };
+/** A review, review thread, review comment or PR that a session posted on through GraphQL, which names it only by its id (`PRR_…`, `PRRT_…`, `PRRC_…`, `PR_…`), and when the command ran (ISO). */
+export interface PendingNode {
+  node: string;
+  at: string;
+}
+
+/** A PR the window asks main to find, with the session it is for: one opened in the browser, or the one a posted id belongs to. */
+export type PrToFind = (PendingPr | PendingNode) & { id: string };
 
 /** What main found of the PRs asked for: each found one, as it was asked for, with the page of the PR now linked to its session, and why the asking failed, null when it did not. */
 export interface PrsFound {
@@ -697,7 +708,7 @@ export interface ClaudeUiApi {
   onOpenFailed(callback: (url: string, problem: string) => void): void;
   /** What GitHub says of `prs`, asked with `gh` (`src/main/sessions/pr-status.ts`); a merged one is not asked again while the app runs. */
   prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
-  /** Find the PRs sessions opened in the browser to be created, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */
+  /** Find the PRs sessions opened in the browser to be created, or posted on by an id, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */
   findPrs(toFind: PrToFind[]): Promise<PrsFound>;
   /** Current status per session id (busy | ready | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;

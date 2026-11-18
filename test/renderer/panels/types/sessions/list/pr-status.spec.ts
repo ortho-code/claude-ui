@@ -455,6 +455,17 @@ test('a PR opened in the browser is looked for no longer than 30 days after the 
   expect(await app.calls('findPrs')).toHaveLength(1);
 });
 
+// A review posted through GraphQL names the review only by its id, so the window asks which PR that is, as it does for one opened in the browser.
+test('a review posted by its id is looked for, linked to its session once GitHub says which PR it is on, and then asked about as any other', async ({ app, page }) => {
+  const REVIEW = 'PRR_kwDOAHFIWc8AAAABXz2W6w';
+  const poster = session({ id: '00000000-0000-4000-8000-0000000000fc', title: 'Posted a review by its id', postedNodes: [{ node: REVIEW, at: COMMAND_AT }] });
+  await page.clock.install({ time: new Date('2026-11-09T09:22:00.000Z') });
+  await app.boot({ sessions: [poster], history: { [poster.id]: [] }, nodePrs: { [REVIEW]: createdUrl }, prStatuses: { 'scientanl/demo#40': { ...open(), title: 'Fix the thing' } } });
+  await expect.poll(() => app.calls('findPrs')).toEqual([[[{ id: poster.id, node: REVIEW, at: COMMAND_AT }]]]);
+  await expect(mark(page, poster.title)).toHaveText('1');
+  await expect.poll(() => app.calls('prStatuses')).toEqual([[[ref(40)]]]);
+});
+
 test('with PR status off, a PR opened in the browser is not looked for', async ({ app, page }) => {
   await page.clock.install({ time: new Date('2026-11-09T09:22:00.000Z') });
   await app.boot({ sessions: [opener], history: { [opener.id]: [] }, settings: prStatusIs(false) });

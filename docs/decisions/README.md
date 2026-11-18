@@ -238,3 +238,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0230](0230-a-failed-runs-lines-unfold-under-its-line.md) | 2026-11-16 | A failed run's lines unfold under its line | [Types from the config folder](../architecture/panels.md#types-from-the-config-folder) |
 | [0231](0231-setting-aside-again-settles-the-old-reminder.md) | 2026-11-17 | Setting aside again settles the old reminder | [Status cues](../architecture/status-cues.md#status-cues) |
 | [0232](0232-the-sessions-file-gives-each-sessions-rank.md) | 2026-11-17 | The sessions file gives each session's rank | [Types from the config folder](../architecture/panels.md#types-from-the-config-folder) |
+| [0233](0233-a-review-posted-through-graphql-is-found-by-its-id.md) | 2026-11-18 | A review posted through GraphQL is found by its id | [Reading sessions](../architecture/sessions.md#reading-sessions) |

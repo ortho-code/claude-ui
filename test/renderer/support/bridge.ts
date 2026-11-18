@@ -260,8 +260,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     findPrs: (toFind) => {
       if (fixture.prProblem !== null) return answer({ found: [], problem: fixture.prProblem });
       const found = toFind.flatMap((asked) => {
-        const key = `${asked.repository}\n${asked.head}`;
-        return Object.hasOwn(fixture.createdPrs, key) ? [{ asked, url: fixture.createdPrs[key] }] : [];
+        const [prs, key] = 'node' in asked ? [fixture.nodePrs, asked.node] : [fixture.createdPrs, `${asked.repository}\n${asked.head}`];
+        return Object.hasOwn(prs, key) ? [{ asked, url: prs[key] }] : [];
       });
       for (const { asked, url } of found) fixture.prLinks = withPrLink(fixture.prLinks, asked.id, url);
       return answer({ found, problem: null });

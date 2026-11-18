@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { postedPrs, webCreates } from '../../../../src/main/sessions/posted-prs';
+import { postedNodes, postedPrs, webCreates } from '../../../../src/main/sessions/posted-prs';
 
 const pr = (repository: string, number: number) => ({ repository, number, url: `https://github.com/${repository}/pull/${number}` });
 
@@ -121,5 +121,48 @@ describe('webCreates', () => {
 
   it('never takes a value such as a title for the flag it spells', () => {
     expect(webCreates('gh pr create --title --web --repo acme/app --head fix')).toEqual([]);
+  });
+});
+
+describe('postedNodes', () => {
+  const REVIEW = 'PRR_kwDOAHFIWc8AAAABXz2W6w';
+
+  // Session 70186dca submitted a review a person had started by hand on the PR, 2026-11-13.
+  it('keeps the review a GraphQL mutation that posts names by its id', () => {
+    const command = `gh api graphql -f query='mutation($rid:ID!){submitPullRequestReview(input:{pullRequestReviewId:$rid,event:REQUEST_CHANGES}){pullRequestReview{state url comments{totalCount}}}}' -f rid=${REVIEW}`;
+    expect(postedNodes(command)).toEqual([REVIEW]);
+  });
+
+  // The same session added its comments to that review with the query and the id each in a shell variable, set earlier in the command.
+  it('reads the query and the id through the variables the command sets for them', () => {
+    const command = [
+      'set -e',
+      "Q='mutation($rid:ID!,$path:String!,$line:Int!,$body:String!){addPullRequestReviewThread(input:{pullRequestReviewId:$rid,path:$path,line:$line,side:RIGHT,body:$body}){thread{id}}}'",
+      `RID=${REVIEW}`,
+      `post(){ out=$(gh api graphql -f query="$Q" -f rid=$RID -f path="$1" -F line=$2 -f body="$(cat $3)"); echo "$3 -> $out"; echo "$out" | grep -q '"id":"PRRT_' || { echo "FAILED at $3"; exit 1; }; }`,
+      'post src/a.ts 40 c1.md',
+    ].join('; ');
+    expect(postedNodes(command)).toEqual([REVIEW]);
+  });
+
+  it('keeps an id written into the query, such as a comment on a PR by its id', () => {
+    expect(postedNodes(`gh api graphql -f query='mutation{addComment(input:{subjectId:"PR_kwDOAHFIWc8AAAABO5dE8A",body:"x"}){clientMutationId}}'`)).toEqual(['PR_kwDOAHFIWc8AAAABO5dE8A']);
+  });
+
+  it('keeps the thread a reply in it names', () => {
+    expect(postedNodes(`gh api graphql -f query='mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$t,body:$b}){comment{id}}}' -f t=PRRT_kwDOAHFIWc63Ec_T -f b=thanks`)).toEqual(['PRRT_kwDOAHFIWc63Ec_T']);
+  });
+
+  it('keeps nothing for a query that reads, or a mutation that posts nothing, such as resolving a thread', () => {
+    expect(postedNodes(`gh api graphql -f query='query($id:ID!){node(id:$id){id}}' -f id=${REVIEW}`)).toEqual([]);
+    expect(postedNodes(`gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{id}}}' -f t=PRRT_kwDOAHFIWc63Ec_T`)).toEqual([]);
+  });
+
+  it('keeps nothing for an id held in a variable the command does not set', () => {
+    expect(postedNodes(`gh api graphql -f query='mutation($rid:ID!){submitPullRequestReview(input:{pullRequestReviewId:$rid,event:COMMENT}){clientMutationId}}' -f rid=$RID`)).toEqual([]);
+  });
+
+  it('keeps nothing from a gh call that is not GraphQL', () => {
+    expect(postedNodes(`gh api repos/acme/app/pulls/1/reviews -f event=COMMENT -f body=${REVIEW}`)).toEqual([]);
   });
 });
