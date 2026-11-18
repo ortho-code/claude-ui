@@ -1,5 +1,5 @@
 /**
- * What the diff panel is told about a checkout's changes, across the bridge.
+ * What the Explorer is told about a checkout's changes, across the bridge.
  * Paths are relative to the checkout's root, as git prints them.
  */
 
@@ -13,7 +13,7 @@ export type DiffView = 'fit' | 'split' | 'unified';
 
 export const DIFF_VIEWS: readonly DiffView[] = ['fit', 'split', 'unified'];
 
-/** What a diff panel keeps of what was picked in it, in its own data file; how a file's diff is drawn is the Editor's (`EditorUi`). */
+/** What an Explorer keeps of what was picked in it, in its own data file; how a file's diff is drawn is the Editor's (`EditorUi`). */
 export interface DiffPicks {
   question: DiffQuestion;
 }

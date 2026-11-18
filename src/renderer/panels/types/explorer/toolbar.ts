@@ -6,7 +6,7 @@ import { mutedText } from '../../../ui/muted';
 import './toolbar.css';
 
 /**
- * The diff panel's row over its list: which question the list answers, as a menu of the three, and what it is measured from.
+ * The Explorer's row over its list: which question the list answers, as a menu of the three, and what it is measured from.
  */
 
 /** Each question's name, as the menu and the button say it. */

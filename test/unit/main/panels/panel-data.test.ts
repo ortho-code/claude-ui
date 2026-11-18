@@ -136,7 +136,7 @@ describe('a panel’s own data', () => {
   });
 });
 
-describe('a diff panel’s picks', () => {
+describe('an Explorer’s picks', () => {
   it('keeps the picks, as the window says them, and reads them back beside a link', async () => {
     await handlers.get('panelData:setDiffPicks')?.(null, 'changes', { question: 'unpushed' });
     await linkSession('changes', 's1', LINK, { repoRoot: '/repo', groupId: null });

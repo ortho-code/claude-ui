@@ -8,7 +8,7 @@ import '../list.css';
 import './files.css';
 
 /**
- * The diff panel's list of changed files, flat or as a tree, in the compact row a list panel of changed files draws (list.css), so the two read alike.
+ * The Explorer's list of changed files, flat or as a tree, in the compact row a list panel of changed files draws (list.css), so the two read alike.
  * A row is kept by its path, so a press on one survives a read that changes only its counts.
  * A folder of the tree folds as a list panel's row holding rows does: from its chevron, or a press anywhere on it, kept by its path in memory while the panel stays mounted.
  */
@@ -39,7 +39,7 @@ interface Folder {
 }
 
 export class FileList {
-  readonly el = element('div', 'list-body compact diff-files');
+  readonly el = element('div', 'list-body compact explorer-files');
   private readonly rows = new Keyed<Row>((row) => row.card);
   /** The tree's folded folders, by path. */
   private readonly folded = new Set<string>();
@@ -118,7 +118,7 @@ export class FileList {
 
   private folderRow(path: string, label: string, files: number, depth: number): HTMLElement {
     const row = this.rows.draw(`folder\n${path}`, () => {
-      const built = this.build('diff-folder');
+      const built = this.build('explorer-folder');
       built.card.classList.remove('still');
       built.fold.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -142,7 +142,7 @@ export class FileList {
 
   private fileRow(file: DiffFile, depth: number, flat: boolean): HTMLElement {
     const row = this.rows.draw(`file\n${file.path}`, () => {
-      const built = this.build('diff-file');
+      const built = this.build('explorer-file');
       built.card.classList.remove('still');
       built.card.addEventListener('click', (event) => this.press(file.path, event));
       return built;
@@ -195,7 +195,7 @@ function span(className: string, text: string): HTMLElement {
 function pathText(path: string, flat: boolean): HTMLElement {
   const cut = path.lastIndexOf('/');
   const text = element('span', 'list-text');
-  if (flat && cut >= 0) text.append(span('diff-folder-part', path.slice(0, cut + 1)), path.slice(cut + 1));
+  if (flat && cut >= 0) text.append(span('explorer-folder-part', path.slice(0, cut + 1)), path.slice(cut + 1));
   else text.textContent = path.slice(cut + 1);
   return text;
 }

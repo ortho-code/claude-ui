@@ -13,14 +13,14 @@ import { QUESTION_NAMES, Toolbar } from './toolbar';
 import './panel.css';
 
 /**
- * The diff panel: the files that changed in the checkout it looks in, as a flat list or a tree, for one of three questions.
+ * The Explorer: the files that changed in the checkout it looks in, as a flat list or a tree, for one of three questions.
  * A press on a file opens its diff in the Editor, a preview there unless it was a double click, with the list's order to step through; the row of the file the Editor shows is marked.
  *
  * WHEN IT READS, through the gate every panel that runs something goes through (`RunGate`): on first being shown, on Refresh, on a context change once it has read, shown or not; and, unasked, when the checkout's working tree changes (`TreeWatch`), and when the session on show ends a turn, so the list catches up while you work beside it.
  * Each read checks the panel first (`prepare`), so it reads where the header says it looks.
  */
 
-export const DIFF_OPTIONS: OptionsDecl = { name: 'diff', options: [CWD_OPTION], exactlyOne: [] };
+export const EXPLORER_OPTIONS: OptionsDecl = { name: 'explorer', options: [CWD_OPTION], exactlyOne: [] };
 
 /** The list's two views, which the panel's header switches between and the app keeps per panel, as a list panel's are. */
 const VIEWS: PanelView[] = [
@@ -38,9 +38,9 @@ const NOTHING: Record<DiffQuestion, (summary: DiffSummary) => string> = {
   uncommitted: () => 'Nothing uncommitted.',
 };
 
-export class DiffPanel extends Driven implements MountedPanel {
-  readonly el = element('div', 'panel-body diff-panel');
-  private readonly note = element('p', 'pane-placeholder diff-note');
+export class ExplorerPanel extends Driven implements MountedPanel {
+  readonly el = element('div', 'panel-body explorer-panel');
+  private readonly note = element('p', 'pane-placeholder explorer-note');
   private readonly files = new FileList((path, keep) => this.pickFile(path, keep));
   private readonly toolbar: Toolbar;
   private readonly gate: RunGate;
@@ -146,7 +146,7 @@ export class DiffPanel extends Driven implements MountedPanel {
 
   /** Check the options against the selection as it is now, and tell the host what is wrong and where the panel looks; null once the panel is gone. */
   private async check(): Promise<{ problems: string[]; dir: string | null } | null> {
-    const { problems, run, folder } = await prepare(optionsOf(this.slot.entry), DIFF_OPTIONS, this.host.where());
+    const { problems, run, folder } = await prepare(optionsOf(this.slot.entry), EXPLORER_OPTIONS, this.host.where());
     if (this.disposed) return null;
     this.runnable = problems.length === 0;
     this.host.setProblems(problems);

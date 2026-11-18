@@ -1,9 +1,9 @@
 import { PROJECT } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { bootDiff, diffLines, editor, file, fileDiff, fileNote, menuRows, position, rows, summary } from '../diff/diff';
+import { bootDiff, diffLines, editor, file, fileDiff, fileNote, menuRows, position, rows, summary } from '../explorer/explorer';
 import type { App } from '../../../support/harness';
 
-// A file pressed in the diff panel opens in the Editor: the whole file with its changes marked, unified while the Editor is narrow and split from 600px, the words that changed marked, and a stepper through the changes; Changes only folds the unchanged lines between them.
+// A file pressed in the Explorer opens in the Editor: the whole file with its changes marked, unified while the Editor is narrow and split from 600px, the words that changed marked, and a stepper through the changes; Changes only folds the unchanged lines between them.
 
 const fifty = Array.from({ length: 50 }, (_, at) => `line ${at + 1}`);
 const edited = fileDiff('src/a.ts', [{ old: 39, new: 39, heading: 'function a()', rows: [' line 39', '-line 40', '+line forty', ' line 41'] }], fifty.map((line, at) => (at === 39 ? 'line forty' : line)));

@@ -180,7 +180,7 @@ export async function keepShells(entryId: string, shells: unknown): Promise<void
 }
 
 /**
- * Keep a diff panel's picks as the window says them now, when they are sound; the window holds them, so nothing is told back.
+ * Keep an Explorer's picks as the window says them now, when they are sound; the window holds them, so nothing is told back.
  * Exported for the tests.
  */
 export async function keepDiffPicks(entryId: string, picks: unknown): Promise<void> {

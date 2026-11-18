@@ -1,4 +1,4 @@
-/* THE DIFF PANEL'S ROW OVER ITS LIST: the question as a button that opens its menu, then what the list is measured from, which gives way first in a narrow panel. */
+/* THE EXPLORER'S ROW OVER ITS LIST: the question as a button that opens its menu, then what the list is measured from, which gives way first in a narrow panel. */
 .diff-toolbar {
   display: flex;
   align-items: center;

@@ -22,7 +22,7 @@ export const summary = (over: Partial<DiffSummary> = {}): DiffSummary => ({
 /** A changed file, one line added unless a check says otherwise. */
 export const file = (path: string, over: Partial<DiffFile> = {}): DiffFile => ({ path, from: null, status: 'M', added: 1, deleted: 0, binary: false, generated: false, ...over });
 
-/** The layout: the sidebar, the terminal area, the Editor at `width` beside it, and a diff panel on the right; the Editor switched off when `editorOff`. */
+/** The layout: the sidebar, the terminal area, the Editor at `width` beside it, and an Explorer on the right; the Editor switched off when `editorOff`. */
 const diffLayout = (width: string | null, editorOff: boolean): Partial<BridgeFixture> & { layout: LayoutReport } =>
   withLayout({
     version: 2,
@@ -33,7 +33,7 @@ const diffLayout = (width: string | null, editorOff: boolean): Partial<BridgeFix
         { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] },
         // With no width, the file leaves the Editor out, and the app adds it as it would to anyone's.
         ...(width === null ? [] : [{ id: 'editor', size: width, panels: [{ id: 'files', type: 'editor', ...(editorOff ? { hidden: true } : {}) }] }]),
-        { id: 'right', size: '360px', panels: [{ id: 'changes', type: 'diff' }] },
+        { id: 'right', size: '360px', panels: [{ id: 'changes', type: 'explorer' }] },
       ],
     },
   });
@@ -42,8 +42,8 @@ const diffLayout = (width: string | null, editorOff: boolean): Partial<BridgeFix
 export const picksData = (picks: Partial<DiffPicks>): PanelData => ({ sessions: {}, lastGroup: {}, diff: { ...DEFAULT_DIFF_PICKS, ...picks } });
 
 /**
- * Boot with the project's session on show, the Editor and the diff panel beside it, and main answering each question from `diffs`.
- * `data` is what the diff panel's own file keeps and `editor` what the window keeps of the Editor (docked, how it draws a diff), `tree` the project's working tree's fingerprint, `files` each file's diff by path, `width` the docked Editor's, null to leave it out of the file, `editorOff` the Editor panel switched off, `also` a second session of the project open in a tab of its own, `history` the requests of the session on show, and `historyUi` what the window keeps of the history (docked, its width).
+ * Boot with the project's session on show, the Editor and the Explorer beside it, and main answering each question from `diffs`.
+ * `data` is what the Explorer's own file keeps and `editor` what the window keeps of the Editor (docked, how it draws a diff), `tree` the project's working tree's fingerprint, `files` each file's diff by path, `width` the docked Editor's, null to leave it out of the file, `editorOff` the Editor panel switched off, `also` a second session of the project open in a tab of its own, `history` the requests of the session on show, and `historyUi` what the window keeps of the history (docked, its width).
  */
 export async function bootDiff(
   app: App,
@@ -101,8 +101,8 @@ export const position = (page: Page): Locator => editor(page).locator('.diff-pos
 /** The Editor's tabs, in its header. */
 export const editorTabs = (page: Page): Locator => page.locator('.editor-view .panel-tabs .tab');
 
-export const panel = (page: Page): Locator => page.locator('.diff-panel');
+export const panel = (page: Page): Locator => page.locator('.explorer-panel');
 export const rows = (page: Page): Locator => panel(page).locator('.list-row');
-export const note = (page: Page): Locator => panel(page).locator('.diff-note');
+export const note = (page: Page): Locator => panel(page).locator('.explorer-note');
 export const questionButton = (page: Page): Locator => panel(page).locator('.diff-question');
 export const menuRows = (page: Page): Locator => page.locator('.kebab-menu button.menu-row');

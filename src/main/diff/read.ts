@@ -7,7 +7,7 @@ import { git } from '../git';
 import { againstOf, baseOf, countsOf } from './bases';
 
 /**
- * A checkout's changes for the diff panel, read from git: the files a question lists, and one file's hunks.
+ * A checkout's changes for the Explorer, read from git: the files a question lists, and one file's hunks.
  * The whole working tree of the checkout the folder is in, untracked files included, with paths relative to its root.
  */
 

@@ -50,7 +50,7 @@ What is about the whole area is the whole's: the history's Ctrl+Shift+↑ and �
 Both are made by one factory (`builtinType`, in `panels/types/builtin.ts`), so the re-attaching mount is written once rather than in each: it puts the element back, and hands the new host the type's rail status as it is now (`railStatus`), since a remount is a new host; after that, a watcher of the type's own hands its host every change.
 Its being a singleton is said there, where the type is, rather than special-cased in the tree, which drives a built-in exactly as it drives any panel.
 These two are the only singletons, for the reason above: what runs in them has to outlive any layout.
-Every other type, `command`, `terminal` and `diff` among them and any built-in added from here on, is an ordinary one: an instance per entry, built by its `mount`, its store watchers, if it has any, taken there and dropped in `unmount` (`store.watch` answers the unsubscribe), and its asks made through the host its mount was handed rather than `hostOf`.
+Every other type, `command`, `terminal` and `explorer` among them and any built-in added from here on, is an ordinary one: an instance per entry, built by its `mount`, its store watchers, if it has any, taken there and dropped in `unmount` (`store.watch` answers the unsubscribe), and its asks made through the host its mount was handed rather than `hostOf`.
 The two ask each other through the host every panel is given (`Asks`, in `panels/contract.ts`, the contract every type is written against), the same route a list panel's row takes to open or start a session: the terminal area answers opening a session or just its tab, starting, forking, stopping and closing sessions, and showing a project's tabs; the session list answers selecting a project and bringing a session, a project or a group into view.
 Each type's answers are one object in its `asks.ts`, which `renderer.ts` hands the tree, and every panel's host carries them as they are, so an ask is the answer itself rather than a hop through the tree; a surface never imports the other type's modules: what they share is the store and these asks.
 An ask names a session by its id or a project by its folder, never a tab by its token, which is the terminal area's own; a built-in reaches its host outside a mount by `hostOf`, and none can ask before the tree has placed both, which it does as it first draws.
@@ -401,14 +401,14 @@ Whether a panel is mounted to dock in is the store's (`editorDock`), set as it m
 It is an ordinary panel, built afresh on each mount, so it is not one of the two elements that outlive the layout.
 
 **Its tabs** are one per file.
-A press on a file in the diff panel opens it as a preview, its name in italics, which the next file opened without keeping takes the place of; a double click on the row, or on the tab's name, or Pin in its menu keeps it, so the next file gets a tab of its own.
+A press on a file in the Explorer opens it as a preview, its name in italics, which the next file opened without keeping takes the place of; a double click on the row, or on the tab's name, or Pin in its menu keeps it, so the next file gets a tab of its own.
 A tab's menu holds Pin while it is a preview, Copy path, Close other tabs while there are others, Close, and Close all while there are others.
 Close all files at the end of the head closes every file of the tab on show at once, docked or in the drawer; docked, the Editor then gives back its room.
 Closing the tab on show puts the one after it on show, else the one before.
 What is open is the store's (`editorTabs`, with its rules, pure and tested, in `src/renderer/state/editor-tabs.ts`), one set per session, by its id, and one while no tab is on show: switching session tabs switches the Editor's files, a move between drawer and dock or a layout change draws them again from there, a session closed and opened again in the same run gets its files back, and none outlives the run; a `/clear`, which puts a new session in its tab, starts with none.
 
 **A file's tab** (`editor/file/`) shows the file's diff against what its opener asked: the checkout, the question and the commit the list was measured from, so the two describe the same diff.
-Each tab that has been on show reads its file again when the checkout's working tree changes, on a `TreeWatch` of its own, reading the changed files again for its question, so it needs no panel beside it; the diff panel and each such tab read the changed files apart.
+Each tab that has been on show reads its file again when the checkout's working tree changes, on a `TreeWatch` of its own, reading the changed files again for its question, so it needs no panel beside it; the Explorer and each such tab read the changed files apart.
 What a read finds, a newer commit to compare with or a new order of files, is written back to the tab in the store (`updated`), so the tab shows it again when it comes back on show.
 Every file says "Read only" in its header, since nothing in the Editor edits a file yet.
 How a diff is drawn, the view, hidden whitespace and Changes only, is the Editor's own pick, kept for the window (`editorUi`).
@@ -424,7 +424,7 @@ Split view is one grid of three columns in one scroller, so the two sides scroll
 The words that changed are marked in a removed line and an added one only where a run of removed lines meets a run of added lines of the same length, paired row by row, since lines of runs of different lengths need not be edits of each other.
 A generated file is one line until it is asked for, a binary file and a file with nothing to show each say so in a sentence, and hiding whitespace reads the file again with git's `-w`.
 A stepper walks the changes, by the buttons in the diff's header or `j` and `k` in it, on into the next file of its opener's order that has a change to step to, round from the last to the first, passing over a binary file, a generated one still folded and one with nothing to mark, and says which change of which file it is on.
-The step takes the tab to that file, in its place, and the diff panel marks it; a file with a tab of its own already is put on show in that tab, and the stepping tab closes.
+The step takes the tab to that file, in its place, and the Explorer marks it; a file with a tab of its own already is put on show in that tab, and the stepping tab closes.
 With no other file to step into it goes round within the file on show, its folds kept when it is the only file, and drawn afresh when the others were drawn on the way round.
 A map at the diff's right edge has a tick per change, placed from the laid-out rows, and a press on one goes to it.
 Line numbers are drawn from an attribute, so a copied selection carries none.
@@ -432,7 +432,7 @@ The code is coloured by its language, found from the file's name (`src/renderer/
 A side past 131,072 characters, a file not on disk, and a row whose line the side names is not its text (with whitespace hidden, or a file that moved between the reads) are coloured row by row instead, and again at every draw; a file in a language not picked is plain text, a language a picked grammar only embeds included.
 Colours and changed words are ranges over the same text, so a changed word is marked over its colour, and the whole sides are coloured once for each read of the file, not again for each fold opened.
 
-### The `diff` type
+### The `explorer` type
 
 What changed in the checkout a panel looks in, read from git: a type of the app's own, an instance per entry like `command` and `terminal`, which a layout places beside the session ([decided 2026-11-14](../decisions/0236-the-diff-is-a-panel-beside-the-session.md)).
 Its one option is `cwd`, the same declaration and rule as a `command` panel's, so it looks where one would run and names that folder in its header.
@@ -573,7 +573,7 @@ A link whose session the app no longer has is simply not drawn, whether or not m
 A second Review on such a row opens the dialog on CONTINUING the latest session, since that session holds what the first look found: stopped, it is resumed with the prompt as its first (`--resume <id> -- <prompt>`, checked against claude in print mode before this was built); running, it is brought into view and the prompt is not sent, which the dialog says before anything happens, because typing into a live session could land mid-turn or on a question and is never the app's to do.
 
 **Which session a row started is the panel's data, kept by the app.**
-One file per entry, `panel-data/<entry id>.json` in the app's data directory, with the sessions its rows started (by session id: the item's key, its text, its link, when) and the group last picked per project; a `terminal` panel keeps its shells in it too (§ The `terminal` type), and a `diff` panel its question (§ The `diff` type).
+One file per entry, `panel-data/<entry id>.json` in the app's data directory, with the sessions its rows started (by session id: the item's key, its text, its link, when) and the group last picked per project; a `terminal` panel keeps its shells in it too (§ The `terminal` type), and an `explorer` panel its question (§ The `explorer` type).
 Not in `meta.json`, so a panel's data cannot damage the app's, and not in the config folder, which is what gets shared while a session id means something only on this machine.
 The app writes it, never the script, which never learns a session id: the id is minted before the tab exists and the link written first, so the row can lead back to the session from the start.
 A file that does not parse, or is of another version, is kept beside itself rather than overwritten, and an entry that is not sound is dropped and logged.

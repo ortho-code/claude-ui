@@ -78,7 +78,7 @@ A panel that cannot run wears `alert` whatever it names, so a broken one stands 
   `cwd` picks the folder it runs in, `interval` how often it runs again on its own, and `watch` whether it runs again when that folder's git working tree changes.
 - `terminal` holds plain shells, the same login shell your sessions run in, as tabs in its header.
   `cwd` picks the folder they start in, and `scope` whether its tabs are the selected project's (`project`) or the same in every project (`global`).
-- `diff` shows what changed in the checkout it looks in, which it finds as a `command` panel finds its folder, and takes a `cwd` the same way; see [The diff panel](#the-diff-panel) below.
+- `explorer` shows what changed in the checkout it looks in, which it finds as a `command` panel finds its folder, and takes a `cwd` the same way; see [The Explorer](#the-explorer) below.
 - A folder under `panel-types/` in the config folder is a type of your own, named after the folder; see [Panel types of your own](#panel-types-of-your-own) below.
 
 This one puts a shell in a drawer under the terminal area and two commands behind icons on the right, and lets the sidebar, the drawer and the right side fold:
@@ -177,12 +177,12 @@ The variables tell the panel where it runs: `CLAUDE_UI_CWD` is that folder, and 
 A mistake in the file — an unknown type, a missing id, a size it cannot read, an option the type does not have, a script that is not there or not executable — is named in the place of the thing that is wrong, and a file that does not parse leaves the last good layout up and says what is wrong and at which line and column.
 A panel's options are checked by the panel itself, when it appears and before each run, so a missing script is named a moment after the rest.
 
-## The diff panel
+## The Explorer
 
-A `diff` panel lists the files that changed in the checkout it looks in, beside the session that is changing them:
+An `explorer` panel lists the files that changed in the checkout it looks in, beside the session that is changing them:
 
 ```json
-{ "id": "changes", "type": "diff" }
+{ "id": "changes", "type": "explorer" }
 ```
 
 It looks where a `command` panel would run, follows the session into a worktree the same way, and takes a `cwd` the same way.

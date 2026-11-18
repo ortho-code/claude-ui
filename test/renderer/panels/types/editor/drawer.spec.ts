@@ -5,7 +5,7 @@ import { type App, expect, test } from '../../../support/harness';
 import { goLive } from '../../../support/live';
 import { tab } from '../../../support/window';
 import { here } from '../../layout/layout';
-import { bootDiff, editor, editorPanel, editorTabs, file, fileDiff, menuRows, rows, summary } from '../diff/diff';
+import { bootDiff, editor, editorPanel, editorTabs, file, fileDiff, menuRows, rows, summary } from '../explorer/explorer';
 
 // The Editor opens as a drawer over the terminal area, so the terminal keeps its width; Dock puts it beside the terminal and Undock back, kept for the window; it and the history take turns in the drawer.
 

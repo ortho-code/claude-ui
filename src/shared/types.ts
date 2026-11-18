@@ -835,7 +835,7 @@ export interface ClaudeUiApi {
   diffBaseCount(dir: string, ref: string): Promise<number | null>;
   /** Keep `ref` as the base for the branch `dir` has out, or for its whole project, or clear it with `null`. */
   setDiffBase(dir: string, scope: 'branch' | 'project', ref: string | null): Promise<void>;
-  /** Keep a diff panel's picks as they are now, whole, in its data file. */
+  /** Keep an Explorer's picks as they are now, whole, in its data file. */
   setDiffPicks(entryId: string, picks: DiffPicks): Promise<void>;
   /** Where each of the app's own folders is, for Settings to show. */
   getFolders(): Promise<Record<FolderName, string>>;

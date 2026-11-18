@@ -2,9 +2,9 @@ import type { Page } from '@playwright/test';
 import { PROJECT } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { here } from '../../layout/layout';
-import { bootDiff, file, rows, summary } from './diff';
+import { bootDiff, file, rows, summary } from './explorer';
 
-// The diff panel reads its list again, unasked, when the checkout's working tree changes, looked at every 30 s, and when the session on show ends a turn, so the list keeps up while you work beside it.
+// The Explorer reads its list again, unasked, when the checkout's working tree changes, looked at every 30 s, and when the session on show ends a turn, so the list keeps up while you work beside it.
 
 const POLL = 30_000;
 const reads = async (app: App): Promise<number> => (await app.calls('diffSummary')).length;

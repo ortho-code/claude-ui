@@ -1,7 +1,7 @@
 # The diff is a panel beside the session
 
 - **Date:** 2026-11-14
-- **Area:** [The `diff` type](../architecture/panels.md#the-diff-type)
+- **Area:** [The `explorer` type](../architecture/panels.md#the-explorer-type)
 - **Partly replaced** by [0240](0240-files-open-in-an-editor-beside-the-session.md) on 2026-11-18: the panel lists the changed files, and a file's diff opens in the Editor beside the session; the panel's own full screen is no longer how a diff gets room.
 
 ## Decision

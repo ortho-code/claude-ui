@@ -4,7 +4,7 @@ import { expect, test } from '../../../support/harness';
 import { goLive } from '../../../support/live';
 import { historyAtTop, tab } from '../../../support/window';
 import { here } from '../../layout/layout';
-import { bootDiff, editor, editorTabs, file, fileDiff, rows, summary } from '../diff/diff';
+import { bootDiff, editor, editorTabs, file, fileDiff, rows, summary } from '../explorer/explorer';
 
 // While the drawer over the terminal area is open with both the history and the Editor to show, a rail on its left edge switches between them; what is docked leaves it.
 

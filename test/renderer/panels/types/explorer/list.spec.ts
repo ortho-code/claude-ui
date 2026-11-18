@@ -1,8 +1,8 @@
 import { PROJECT } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { bootDiff, file, menuRows, note, panel, picksData, questionButton, rows, summary } from './diff';
+import { bootDiff, file, menuRows, note, panel, picksData, questionButton, rows, summary } from './explorer';
 
-// The diff panel lists the files that changed in the checkout it looks in, for one of three questions, flat or as a tree.
+// The Explorer lists the files that changed in the checkout it looks in, for one of three questions, flat or as a tree.
 
 const changed = summary({
   files: [file('src/app/main.ts', { added: 3, deleted: 1 }), file('src/app/new-name.ts', { status: 'R', from: 'src/old-name.ts' }), file('README.md', { status: 'U' }), file('logo.png', { binary: true })],

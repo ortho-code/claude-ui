@@ -5,7 +5,7 @@ const isQuestion = (value: unknown): value is DiffQuestion => DIFF_QUESTIONS.inc
 export const isDiffView = (value: unknown): value is DiffView => DIFF_VIEWS.includes(value as DiffView);
 
 /**
- * The sound part of a diff panel's kept picks, or null when its question is not sound: read tolerantly, as the rest of a panel's data is.
+ * The sound part of an Explorer's kept picks, or null when its question is not sound: read tolerantly, as the rest of a panel's data is.
  * A file that also holds how a diff was drawn, as the panel kept it before the Editor drew diffs, keeps only its question.
  * Main's rule, pure, so that the window's checks keep the picks the way main does.
  */

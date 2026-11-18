@@ -125,7 +125,7 @@ export interface Meta {
   groups: SessionGroup[];
   /** Session id -> group id; a session is in at most one group. */
   groupOf: Record<string, string>;
-  /** The diff panel's base for Since branched, kept per project by repoRoot: the project's own, and one per branch, which wins over it. */
+  /** The Explorer's base for Since branched, kept per project by repoRoot: the project's own, and one per branch, which wins over it. */
   diffBases: Record<string, DiffBases>;
   /** Schema version; 3 = keyed by session id; 2 was conversation-keyed; 1 raw ids. */
   version: number;

@@ -2,7 +2,7 @@ import { PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { tab } from '../../../support/window';
 import { here } from '../../layout/layout';
-import { bootDiff, editor, editorPanel, editorTabs, file, fileDiff, rows, summary } from '../diff/diff';
+import { bootDiff, editor, editorPanel, editorTabs, file, fileDiff, rows, summary } from '../explorer/explorer';
 
 // The Editor's tabs: a press opens a preview the next press takes the place of, a double click keeps one, each session tab has its own, and the Editor takes no room once the last closes.
 

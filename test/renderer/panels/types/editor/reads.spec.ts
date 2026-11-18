@@ -1,6 +1,6 @@
 import { PROJECT } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
-import { bootDiff, editorTabs, file, fileDiff, rows, summary } from '../diff/diff';
+import { bootDiff, editorTabs, file, fileDiff, rows, summary } from '../explorer/explorer';
 
 // A file open in the Editor is read again, on its own watch, when its checkout's working tree changes, against the commit its list now measures from; that comparison stays with its tab.
 

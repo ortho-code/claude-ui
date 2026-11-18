@@ -1,7 +1,7 @@
 # A diff's base comes in three layers
 
 - **Date:** 2026-11-14
-- **Area:** [The `diff` type](../architecture/panels.md#the-diff-type)
+- **Area:** [The `explorer` type](../architecture/panels.md#the-explorer-type)
 
 ## Decision
 

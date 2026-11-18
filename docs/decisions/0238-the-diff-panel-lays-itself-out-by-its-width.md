@@ -1,7 +1,7 @@
 # The diff panel lays itself out by its own width
 
 - **Date:** 2026-11-14
-- **Area:** [The `diff` type](../architecture/panels.md#the-diff-type)
+- **Area:** [The `explorer` type](../architecture/panels.md#the-explorer-type)
 - **Partly replaced** by [0240](0240-files-open-in-an-editor-beside-the-session.md) on 2026-11-18: the diff panel is the list only, and a file's diff opens in the Editor; Fit, Split and Unified hold there, Fit by the Editor's width.
 
 ## Decision

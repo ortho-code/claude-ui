@@ -1,0 +1,10 @@
+/* THE EXPLORER: its row of controls, then the list of changed files, whose diffs open in the Editor. */
+.explorer-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.explorer-note {
+  padding: 8px 14px;
+}
