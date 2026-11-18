@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:text": "vitest run test/text/",
     "test:renderer": "npm run build && playwright test -c test/renderer",
+    "test:perf": "npm run build && playwright test -c test/perf",
     "styles:compare": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/renderer/styles/compare.ts",
     "comments:prove": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/tools/comments-only.ts",
     "lint": "eslint .",

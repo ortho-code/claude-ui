@@ -240,3 +240,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0232](0232-the-sessions-file-gives-each-sessions-rank.md) | 2026-11-17 | The sessions file gives each session's rank | [Types from the config folder](../architecture/panels.md#types-from-the-config-folder) |
 | [0233](0233-a-review-posted-through-graphql-is-found-by-its-id.md) | 2026-11-18 | A review posted through GraphQL is found by its id | [Reading sessions](../architecture/sessions.md#reading-sessions) |
 | [0234](0234-a-finished-session-reopens-in-one-press.md) | 2026-11-18 | A finished session reopens in one press | [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it) |
+| [0235](0235-the-performance-checks-run-on-their-own.md) | 2026-11-18 | The performance checks run on their own | [The performance checks](../architecture/build-and-checks.md#the-performance-checks) |
