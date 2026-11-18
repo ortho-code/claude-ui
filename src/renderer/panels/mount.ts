@@ -142,9 +142,8 @@ function viewSwitch(slot: PanelSlot, context: MountContext): { element: HTMLElem
   return { element: views, picked: pickedView, show: showViews, keep: keepPick, notes: () => viewNotesNow };
 }
 
-/** Mount the panel for a slot, with its header's marks and controls and the host it reports through. */
-export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
-  const type = context.typeOf(slot.type!);
+/** A panel's marks in its header and on its rail icon, made once with it and empty until it reports: the busy mark, the run's last word, its button, its full-screen button, the rail's dot and the count in both places. */
+function headerMarks(type: PanelType, slot: PanelSlot, context: MountContext): Pick<Mounted, 'busy' | 'end' | 'action' | 'fullScreenButton' | 'badge' | 'count' | 'railCount'> {
   const busy = element('span', 'nudge running');
   busy.hidden = true;
   const end = element('span', 'panel-end');
@@ -162,6 +161,13 @@ export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
   const count = element('span', 'panel-count');
   const railCount = element('span', 'rail-count');
   count.hidden = railCount.hidden = true;
+  return { busy, end, action, fullScreenButton, badge, count, railCount };
+}
+
+/** Mount the panel for a slot, with its header's marks and controls and the host it reports through. */
+export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
+  const type = context.typeOf(slot.type!);
+  const { busy, end, action, fullScreenButton, badge, count, railCount } = headerMarks(type, slot, context);
   const folder = folderMark();
   const views = viewSwitch(slot, context);
   // What the panel reports about itself, held here so a report made while it is still mounting is not lost; a change re-renders, since both the panel's place and its rail icon draw from it.
