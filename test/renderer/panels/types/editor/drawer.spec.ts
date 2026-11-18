@@ -28,7 +28,7 @@ test('a file opens the Editor as a drawer over the terminal, which keeps its wid
   await expect(editorPanel(page)).toHaveCount(0);
   expect(await terminalWidth(page)).toBe(width);
   await page.locator('.drawer-scrim').click({ position: { x: 5, y: 5 } });
-  await expect(editor(page)).toHaveCount(0);
+  await expect(editor(page)).toBeHidden();
 });
 
 test('Dock puts the Editor beside the terminal and Undock back in the drawer, kept for the window', async ({ app, page }) => {
@@ -59,7 +59,7 @@ test('the Editor and the history take turns in the drawer', async ({ app, page }
   await expect(page.locator('.drawer .editor-view')).toBeVisible();
   await page.locator('.history-bar').click();
   await expect(page.locator('.history')).toBeVisible();
-  await expect(editor(page)).toHaveCount(0);
+  await expect(editor(page)).toBeHidden();
   await rows(page).nth(1).click();
   await expect(page.locator('.drawer .editor-view')).toBeVisible();
   await expect(page.locator('.history')).toBeHidden();
@@ -72,6 +72,17 @@ test('with the Editor docked, the history opens over the terminal only, and the 
   await page.locator('.history-bar').click();
   await expect(page.locator('.history')).toBeVisible();
   await expect(editorPanel(page).locator('.editor-view')).toBeVisible();
+});
+
+test('docked, a step to the next file made with the keys in the Editor leaves them there', async ({ app, page }) => {
+  await bootDiff(app, { since: listed }, { files, editor: { docked: true } });
+  await goLive(page, app, tab(page, here.title));
+  await rows(page).nth(0).click();
+  await editor(page).locator('.diff-hunks').click();
+  await page.keyboard.press('j');
+  await expect(editorTabs(page)).toHaveText(['b.ts']);
+  await page.keyboard.press('j');
+  await expect(editorTabs(page)).toHaveText(['c.ts']);
 });
 
 test('a switch of session tabs closes the drawer', async ({ app, page }) => {
@@ -116,7 +127,7 @@ test('opening the drawer gives the file the keys, and Esc closes it, giving them
   await rows(page).nth(0).click();
   await expect(editor(page).locator('.diff-hunks')).toBeFocused();
   await page.keyboard.press('Escape');
-  await expect(editor(page)).toHaveCount(0);
+  await expect(editor(page)).toBeHidden();
   await expect(page.locator('.term.active .xterm-helper-textarea')).toBeFocused();
 });
 

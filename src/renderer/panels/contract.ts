@@ -106,6 +106,21 @@ export interface LinkedSession {
 /** Where a session's menu is opened: its row in the list or its tab, each of which leaves out the item that would be itself, or a panel's row naming it. */
 export type SessionSurface = 'row' | 'tab' | 'panel';
 
+
+/** What the drawer over the terminal area holds, as its rail lists it, and how it opens and closes. */
+export interface DrawerEntry {
+  icon: IconName;
+  /** Its name on the rail, as its tooltip and to a screen reader. */
+  label: string;
+  /** What the rail's count beside its icon says, or null for none. */
+  count(): number | null;
+  /** Whether the rail lists it now; always, while held, when absent. */
+  listed?(): boolean;
+  /** Show it, for a press on its rail icon. */
+  open(): void;
+  /** Close it: `taken` when something else takes the drawer, which then keeps the keys, else a press on the scrim or on its own rail icon, which gives the pane back. */
+  close(taken: boolean): void;
+}
 /**
  * What one surface asks another for, through the host every panel is given (docs/architecture/panels.md § The app's own surfaces are panels): each ask is answered by the built-in that owns it, so no surface reaches into another's code.
  * By session id or project folder, never a tab's token, which is the terminal area's own.
@@ -136,12 +151,16 @@ export interface Asks {
   /** The terminal area's half of selecting a project: the tabs on show and the tab in front follow it. */
   showProject(repoRoot: string | null): void;
   /**
-   * Show `el` in the drawer over the terminal area, taking it from whatever was on show there, which closes its own way; `close` is how a press on the scrim, or something else taking the drawer, closes `el`.
-   * `el` is kept laid out in the drawer from then on, until `hideFromDrawer`.
+   * Hold `el` in the drawer over the terminal area, laid out and out of sight until `showInDrawer`, and listed on the drawer's rail as `entry` says, until `releaseFromDrawer`.
+   * Holding it again takes the new `entry`, and redraws the rail, as for a new count.
    */
-  showInDrawer(el: HTMLElement, close: () => void): void;
-  /** Take `el` out of the drawer, closing the drawer while `el` is what it shows, and give the keys back to the live terminal when they were in it; anything else on show stays. */
+  holdInDrawer(el: HTMLElement, entry: DrawerEntry): void;
+  /** Show `el`, held, in the drawer, taking it from whatever was on show there, which closes its own way. */
+  showInDrawer(el: HTMLElement): void;
+  /** Close the drawer while `el` is what it shows, and give the keys back to the live terminal when they were in it; `el` stays held, and anything else on show stays. */
   hideFromDrawer(el: HTMLElement): void;
+  /** Let go of `el`, closing the drawer first while it is what it shows, as `hideFromDrawer` does; it leaves the rail, and can be placed elsewhere. */
+  releaseFromDrawer(el: HTMLElement): void;
   // Answered by the session list.
   /** Select a project, or All for null, as the switcher does. */
   selectProject(repoRoot: string | null): void;

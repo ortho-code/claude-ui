@@ -1,5 +1,5 @@
 /*
-  A RAIL OF ICONS (panels/rail.ts): a panel group's switcher, the icons of its panels, 28px across, the whole of a folded group.
+  A RAIL OF ICONS (panels/rail.ts): a panel group's switcher, the icons of its panels, 28px across, the whole of a folded group; and the drawer's over the terminal area (types/claude/drawer.css), between what it holds.
   Its items are icon buttons in the standard box, with a hover of their own, a tab's fill rather than an icon button's accent.
   A panel header's view switch (.panel-view) shares the rail item's look on show, its hover and its cursor.
 */

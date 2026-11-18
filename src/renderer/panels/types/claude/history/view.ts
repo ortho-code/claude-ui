@@ -66,6 +66,8 @@ export class HistoryView implements BarSource {
   private readonly left = new Map<string, Place>();
   /** Where to reopen the session followed once its history has been read; undefined when it was left closed, or has been opened or closed since. */
   private reopen: Place | undefined;
+  /** Closed for something else taking the drawer, so the next opening comes back where it was rather than at the end. */
+  private keptPlace = false;
   /** What its exchanges are drawn with: its pins, the folds opened by hand, and its stars' presses. */
   private readonly drawing: ExchangeDrawing = {
     pins: () => this.pins,
@@ -123,6 +125,7 @@ export class HistoryView implements BarSource {
     }
     this.setStandalone(null);
     if (this.shown) this.host.leave();
+    this.keptPlace = false;
     this.reopen = id ? this.left.get(id) : undefined;
     this.session = id;
     this.followed++;
@@ -181,10 +184,11 @@ export class HistoryView implements BarSource {
     this.host.place(!this.shown ? 'closed' : this.standalone !== null ? 'whole' : 'over');
   }
 
-  /** Close it, standing for a cold tab or open over a live one, without handing the keys anywhere: for something else taking the drawer it is drawn in. */
+  /** Close it, standing for a cold tab or open over a live one, without handing the keys anywhere, and keeping its place for its next opening: for something else taking the drawer it is drawn in. */
   close(): void {
     if (this.standalone !== null) this.setStandalone(null);
     else this.setShown(false);
+    this.keptPlace = true;
   }
 
   private leave(): void {
@@ -194,7 +198,7 @@ export class HistoryView implements BarSource {
 
   /**
    * Take the pane from the live terminal, or give it back; says whether anything changed.
-   * Taking it starts at the end, where the live view was, with the keys here.
+   * Taking it starts at the end, where the live view was, or where it was when something else took the drawer from it (`close`), with the keys here.
    */
   setShown(shown: boolean): boolean {
     if (shown === this.shown) return false;
@@ -203,9 +207,10 @@ export class HistoryView implements BarSource {
     this.el.classList.toggle('shown', shown);
     this.placeDrawer();
     if (shown) {
-      this.scrollToEnd();
+      if (!this.keptPlace) this.scrollToEnd();
       this.scroller.focus({ preventScroll: true });
     }
+    this.keptPlace = false;
     this.onScroll?.();
     return true;
   }

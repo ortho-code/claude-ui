@@ -1,4 +1,4 @@
-/* THE DRAWER over the terminal area (claude/drawer.ts), which the history is drawn in.
+/* THE DRAWER over the terminal area (claude/drawer.ts), which the history and the undocked Editor are drawn in.
    Hidden by visibility, never display, while it is closed: it stays laid out, so what it holds can be measured, which is how the history's bar places its marks. */
 .drawer {
   position: absolute;
@@ -25,6 +25,18 @@
 
 .drawer-content.on {
   visibility: inherit;
+}
+
+/* Its rail (panels/rail.css), on its left edge while it lists more than one thing, and what it holds beside it. */
+.drawer > .panel-rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 28px;
+  border-right: 1px solid var(--border);
+}
+
+.drawer.railed > .drawer-content {
+  left: 29px;
 }
 
 /* Over a live claude it slides in from the right over about two-thirds of the pane, and claude stays in view on the left, dimmed, at its real size, so it never redraws; a click there is the way back.

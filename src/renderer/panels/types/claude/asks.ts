@@ -155,7 +155,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
 }
 
 /** The asks the terminal area answers. */
-export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressLeave' | 'finishSessions' | 'closeTabs' | 'setAsideTabs' | 'showProject' | 'showInDrawer' | 'hideFromDrawer'> = {
+export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressLeave' | 'finishSessions' | 'closeTabs' | 'setAsideTabs' | 'showProject' | 'holdInDrawer' | 'showInDrawer' | 'hideFromDrawer' | 'releaseFromDrawer'> = {
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
@@ -175,16 +175,16 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
   closeTabs,
   setAsideTabs: (ids, done) => setAsideTabs(ids, done),
   showProject: (repoRoot) => switchWorkspaceTerminal(repoRoot),
-  showInDrawer: (el, close) => {
-    drawer.hold(el, close);
-    drawer.set(el, 'over');
-  },
-  // Let go of, not only closed: what asked for the drawer can then be placed elsewhere, as the Editor is when it docks.
-  // The keys go back to the live terminal when they were in what closed, as they do when the history closes.
-  hideFromDrawer: (el) => {
-    const hadKeys = el.contains(document.activeElement);
-    drawer.release(el);
-    const tab = tabOnShow(store.get());
-    if (hadKeys && tab && tab.terminalId !== null) terminalOf(tab.token).term.focus();
-  },
+  holdInDrawer: (el, entry) => drawer.hold(el, entry),
+  showInDrawer: (el) => drawer.set(el, 'over'),
+  hideFromDrawer: (el) => keysBackFrom(el, () => drawer.set(el, 'closed')),
+  releaseFromDrawer: (el) => keysBackFrom(el, () => drawer.release(el)),
 };
+
+/** Do `close` to `el` in the drawer, and give the keys back to the live terminal when they were in it there, as they go back when the history closes; `el` placed elsewhere, such as the Editor docked, keeps them. */
+function keysBackFrom(el: HTMLElement, close: () => void): void {
+  const hadKeys = drawer.frame.contains(el) && el.contains(document.activeElement);
+  close();
+  const tab = tabOnShow(store.get());
+  if (hadKeys && tab && tab.terminalId !== null) terminalOf(tab.token).term.focus();
+}

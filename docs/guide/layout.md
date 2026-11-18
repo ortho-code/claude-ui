@@ -207,6 +207,7 @@ Files open in the Editor, as a drawer over the terminal area, the one the histor
 **Dock** in its head puts it beside the terminal instead, so you can read while the session goes on working, and **Undock** puts it back; the app remembers which.
 Docked, it takes no room while nothing is open in it, and comes back at the size you last gave it when a file opens; in the default layout it first takes two-thirds of what it shares with the terminal.
 The Editor and the history take turns in the drawer; with the Editor docked, the history opens over the terminal and the file stays in view.
+With both open, a rail on the drawer's left edge switches between them: History, and Files with how many are open; a click on the lit one closes the drawer, a click on the other shows that one, and the history comes back where it was when the files took its place.
 Each session tab has its own files in it; switching tabs switches them, and closes the drawer.
 
 A press on a file opens it as a preview, its name in italics, which the next file you open takes the place of; a double click, on the file or on its tab, or Pin in the tab's menu, keeps it, so the next one opens beside it.

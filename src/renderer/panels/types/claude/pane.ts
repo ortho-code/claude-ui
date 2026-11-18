@@ -30,8 +30,16 @@ export const history = new HistoryView({
   open: () => openHistory(),
   place: (state) => drawer.set(history.el, state),
 });
-// A press on the scrim gives the pane back to the live terminal, with the keys; the Editor taking the drawer only closes the history, standing for a cold tab or not, and keeps the keys for itself.
-drawer.hold(history.el, (taken) => (taken ? history.close() : showHistory(false)));
+// A press on the scrim or its rail icon gives the pane back to the live terminal, with the keys, or, standing for a cold tab, back to the pane's sentence; the Editor taking the drawer only closes the history, standing or not, keeping its place and the keys for itself.
+// Listed on the drawer's rail while the tab on show has requests to show.
+drawer.hold(history.el, {
+  icon: 'clock',
+  label: 'History',
+  count: () => null,
+  listed: () => history.size > 0,
+  open: openHistory,
+  close: (taken) => (taken ? history.close() : history.standing ? history.setStandalone(null) : showHistory(false)),
+});
 terminalsEl.append(drawer.scrim, drawer.frame);
 // Its bar, beside the terminal area: picking an entry on it opens the history there, from live or not.
 const historyBar = new HistoryBar(
@@ -42,7 +50,10 @@ const historyBar = new HistoryBar(
   },
   openHistory,
 );
-history.onLayout = () => historyBar.refresh();
+history.onLayout = () => {
+  historyBar.refresh();
+  drawer.relist();
+};
 history.onScroll = () => historyBar.moveBand();
 
 /** The pane, built here and placed by the terminal area (index.ts) under the tab bar: the terminals, with the history over them, and the history's bar beside them. */

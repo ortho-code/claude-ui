@@ -3,7 +3,7 @@ import { setTooltip } from '../ui/tooltip';
 import './rail.css';
 
 /**
- * A RAIL OF ICONS, one look and one behaviour wherever there is one: a panel group's switcher (tree.ts).
+ * A RAIL OF ICONS, one look and one behaviour wherever there is one: a panel group's switcher (tree.ts), and the drawer's over the terminal area (types/claude/drawer.ts).
  * The one on show is filled and edged in the accent on the side away from what it switches; a press on another shows that one, and a press on the one on show puts the whole away, where that can be done.
  */
 
