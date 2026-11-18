@@ -380,7 +380,7 @@ The same observer covers every later reveal — its tab picked, a switch on the 
 
 ### The `editor` type
 
-Files open in the Editor, one for the window ([decided 2026-11-18](../decisions/0229-files-open-in-an-editor-beside-the-session.md), [as a drawer or docked](../decisions/0230-the-editor-opens-as-a-drawer-or-docks.md)).
+Files open in the Editor, one for the window ([decided 2026-11-18](../decisions/0240-files-open-in-an-editor-beside-the-session.md), [as a drawer or docked](../decisions/0241-the-editor-opens-as-a-drawer-or-docks.md)).
 Its view (`types/editor/view.ts`) is built once, apart from the layout, with a head of its own: its tabs, drawn with the tabs a panel's header draws (`HeaderTabs`), and a Dock button.
 One controller (`types/editor/controller.ts`), started with the window, keeps it where the store says: in the drawer over the terminal area while it is not docked and open there, through the terminal area's asks, or in the Editor panel while it is docked.
 Undocked with files open for the tab on show, the view is held in the drawer (`holdInDrawer`), laid out and out of sight, and listed on the drawer's rail as Files with how many are open; `showInDrawer` and `hideFromDrawer` show it and put it out of sight, and docking it, or no file open for the tab on show, lets go of it (`releaseFromDrawer`), which takes it off the rail; the keys go back to the live terminal only from the drawer, so a docked Editor keeps them.
@@ -425,26 +425,26 @@ The step takes the tab to that file, in its place, and the diff panel marks it; 
 With no other file to step into it goes round within the file on show, its folds kept when it is the only file, and drawn afresh when the others were drawn on the way round.
 A map at the diff's right edge has a tick per change, placed from the laid-out rows, and a press on one goes to it.
 Line numbers are drawn from an attribute, so a copied selection carries none.
-The code is coloured by its language, found from the file's name (`src/renderer/ui/syntax.ts`, Shiki with a picked set of grammars, [decided 2026-11-14](../decisions/0228-syntax-colour-by-shiki.md)), each side as one text, so a line inside a block comment the hunk does not show the start of colours as a comment: the new side is the file on disk, and the old side is built from it and the hunks, since outside the hunks the two are the same lines.
+The code is coloured by its language, found from the file's name (`src/renderer/ui/syntax.ts`, Shiki with a picked set of grammars, [decided 2026-11-14](../decisions/0239-syntax-colour-by-shiki.md)), each side as one text, so a line inside a block comment the hunk does not show the start of colours as a comment: the new side is the file on disk, and the old side is built from it and the hunks, since outside the hunks the two are the same lines.
 A side past 131,072 characters, a file not on disk, and a row whose line the side names is not its text (with whitespace hidden, or a file that moved between the reads) are coloured row by row instead, and again at every draw; a file in a language not picked is plain text, a language a picked grammar only embeds included.
 Colours and changed words are ranges over the same text, so a changed word is marked over its colour, and the whole sides are coloured once for each read of the file, not again for each fold opened.
 
 ### The `diff` type
 
-What changed in the checkout a panel looks in, read from git: a type of the app's own, an instance per entry like `command` and `terminal`, which a layout places beside the session ([decided 2026-11-14](../decisions/0225-the-diff-is-a-panel-beside-the-session.md)).
+What changed in the checkout a panel looks in, read from git: a type of the app's own, an instance per entry like `command` and `terminal`, which a layout places beside the session ([decided 2026-11-14](../decisions/0236-the-diff-is-a-panel-beside-the-session.md)).
 Its one option is `cwd`, the same declaration and rule as a `command` panel's, so it looks where one would run and names that folder in its header.
 The diff covers the whole working tree of the checkout that folder is in, untracked files included, with paths from the checkout's root, and it watches that whole checkout for changes whatever subfolder it looks in.
 
 **Three questions, picked from the menu over its list**: Since branched, everything the branch did since it left its base, committed or not; Unpushed, against the parent of the oldest commit no remote has, so what the next push sends plus what is not committed; and Uncommitted, against `HEAD`.
 All three end at the files on disk.
 Since branched is taken against the merge-base of `HEAD` with the base, never the base's tip, or the base's newer commits would read as this branch removing them.
-Its base comes from three layers, the branch's pick, the project's, the convention's guess (`upstream`'s default branch, else `origin`'s), the first two kept per project in `meta.json`, and nothing fetches ([decided 2026-11-14](../decisions/0226-a-diff-base-comes-in-three-layers.md)).
+Its base comes from three layers, the branch's pick, the project's, the convention's guess (`upstream`'s default branch, else `origin`'s), the first two kept per project in `meta.json`, and nothing fetches ([decided 2026-11-14](../decisions/0237-a-diff-base-comes-in-three-layers.md)).
 Main reads all three; nothing in the window keeps a pick yet, so the base on screen is the convention's.
 The row over the list names the base, marks a guessed one so, and puts where it came from in its tooltip.
 The menu says beside Since branched and Unpushed how many commits each counts, in words, so the number is not read as files, and the row says how far the branch is behind its base, while it is, as a count with no action.
 The question picked is kept in the panel's own data file (`panel-data/<entry id>.json`), and a file that also holds how a diff was drawn, as the panel kept it before the Editor drew diffs, keeps only its question; the list's view, flat or a tree, is switched in the panel's header and kept as a list panel's view is.
 
-**A press on a file opens its diff in the Editor** (§ The `editor` type), with the list's order for its stepper, and the row of the file the Editor shows for the tab on show is marked; the panel itself is the list only, at its full width ([decided 2026-11-18](../decisions/0229-files-open-in-an-editor-beside-the-session.md), which replaces the panel's own diff and its layout by width of [0227](../decisions/0227-the-diff-panel-lays-itself-out-by-its-width.md)).
+**A press on a file opens its diff in the Editor** (§ The `editor` type), with the list's order for its stepper, and the row of the file the Editor shows for the tab on show is marked; the panel itself is the list only, at its full width ([decided 2026-11-18](../decisions/0240-files-open-in-an-editor-beside-the-session.md), which replaces the panel's own diff and its layout by width of [0238](../decisions/0238-the-diff-panel-lays-itself-out-by-its-width.md)).
 A second press on the same row within half a second is a double click, which keeps the file in the Editor; the list tells the two apart itself rather than by the browser's `dblclick`, since the first press can open the Editor, which moves the list, and a row moved between the presses gets none.
 With the Editor panel switched off, a press opens the file in the drawer all the same.
 

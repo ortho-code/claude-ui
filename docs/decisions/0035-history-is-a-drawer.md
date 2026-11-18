@@ -2,7 +2,7 @@
 
 - **Date:** 2026-09-29
 - **Area:** [Opening it, and getting out](../architecture/history.md#opening-it-and-getting-out)
-- **Partly replaced** by [0231](0231-the-history-docks-beside-the-terminal.md) on 2026-11-18: Dock puts it in a column beside the tab's terminal, kept for the window; the drawer stays the way it opens until then.
+- **Partly replaced** by [0242](0242-the-history-docks-beside-the-terminal.md) on 2026-11-18: Dock puts it in a column beside the tab's terminal, kept for the window; the drawer stays the way it opens until then.
 
 ## Decision
 
