@@ -19,7 +19,7 @@ import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
 import { createFlatSection, createGroupSection, createProjectSection } from './headings';
 import { whereOf } from './describe';
 import { reviewFlat, reviewInScope } from './review';
-import { syncStickyOffset } from './reveal';
+import { syncStickyOffsetSoon } from './reveal';
 import { drawRow, ROW_SLICES, showTabMarks, updateRow, type FlatLine, type RowView } from './rows';
 import './list.css';
 
@@ -116,9 +116,10 @@ export function watchList(): void {
 /** The list follows the store, with the filter's count and chips it draws. */
 function listChanged(view: ListView, before: View<'filter' | 'activeProject' | 'arrangement'>): void {
   const reshaped = view.filter !== before.filter || view.activeProject !== before.activeProject || view.arrangement !== before.arrangement;
-  renderList(view);
   // A new filter, another project or the other arrangement reshapes the list, so it starts at the top rather than at a stale scroll offset — whoever chose the project, the switcher or a new tab elsewhere dropping the list to All.
+  // Set before the rows change, while the page's layout is still the one drawn, since setting it after would make the browser lay out the whole list at once.
   if (reshaped) container.scrollTop = 0;
+  renderList(view);
 }
 
 // Render from the cached session list, applying the current search filter.
@@ -221,7 +222,6 @@ function renderList(view: ListView): void {
     return;
   }
   const { tree } = shape;
-  const scroll = container.scrollTop;
   statusDots.clear();
   rowTabMarks.clear();
   currentByKey.clear();
@@ -236,10 +236,9 @@ function renderList(view: ListView): void {
   renderedSections.groups = tree.flatMap((p) => p.groups.map((g) => g.group.id));
   reconcileProjectSections(tree, view);
 
-  container.scrollTop = scroll;
   updateSidebarHighlight(view);
   updateCollapseToggle(view);
-  syncStickyOffset();
+  syncStickyOffsetSoon();
   // The rows this draw made have no box drawn yet, and those it took away no longer count.
   showBulk(view);
 }
