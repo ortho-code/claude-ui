@@ -122,6 +122,47 @@ test("a jump from below a group lands at the group's top", async ({ app, page })
   await expectAtBetasTop(page);
 });
 
+// Hundreds of rows between the top and the group jumped to, none of them drawn on screen before the jump: a jump lands by where the group is laid out, so the rows above it have to be laid out as they are.
+// Every tenth title runs onto a second line, so not every row is the height a row never drawn is guessed at.
+const inBig = Array.from({ length: 600 }, (_, i) =>
+  session({ id: `00000000-0000-4000-8000-1${String(i).padStart(11, '0')}`, title: `Big row ${String(i).padStart(3, '0')}${i % 10 === 0 ? ' with a title long enough to run onto a second line of the sidebar' : ''}` }),
+);
+const inFar = ['Far first', 'Far second'].map((title, i) => session({ id: `00000000-0000-4000-8000-2${String(i).padStart(11, '0')}`, title }));
+// Loose rows after it, so the list's end does not stop the scroll short of the group.
+const after = Array.from({ length: 30 }, (_, i) => session({ id: `00000000-0000-4000-8000-3${String(i).padStart(11, '0')}`, title: `Tail row ${String(i).padStart(2, '0')}` }));
+const far = {
+  sessions: [...inBig, ...inFar, ...after],
+  projectOrder: [PROJECT],
+  activeProject: null,
+  groupState: {
+    groups: [
+      { id: 'g-big', name: 'Big', repoRoot: PROJECT },
+      { id: 'g-far', name: 'Far', repoRoot: PROJECT },
+    ],
+    groupOf: { ...Object.fromEntries(inBig.map((s) => [s.id, 'g-big'])), ...Object.fromEntries(inFar.map((s) => [s.id, 'g-far'])) },
+  },
+};
+
+test("a jump past hundreds of rows never on screen lands at the group's top, and stays there", async ({ app, page }) => {
+  await app.boot(far);
+  await expect(row(page, inFar[0].title)).not.toBeInViewport();
+
+  await jumpTo(page, 'Far');
+  const landed = async (): Promise<number[]> => {
+    const projectBottom = await projectHeading(page, 'demo').evaluate((heading) => heading.getBoundingClientRect().bottom);
+    const heading = await groupHeading(page, 'Far').evaluate((each) => each.getBoundingClientRect().toJSON() as DOMRect);
+    const firstTop = await row(page, inFar[0].title).evaluate((each) => each.getBoundingClientRect().top);
+    return [Math.round(heading.top - projectBottom), Math.round(firstTop - heading.bottom)];
+  };
+  await expect(row(page, inFar[0].title)).toBeInViewport();
+  const [headingGap, rowGap] = await landed();
+  expect(Math.abs(headingGap)).toBeLessThanOrEqual(1);
+  expect(rowGap).toBeGreaterThanOrEqual(-1);
+  // A few frames on, once the rows around the landing are drawn, nothing has moved under it.
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
+  expect(await landed()).toEqual([headingGap, rowGap]);
+});
+
 /** Boots with Alpha's session running out of sight, since the session on show lights no dot of its group's. */
 async function bootWithAlphaRunning(app: App, page: Page): Promise<void> {
   await app.boot({ ...fixture, history: { [inAlpha.id]: [], [loose.id]: [] } });

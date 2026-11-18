@@ -183,6 +183,10 @@ The group headings pin below the project heading; while the `h3` still carried i
 The space above a group lives on the `.group` section instead, so the heading has no margin to offset it.
 The offset itself is the project heading's *measured* height, published as `--project-heading-height` — the same number the jump uses, so the two cannot drift apart, and neither goes stale when the type scale moves.
 
+**A row out of sight is not drawn, so a jump lands again as the rows around it are** ([decided 2026-11-18](../decisions/0236-rows-out-of-sight-are-not-drawn.md)).
+The browser skips styling, laying out and painting a session row out of sight (`content-visibility: auto`, `rows.css`), and holds the place of one it never drew at a one-line row's height.
+A row that turns out taller moves everything below it once it is drawn, a few frames after the jump that brought it into sight, so every reveal (a row, a project, a group) scrolls to its target and keeps it there for the next 8 frames (`landOn`, `reveal.ts`); a scroll by hand in those frames is overridden.
+
 
 **`text-box: trim-both cap alphabetic` ends the box at the baseline**, so descenders paint outside it.
 Combined with the `overflow: hidden` that any ellipsis needs, it silently clips every `g`, `p` and `y` — which is exactly what happened to the session meta line.

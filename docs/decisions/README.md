@@ -241,3 +241,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0233](0233-a-review-posted-through-graphql-is-found-by-its-id.md) | 2026-11-18 | A review posted through GraphQL is found by its id | [Reading sessions](../architecture/sessions.md#reading-sessions) |
 | [0234](0234-a-finished-session-reopens-in-one-press.md) | 2026-11-18 | A finished session reopens in one press | [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it) |
 | [0235](0235-the-performance-checks-run-on-their-own.md) | 2026-11-18 | The performance checks run on their own | [The performance checks](../architecture/build-and-checks.md#the-performance-checks) |
+| [0236](0236-rows-out-of-sight-are-not-drawn.md) | 2026-11-18 | Session rows out of sight are not drawn | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |

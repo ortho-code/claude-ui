@@ -34,9 +34,26 @@ export function revealSession(session: SessionSummary): boolean {
   const groupHeading = groupId ? groupSections.find(groupId)?.heading : undefined;
   syncStickyOffset();
   const pinned = stickyOffset + (groupHeading?.getBoundingClientRect().height ?? 0);
-  container.scrollTop +=
-    row.getBoundingClientRect().top - container.getBoundingClientRect().top - pinned - REVEAL_GAP;
+  landOn(row, pinned + REVEAL_GAP);
   return true;
+}
+
+/** How many frames a landing keeps itself in place: the rows around it are drawn a few frames after it, not in the first. */
+const LANDING_FRAMES = 8;
+
+/**
+ * Scroll the list so `target`'s top sits `below` its top, and keep it there for the next few frames: a row never drawn holds a place of a guessed height until it comes into sight (rows.css), so the target moves once the rows around it are drawn.
+ */
+function landOn(target: Element, below: number): void {
+  const off = (): number => target.getBoundingClientRect().top - container.getBoundingClientRect().top - below;
+  container.scrollTop += off();
+  let frames = 0;
+  const again = (): void => {
+    const still = off();
+    if (Math.abs(still) >= 1) container.scrollTop += still;
+    if (++frames < LANDING_FRAMES) requestAnimationFrame(again);
+  };
+  requestAnimationFrame(again);
 }
 
 /** A little air between a revealed row and the headings pinned above it, so it doesn't sit flush. */
@@ -59,7 +76,7 @@ function revealInRecent(holds: (session: SessionSummary) => boolean): boolean {
     return session !== undefined && holds(session);
   });
   if (row) {
-    container.scrollTop += row.getBoundingClientRect().top - container.getBoundingClientRect().top - REVEAL_GAP;
+    landOn(row, REVEAL_GAP);
     flash(row);
   }
   return true;
@@ -72,7 +89,7 @@ export function revealProject(repoRoot: string): void {
   unfold('projects', repoRoot);
   const els = projectSections.find(repoRoot);
   if (!els) return;
-  container.scrollTop += els.section.getBoundingClientRect().top - container.getBoundingClientRect().top;
+  landOn(els.section, 0);
   // Flashed as a group's heading is after a jump, so the tab bar's project and group labels do the same thing at their own level.
   flash(els.heading);
 }
@@ -123,7 +140,6 @@ export function revealGroup(repoRoot: string, groupId: string | null): void {
         els.section.querySelector<HTMLElement>(':scope > .session');
   if (!landing) return;
 
-  const offset = els.heading.getBoundingClientRect().height;
-  container.scrollTop += landing.getBoundingClientRect().top - container.getBoundingClientRect().top - offset;
+  landOn(landing, els.heading.getBoundingClientRect().height);
   flash(group?.heading ?? landing);
 }
