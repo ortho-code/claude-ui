@@ -380,13 +380,44 @@ The same observer covers every later reveal — its tab picked, a switch on the 
 
 ### The `editor` type
 
-The Editor is a built-in type in `src/renderer/panels/types/editor/`, the place beside the session that files are to open in; nothing opens in it yet.
-It says it has nothing to show while nothing is open in it (`setVacant`), so its group takes no room until then (§ Dividers and folding).
+Files open beside the session in the Editor, a built-in type in `src/renderer/panels/types/editor/` ([decided 2026-11-18](../decisions/0229-files-open-in-an-editor-beside-the-session.md)).
 The layout places it at most once (`addedBeside` on its declaration): a file that leaves it out gets it as a column right after the one holding the terminal area, in the nearest split of columns above the terminal's group, else beside the whole root, wrapped in columns as an added singleton is, with nothing said.
 No node of the file is moved or wrapped for it, so a size or a fold kept for one still means what it meant.
 A second copy is refused where it stands, and an entry for it that has a problem does not count as placed, so one is added and the broken entry stays, saying why, as for a singleton.
 Unlike a singleton's, `hidden` on its entry is honoured, and switches it off.
 It is an ordinary panel, built afresh on each mount, so it is not one of the two elements that outlive the layout.
+
+**Its tabs** are the tree's header tabs (`setTabs`, as a `terminal` panel's), one per file.
+A press on a file in the diff panel opens it as a preview, its name in italics, which the next file opened without keeping takes the place of; a double click on the row, or on the tab's name, keeps it, so the next file gets a tab of its own.
+Closing the tab on show puts the one after it on show, else the one before.
+What is open is the store's (`editorTabs`, with its rules, pure and tested, in `src/renderer/state/editor-tabs.ts`), one set per session, by its id, and one while no tab is on show: switching session tabs switches the Editor's files, a remount or a layout change draws them again from there, a session closed and opened again in the same run gets its files back, and none outlives the run; a `/clear`, which puts a new session in its tab, starts with none.
+With none open the Editor says it has nothing to show (`setVacant`), so its group takes no room (§ Dividers and folding); the next file opened brings it back at its kept size, and a full-screen Editor whose last tab closes gives the layout back.
+Whether an Editor is on is the store's too (`editorOn`, set as it mounts and unmounts), which is how the diff panel tells a press with nowhere to open.
+
+**A file's tab** (`editor/file/`) shows the file's diff against what its opener asked: the checkout, the question and the commit the list was measured from, so the two describe the same diff.
+Each tab that has been on show reads its file again when the checkout's working tree changes, on a `TreeWatch` of its own, reading the changed files again for its question, so it needs no panel beside it; the diff panel and each such tab read the changed files apart.
+What a read finds, a newer commit to compare with or a new order of files, is written back to the tab in the store (`updated`), so the tab shows it again when it comes back on show.
+Every file says "Read only" in its header, since nothing in the Editor edits a file yet.
+How a diff is drawn, the view, hidden whitespace and Changes only, is the Editor's own pick, kept in its panel data file (`panel-data/<entry id>.json`, the `diff` field the diff panel keeps its question in).
+
+**The whole file is shown by default**, its changes marked where they are.
+Changes only, in the view menu, folds the unchanged lines between changes, five or more of them, fewer being shown, since a fold takes the room of what it hides: the whole fold on a press, or, on a fold hiding more than 20 lines, 20 at a time from the change beside it.
+The unchanged lines are drawn from the file as it is on disk, which main reads up to 2 MB; a file it could not read, a deleted one or one past that, stays folded either way, a fold between changes asking git for that many more lines of context around every change, and the end of the file after the last change is not shown.
+A fold opened stays open by its place among the hunks, so after the file changes it can open a different gap.
+A file whose diff has nothing to mark, one with no change against its base, a rename and nothing else, or one that changed only in whitespace while whitespace is hidden, shows whole, as it is, its header naming a rename; with Changes only on, it says why in a sentence instead.
+Git's heading for a change stands over it, sticky, while the lines above it are folded.
+Fit, the default view, draws the diff unified while the Editor is narrower than 600px and split from it, where Split and Unified hold at any width.
+Split view is one grid of three columns in one scroller, so the two sides scroll together with nothing keeping them in step; a run of removed lines stands beside the run of added lines after it, the shorter padded.
+The words that changed are marked in a removed line and an added one only where a run of removed lines meets a run of added lines of the same length, paired row by row, since lines of runs of different lengths need not be edits of each other.
+A generated file is one line until it is asked for, a binary file and a file with nothing to show each say so in a sentence, and hiding whitespace reads the file again with git's `-w`.
+A stepper walks the changes, by the buttons in the diff's header or `j` and `k` in it, on into the next file of its opener's order that has a change to step to, round from the last to the first, passing over a binary file, a generated one still folded and one with nothing to mark, and says which change of which file it is on.
+The step takes the tab to that file, in its place, and the diff panel marks it; a file with a tab of its own already is put on show in that tab, and the stepping tab closes.
+With no other file to step into it goes round within the file on show, its folds kept when it is the only file, and drawn afresh when the others were drawn on the way round.
+A map at the diff's right edge has a tick per change, placed from the laid-out rows, and a press on one goes to it.
+Line numbers are drawn from an attribute, so a copied selection carries none.
+The code is coloured by its language, found from the file's name (`src/renderer/ui/syntax.ts`, Shiki with a picked set of grammars, [decided 2026-11-14](../decisions/0228-syntax-colour-by-shiki.md)), each side as one text, so a line inside a block comment the hunk does not show the start of colours as a comment: the new side is the file on disk, and the old side is built from it and the hunks, since outside the hunks the two are the same lines.
+A side past 131,072 characters, a file not on disk, and a row whose line the side names is not its text (with whitespace hidden, or a file that moved between the reads) are coloured row by row instead, and again at every draw; a file in a language not picked is plain text, a language a picked grammar only embeds included.
+Colours and changed words are ranges over the same text, so a changed word is marked over its colour, and the whole sides are coloured once for each read of the file, not again for each fold opened.
 
 ### The `diff` type
 
@@ -401,21 +432,11 @@ Its base comes from three layers, the branch's pick, the project's, the conventi
 Main reads all three; nothing in the window keeps a pick yet, so the base on screen is the convention's.
 The row over the list names the base, marks a guessed one so, and puts where it came from in its tooltip.
 The menu says beside Since branched and Unpushed how many commits each counts, in words, so the number is not read as files, and the row says how far the branch is behind its base, while it is, as a count with no action.
-The question picked is kept in the panel's own data file (`panel-data/<entry id>.json`), with the diff's view and whether whitespace is hidden; the list's view, flat or a tree, is switched in the panel's header and kept as a list panel's view is.
+The question picked is kept in the panel's own data file (`panel-data/<entry id>.json`), whose other picks the panel does not use; the list's view, flat or a tree, is switched in the panel's header and kept as a list panel's view is.
 
-**A file picked in the list shows its diff** beside or under the list, as the panel's own width says: below 600px the list sits above the diff, from 600px beside it, by a container query on the panel, and Fit, the default view, draws the diff unified below 600px and split from it, where Split and Unified hold at any width ([decided 2026-11-14](../decisions/0227-the-diff-panel-lays-itself-out-by-its-width.md)).
-A file is read against the commit its list was measured from, so the two describe the same diff, and read again with the list, its folds and the stepper's place kept, while the list still has it.
-Split view is one grid of three columns in one scroller, so the two sides scroll together with nothing keeping them in step; a run of removed lines stands beside the run of added lines after it, the shorter padded.
-The unchanged lines between changes are folded, five or more of them, fewer being shown, since a fold takes the room of what it hides, and drawn from the file as it is on disk, which main reads up to 2 MB: the whole fold on a press, or, on a fold hiding more than 20 lines, 20 at a time from the change beside it; for a file it could not read, such as a deleted one, a fold between changes asks git for that many more lines of context around every change, and the end of the file after the last change is not shown.
-A fold opened stays open by its place among the hunks, so after the file changes it can open a different gap.
-Git's heading for a change stands over it, sticky, while the lines above it are folded.
-The words that changed are marked in a removed line and an added one only where a run of removed lines meets a run of added lines of the same length, paired row by row, since lines of runs of different lengths need not be edits of each other.
-A generated file is one line until it is asked for, a binary file and a file with nothing to show each say so in a sentence, and hiding whitespace reads the file again with git's `-w`.
-A stepper walks the changes, by the buttons in the diff's header or `j` and `k` in it, on into the next file in the list's order that has a change, round from the last to the first, and round within the file on show when no other file has one, and says which change of which file it is on; a generated file still folded has no change to step to; a map at the diff's right edge has a tick per change, placed from the laid-out rows, and a press on one goes to it.
-Line numbers are drawn from an attribute, so a copied selection carries none.
-The code is coloured by its language, found from the file's name (`src/renderer/ui/syntax.ts`, Shiki with a picked set of grammars, [decided 2026-11-14](../decisions/0228-syntax-colour-by-shiki.md)), each side as one text, so a line inside a block comment the hunk does not show the start of colours as a comment: the new side is the file on disk, and the old side is built from it and the hunks, since outside the hunks the two are the same lines.
-A side past 131,072 characters, a file not on disk, and a row whose line the side names is not its text (with whitespace hidden, or a file that moved between the reads) are coloured row by row instead, and again at every draw; a file in a language not picked is plain text, a language a picked grammar only embeds included.
-Colours and changed words are ranges over the same text, so a changed word is marked over its colour, and the whole sides are coloured once for each read of the file, not again for each fold opened.
+**A press on a file opens its diff in the Editor** (§ The `editor` type), with the list's order for its stepper, and the row of the file the Editor shows for the tab on show is marked; the panel itself is the list only, at its full width ([decided 2026-11-18](../decisions/0229-files-open-in-an-editor-beside-the-session.md), which replaces the panel's own diff and its layout by width of [0227](../decisions/0227-the-diff-panel-lays-itself-out-by-its-width.md)).
+A second press on the same row within half a second is a double click, which keeps the file in the Editor; the list tells the two apart itself rather than by the browser's `dblclick`, since the first press can open the Editor, which moves the list, and a row moved between the presses gets none.
+With the Editor switched off, a press, single or double, marks the row, the list says "Files open in the Editor, which this layout switches off." in place of its note on untracked files left out, and nothing opens; the note stays until an Editor is on again, and gives way to a sentence saying git could not read, there is no base, or nothing is listed (decided 2026-11-18, to be looked at again after use; a toast on every press, louder and repeating, and rows that cannot be pressed, quiet but easy to miss, were the other ways).
 
 Main does the reading (`src/main/diff/`), on git through the one runner main's read-only calls share (`src/main/git.ts`), and the parsing of git's output is shared and pure (`src/shared/diff/`).
 A summary lists the files with git's letter (a copy as added, a change of type as modified, and `U` for a file git does not track), their counts, a rename's old path, and whether each is binary or generated (a lockfile by name, or `linguist-generated` in the repository's attributes); untracked files come after the rest, one row each up to 500, the rest counted under the list.

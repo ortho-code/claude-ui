@@ -13,6 +13,9 @@ import './files.css';
  * A folder of the tree folds as a list panel's row holding rows does: from its chevron, or a press anywhere on it, kept by its path in memory while the panel stays mounted.
  */
 
+/** How soon a second press on the same row counts as a double click, about what a desktop's own setting defaults to. */
+const DOUBLE_CLICK_MS = 500;
+
 /** How the list is drawn, as the panel's views name them. */
 export type FilesView = 'flat' | 'tree';
 
@@ -45,8 +48,23 @@ export class FileList {
   /** The files' paths in the order their rows stand, folded ones left out. */
   private shown: string[] = [];
 
-  /** `pick` is a press on a file's row. */
-  constructor(private readonly pick: (path: string) => void) {}
+  /** The last press on a file's row, so a second one on it soon after counts as a double click. */
+  private lastPress: { path: string; at: number } | null = null;
+
+  /** `pick` is a press on a file's row, `keep` set for a double click. */
+  constructor(private readonly pick: (path: string, keep: boolean) => void) {}
+
+  /**
+   * A press on a file's row, or the second of a double click on it.
+   * Told apart here rather than by the browser's `dblclick`: the first press can open the Editor, which moves the list as the layout makes room, and a row moved between the two presses gets no `dblclick`.
+   */
+  private press(path: string, event: MouseEvent): void {
+    // When the press happened, not when it was handled: the first press's own work can hold the second one's handler back.
+    const now = event.timeStamp;
+    const second = this.lastPress?.path === path && now - this.lastPress.at < DOUBLE_CLICK_MS;
+    this.lastPress = second ? null : { path, at: now };
+    this.pick(path, second);
+  }
 
   /** Draw `files` as `view` says, `picked` marked as the one on show, each row's place and words set again and nothing else rebuilt. */
   draw(files: readonly DiffFile[], view: FilesView, picked: string | null): void {
@@ -126,7 +144,7 @@ export class FileList {
     const row = this.rows.draw(`file\n${file.path}`, () => {
       const built = this.build('diff-file');
       built.card.classList.remove('still');
-      built.card.addEventListener('click', () => this.pick(file.path));
+      built.card.addEventListener('click', (event) => this.press(file.path, event));
       return built;
     });
     this.shown.push(file.path);

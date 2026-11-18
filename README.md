@@ -24,7 +24,7 @@ What it holds to, and what a change to it is checked against, is in [docs/princi
 - **The PRs a session links**, coloured by what GitHub says of them ([Pull requests](docs/guide/sessions.md#pull-requests)).
 - **Finishing, setting aside and a review** to clear out what is done or can wait ([Finishing, setting aside and the review](docs/guide/sessions.md#finishing-setting-aside-and-the-review)).
 - **A history of each session**, laid out as claude shows it, with pins ([The history](docs/guide/sessions.md#the-history)).
-- **A layout of your own**: panels beside the sidebar and the terminal, such as a command's output, shells, the files a branch changed, or a panel type of your own ([Layout and panels](docs/guide/layout.md)).
+- **A layout of your own**: panels beside the sidebar and the terminal, such as a command's output, shells, the files a branch changed, or a panel type of your own, and an Editor beside the session that opens their diffs in tabs ([Layout and panels](docs/guide/layout.md)).
 - **Settings** in a `settings.json` you can edit by hand or in the app ([Settings](docs/guide/settings.md)).
 
 The whole guide is in [docs/guide](docs/guide/README.md).

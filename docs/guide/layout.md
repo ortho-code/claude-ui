@@ -72,7 +72,7 @@ A panel that cannot run wears `alert` whatever it names, so a broken one stands 
 
 - `sessions` is the sidebar and `claude` is the terminal area with its tabs.
   Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
-- `editor` is the place beside the session that files are to open in; nothing opens in it yet, and it takes no room while nothing is open in it.
+- `editor` is where files open beside the session, in tabs, taking no room while nothing is open in it; see [The Editor](#the-editor) below.
   It belongs in the file at most once: one left out is added as a column right after the one holding the terminal area, and `"hidden": true` on its entry switches it off.
 - `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
   `cwd` picks the folder it runs in, `interval` how often it runs again on its own, and `watch` whether it runs again when that folder's git working tree changes.
@@ -197,14 +197,28 @@ Since branched measures from a base branch: the default branch of the remote nam
 Nothing is fetched for it, so it is measured as your last fetch left the remote branches.
 Each file shows its letter (`M` changed, `A` added, `D` removed, `R` renamed, `U` not tracked yet), its name after its folder, and the lines it adds and removes; a renamed file's tooltip says where it came from.
 The switch in its header shows the files as a flat list or as a tree of their folders, where a press on a folder folds it.
-A press on a file shows its diff: under the list while the panel is narrower than 600px, beside it from there, and drawn side by side once the panel is that wide, or one above the other below that.
-The menu in the diff's header picks Fit, which does that, Split or Unified whatever the width, and hides changes that only touch whitespace; all three are kept for the panel.
-Five or more unchanged lines between changes are folded: press a fold to show them all, or, on a fold of more than twenty lines, its `↑ 20` and `↓ 20` to show twenty more beside the change below or above it.
-The code is coloured by its language: PHP, TypeScript, JavaScript, JSON (with JSONC and JSON5), HTML, SCSS, CSS, Markdown, YAML, shell scripts, Twig, XML, SQL, a file named `Dockerfile`, INI, TOML, Python, PowerShell, Go and Rust; anything else is plain text.
-The words that changed inside a line are marked, a lockfile or generated file is folded to one line until you press it, and the map at the right edge has a mark for each change.
-`j` and `k` in the diff, or the arrows in its header, step from change to change and on into the next file.
+A press on a file opens its diff in the [Editor](#the-editor), and the list marks the file the Editor shows.
+With the Editor switched off in your layout, a press marks the file and the list says where files open.
 The list reads again when a switch of tab or project moves where it looks, within a minute of a file in the checkout changing, and when the session on show starts or finishes a turn.
 Untracked files past the first 500 are counted under the list rather than listed.
+
+## The Editor
+
+Files open in the Editor, beside the terminal area, so you can read them while the session goes on working.
+It takes no room while nothing is open in it, and comes back at the size you last gave it when a file opens.
+Each session tab has its own files in it; switching tabs switches them.
+
+A press on a file opens it as a preview, its name in italics, which the next file you open takes the place of; a double click, on the file or on its tab, keeps it, so the next one opens beside it.
+Close a tab with its cross; closing the last gives the room back.
+The Editor only reads for now, and every file says "Read only".
+
+A file is shown whole, with its changes marked where they are.
+The menu in the diff's header picks Fit, which draws the two sides next to each other once the Editor is 600px wide and one above the other below that, or Split or Unified whatever the width; it also hides changes that only touch whitespace, and Changes only folds the unchanged lines between changes, five or more of them: press a fold to show them all, or, on a fold of more than twenty lines, its `↑ 20` and `↓ 20` to show twenty more beside the change below or above it.
+These picks are kept for the Editor.
+The code is coloured by its language: PHP, TypeScript, JavaScript, JSON (with JSONC and JSON5), HTML, SCSS, CSS, Markdown, YAML, shell scripts, Twig, XML, SQL, a file named `Dockerfile`, INI, TOML, Python, PowerShell, Go and Rust; anything else is plain text.
+The words that changed inside a line are marked, a lockfile or generated file is folded to one line until you press it, and the map at the right edge has a mark for each change.
+`j` and `k` in the diff, or the arrows in its header, step from change to change and on into the next file of the list it was opened from.
+An open file is read again within a minute of a file in its checkout changing.
 
 ## Panels and the session list
 

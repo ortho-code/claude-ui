@@ -9,11 +9,12 @@ const isView = (value: unknown): value is DiffView => DIFF_VIEWS.includes(value 
  */
 export function soundDiffPicks(value: unknown): DiffPicks | null {
   if (typeof value !== 'object' || value === null) return null;
-  const { question, view, ignoreWs } = value as { question?: unknown; view?: unknown; ignoreWs?: unknown };
-  if (!isQuestion(question) && !isView(view) && typeof ignoreWs !== 'boolean') return null;
+  const { question, view, ignoreWs, changesOnly } = value as { question?: unknown; view?: unknown; ignoreWs?: unknown; changesOnly?: unknown };
+  if (!isQuestion(question) && !isView(view) && typeof ignoreWs !== 'boolean' && typeof changesOnly !== 'boolean') return null;
   return {
     question: isQuestion(question) ? question : DEFAULT_DIFF_PICKS.question,
     view: isView(view) ? view : DEFAULT_DIFF_PICKS.view,
     ignoreWs: typeof ignoreWs === 'boolean' ? ignoreWs : DEFAULT_DIFF_PICKS.ignoreWs,
+    changesOnly: typeof changesOnly === 'boolean' ? changesOnly : DEFAULT_DIFF_PICKS.changesOnly,
   };
 }

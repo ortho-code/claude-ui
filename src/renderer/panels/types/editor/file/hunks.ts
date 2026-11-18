@@ -5,7 +5,8 @@ import './hunks.css';
 
 /**
  * A file's hunks drawn into the diff's body: split as one grid of three columns in one scroller, so the two sides scroll together with nothing keeping them in step, or unified as one column.
- * The unchanged lines between hunks are folded, and drawn from the file as it is on disk: the whole fold on a press, or 20 lines from either end.
+ * The unchanged lines between hunks are drawn from the file as it is on disk: all of them for the whole file, else folded, opened whole on a press or 20 lines from either end.
+ * Without the file's lines, a deleted file or one past the read's cap, they stay folds either way, which ask git for more context.
  * Every row of a change block carries the block's number (`data-blk`), and the first row of each is handed back, for stepping and the change map.
  */
 
@@ -26,6 +27,8 @@ const WHOLE_SIDE_MAX = 128 * 1024;
 
 export interface HunkDraw {
   split: boolean;
+  /** Every unchanged line drawn, where the file's lines are there, rather than folds. */
+  whole: boolean;
   /** The grammar the file is coloured with, or null for plain text. */
   language: string | null;
   reveal: Reveal;
@@ -200,7 +203,7 @@ export class HunkDrawer {
       this.hunk(hunk);
       previous = ends(hunk);
     });
-    if (lines && hunks.length) this.gap(hunks.length, previous, lines.length - previous.new);
+    if (lines && (hunks.length || this.draw.whole)) this.gap(hunks.length, previous, lines.length - previous.new);
     return this.anchors;
   }
 
@@ -225,7 +228,7 @@ export class HunkDrawer {
     }
     const row = (k: number): DiffRow => ({ kind: 'context', old: previous.old + 1 + k, new: previous.new + 1 + k, text: lines[previous.new + k] ?? '' });
     const seen = this.draw.reveal.get(index) ?? { top: 0, bottom: 0 };
-    if (seen.top + seen.bottom >= count || count - seen.top - seen.bottom < MIN_FOLD) {
+    if (this.draw.whole || seen.top + seen.bottom >= count || count - seen.top - seen.bottom < MIN_FOLD) {
       for (let k = 0; k < count; k++) this.context(row(k));
       return false;
     }

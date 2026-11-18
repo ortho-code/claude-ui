@@ -19,8 +19,11 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Clear and close, beside Clear under the open filter panel, empties the filter and shuts the panel in one press.
 - A `diff` panel lists the files that changed in the checkout it looks in: since the branch left its base, not pushed yet, or not committed, flat or as a tree.
   It reads again as files change and when the session beside it finishes a turn.
-  A press on a file shows its diff, side by side once the panel is wide enough, with unchanged lines folded, the changed words marked, and `j` and `k` to step through the changes.
-  The diff's code is coloured by its language.
+  A press on a file opens it in the Editor.
+- The Editor, beside the terminal area, shows files in tabs, one set per session tab, and takes no room while none is open.
+  A file shows whole, with its changes and the changed words marked, coloured by its language, side by side once the Editor is wide enough, and `j` and `k` step through the changes.
+  A single press opens a preview the next file takes the place of; a double click keeps it.
+  `"hidden": true` on its layout entry switches it off.
 
 ### Changed
 

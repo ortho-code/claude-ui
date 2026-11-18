@@ -13,15 +13,17 @@ export type DiffView = 'fit' | 'split' | 'unified';
 
 export const DIFF_VIEWS: readonly DiffView[] = ['fit', 'split', 'unified'];
 
-/** What a diff panel keeps of what was picked in it, in its own data file. */
+/** What a panel keeps of what was picked in it about a diff, in its own data file: the diff panel its question, the Editor how a file's diff is drawn. */
 export interface DiffPicks {
   question: DiffQuestion;
   view: DiffView;
   /** Changes that only touch whitespace left out of a file's diff. */
   ignoreWs: boolean;
+  /** A file's unchanged lines folded back to a few around each change, where the whole file is shown otherwise. */
+  changesOnly: boolean;
 }
 
-export const DEFAULT_DIFF_PICKS: DiffPicks = { question: 'since', view: 'fit', ignoreWs: false };
+export const DEFAULT_DIFF_PICKS: DiffPicks = { question: 'since', view: 'fit', ignoreWs: false, changesOnly: false };
 
 /** Where the base of Since branched came from: a pick for this branch, the project's, or the convention's guess. */
 export type BaseSource = 'branch' | 'project' | 'convention';

@@ -5,6 +5,7 @@ import type { SettingsView } from '../../shared/config/settings';
 import type { GroupState, SetAside, NeedsYou, PrNames, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../rules/sessions';
 import { NO_PR_STATUS } from '../status/pr-status';
+import type { EditorTabs } from './editor-tabs';
 import { createStore } from './store';
 
 /**
@@ -129,6 +130,13 @@ export interface AppState {
    * Null until the first read.
    */
   settings: SettingsView | null;
+  /**
+   * Session id -> the files open in the Editor while its tab is on show, and the one on show among them; under '' while no tab is.
+   * In memory only, so a restart opens none; a session's set goes with it when `/clear` starts a new one in its tab.
+   */
+  editorTabs: ReadonlyMap<string, EditorTabs>;
+  /** Whether the layout holds an Editor to open a file in, which a layout without one or with it switched off does not: set by the Editor as it mounts and unmounts. */
+  editorOn: boolean;
 }
 
 /** How the session list lays its sessions out: by project and group, or flat, last worked on first. */
@@ -356,6 +364,8 @@ export const store = createStore<AppState>(
     prStatus: NO_PR_STATUS,
     prNames: new Map(),
     settings: null,
+    editorTabs: new Map(),
+    editorOn: false,
   },
   {
     sessions: sameRows,

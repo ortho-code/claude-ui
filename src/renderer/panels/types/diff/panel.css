@@ -1,40 +1,8 @@
-/* THE DIFF PANEL: its row of controls, then the list and the diff of the file picked.
-   Laid out by its own width, never the window's, so the same panel is narrow beside a session and wide in full screen: below 600px the list sits above the diff, from 600px beside it, the number `WIDE_PX` in panel.ts says too. */
+/* THE DIFF PANEL: its row of controls, then the list of changed files, whose diffs open in the Editor. */
 .diff-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  container: diff-panel / inline-size;
-}
-
-.diff-main {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-/* Narrow, the list takes what it needs up to a third of the height, and the diff the rest. */
-.diff-list-area {
-  display: flex;
-  flex-direction: column;
-  flex: 0 1 auto;
-  max-height: 33%;
-  min-height: 0;
-  border-bottom: 1px solid var(--border);
-}
-
-@container diff-panel (min-width: 600px) {
-  .diff-main {
-    flex-direction: row;
-  }
-
-  .diff-list-area {
-    flex: 0 0 260px;
-    max-height: none;
-    border-bottom: 0;
-    border-right: 1px solid var(--border);
-  }
 }
 
 .diff-note {

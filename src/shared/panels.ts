@@ -346,7 +346,7 @@ export interface PanelData {
   lastGroup: Record<string, string | null>;
   /** A terminal panel's shells, kept for the next launch; absent where its file has none. */
   shells?: PanelShells;
-  /** A diff panel's picks; absent where its file has none. */
+  /** A diff panel's picks, or the Editor's, each reading its own part; absent where its file has none. */
   diff?: DiffPicks;
 }
 

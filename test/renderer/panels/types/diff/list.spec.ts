@@ -1,6 +1,6 @@
 import { PROJECT } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { bootDiff, file, menuRows, note, panel, questionButton, rows, summary } from './diff';
+import { bootDiff, file, menuRows, note, panel, picksData, questionButton, rows, summary } from './diff';
 
 // The diff panel lists the files that changed in the checkout it looks in, for one of three questions, flat or as a tree.
 
@@ -79,12 +79,12 @@ test('picking another question lists its files, and keeps the pick for the panel
   await menuRows(page).filter({ hasText: 'Uncommitted' }).click();
   await expect(rows(page)).toHaveText(['Monly.txt+1']);
   await expect(questionButton(page)).toHaveText('Uncommitted');
-  expect(await app.calls('setDiffPicks')).toEqual([['changes', { question: 'uncommitted', view: 'fit', ignoreWs: false }]]);
+  expect(await app.calls('setDiffPicks')).toEqual([['changes', { question: 'uncommitted', view: 'fit', ignoreWs: false, changesOnly: false }]]);
   expect((await app.calls('diffSummary')).at(-1)).toEqual([PROJECT, 'uncommitted']);
 });
 
 test('a question kept for the panel is the one it opens on', async ({ app, page }) => {
-  await bootDiff(app, { since: changed, unpushed: summary({ files: [file('pushed.txt')] }) }, { data: { sessions: {}, lastGroup: {}, diff: { question: 'unpushed', view: 'fit', ignoreWs: false } } });
+  await bootDiff(app, { since: changed, unpushed: summary({ files: [file('pushed.txt')] }) }, { data: picksData({ question: 'unpushed' }) });
   await expect(questionButton(page)).toHaveText('Unpushed');
   await expect(rows(page)).toHaveText(['Mpushed.txt+1']);
 });

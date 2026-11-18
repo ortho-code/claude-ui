@@ -138,14 +138,14 @@ describe('a panel’s own data', () => {
 
 describe('a diff panel’s picks', () => {
   it('keeps the picks, as the window says them, and reads them back beside a link', async () => {
-    await handlers.get('panelData:setDiffPicks')?.(null, 'changes', { question: 'unpushed', view: 'split', ignoreWs: true });
+    await handlers.get('panelData:setDiffPicks')?.(null, 'changes', { question: 'unpushed', view: 'split', ignoreWs: true, changesOnly: true });
     await linkSession('changes', 's1', LINK, { repoRoot: '/repo', groupId: null });
-    expect((await readPanelData('changes')).diff).toEqual({ question: 'unpushed', view: 'split', ignoreWs: true });
+    expect((await readPanelData('changes')).diff).toEqual({ question: 'unpushed', view: 'split', ignoreWs: true, changesOnly: true });
   });
 
   it('gives a pick that is not sound its default, and writes nothing when none is sound', async () => {
-    await keepDiffPicks('partly', { question: 'unpushed', view: 'sideways' });
-    expect((await readPanelData('partly')).diff).toEqual({ question: 'unpushed', view: 'fit', ignoreWs: false });
+    await keepDiffPicks('partly', { question: 'unpushed', view: 'sideways', changesOnly: 'yes' });
+    expect((await readPanelData('partly')).diff).toEqual({ question: 'unpushed', view: 'fit', ignoreWs: false, changesOnly: false });
     await keepDiffPicks('bad', { question: 'everything' });
     await expect(fs.access(file('bad'))).rejects.toThrow();
   });

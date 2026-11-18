@@ -27,8 +27,11 @@ export interface FileViewHost {
   /** Whether the view on show is split, the panel's width deciding for Fit. */
   split(): boolean;
   ignoreWs(): boolean;
+  /** The unchanged lines folded back to a few around each change, where the whole file is drawn otherwise. */
+  changesOnly(): boolean;
   pickView(view: DiffView): void;
   pickIgnoreWs(ignore: boolean): void;
+  pickChangesOnly(changesOnly: boolean): void;
   /** Go to the next or previous file with changes to step through, from the one on show. */
   stepFile(delta: 1 | -1): void;
   /** The file on show's place in the list, counted from one. */
@@ -61,7 +64,10 @@ export class FileView {
     this.viewButton.type = 'button';
     this.viewButton.title = 'How the diff is drawn';
     this.viewButton.addEventListener('click', () => openMenu(this.viewButton, this.viewItems()));
-    this.header.append(this.path, element('span', 'diff-grow'), this.position, this.stepButton('up', 'Previous change (k)', -1), this.stepButton('down', 'Next change (j)', 1), this.viewButton);
+    const readOnly = element('span', 'diff-read-only');
+    // Nothing in the Editor edits a file yet, so every file says so.
+    readOnly.textContent = 'Read only';
+    this.header.append(this.path, element('span', 'diff-grow'), readOnly, this.position, this.stepButton('up', 'Previous change (k)', -1), this.stepButton('down', 'Next change (j)', 1), this.viewButton);
     this.body.tabIndex = 0;
     this.body.addEventListener('keydown', (event) => this.key(event));
     this.frame.append(this.body, this.map);
@@ -140,6 +146,7 @@ export class FileView {
     else {
       this.anchors = new HunkDrawer(this.body, diff, {
         split: this.host.split(),
+        whole: !this.host.changesOnly(),
         language: languageOf(file.path),
         reveal: this.reveal,
         redraw: () => this.draw(),
@@ -159,6 +166,8 @@ export class FileView {
   private sentence(diff: FileDiff, file: DiffFile): string | null {
     if (diff.binary || file.binary) return 'A binary file: nothing to show.';
     if (diff.hunks.length) return null;
+    // With nothing changed, the whole file is the file as it is, where there is one to show.
+    if (!this.host.changesOnly() && diff.lines?.length) return null;
     if (file.status === 'U' || file.status === 'A') return 'A new, empty file.';
     if (file.status === 'R') return `Renamed from ${file.from ?? 'elsewhere'}, with nothing else changed.`;
     if (this.host.ignoreWs()) return 'Only whitespace changed here, and whitespace is hidden.';
@@ -235,6 +244,7 @@ export class FileView {
       ...(['fit', 'split', 'unified'] as const).map((each) => ({ label: VIEW_NAMES[each], checked: each === view, onSelect: () => this.host.pickView(each) })),
       { label: '', separator: true },
       { label: 'Hide whitespace changes', checked: ignore, onSelect: () => this.host.pickIgnoreWs(!ignore) },
+      { label: 'Changes only', checked: this.host.changesOnly(), onSelect: () => this.host.pickChangesOnly(!this.host.changesOnly()) },
     ];
   }
 

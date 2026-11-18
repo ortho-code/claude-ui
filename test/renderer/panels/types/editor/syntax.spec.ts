@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../../../support/harness';
-import { bootDiff, diffLines, file, fileDiff, rows, summary } from './diff';
+import { bootDiff, diffLines, file, fileDiff, rows, summary } from '../diff/diff';
 
 // A file's diff is coloured by its language, each side read as one text, so a line inside a block comment colours as a comment, and the words that changed are marked over the colours rather than in their place.
 

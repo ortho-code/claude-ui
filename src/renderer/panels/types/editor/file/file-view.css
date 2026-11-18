@@ -35,6 +35,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* What says the file on show cannot be edited here: quiet, as the position beside it is. */
+.diff-read-only {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
 .diff-view-button {
   display: inline-flex;
   align-items: center;

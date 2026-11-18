@@ -1,8 +1,8 @@
-import type { MountedPanel, PanelType } from '../../contract';
-import { element } from '../../../ui/dom';
+import type { PanelType } from '../../contract';
+import { EditorPanel } from './panel';
 
 /**
- * The `editor` type: the place beside the session that files are to open in, taking no room while nothing is open in it.
+ * The `editor` type: the files opened beside the session, in tabs, taking no room while none is open.
  * Placed at most once, and added as a column right after the one holding the terminal area when the layout leaves it out; `"hidden": true` on its entry switches it off.
  */
 export const editorType: PanelType = {
@@ -12,16 +12,5 @@ export const editorType: PanelType = {
   icon: 'file',
   addedBeside: 'claude',
   defaultTitle: () => 'Editor',
-  mount: (_slot, host): MountedPanel => {
-    // Nothing opens in it yet, so it has nothing to show.
-    host.setVacant(true);
-    return {
-      el: element('div', 'panel-body editor-panel'),
-      refresh: () => {},
-      contextChanged: () => {},
-      setVisible: () => {},
-      recheck: () => {},
-      unmount: () => {},
-    };
-  },
+  mount: (slot, host) => new EditorPanel(slot, host),
 };
