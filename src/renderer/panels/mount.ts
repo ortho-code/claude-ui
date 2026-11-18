@@ -48,6 +48,8 @@ export interface Mounted {
   problems: string[];
   /** What the panel says about itself that does not stop it, for its group's note line. */
   notes: string[];
+  /** It says it has nothing to show, so its group may take no room (`setVacant`). */
+  vacant: boolean;
   /** Its full-screen button, in the header the tree draws, or in a bare panel's own bar (`PanelHost.fullScreenButton`). */
   fullScreenButton: HTMLButtonElement;
 }
@@ -171,8 +173,8 @@ export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
   const folder = folderMark();
   const views = viewSwitch(slot, context);
   // What the panel reports about itself, held here so a report made while it is still mounting is not lost; a change re-renders, since both the panel's place and its rail icon draw from it.
-  const said = { problems: [] as string[], notes: [] as string[] };
-  const report = (field: keyof typeof said, lines: string[]): void => {
+  const said = { problems: [] as string[], notes: [] as string[], vacant: false };
+  const report = (field: 'problems' | 'notes', lines: string[]): void => {
     if (lines.join('\n') === said[field].join('\n')) return;
     said[field] = lines;
     const current = context.entry(slot.key);
@@ -219,6 +221,13 @@ export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
     },
     setProblems: (problems) => report('problems', problems),
     setNotes: (notes) => report('notes', notes),
+    setVacant: (vacant) => {
+      if (vacant === said.vacant) return;
+      said.vacant = vacant;
+      const current = context.entry(slot.key);
+      if (current) current.vacant = vacant;
+      context.queueRender();
+    },
     setFolder: folder.set,
     // The session links are remembered under the panel's own entry key.
     startSession: (request) => void startSession(slot.key, request, context.host.asks),

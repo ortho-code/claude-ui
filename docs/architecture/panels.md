@@ -102,6 +102,12 @@ Its size is its own, kept per node, so it unfolds to the size it had with nothin
 `folded: true` on a group that may fold starts it folded, until it is unfolded; on one that may not, it is a note saying to add `collapsible`.
 Only panel groups fold; `collapsible` and `folded` on rows or columns are named as not honoured yet.
 
+A group whose every panel is `hidden`, or says it has nothing to show (`PanelHost.setVacant`), takes no room in its split: no rail, no divider, and the split's other children share the space, as does a split of nothing but such groups (`isEmpty` in layout.ts, tested).
+Its size stays kept, so it comes back at the size it had once a panel in it has something to show again.
+A panel whose whole group takes no room is told it is hidden, as one behind another is, and still hears context changes, session changes and rechecks, and answers the asks it is made, which is how it comes back.
+Vacancy is the group's, not each panel's: a group with one vacant panel and one that is not stays, and shows the vacant one empty when it is the one picked.
+A vacant panel filling the window gives the layout back, and does not fill it again on its own once it has something to show.
+
 ### Several panels in a group
 
 A group with several panels shows one, and switches from a RAIL of icons on the edge it folds toward — the edge a folded group's rail sits on, so the rail stays where it is when the rest folds away.
@@ -127,7 +133,7 @@ Which panel fills the window is the tree's own state (`fullScreen` in `tree.ts`)
 Each split on the way to that panel shows only the child holding it; the siblings and the dividers stay placed and hidden, as a folded group's content does, so every panel keeps its DOM and its process, and a terminal refits on the way back as it does after an unfold.
 Only that panel is on show, so every other one is told it is hidden, and its group draws no rail, so nothing switches or folds until the layout is back.
 Nothing of it is written: the sizes, folds and picks in the app's file stay as they were, and full screen is off at every launch, since a window that opens on one panel with the rest hidden and nothing saying why is the confusing case.
-A panel the layout lets go of, hides or refuses ends full screen; one that says itself it cannot run stays full screen, showing why.
+A panel the layout lets go of, hides or refuses ends full screen, and so does one that says it has nothing to show (§ Dividers and folding); one that says itself it cannot run stays full screen, showing why.
 Bringing a panel into view (`PanelHost.bringIntoView`) is the tree's one answer to "show this panel": the layout back when another panel fills the window, the panel's group unfolded, and the panel shown in its group, the fold and the pick kept as a rail click keeps them.
 Opening a session, from a row, a panel, a menu or a toast, brings the terminal area into view first, so its tab is on screen; a toast floats over the whole window, so it asks for that itself.
 Inside a full-screen terminal area, switching tabs keeps it full screen, and the session list keeps in step behind it, as it does behind a folded sidebar; a press that asks to see the list, such as Show in list or a project's name in the tab bar, brings the layout back ([decided 2026-11-08](../decisions/0199-show-in-list-leaves-full-screen.md); [§ A session's menu holds everything about it](claude.md#a-sessions-menu-holds-everything-about-it)).

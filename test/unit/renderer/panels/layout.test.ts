@@ -253,6 +253,13 @@ describe('a group', () => {
     expect(isEmpty(third(file({ id: 'side', panels })))).toBe(false);
   });
 
+  it('takes no room when every panel it shows has nothing to show, and neither does a split of such groups', () => {
+    const vacant = (keys: string[]) => (key: string) => keys.includes(key);
+    expect(isEmpty(third(file({ id: 'side', panels })), vacant(['b', 'c']))).toBe(true);
+    expect(isEmpty(third(file({ id: 'more', rows: [{ id: 'side', panels }] })), vacant(['b', 'c']))).toBe(true);
+    expect(isEmpty(third(file({ id: 'side', panels })), vacant(['b']))).toBe(false);
+  });
+
   it('always shows a degraded group, which has no panels to hide', () => {
     expect(isEmpty(third(file({ id: 'side', panels: [] })))).toBe(false);
   });

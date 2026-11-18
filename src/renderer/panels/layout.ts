@@ -258,12 +258,12 @@ function sorted(value: unknown): unknown {
 }
 
 /**
- * Whether a node takes no room: a group with every slot hidden, or a split of nothing but such groups.
+ * Whether a node takes no room: a group whose every slot is hidden or, by `vacant`, has nothing to show (`PanelHost.setVacant`), or a split of nothing but such groups.
  * A degraded group always shows.
  */
-export function isEmpty(node: ResolvedNode): boolean {
-  if (node.kind === 'group') return node.problems.length === 0 && node.slots.every((slot) => slot.hidden);
-  return node.children.every(isEmpty);
+export function isEmpty(node: ResolvedNode, vacant: (key: string) => boolean = () => false): boolean {
+  if (node.kind === 'group') return node.problems.length === 0 && node.slots.every((slot) => slot.hidden || vacant(slot.key));
+  return node.children.every((child) => isEmpty(child, vacant));
 }
 
 export function fileName(path: string): string {

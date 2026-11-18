@@ -228,8 +228,8 @@ function render(): void {
     entry.panel.unmount();
     mounted.delete(key);
   }
-  // A panel the layout lets go of, or now refuses, cannot fill the window: the layout comes back.
-  if (fullScreen !== null && !wanted.has(fullScreen)) fullScreen = null;
+  // A panel the layout lets go of, or now refuses, or that has nothing left to show, cannot fill the window: the layout comes back, and stays when the panel has something to show again.
+  if (fullScreen !== null && (!wanted.has(fullScreen) || mounted.get(fullScreen)?.vacant === true)) fullScreen = null;
   // Moving an element resets its scroll offsets and drops its focus, so both are carried across the rebuild.
   const focused = document.activeElement;
   const scrolled = scrollOffsets();
@@ -298,6 +298,7 @@ function renderNode(node: ResolvedNode, place: Place): HTMLElement {
 const splitting: SplitContext = {
   node: renderNode,
   fullScreen: () => fullScreen,
+  vacant: (key) => mounted.get(key)?.vacant === true,
   render,
 };
 

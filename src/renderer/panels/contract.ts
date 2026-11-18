@@ -248,6 +248,11 @@ export interface PanelHost extends Asks {
   setProblems(problems: string[]): void;
   /** Sentences about the panel that do not stop it running, shown in its group's note line. */
   setNotes(notes: string[]): void;
+  /**
+   * Whether the panel has nothing to show: a group whose every panel is vacant, or hidden, takes no room in its split and draws no divider, keeping its size for when it shows again; a vacant panel filling the window gives the layout back.
+   * A panel whose whole group takes no room is told it is hidden, as one behind another is, and still hears context changes, session changes and rechecks, and answers the asks it is made, which is how it stops being vacant.
+   */
+  setVacant(vacant: boolean): void;
   /** The folder the panel looks in, named beside its title; null for none, as for a panel with a folder of its own, which no tab moves. */
   setFolder(folder: PanelFolder | null): void;
   /** Ask the app for a session from one of the panel's items (see `SessionRequest`). */

@@ -33,6 +33,8 @@ export interface SplitContext {
   node(node: ResolvedNode, place: Place): HTMLElement;
   /** The panel filling the window, by key; null for none. */
   fullScreen(): string | null;
+  /** Whether the panel `key` says it has nothing to show (`PanelHost.setVacant`). */
+  vacant: (key: string) => boolean;
   /** Draw the whole tree again, after a fold or a reset of sizes. */
   render(): void;
 }
@@ -49,7 +51,7 @@ function holds(node: ResolvedNode, key: string): boolean {
 }
 
 export function renderSplit(split: ResolvedSplit, context: SplitContext): HTMLElement {
-  const visible = split.children.filter((child) => !isEmpty(child));
+  const visible = split.children.filter((child) => !isEmpty(child, context.vacant));
   const edges = visible.map((_, index) => foldEdge(visible, index));
   // The child on the way to the panel filling the window takes the whole split, open; its siblings and the dividers stay placed, hidden.
   const fullScreen = context.fullScreen();
