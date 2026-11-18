@@ -77,6 +77,26 @@ interface Watcher<S> {
   seen: S;
 }
 
+/** `slices` of `state` as they are now. */
+function snapshot<S>(state: S, slices: Iterable<keyof S>): S {
+  const view = {} as S;
+  for (const slice of slices) view[slice] = state[slice];
+  return view;
+}
+
+/** Call `watcher` with what moved since its last call, a slice the same by `equal` handed as it is now. */
+function callWatcher<S>(watcher: Watcher<S>, state: S, equal: <K extends keyof S>(key: K, a: S[K], b: S[K]) => boolean): void {
+  const before = {} as S;
+  for (const slice of watcher.slices) before[slice] = equal(slice, watcher.seen[slice], state[slice]) ? state[slice] : watcher.seen[slice];
+  watcher.seen = snapshot(state, watcher.slices);
+  // One failing repaint is not a reason to leave the others stale: every watcher is told.
+  try {
+    watcher.fn(state, before);
+  } catch (error) {
+    report(error);
+  }
+}
+
 export function createStore<S extends object>(initial: S, equality: { [K in keyof S]?: Equality<S[K]> } = {}): Store<S> {
   const state = { ...initial };
   let watchers: Watcher<S>[] = [];
@@ -88,13 +108,6 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
   const asOf = new Map<keyof S, Stamp>();
 
   const equal = <K extends keyof S>(key: K, a: S[K], b: S[K]): boolean => (equality[key] ?? Object.is)(a, b);
-
-  /** `slices` as they are now. */
-  function snapshot(slices: Iterable<keyof S>): S {
-    const view = {} as S;
-    for (const slice of slices) view[slice] = state[slice];
-    return view;
-  }
 
   /** Tell every watcher of a changed slice, in the order they subscribed, round after round until nothing a watcher set is left untold. */
   function tell(): void {
@@ -112,15 +125,7 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
         // A copy, so a watcher that unsubscribes another mid-round does not shift the ones still to come.
         for (const watcher of [...watchers]) {
           if (!watchers.includes(watcher) || ![...told].some((slice) => watcher.slices.has(slice))) continue;
-          const before = {} as S;
-          for (const slice of watcher.slices) before[slice] = equal(slice, watcher.seen[slice], state[slice]) ? state[slice] : watcher.seen[slice];
-          watcher.seen = snapshot(watcher.slices);
-          // One failing repaint is not a reason to leave the others stale: every watcher is told.
-          try {
-            watcher.fn(state, before);
-          } catch (error) {
-            report(error);
-          }
+          callWatcher(watcher, state, equal);
         }
       }
     } finally {
@@ -154,7 +159,7 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
       tell();
     },
     watch(slices, fn) {
-      const watcher: Watcher<S> = { slices: new Set(slices), fn, seen: snapshot(slices) };
+      const watcher: Watcher<S> = { slices: new Set(slices), fn, seen: snapshot(state, slices) };
       watchers.push(watcher);
       return () => {
         watchers = watchers.filter((each) => each !== watcher);
