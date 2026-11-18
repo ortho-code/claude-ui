@@ -17,7 +17,7 @@ export { ID_PATTERN };
 export const DEFAULT_MIN = 120;
 
 /**
- * The window when there is no layout file, or an unparsable one and no last good layout: the two built-ins in the arrangement the app has always had, the sidebar a fixed 320px beside a terminal that takes the rest.
+ * The window when there is no layout file, or an unparsable one and no last good layout: the two built-ins in the arrangement the app has always had, the sidebar a fixed 320px beside a terminal that takes the rest, and the Editor after the terminal, which takes no room until a file opens in it.
  * Resolved through the same function as any file, and shown in the layout guide as the starting point to copy; nothing is written to disk.
  */
 export const DEFAULT_LAYOUT: Layout = {
@@ -27,6 +27,7 @@ export const DEFAULT_LAYOUT: Layout = {
     columns: [
       { id: 'sidebar', size: '320px', min: 220, panels: [{ id: 'sessions', type: 'sessions' }] },
       { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] },
+      { id: 'editor', panels: [{ id: 'files', type: 'editor' }] },
     ],
   },
 };
@@ -341,7 +342,7 @@ class Resolver {
     const slots = entries.map((raw, index) => validateEntry(raw, index, this.types, this.seen, `${common.id}/${index}`));
     for (const slot of slots) {
       const type = slot.type ? this.types[slot.type] : null;
-      if (!type?.singleton || slot.problems.length > 0) continue;
+      if (!(type?.singleton || type?.addedBeside) || slot.problems.length > 0) continue;
       const first = this.placed.get(type.name);
       if (first !== undefined) {
         slot.problems.push(`type ${type.name} is already placed as "${first}".`);
@@ -349,7 +350,7 @@ class Resolver {
         continue;
       }
       this.placed.set(type.name, slot.key);
-      if (slot.hidden) {
+      if (slot.hidden && type.singleton) {
         slot.hidden = false;
         common.notes.push(`hidden is ignored on ${slot.key}: the ${type.name} panel cannot be hidden.`);
       }
@@ -410,7 +411,7 @@ function noteExhausted(node: ResolvedNode): void {
   );
 }
 
-/** The group the default layout keeps a singleton type in, and whether it sits at the start of the root or the end. */
+/** The group the default layout keeps a type in, and whether it sits at the start of the root or further on. */
 function defaultHome(type: string): { node: Extract<LayoutNode, { panels: PanelEntry[] }>; entry: PanelEntry; atStart: boolean } | null {
   const root = DEFAULT_LAYOUT.root;
   if (!('columns' in root)) return null;
@@ -422,22 +423,19 @@ function defaultHome(type: string): { node: Extract<LayoutNode, { panels: PanelE
   return null;
 }
 
-/**
- * Place a singleton the file did not: as a first or last column of the root, where the default layout keeps it, wrapping a root that is not already columns.
- * The group is the default layout's, under `@` names so it cannot collide with an id in the file, with a note saying why it is there.
- */
-function addSingleton(root: ResolvedNode, type: PanelTypeDecl): ResolvedNode {
+/** The default layout's group for a type the file left out, under `@` names so it cannot collide with an id in the file, with `notes` under it. */
+function addedGroup(type: PanelTypeDecl, notes: string[]): ResolvedGroup {
   const home = defaultHome(type.name);
   const entry = home?.entry ?? { id: type.name, type: type.name };
   const title = type.defaultTitle({}) ?? type.name;
-  const group: ResolvedGroup = {
+  return {
     kind: 'group',
     id: `@${home?.node.id ?? type.name}`,
     title,
     size: parseSize(home?.node.size),
     min: home?.node.min ?? DEFAULT_MIN,
     resizable: home?.node.resizable !== false,
-    notes: [`The layout does not place the ${type.name} panel, so it is added here.`],
+    notes,
     slots: [{ key: `@${entry.id}`, type: type.name, title, problems: [], notes: [], entry, hidden: false, icon: type.icon, view: null }],
     active: `@${entry.id}`,
     collapsible: home?.node.collapsible === true,
@@ -445,7 +443,38 @@ function addSingleton(root: ResolvedNode, type: PanelTypeDecl): ResolvedNode {
     bare: type.bare === true,
     problems: [],
   };
-  const atStart = home?.atStart ?? false;
+}
+
+/**
+ * Place a type the file left out as a column right after the one that holds the panel of type `beside`: in the nearest split of columns above that panel's group, after its child on the way there, else beside the whole root, wrapped in a split of columns as a singleton's is.
+ * No node of the file is moved or wrapped, so what the app keeps for each, a size or a fold, still means what it meant.
+ * With no note, since such a type takes no room until it has something to show; a file that places it hidden has placed it, so it is not added.
+ */
+function addBeside(root: ResolvedNode, type: PanelTypeDecl, beside: string): ResolvedNode {
+  const group = addedGroup(type, []);
+  const holds = (node: ResolvedNode): boolean =>
+    node.kind === 'group' ? node.slots.some((slot) => slot.type === beside && slot.problems.length === 0) : node.children.some(holds);
+  // The splits of columns on the way down to the panel, each with the child that leads there; the last is the nearest.
+  const columns: { split: ResolvedSplit; at: number }[] = [];
+  let node = root;
+  while (node.kind === 'split') {
+    const at = node.children.findIndex(holds);
+    if (at < 0) break;
+    if (node.axis === 'columns') columns.push({ split: node, at });
+    node = node.children[at]!;
+  }
+  const nearest = columns.at(-1);
+  if (nearest) {
+    nearest.split.children.splice(nearest.at + 1, 0, group);
+    return root;
+  }
+  return { kind: 'split', id: '@window', axis: 'columns', children: [root, group], size: null, min: DEFAULT_MIN, resizable: true, notes: [] };
+}
+
+/** Place a singleton the file did not: as a first or last column of the root, where the default layout keeps it, wrapping a root that is not already columns, with a note saying why it is there. */
+function addSingleton(root: ResolvedNode, type: PanelTypeDecl): ResolvedNode {
+  const group = addedGroup(type, [`The layout does not place the ${type.name} panel, so it is added here.`]);
+  const atStart = defaultHome(type.name)?.atStart ?? false;
   const split: ResolvedSplit =
     root.kind === 'split' && root.axis === 'columns'
       ? root
@@ -465,6 +494,10 @@ function resolveRoot(json: unknown, types: Record<string, PanelTypeDecl>, report
   root.notes.push(...notes);
   for (const type of Object.values(types)) {
     if (type.singleton && !resolver.placed.has(type.name)) root = addSingleton(root, type);
+  }
+  // After the singletons, so the panel a type is placed beside is there even when the file left it out.
+  for (const type of Object.values(types)) {
+    if (type.addedBeside && !resolver.placed.has(type.name)) root = addBeside(root, type, type.addedBeside);
   }
   if (problems.length > 0 && root.kind === 'split') root.children.push({ ...degraded('@layout', fileName(report.file), problems, {}), size: { share: 0.25 } });
   noteExhausted(root);

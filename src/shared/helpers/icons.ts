@@ -18,6 +18,7 @@ export const ICONS = {
   terminal: '<rect x="1.8" y="2.8" width="12.4" height="10.4" rx="1.6" /><path d="M4.6 6.2l2 1.8-2 1.8M8.4 10h3" />',
   git: '<circle cx="5" cy="3.6" r="1.5" /><circle cx="5" cy="12.4" r="1.5" /><circle cx="11" cy="5.2" r="1.5" /><path d="M5 5.1v5.8M11 6.7c0 2.6-6 2.2-6 4.2" />',
   diff: '<path d="M5 2.6v5M2.5 5.1h5M8.5 12.4h5M12.6 2.6L3.4 13.4" />',
+  file: '<path d="M3.8 1.8H9l3.2 3.2v9.2H3.8z" /><path d="M9 1.8V5h3.2" />',
   list: '<path d="M3 4h10M3 8h10M3 12h6.5" />',
   tree: '<path d="M2.5 3.5h6M4.5 3.5v8.5M4.5 8h3M4.5 12h3M9.5 8h4M9.5 12h4" />',
   check: '<path d="M3 8.6l3.2 3.2L13 4.8" />',

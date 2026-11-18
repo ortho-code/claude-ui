@@ -257,8 +257,7 @@ class TerminalPanel implements MountedPanel {
         button: { mark: 'close', tooltip: 'Close terminal' },
         cluster: clustered && shell.project !== null ? { key: shell.project, label: projName(shell.project, view) } : null,
       })),
-      addLabel: 'New terminal here',
-      addRefused: this.mayAdd() ? null : NO_CONTEXT,
+      add: { label: 'New terminal here', refused: this.mayAdd() ? null : NO_CONTEXT, press: () => void this.add() },
       kebabLabel: 'Terminal options',
       select: (id) => this.withShell(id, (shell) => this.select(shell, true)),
       press: (id) => this.withShell(id, (shell) => void this.askClose(shell)),
@@ -268,7 +267,6 @@ class TerminalPanel implements MountedPanel {
       },
       rename: (id) => this.withShell(id, (shell) => void this.rename(shell)),
       reorder: (ids) => this.reorder(ids),
-      add: () => void this.add(),
       showCluster: (root) => this.host.revealProject(root),
       folded: this.folded,
       fold: (folded) => {

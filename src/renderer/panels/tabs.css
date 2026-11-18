@@ -37,6 +37,11 @@
   font-weight: 400;
 }
 
+/* A preview, which the next thing opened takes the place of. */
+.panel-tabs .tab.preview .tab-label {
+  font-style: italic;
+}
+
 .panel-tabs-add {
   margin-left: 2px;
 }

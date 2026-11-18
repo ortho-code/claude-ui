@@ -23,6 +23,9 @@ import type { LayoutReport } from '../../../../src/shared/panels';
 const sessions: PanelTypeDecl = { name: 'sessions', defaultTitle: () => 'Sessions', icon: 'sessions', bare: true, singleton: true };
 const claude: PanelTypeDecl = { name: 'claude', defaultTitle: () => 'Claude', icon: 'claude', bare: true, singleton: true };
 const TYPES = { sessions, claude, command: commandType };
+// The Editor's declaration, apart from TYPES, so a test about anything else sees the file as written, with nothing added after the terminal.
+const editor: PanelTypeDecl = { name: 'editor', defaultTitle: () => 'Editor', icon: 'file', addedBeside: 'claude' };
+const WITH_EDITOR = { ...TYPES, editor };
 const FILE = '/home/u/.config/claude-ui/config/layouts/default.json';
 
 function report(json: unknown): LayoutReport {
@@ -64,17 +67,18 @@ function said(node: ResolvedNode): string[] {
 
 describe('the default layout', () => {
   it('is what a missing file means, and resolves without a word said', () => {
-    const root = split(tree(resolveLayout({ ...report(null), status: 'missing', json: null }, TYPES)));
+    const root = split(tree(resolveLayout({ ...report(null), status: 'missing', json: null }, WITH_EDITOR)));
     expect(said(root)).toEqual([]);
     expect(root).toMatchObject({ id: 'window', axis: 'columns' });
-    expect(root.children.map((child) => child.id)).toEqual(['sidebar', 'claude']);
+    expect(root.children.map((child) => child.id)).toEqual(['sidebar', 'claude', 'editor']);
     // A fixed 320px beside a terminal that takes the rest: today's window, which does not widen the sidebar with the window.
     expect(group(root.children[0])).toMatchObject({ size: { px: 320 }, min: 220, bare: true, active: 'sessions' });
     expect(group(root.children[1])).toMatchObject({ size: null, min: DEFAULT_MIN, bare: true, active: 'cli' });
+    expect(group(root.children[2])).toMatchObject({ size: null, bare: false, active: 'files' });
   });
 
   it('resolves the same written as a file', () => {
-    expect(resolve(DEFAULT_LAYOUT)).toEqual(tree(resolveLayout({ ...report(null), status: 'missing', json: null }, TYPES)));
+    expect(tree(resolveLayout(report(DEFAULT_LAYOUT), WITH_EDITOR))).toEqual(tree(resolveLayout({ ...report(null), status: 'missing', json: null }, WITH_EDITOR)));
   });
 });
 
@@ -99,9 +103,9 @@ describe('the file as a whole', () => {
     [{ version: '2', root: {} }, 'version "2" is not one this build reads (it reads 2).'],
     [{ version: 2 }, 'root is missing.'],
   ])('keeps the default layout for %j and says why in one group beside it', (json, problem) => {
-    const root = split(resolve(json));
-    expect(root.children.map((child) => child.id)).toEqual(['sidebar', 'claude', '@layout']);
-    expect(group(root.children[2])).toMatchObject({ title: 'default.json', size: { share: 0.25 }, problems: [problem], slots: [] });
+    const root = split(tree(resolveLayout(report(json), WITH_EDITOR)));
+    expect(root.children.map((child) => child.id)).toEqual(['sidebar', 'claude', 'editor', '@layout']);
+    expect(group(root.children[3])).toMatchObject({ title: 'default.json', size: { share: 0.25 }, problems: [problem], slots: [] });
   });
 
   it('names a field the file does not have, under the root', () => {
@@ -229,6 +233,43 @@ describe('one id namespace', () => {
     );
     expect(group(root.children[2]).slots[0].key).toBe('one/0');
     expect(group(root.children[3]).slots[0].key).toBe('two/0');
+  });
+});
+
+describe('a type added beside another', () => {
+  const withEditor = (json: unknown): ResolvedNode => tree(resolveLayout(report(json), WITH_EDITOR));
+  const ids = (node: ResolvedNode): string[] => split(node).children.map((child) => child.id);
+
+  it('is added right after the terminal’s group when the file leaves it out, with nothing said', () => {
+    const root = withEditor(file({ id: 'side', panels: [{ id: 'status', type: 'command', options: { command: 'ls' } }] }));
+    expect(ids(root)).toEqual(['sidebar', 'claude', '@editor', 'side']);
+    expect(said(root)).toEqual([]);
+  });
+
+  it('is added after the column that holds the terminal where the terminal sits in rows, moving no node of the file', () => {
+    const bottom = { id: 'bottom', panels: [{ id: 'status', type: 'command', options: { command: 'ls' } }] };
+    const root = withEditor({ version: 2, root: { id: 'window', columns: [SIDEBAR, { id: 'main', size: 2, rows: [CLAUDE, bottom] }, { id: 'right', panels: [{ id: 'checks', type: 'command', options: { command: 'ls' } }] }] } });
+    expect(ids(root)).toEqual(['sidebar', 'main', '@editor', 'right']);
+    expect(ids(split(root).children[1])).toEqual(['claude', 'bottom']);
+  });
+
+  it('is added beside the whole root, wrapped in columns, where no split of columns holds the terminal', () => {
+    const root = withEditor({ version: 2, root: { id: 'window', rows: [{ id: 'top', panels: [{ id: 'sessions', type: 'sessions' }] }, CLAUDE] } });
+    expect(split(root)).toMatchObject({ id: '@window', axis: 'columns' });
+    expect(ids(root)).toEqual(['window', '@editor']);
+    expect(ids(split(root).children[0])).toEqual(['top', 'claude']);
+  });
+
+  it('is not added when the file places it hidden, which switches it off', () => {
+    const root = withEditor(file({ id: 'docs', panels: [{ id: 'files', type: 'editor', hidden: true }] }));
+    expect(ids(root)).toEqual(['sidebar', 'claude', 'docs']);
+    expect(said(root)).toEqual([]);
+    expect(isEmpty(split(root).children[2])).toBe(true);
+  });
+
+  it('is refused a second time, where the second copy stands', () => {
+    const root = withEditor(file({ id: 'docs', panels: [{ id: 'one', type: 'editor' }, { id: 'two', type: 'editor' }] }));
+    expect(group(split(root).children[2]).slots[1].problems).toEqual(['type editor is already placed as "one".']);
   });
 });
 

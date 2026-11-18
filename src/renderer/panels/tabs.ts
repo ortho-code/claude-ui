@@ -13,7 +13,7 @@ import './tabs.css';
  * Each tab is the tab the terminal area's tab bar draws (tab.ts), kept by its id from one draw to the next and drawn again in place, so a press on one survives the panel saying its tabs again between the press and the release.
  * With clusters, each has a row of its own led by its label, as the tab bar draws a project's in All, and a drag stays inside its row; without, the tabs share one row.
  * Rows fold to one, the row of the tab on show, from the tab bar's fold chevron on the header's bottom line, which the tabs stand on.
- * A `+` follows the last tab.
+ * A `+` follows the last tab when the panel can add one, and a preview's label is in italics.
  */
 
 /** A cluster's row, with its label and its Sortable, which is made with the row and let go of when it goes (`dropSortable`). */
@@ -45,7 +45,7 @@ export class HeaderTabs {
     this.addButton.type = 'button';
     this.addButton.innerHTML = plusIcon(14);
     this.addButton.addEventListener('click', () => {
-      if (!unavailable(this.addButton)) this.said?.add();
+      if (!unavailable(this.addButton)) this.said?.add?.press();
     });
     this.flat = sortableTabs(this.el, this.dragEnds());
     this.foldButton.classList.add('panel-tabs-fold');
@@ -62,14 +62,17 @@ export class HeaderTabs {
       this.held = true;
       return;
     }
-    setUnavailable(this.addButton, said.addRefused, said.addLabel);
-    this.addButton.setAttribute('aria-label', said.addLabel);
+    const add = said.add ? [this.addButton] : [];
+    if (said.add) {
+      setUnavailable(this.addButton, said.add.refused, said.add.label);
+      this.addButton.setAttribute('aria-label', said.add.label);
+    }
     const clustered = said.tabs.some((tab) => tab.cluster !== null);
     this.flat.option('disabled', clustered);
     /** How many rows the tabs stand in unfolded. */
     let rowCount = 1;
     if (!clustered) {
-      placeChildren(this.el, [...said.tabs.map((tab) => this.drawOne(tab)), this.addButton]);
+      placeChildren(this.el, [...said.tabs.map((tab) => this.drawOne(tab)), ...add]);
     } else {
       // Rows by key, a tab in no cluster in a row of its own with no label, under a key no cluster's can be.
       const order: string[] = [];
@@ -93,7 +96,7 @@ export class HeaderTabs {
         const row = this.rows.draw(key, (k) => this.buildRow(k.slice(1)));
         if (label !== null) row.label.textContent = label;
         // The `+` after the last tab, in the last row.
-        placeChildren(row.row, [...(label === null ? [] : [row.label]), ...tabs.map((tab) => this.drawOne(tab)), ...(at === drawn.length - 1 ? [this.addButton] : [])]);
+        placeChildren(row.row, [...(label === null ? [] : [row.label]), ...tabs.map((tab) => this.drawOne(tab)), ...(at === drawn.length - 1 ? add : [])]);
         return row.row;
       });
       placeChildren(this.el, rows);
@@ -111,6 +114,7 @@ export class HeaderTabs {
     drawTab(els, {
       active: tab.shown,
       cold: tab.cold,
+      classes: tab.preview ? ['preview'] : [],
       text: tab.text,
       tooltip: tab.tooltip,
       button: { mark: tab.button.mark, tooltip: tab.button.tooltip, disabled: false },

@@ -62,6 +62,12 @@ export function idsIn(node: ResolvedNode, into = new Set<string>()): Set<string>
   return into;
 }
 
+/** Panel types the app gained after `meta.json` stopped keeping the tree's state, so no size kept there names a node that holds only them. */
+const AFTER_LEGACY_TYPES = new Set(['editor']);
+
+/** A group holding only panels of types newer than the kept state, which that state's sizes leave out. */
+const newerThanLegacy = (node: ResolvedNode): boolean => node.kind === 'group' && node.slots.length > 0 && node.slots.every((slot) => slot.type !== null && AFTER_LEGACY_TYPES.has(slot.type));
+
 /**
  * The tree's state as `meta.json` kept it before the config folder, as what the app's file keeps: worked out once, against the tree, since only the tree knows which node is which.
  * A split's dragged px count only while they name every one of its children, as they did: a pixel child's become its pixels, and the flexible children's become shares of what they shared, which shows the same; a lone flexible child takes what is left and is not written.
@@ -91,12 +97,14 @@ export function stateFromPanelState(root: ResolvedNode, legacy: PanelState, lega
     }
     node.children.forEach(walk);
     const stored = sizes[node.id];
-    const ids = node.children.map((child) => child.id);
+    const children = node.children.filter((child) => !newerThanLegacy(child));
+    const ids = children.map((child) => child.id);
     if (!stored || Object.keys(stored).length !== ids.length || ids.some((id) => stored[id] === undefined)) return;
-    const flexible = node.children.filter((child) => pxOf(child) === null);
+    const flexible = children.filter((child) => pxOf(child) === null);
     const room = flexible.reduce((sum, child) => sum + stored[child.id]!, 0);
-    for (const child of node.children) {
-      const size = pxOf(child) !== null ? spelledSize({ px: Math.round(stored[child.id]!) }) : flexible.length > 1 && room > 0 ? roundShare(stored[child.id]! / room) : null;
+    for (const child of children) {
+      const px = stored[child.id]!;
+      const size = pxOf(child) !== null ? spelledSize({ px: Math.round(px) }) : flexible.length > 1 && room > 0 ? roundShare(px / room) : null;
       // What the file already says is not written, as for a fold or a pick: a split's px name every child, the ones never dragged too.
       const kept = size === null ? null : keptOver(size, child.size ? spelledSize(child.size) : null);
       if (kept !== null) set(child.id, 'size', kept);

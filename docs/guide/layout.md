@@ -25,7 +25,8 @@ The default layout, as a starting point to copy:
   "version": 2,
   "root": { "id": "window", "columns": [
     { "id": "sidebar", "size": "320px", "min": 220, "panels": [{ "id": "sessions", "type": "sessions" }] },
-    { "id": "claude", "panels": [{ "id": "cli", "type": "claude" }] }
+    { "id": "claude", "panels": [{ "id": "cli", "type": "claude" }] },
+    { "id": "editor", "panels": [{ "id": "files", "type": "editor" }] }
   ] }
 }
 ```
@@ -62,7 +63,7 @@ Clicking the icon of the panel on show folds a group that can fold, and clicking
 
 Every id, of a node or a panel, is unique in the file and uses lowercase letters, digits, hyphens and underscores.
 A panel needs an `id` and a `type`; `title`, `icon`, `view` and `hidden` are optional, and whatever the type itself takes goes under `options`.
-`icon` picks its icon by name: `git`, `diff`, `list`, `tree`, `check`, `eye`, `bug`, `book`, `clock`, `server`, `play`, `search`, `bell`, `terminal`, `command`, `sessions`, `claude` or `alert`.
+`icon` picks its icon by name: `git`, `diff`, `file`, `list`, `tree`, `check`, `eye`, `bug`, `book`, `clock`, `server`, `play`, `search`, `bell`, `terminal`, `command`, `sessions`, `claude` or `alert`.
 `view` picks, by id, the view a panel shows until another is picked in its header, for a type that offers several, such as a list of files flat or as a tree; an edit of it shows from the panel's next run, and a pick in the header is kept on this machine instead.
 The session list offers `grouped` and `recent`, switched under its header rather than in one, and shows an edit of its `view` at once, since it has no run, unless a pick of its own is kept on this machine.
 A panel that cannot run wears `alert` whatever it names, so a broken one stands out on a strip of icons too.
@@ -71,6 +72,8 @@ A panel that cannot run wears `alert` whatever it names, so a broken one stands 
 
 - `sessions` is the sidebar and `claude` is the terminal area with its tabs.
   Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
+- `editor` is the place beside the session that files are to open in; nothing opens in it yet, and it takes no room while nothing is open in it.
+  It belongs in the file at most once: one left out is added as a column right after the one holding the terminal area, and `"hidden": true` on its entry switches it off.
 - `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
   `cwd` picks the folder it runs in, `interval` how often it runs again on its own, and `watch` whether it runs again when that folder's git working tree changes.
 - `terminal` holds plain shells, the same login shell your sessions run in, as tabs in its header.

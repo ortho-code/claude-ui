@@ -32,7 +32,7 @@ A file that cannot be read as a layout at all — not an object, another version
 A file that does not parse keeps the last good layout up and toasts the file, what is wrong and its line and column until a read succeeds.
 The validator (`src/renderer/panels/layout.ts`) is pure and tested per rule, including every refusal, so a validator that accepts everything fails its tests.
 
-**The default layout lives in code, never on disk**: the sidebar at 320px beside the terminal area.
+**The default layout lives in code, never on disk**: the sidebar at 320px beside the terminal area, and the Editor after it, which takes no room until a file opens in it.
 It is what a missing file means, and what an unparsable one means before any good read, so there is always a way back to a window that works — a file could be moved, deleted or renamed, and the default cannot be.
 It goes through the same validator as any file, and a test pins that it resolves without a word said.
 
@@ -377,6 +377,16 @@ A middle-click is left alone, since it pastes the selection rather than the clip
 Asking Windows took 0.4 to 1 s warm when measured, and nothing shows meanwhile.
 Each shell fits its xterm from a `ResizeObserver` on its own box rather than when it is made, because a shell is made before its box is on screen and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
 The same observer covers every later reveal — its tab picked, a switch on the rail, an unfold, a divider reopening a squeezed node — since each gives the box a size again.
+
+### The `editor` type
+
+The Editor is a built-in type in `src/renderer/panels/types/editor/`, the place beside the session that files are to open in; nothing opens in it yet.
+It says it has nothing to show while nothing is open in it (`setVacant`), so its group takes no room until then (§ Dividers and folding).
+The layout places it at most once (`addedBeside` on its declaration): a file that leaves it out gets it as a column right after the one holding the terminal area, in the nearest split of columns above the terminal's group, else beside the whole root, wrapped in columns as an added singleton is, with nothing said.
+No node of the file is moved or wrapped for it, so a size or a fold kept for one still means what it meant.
+A second copy is refused where it stands, and an entry for it that has a problem does not count as placed, so one is added and the broken entry stays, saying why, as for a singleton.
+Unlike a singleton's, `hidden` on its entry is honoured, and switches it off.
+It is an ordinary panel, built afresh on each mount, so it is not one of the two elements that outlive the layout.
 
 ### The `diff` type
 

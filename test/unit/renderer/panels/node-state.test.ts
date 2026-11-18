@@ -9,6 +9,7 @@ import type { PanelTypeDecl } from '../../../../src/renderer/panels/contract';
 const FILE = 'default.local.json';
 const sessions: PanelTypeDecl = { name: 'sessions', defaultTitle: () => 'Sessions', icon: 'sessions', bare: true, singleton: true };
 const claude: PanelTypeDecl = { name: 'claude', defaultTitle: () => 'Claude', icon: 'claude', bare: true, singleton: true };
+const editor: PanelTypeDecl = { name: 'editor', defaultTitle: () => 'Editor', icon: 'file', addedBeside: 'claude' };
 
 /** A tree as the window resolves it from `json`, or the default layout without one. */
 function tree(json: unknown = null): ResolvedNode {
@@ -21,7 +22,7 @@ function tree(json: unknown = null): ResolvedNode {
     types: [],
     local: { file: '', status: 'missing', error: null, json: null, byApp: false, stateMoved: true },
   };
-  const view = resolveLayout(report, { sessions, claude, command: commandType });
+  const view = resolveLayout(report, { sessions, claude, editor, command: commandType });
   if (view.kind !== 'tree') throw new Error('not a tree');
   return view.root;
 }
@@ -69,7 +70,7 @@ describe('readNodeState', () => {
 
 describe('idsIn', () => {
   it('holds every node and slot of the tree', () => {
-    expect([...idsIn(tree(LAYOUT))].sort()).toEqual(['checks', 'claude', 'cli', 'drawer', 'main', 'right', 'sessions', 'shell', 'sidebar', 'status', 'window'].sort());
+    expect([...idsIn(tree(LAYOUT))].sort()).toEqual(['@editor', '@files', 'checks', 'claude', 'cli', 'drawer', 'main', 'right', 'sessions', 'shell', 'sidebar', 'status', 'window'].sort());
   });
 });
 

@@ -28,6 +28,11 @@ export interface PanelTypeDecl {
    */
   singleton?: boolean;
   /**
+   * The layout places this type AT MOST once, and one the file leaves out is added right after the group holding the type named here, with no note, for a type that takes no room until it has something to show; `hidden` on it switches it off, which is how a file leaves it out.
+   * A second copy is refused in its place, as a singleton's is.
+   */
+  addedBeside?: string;
+  /**
    * What the type itself was built from, for one that can change while the app runs — a type from the config folder, whose manifest is edited by hand: a change mounts its entries afresh.
    * Absent for a built-in, which changes only with the build.
    */
@@ -168,6 +173,8 @@ export interface PanelTab {
   shown: boolean;
   /** Nothing runs behind it. */
   cold: boolean;
+  /** A preview, which the next thing opened takes the place of: its label in italics. */
+  preview?: boolean;
   /** Its button: the cross that closes it, or the square that stops what runs behind it first; the press is the panel's either way. */
   button: { mark: 'close' | 'stop'; tooltip: string };
   /**
@@ -178,15 +185,16 @@ export interface PanelTab {
 }
 
 /**
- * A panel's tabs, which the tree draws in its header in place of the title, with a `+` after the last, and what a press on them does, which the panel answers.
+ * A panel's tabs, which the tree draws in its header in place of the title, with a `+` after the last when the panel can add one, and what a press on them does, which the panel answers.
  * The chrome stays the tree's, as the view switch's does: the panel says what its tabs are, never how they are drawn.
  */
 export interface PanelTabs {
   tabs: PanelTab[];
-  /** What the `+` after the last tab says it does. */
-  addLabel: string;
-  /** Why the `+` cannot make a tab now, shown on it, which is then unavailable; null when it can. */
-  addRefused: string | null;
+  /**
+   * The `+` after the last tab: what it says it does, why it cannot make a tab now (shown on it, which is then unavailable; null when it can), and its press.
+   * Null for a panel whose tabs come from elsewhere, which draws no `+`.
+   */
+  add: { label: string; refused: string | null; press(): void } | null;
   /** What a tab's kebab says it holds, such as "Terminal options". */
   kebabLabel: string;
   select(id: string): void;
@@ -198,7 +206,6 @@ export interface PanelTabs {
   rename(id: string): void;
   /** A drag ended, leaving its row's tabs in this order. */
   reorder(ids: string[]): void;
-  add(): void;
   /** A press on a row's label, with the cluster's key. */
   showCluster(key: string): void;
   /**
