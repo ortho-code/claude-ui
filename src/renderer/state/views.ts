@@ -10,7 +10,7 @@ import { projectsForSwitcher, type SwitcherModel } from '../rules/switcher';
 import { displayName, entityKey, projectRootExists, sessionsByKey } from '../rules/sessions';
 import { sessionPart, type NudgeStatus } from '../status/rollup';
 import { isNeeds, shownState, type Strength } from '../status/shown';
-import { sameOrder, store, type TabState, type View } from './app';
+import { sameOrder, store, type AppState, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */
 
@@ -98,12 +98,30 @@ export function sessionById(id: string, view: View<'sessions' | 'tabs'> = store.
  * The sessions the sidebar can show: every session on disk, plus the open tabs whose session has not written a transcript yet (so a fresh session appears in its project immediately).
  * A tab's id is the session's real id from the moment it is created, so this adds a row that the transcript later fills in — never a second row beside it.
  */
-export function visibleSessions(view: View<'sessions' | 'tabs'>): SessionSummary[] {
-  const tips = sessionsByKey(view.sessions);
-  const knownIds = new Set(view.sessions.map((s) => s.id));
-  const pending = view.tabs.filter((t) => !knownIds.has(t.session.id)).map((t) => t.session);
-  return [...pending, ...tips.values()];
+export function visibleSessions(view: View<'sessions' | 'tabs'>): readonly SessionSummary[] {
+  return visibleFrom(view.sessions, view.tabs);
 }
+
+/**
+ * `compute`, answering again what it answered last while it is asked about the same inputs, by identity.
+ * A status change makes the switcher and the rail ask for the session pools several times over, and their inputs (the listing, the tabs, the finished marks) do not move with a status; an answer kept is read-only, since every caller shares it.
+ */
+function lastAnswer<A extends readonly unknown[], R>(compute: (...inputs: A) => R): (...inputs: A) => R {
+  let last: { inputs: A; answer: R } | null = null;
+  return (...inputs) => {
+    if (last?.inputs.length === inputs.length && last.inputs.every((input, i) => input === inputs[i])) return last.answer;
+    const answer = compute(...inputs);
+    last = { inputs, answer };
+    return answer;
+  };
+}
+
+const visibleFrom = lastAnswer((sessions: SessionSummary[], tabs: readonly TabState[]): readonly SessionSummary[] => {
+  const tips = sessionsByKey(sessions);
+  const knownIds = new Set(sessions.map((s) => s.id));
+  const pending = tabs.filter((t) => !knownIds.has(t.session.id)).map((t) => t.session);
+  return [...pending, ...tips.values()];
+});
 
 /** The switcher's project pool: every project's tips minus finished/pending-delete, independent of the search text and active project so you can always navigate to any project. */
 export function switcherPool(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes'>): SessionSummary[] {
@@ -114,15 +132,22 @@ export function switcherPool(view: View<'sessions' | 'tabs' | 'finished' | 'pend
  * The projects whose sessions on disk are all finished, each with those sessions: such a project stays listed, empty and saying so, until its sessions are deleted.
  * One rule for the session list, the switcher and the fall back to All, so no surface lists a project another has dropped.
  */
-export function finishedOnlyProjects(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes'>): Map<string, SessionSummary[]> {
-  const all = visibleSessions(view);
-  const shown = new Set(viewPool(all, false, view).map((s) => s.repoRoot));
-  const kept = new Map<string, SessionSummary[]>();
-  for (const session of viewPool(all, true, view)) {
-    if (!shown.has(session.repoRoot)) kept.set(session.repoRoot, [...(kept.get(session.repoRoot) ?? []), session]);
-  }
-  return kept;
+export function finishedOnlyProjects(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes'>): ReadonlyMap<string, SessionSummary[]> {
+  return finishedOnlyFrom(view.sessions, view.tabs, view.finished, view.pendingDeletes);
 }
+
+const finishedOnlyFrom = lastAnswer(
+  (sessions: SessionSummary[], tabs: readonly TabState[], finished: AppState['finished'], pendingDeletes: AppState['pendingDeletes']): ReadonlyMap<string, SessionSummary[]> => {
+    const view = { sessions, tabs, finished, pendingDeletes };
+    const all = visibleSessions(view);
+    const shown = new Set(viewPool(all, false, view).map((s) => s.repoRoot));
+    const kept = new Map<string, SessionSummary[]>();
+    for (const session of viewPool(all, true, view)) {
+      if (!shown.has(session.repoRoot)) kept.set(session.repoRoot, [...(kept.get(session.repoRoot) ?? []), session]);
+    }
+    return kept;
+  },
+);
 
 /** Every project the switcher lists: one with a session in view, or one whose sessions are all finished. */
 export function listedProjects(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes'>): Set<string> {
@@ -138,7 +163,7 @@ export function switcherModel(view: View<'sessions' | 'tabs' | 'finished' | 'pen
 }
 
 /** The sessions a view holds before any filter, finished or not (see inView). */
-export function viewPool(all: SessionSummary[], finishedView: boolean, view: View<'finished' | 'pendingDeletes'>): SessionSummary[] {
+export function viewPool(all: readonly SessionSummary[], finishedView: boolean, view: View<'finished' | 'pendingDeletes'>): SessionSummary[] {
   return all.filter((s) => inView(entityKey(s), finishedView, view.finished, view.pendingDeletes));
 }
 

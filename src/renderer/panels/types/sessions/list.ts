@@ -131,7 +131,7 @@ function listChanged(view: ListView, before: View<'filter' | 'activeProject' | '
  */
 type ListShape =
   | { review: ReviewSection[] }
-  | ({ all: SessionSummary[]; matches: number; total: number } & ({ tree: ProjectTree[] } | { recent: SessionSummary[]; finished: string | null }));
+  | ({ all: readonly SessionSummary[]; matches: number; total: number } & ({ tree: ProjectTree[] } | { recent: SessionSummary[]; finished: string | null }));
 
 function listShape(view: ListView): ListShape {
   // The review in place of the projects (docs/architecture/session-list.md § The review): its sets in the switcher's scope, the filter set aside meanwhile.
