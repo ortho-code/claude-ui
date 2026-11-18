@@ -30,6 +30,7 @@ const ORDER = [
   'src/renderer/ui/resizer.css',
   'src/renderer/panels/split.css',
   'src/renderer/panels/tree.css',
+  'src/renderer/panels/rail.css',
   'src/renderer/panels/types/claude/index.css',
   'src/renderer/status/not-left.css',
   'src/renderer/ui/tab.css',

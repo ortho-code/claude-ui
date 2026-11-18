@@ -6,8 +6,8 @@ import '../ui/card.css';
 import '../ui/badge.css';
 import { foldable, renderSplit, type Place, type SplitContext } from './split';
 import './tree.css';
-import { setTooltip } from '../ui/tooltip';
 import { iconSvg } from './icons';
+import { railItem, railStrip } from './rail';
 import { fileName, mountSignature, resolveLayout, type PanelSlot, type ResolvedGroup, type ResolvedNode } from './layout';
 import { claudeType } from './types/claude';
 import { sessionsType } from './types/sessions';
@@ -366,38 +366,32 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
  */
 function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, place: Place): HTMLElement | null {
   if (slots.length < 2 && !place.folded) return null;
-  const rail = element('div', `panel-rail ${place.axis === 'rows' ? 'horizontal' : 'vertical'} ${place.edge}`);
+  const rail = railStrip(place.axis === 'rows' ? 'horizontal' : 'vertical', place.edge);
   for (const slot of slots) {
-    const item = element('button', 'icon-btn rail-item dotted-icon');
-    item.type = 'button';
-    // `alert` for a panel that cannot run, whoever said so: the layout (already in the slot's icon) or the panel itself.
-    item.innerHTML = iconSvg((mounted.get(slot.key)?.problems.length ?? 0) > 0 ? 'alert' : slot.icon);
     const isShown = slot === shown && !place.folded;
     // One label for the tooltip and a screen reader, so neither is told less than the other; a count the rail can only show as "99+" is said whole here.
     const counted = mounted.get(slot.key)?.countValue;
     const named = counted === null || counted === undefined ? slot.title : `${slot.title} · ${counted}`;
-    const label = isShown && place.toggleFold ? `${named} — click to fold` : named;
-    item.setAttribute('aria-label', label);
-    setTooltip(item, label);
-    if (isShown) {
-      item.classList.add('shown');
-      // Nothing for a click to do in a group that cannot fold, so no hover to claim one.
-      item.classList.toggle('no-fold', !place.toggleFold);
-      item.setAttribute('aria-current', 'true');
-    }
+    const item = railItem({
+      // `alert` for a panel that cannot run, whoever said so: the layout (already in the slot's icon) or the panel itself.
+      icon: iconSvg((mounted.get(slot.key)?.problems.length ?? 0) > 0 ? 'alert' : slot.icon),
+      label: isShown && place.toggleFold ? `${named} — click to fold` : named,
+      onShow: isShown,
+      putsAway: place.toggleFold !== null,
+      press: () => {
+        if (isShown) {
+          place.toggleFold?.();
+          return;
+        }
+        keep([
+          { id: group.id, field: 'active', value: keptOver(slot.key, group.active) },
+          ...(foldedNow(group) ? [{ id: group.id, field: 'folded' as const, value: keptOver(false, group.folded) }] : []),
+        ]);
+        render();
+      },
+    });
     const entry = slot.problems.length === 0 ? mounted.get(slot.key) : undefined;
     if (entry) item.append(entry.badge, entry.railCount);
-    item.addEventListener('click', () => {
-      if (isShown) {
-        place.toggleFold?.();
-        return;
-      }
-      keep([
-        { id: group.id, field: 'active', value: keptOver(slot.key, group.active) },
-        ...(foldedNow(group) ? [{ id: group.id, field: 'folded' as const, value: keptOver(false, group.folded) }] : []),
-      ]);
-      render();
-    });
     rail.append(item);
   }
   return rail;
