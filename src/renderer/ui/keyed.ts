@@ -15,6 +15,8 @@
  */
 export class Keyed<E> {
   private readonly kept = new Map<string, E>();
+  /** What a sweep took off the page but was asked to keep: drawn again as the same, and otherwise as if it were not there. */
+  private readonly parked = new Map<string, E>();
   private drawn = new Set<string>();
 
   constructor(
@@ -27,24 +29,34 @@ export class Keyed<E> {
     this.drawn.add(key);
     let kept = this.kept.get(key);
     if (kept === undefined) {
-      kept = build(key);
+      kept = this.parked.get(key) ?? build(key);
+      this.parked.delete(key);
       this.kept.set(key, kept);
     }
     return kept;
   }
 
-  /** What is kept for `key`, if anything, without drawing it. */
+  /** What is kept for `key` on the page, if anything, without drawing it. */
   find(key: string): E | undefined {
     return this.kept.get(key);
   }
 
-  /** Forget, and take off the screen, everything not drawn since the last sweep: a render draws what it shows and then sweeps. */
-  sweep(): void {
+  /**
+   * Take off the screen everything not drawn since the last sweep: a render draws what it shows and then sweeps.
+   * What `keep` says yes to is kept off the page, to be drawn again as the same; the rest is forgotten, and so is anything kept earlier that `keep` no longer says yes to.
+   */
+  sweep(keep?: (key: string) => boolean): void {
     for (const [key, kept] of this.kept) {
       if (this.drawn.has(key)) continue;
-      this.forget?.(kept);
       this.root(kept).remove();
       this.kept.delete(key);
+      if (keep?.(key)) this.parked.set(key, kept);
+      else this.forget?.(kept);
+    }
+    for (const [key, parked] of this.parked) {
+      if (keep?.(key)) continue;
+      this.forget?.(parked);
+      this.parked.delete(key);
     }
     this.drawn = new Set();
   }
@@ -55,12 +67,12 @@ export class Keyed<E> {
     this.sweep();
   }
 
-  /** Everything kept, by key. */
+  /** Everything kept on the page, by key. */
   entries(): MapIterator<[string, E]> {
     return this.kept.entries();
   }
 
-  /** Everything kept. */
+  /** Everything kept on the page. */
   values(): MapIterator<E> {
     return this.kept.values();
   }

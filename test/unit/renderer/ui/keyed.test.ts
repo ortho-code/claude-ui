@@ -1,5 +1,63 @@
 import { describe, expect, it } from 'vitest';
-import { longestInOrder } from '../../../../src/renderer/ui/keyed';
+import { Keyed, longestInOrder } from '../../../../src/renderer/ui/keyed';
+
+/** A thing kept by key, counting how often it was taken off the page and forgotten. */
+interface Thing {
+  key: string;
+  removed: number;
+  forgotten: boolean;
+}
+
+function things(): Keyed<Thing> {
+  return new Keyed<Thing>(
+    (thing) => ({ remove: () => thing.removed++ }) as unknown as Element,
+    (thing) => (thing.forgotten = true),
+  );
+}
+const build = (key: string): Thing => ({ key, removed: 0, forgotten: false });
+
+describe('Keyed', () => {
+  it('draws a key as the same thing on every render that draws it', () => {
+    const kept = things();
+    const first = kept.draw('a', build);
+    kept.sweep();
+    expect(kept.draw('a', build)).toBe(first);
+    expect(first.removed).toBe(0);
+  });
+
+  it('forgets what a render leaves out, so drawing it again builds it anew', () => {
+    const kept = things();
+    const first = kept.draw('a', build);
+    kept.sweep();
+    kept.sweep();
+    expect(first).toEqual({ key: 'a', removed: 1, forgotten: true });
+    expect(kept.draw('a', build)).not.toBe(first);
+  });
+
+  it('keeps off the page what a render leaves out and `keep` says yes to, unfound until it is drawn again as the same', () => {
+    const kept = things();
+    const first = kept.draw('a', build);
+    kept.sweep(() => true);
+    kept.sweep(() => true);
+    expect(first).toEqual({ key: 'a', removed: 1, forgotten: false });
+    expect(kept.find('a')).toBeUndefined();
+    expect([...kept.values()]).toEqual([]);
+    expect(kept.draw('a', build)).toBe(first);
+    expect(kept.find('a')).toBe(first);
+  });
+
+  it('forgets a thing kept off the page once `keep` no longer says yes to it', () => {
+    const kept = things();
+    const first = kept.draw('a', build);
+    // The first sweep follows the render that drew it, the second takes it off the page.
+    kept.sweep(() => true);
+    kept.sweep(() => true);
+    expect(first.forgotten).toBe(false);
+    kept.sweep(() => false);
+    expect(first.forgotten).toBe(true);
+    expect(kept.draw('a', build)).not.toBe(first);
+  });
+});
 
 /** The length of a longest rising run, the slow way, to hold the fast one to. */
 function longestLength(sequence: readonly number[]): number {

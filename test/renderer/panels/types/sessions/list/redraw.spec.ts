@@ -42,6 +42,25 @@ test('a model switched mid-session shows on its row while a search keeps it', as
   await expect(row(page, one.title)).toContainText('Sonnet 5.5');
 });
 
+test('a row a search left out comes back as the same row, its time as it is now, and goes on ticking', async ({ app, page }) => {
+  const other = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Other one' });
+  await page.clock.install({ time: ACTIVE + 3 * 60 * MINUTE });
+  await app.boot({ sessions: [one, other] });
+  await row(page, one.title).evaluate((each) => each.setAttribute('data-probe', 'first'));
+  await page.locator('#filter-toggle').click();
+  await page.locator('#search').fill(other.title);
+  await expect(row(page, one.title)).toHaveCount(0);
+
+  // An hour off the page, its time not ticking there.
+  await page.clock.fastForward('01:00:00');
+  await page.locator('#search').fill('');
+  await expect(row(page, one.title)).toHaveAttribute('data-probe', 'first');
+  await expect(row(page, one.title).locator('.meta-text')).toHaveText(/^4 h ago/);
+
+  await page.clock.fastForward('01:00:00');
+  await expect(row(page, one.title).locator('.meta-text')).toHaveText(/^5 h ago/);
+});
+
 test('a pin shows on its row while a search keeps it', async ({ app, page }) => {
   await app.boot({ sessions: [one] });
   await page.locator('#filter-toggle').click();

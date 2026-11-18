@@ -277,16 +277,16 @@ function renderSections(sections: readonly FlatSection[], view: ListView): void 
   projectSections.sweep();
   groupSections.sweep();
   flatSections.sweep();
-  sessionRows.sweep();
+  sessionRows.sweep(inListing);
   updateSidebarHighlight(view);
   showBulk(view);
 }
 
 /** The list with nothing to draw, saying `text` in place of its rows. */
 function showEmpty(text: string, view: ListView): void {
-  clearList();
   currentByKey.clear();
   for (const s of visibleSessions(view)) currentByKey.set(entityKey(s), s);
+  clearList();
   const message = document.createElement('div');
   message.className = 'empty-message';
   message.textContent = text;
@@ -298,10 +298,15 @@ function showEmpty(text: string, view: ListView): void {
   showBulk(view);
 }
 
-// Reset to a blank list: drop every cached node so the next non-empty render rebuilds fresh.
+/**
+ * Whether a session's row is kept off the page when a draw leaves it out, so a filter that brings it back draws it without building it again: for as long as the session is in the listing (`currentByKey`, filled before each sweep).
+ */
+const inListing = (key: string): boolean => currentByKey.has(key);
+
+// Reset to a blank list: drop every section, and take the rows off the page, keeping those still in the listing for the next draw that shows them.
 function clearList(): void {
   container.replaceChildren();
-  sessionRows.clear();
+  sessionRows.sweep(inListing);
   projectSections.clear();
   groupSections.clear();
   flatSections.clear();
@@ -371,6 +376,6 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
   projectSections.sweep();
   groupSections.sweep();
   flatSections.sweep();
-  sessionRows.sweep();
+  sessionRows.sweep(inListing);
   applyFolds(view);
 }
