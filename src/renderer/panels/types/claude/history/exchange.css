@@ -3,9 +3,11 @@
   margin: 0 0 18px;
 }
 
+/* The request on lines of its own, the whole band wide at any width, and its number, time and marks on a line under it. */
 .exchange-request {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 8px;
   padding: 3px 8px 3px 0;
@@ -16,7 +18,7 @@
 /* The `>` hangs in the same gutter as claude's dots, so a request's later lines line up under its text, as claude indents a prompt's following lines, and its text lines up with claude's. */
 .exchange-request-text {
   position: relative;
-  flex: 1;
+  flex: 1 1 100%;
   min-width: 0;
   padding-left: 20px;
   white-space: pre-wrap;
@@ -81,10 +83,11 @@
   background: var(--accent);
 }
 
-/* The number, the time and any mark, at the band's end: chrome, so the interface's face rather than the terminal's. */
+/* The number, the time and any mark, on their own line at the band's end: chrome, so the interface's face rather than the terminal's. */
 .exchange-meta {
-  flex: 0 0 auto;
+  flex: 1 1 100%;
   display: flex;
+  justify-content: flex-end;
   align-items: center;
   gap: 6px;
   color: var(--muted);

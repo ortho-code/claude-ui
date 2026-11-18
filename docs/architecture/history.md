@@ -93,7 +93,7 @@ The reader folds each uuid once and keeps the first copy.
 
 ### What it looks like
 
-**Like claude's own view of the session**, because the history is a look back at that same view: the terminal's background, face and text colour — one token, `--terminal-fg`, which xterm reads back as well — and its tight line height; your request as claude echoes it, `> …` on a tinted band, with its number, time and marks at the band's end; and each of claude's messages, and each tool call, behind the dot claude marks them with.
+**Like claude's own view of the session**, because the history is a look back at that same view: the terminal's background, face and text colour — one token, `--terminal-fg`, which xterm reads back as well — and its tight line height; your request as claude echoes it, `> …` on a tinted band, with its number, time and marks on a line of their own under it, at the band's end, so the request has the whole band at any width; and each of claude's messages, and each tool call, behind the dot claude marks them with.
 **A step smaller than the terminal**, 12px against 13px, on purpose: the browser draws the same face heavier than xterm's character grid does, and at the terminal's own size the history read louder than claude beside it ([decided 2026-09-29](../decisions/0034-history-in-claudes-face.md)).
 The `>` stands in the same gutter as claude's dots, centred where they are, so a request's text starts where a message's does, and its later lines start under its first line's text, as claude indents them.
 So the reader keeps a reply as `parts`, in the order claude wrote them: every message its own part, every tool call a one-line part where it came ([decided 2026-09-29](../decisions/0041-reply-kept-as-parts.md)).

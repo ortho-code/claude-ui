@@ -82,3 +82,21 @@ test("a fold opened by hand stays open while claude's reply grows under it", asy
   await expect(run.head).toHaveAttribute('aria-expanded', 'true');
   await expect(run.body).toBeVisible();
 });
+
+for (const width of [720, 1400]) {
+  test(`at ${width}px, a request's words take the whole band and its number, time and marks sit on a line under them`, async ({ app, page }) => {
+    await page.setViewportSize({ width, height: 700 });
+    const words = 'but let us use internal and external for naming instead of public, and rename where needed';
+    await app.boot({ openSessions: [one.id], activeSession: one.id, history: { [one.id]: [exchange('busy', { kind: 'busy', request: words })] } });
+    await page.getByRole('button', { name: 'Show history' }).click();
+    const text = page.locator('.exchange-request-text');
+    await expect(text).toContainText(words);
+    const band = (await page.locator('.exchange-request').boundingBox())!;
+    const said = (await text.boundingBox())!;
+    const meta = (await page.locator('.exchange-meta').boundingBox())!;
+    // The band's right padding is all that is left beside the words.
+    expect(said.width).toBeGreaterThan(band.width - 12);
+    expect(meta.y).toBeGreaterThanOrEqual(said.y + said.height - 1);
+    expect(meta.x + meta.width).toBeCloseTo(band.x + band.width - 8, 0);
+  });
+}

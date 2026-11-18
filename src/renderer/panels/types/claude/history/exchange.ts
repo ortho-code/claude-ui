@@ -28,7 +28,7 @@ export function exchangeNode(exchange: Exchange, index: number, drawing: Exchang
   // Sent again or rewound past, it is no longer in claude's conversation, and is drawn the one way for both.
   node.className = `exchange${exchange.replaced || exchange.rewound ? ' left-behind' : ''}`;
 
-  // Your request as claude echoes it, on a band, with its number, time and marks at the band's end.
+  // Your request as claude echoes it, on a band, with its number, time and marks on a line under it, at the band's end.
   const request = document.createElement('div');
   request.className = 'exchange-request';
   const text = document.createElement('span');
