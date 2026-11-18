@@ -11,6 +11,7 @@ import type { PanelSlot } from './layout';
 import { linkedSessions, pickSession, sessionNamed, startSession } from './links';
 import { optionsOf } from './options';
 import { SNAPSHOT_SLICES, snapshotText } from './snapshot';
+import { railCount as makeRailCount, showRailCount } from './rail';
 import { HeaderTabs } from './tabs';
 import type { TreeHost } from './tree';
 import { keep, stateOf } from './tree-state';
@@ -161,8 +162,8 @@ function headerMarks(type: PanelType, slot: PanelSlot, context: MountContext): P
   const badge = element('span', badgeClass(null));
   badge.hidden = true;
   const count = element('span', 'panel-count');
-  const railCount = element('span', 'rail-count');
-  count.hidden = railCount.hidden = true;
+  const railCount = makeRailCount();
+  count.hidden = true;
   return { busy, end, action, fullScreenButton, badge, count, railCount };
 }
 
@@ -213,10 +214,10 @@ export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
       const current = context.entry(slot.key);
       if (current?.countValue === value) return;
       if (current) current.countValue = value;
-      count.hidden = railCount.hidden = value === null;
+      count.hidden = value === null;
       count.textContent = value === null ? '' : String(value);
-      // Two digits at most under a 24px icon; the rail's label, rebuilt by the render below, says the number whole.
-      railCount.textContent = value === null ? '' : value > 99 ? '99+' : String(value);
+      // The rail's label, rebuilt by the render below, says the number whole.
+      showRailCount(railCount, value);
       context.queueRender();
     },
     setProblems: (problems) => report('problems', problems),

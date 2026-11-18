@@ -28,3 +28,16 @@ export function railItem(item: { icon: string; label: string; onShow: boolean; p
   button.addEventListener('click', () => item.press());
   return button;
 }
+
+/** The count an item carries beside its icon, out of sight until `showRailCount` gives it a number. */
+export function railCount(): HTMLElement {
+  const count = element('span', 'rail-count');
+  count.hidden = true;
+  return count;
+}
+
+/** Two digits at most under a 24px icon, so the item's label says the number whole; null hides it. */
+export function showRailCount(count: HTMLElement, value: number | null): void {
+  count.hidden = value === null;
+  count.textContent = value === null ? '' : value > 99 ? '99+' : String(value);
+}
