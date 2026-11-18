@@ -1,14 +1,15 @@
-import type { DiffFile, DiffPicks, DiffView } from '../../../../../shared/diff/types';
+import type { DiffFile, DiffView } from '../../../../../shared/diff/types';
+import type { EditorUi } from '../../../../../shared/types';
 import type { FileRef } from '../../../../state/editor-tabs';
 import { TreeWatch } from '../../../tree-watch';
 import { FileView } from './file-view';
 
 /** What a file's tab asks of the Editor it is in: the picks every tab draws by, and how wide the Editor is. */
 export interface FileDocHost {
-  picks(): DiffPicks;
+  picks(): EditorUi;
   /** Whether the Editor is wide enough for Fit to draw split. */
   wide(): boolean;
-  pick(change: Partial<DiffPicks>): void;
+  pick(change: Partial<EditorUi>): void;
   /** This tab stepped to another file of its sequence, `ref`, which it already shows. */
   step(ref: FileRef): void;
   /** This tab read its file again, now compared as `ref` says. */

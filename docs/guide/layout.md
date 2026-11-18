@@ -26,7 +26,7 @@ The default layout, as a starting point to copy:
   "root": { "id": "window", "columns": [
     { "id": "sidebar", "size": "320px", "min": 220, "panels": [{ "id": "sessions", "type": "sessions" }] },
     { "id": "claude", "panels": [{ "id": "cli", "type": "claude" }] },
-    { "id": "editor", "panels": [{ "id": "files", "type": "editor" }] }
+    { "id": "editor", "size": 0.67, "panels": [{ "id": "files", "type": "editor" }] }
   ] }
 }
 ```
@@ -72,8 +72,8 @@ A panel that cannot run wears `alert` whatever it names, so a broken one stands 
 
 - `sessions` is the sidebar and `claude` is the terminal area with its tabs.
   Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
-- `editor` is where files open beside the session, in tabs, taking no room while nothing is open in it; see [The Editor](#the-editor) below.
-  It belongs in the file at most once: one left out is added as a column right after the one holding the terminal area, and `"hidden": true` on its entry switches it off.
+- `editor` is where the Editor docks beside the terminal, taking no room while it is not docked or nothing is open in it; see [The Editor](#the-editor) below.
+  It belongs in the file at most once: one left out is added as a column right after the one holding the terminal area, and `"hidden": true` on its entry means it never docks, opening only as a drawer.
 - `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
   `cwd` picks the folder it runs in, `interval` how often it runs again on its own, and `watch` whether it runs again when that folder's git working tree changes.
 - `terminal` holds plain shells, the same login shell your sessions run in, as tabs in its header.
@@ -198,18 +198,19 @@ Nothing is fetched for it, so it is measured as your last fetch left the remote 
 Each file shows its letter (`M` changed, `A` added, `D` removed, `R` renamed, `U` not tracked yet), its name after its folder, and the lines it adds and removes; a renamed file's tooltip says where it came from.
 The switch in its header shows the files as a flat list or as a tree of their folders, where a press on a folder folds it.
 A press on a file opens its diff in the [Editor](#the-editor), and the list marks the file the Editor shows.
-With the Editor switched off in your layout, a press marks the file and the list says where files open.
 The list reads again when a switch of tab or project moves where it looks, within a minute of a file in the checkout changing, and when the session on show starts or finishes a turn.
 Untracked files past the first 500 are counted under the list rather than listed.
 
 ## The Editor
 
-Files open in the Editor, beside the terminal area, so you can read them while the session goes on working.
-It takes no room while nothing is open in it, and comes back at the size you last gave it when a file opens.
-Each session tab has its own files in it; switching tabs switches them.
+Files open in the Editor, as a drawer over the terminal area, the one the history opens in: claude stays in view beside it, dimmed, and Esc, a click on claude, or closing the last file, closes it.
+**Dock** in its head puts it beside the terminal instead, so you can read while the session goes on working, and **Undock** puts it back; the app remembers which.
+Docked, it takes no room while nothing is open in it, and comes back at the size you last gave it when a file opens; in the default layout it first takes two-thirds of what it shares with the terminal.
+The Editor and the history take turns in the drawer; with the Editor docked, the history opens over the terminal and the file stays in view.
+Each session tab has its own files in it; switching tabs switches them, and closes the drawer.
 
-A press on a file opens it as a preview, its name in italics, which the next file you open takes the place of; a double click, on the file or on its tab, keeps it, so the next one opens beside it.
-Close a tab with its cross; closing the last gives the room back.
+A press on a file opens it as a preview, its name in italics, which the next file you open takes the place of; a double click, on the file or on its tab, or Pin in the tab's menu, keeps it, so the next one opens beside it.
+The tab's menu also copies the file's path, and closes the other tabs or this one; its cross closes it too.
 The Editor only reads for now, and every file says "Read only".
 
 A file is shown whole, with its changes marked where they are.

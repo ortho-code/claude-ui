@@ -70,6 +70,7 @@ const ORDER = [
   'src/renderer/panels/types/editor/file/hunks.css',
   'src/renderer/panels/types/editor/file/steps.css',
   'src/renderer/panels/types/editor/file/file-view.css',
+  'src/renderer/panels/types/editor/view.css',
   'src/renderer/panels/types/editor/panel.css',
   'src/renderer/panels/types/sessions/controls.css',
   'src/renderer/panels/types/sessions/headings.css',

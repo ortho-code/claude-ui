@@ -27,7 +27,8 @@ export const DEFAULT_LAYOUT: Layout = {
     columns: [
       { id: 'sidebar', size: '320px', min: 220, panels: [{ id: 'sessions', type: 'sessions' }] },
       { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] },
-      { id: 'editor', panels: [{ id: 'files', type: 'editor' }] },
+      // Two-thirds of what it shares with the terminal once docked, the width the drawer it docks from has.
+      { id: 'editor', size: 0.67, panels: [{ id: 'files', type: 'editor' }] },
     ],
   },
 };
@@ -465,10 +466,13 @@ function addBeside(root: ResolvedNode, type: PanelTypeDecl, beside: string): Res
   }
   const nearest = columns.at(-1);
   if (nearest) {
-    nearest.split.children.splice(nearest.at + 1, 0, group);
+    // The default layout's share only where it means what it says there, the terminal's column being the one other flexible child and unsized; anywhere else the file's own shares are left as they add up, the added group taking an even part.
+    const others = nearest.split.children.filter((child) => pxOf(child) === null);
+    const alone = others.length === 1 && others[0] === nearest.split.children[nearest.at] && others[0]!.size === null;
+    nearest.split.children.splice(nearest.at + 1, 0, alone ? group : { ...group, size: null });
     return root;
   }
-  return { kind: 'split', id: '@window', axis: 'columns', children: [root, group], size: null, min: DEFAULT_MIN, resizable: true, notes: [] };
+  return { kind: 'split', id: '@window', axis: 'columns', children: [root, { ...group, size: null }], size: null, min: DEFAULT_MIN, resizable: true, notes: [] };
 }
 
 /** Place a singleton the file did not: as a first or last column of the root, where the default layout keeps it, wrapping a root that is not already columns, with a note saying why it is there. */

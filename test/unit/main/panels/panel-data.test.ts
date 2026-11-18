@@ -138,14 +138,14 @@ describe('a panel’s own data', () => {
 
 describe('a diff panel’s picks', () => {
   it('keeps the picks, as the window says them, and reads them back beside a link', async () => {
-    await handlers.get('panelData:setDiffPicks')?.(null, 'changes', { question: 'unpushed', view: 'split', ignoreWs: true, changesOnly: true });
+    await handlers.get('panelData:setDiffPicks')?.(null, 'changes', { question: 'unpushed' });
     await linkSession('changes', 's1', LINK, { repoRoot: '/repo', groupId: null });
-    expect((await readPanelData('changes')).diff).toEqual({ question: 'unpushed', view: 'split', ignoreWs: true, changesOnly: true });
+    expect((await readPanelData('changes')).diff).toEqual({ question: 'unpushed' });
   });
 
-  it('gives a pick that is not sound its default, and writes nothing when none is sound', async () => {
-    await keepDiffPicks('partly', { question: 'unpushed', view: 'sideways', changesOnly: 'yes' });
-    expect((await readPanelData('partly')).diff).toEqual({ question: 'unpushed', view: 'fit', ignoreWs: false, changesOnly: false });
+  it('keeps only the question of picks that held more, as the panel kept them before the Editor drew diffs, and writes nothing when the question is not sound', async () => {
+    await keepDiffPicks('partly', { question: 'unpushed', view: 'sideways', ignoreWs: true });
+    expect((await readPanelData('partly')).diff).toEqual({ question: 'unpushed' });
     await keepDiffPicks('bad', { question: 'everything' });
     await expect(fs.access(file('bad'))).rejects.toThrow();
   });

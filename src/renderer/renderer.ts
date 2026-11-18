@@ -10,6 +10,7 @@ import './status/project-gone';
 import { startChrome } from './window/chrome';
 import './ui/flash';
 import { initTree, loadLayout, startPanels, treeContextChanged, treeSessionsChanged } from './panels/tree';
+import { startEditor } from './panels/types/editor/controller';
 import { WHERE_SLICES, whereOf } from './panels/run';
 import { history, paneFollows } from './panels/types/claude/pane';
 import { switchWorkspaceTerminal } from './panels/types/claude/terminals';
@@ -59,7 +60,7 @@ sessionsWatch.repaints();
 claudeWatch.repaints();
 
 // The view you are leaving behind — the filter, the folds, the panel, the tab bar's fold — is kept for the next launch; the snapshot is compared before it is written, so a change that ends where it began costs nothing.
-store.watch(['filter', 'folds', 'filterPanelOpen', 'tabBarExpanded'], () => persistUi());
+store.watch(['filter', 'folds', 'filterPanelOpen', 'tabBarExpanded', 'editorUi'], () => persistUi());
 
 // The panels run where you are: in the tab on show's folder, or without one in the project's root, or in nothing in the All view.
 // Told of the slices `whereOf` reads, the tabs among them: a `/clear` or a move into another folder changes the session under the same tab.
@@ -127,6 +128,8 @@ void watchSettings();
 void startChrome();
 
 installTooltips();
+// The Editor's one view, before the layout places an Editor panel to dock it in; while not docked it opens in the terminal area's drawer.
+startEditor(claudeAnswers);
 // The window's layout, drawn now so the first paint is already the window: the default layout until the file has been read, which the start-up below does before it draws a single row.
 initTree({
   where: () => whereOf(store.get()),

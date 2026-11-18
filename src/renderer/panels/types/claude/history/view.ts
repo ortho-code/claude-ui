@@ -181,6 +181,12 @@ export class HistoryView implements BarSource {
     this.host.place(!this.shown ? 'closed' : this.standalone !== null ? 'whole' : 'over');
   }
 
+  /** Close it, standing for a cold tab or open over a live one, without handing the keys anywhere: for something else taking the drawer it is drawn in. */
+  close(): void {
+    if (this.standalone !== null) this.setStandalone(null);
+    else this.setShown(false);
+  }
+
   private leave(): void {
     if (this.standalone === null) this.host.leave();
     else this.setStandalone(null);

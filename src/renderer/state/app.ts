@@ -2,7 +2,7 @@ import { defaultUi } from '../../shared/config/defaults';
 import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/config/settings';
-import type { GroupState, SetAside, NeedsYou, PrNames, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
+import type { EditorUi, GroupState, SetAside, NeedsYou, PrNames, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../rules/sessions';
 import { NO_PR_STATUS } from '../status/pr-status';
 import type { EditorTabs } from './editor-tabs';
@@ -135,8 +135,12 @@ export interface AppState {
    * In memory only, so a restart opens none; a session's set goes with it when `/clear` starts a new one in its tab.
    */
   editorTabs: ReadonlyMap<string, EditorTabs>;
-  /** Whether the layout holds an Editor to open a file in, which a layout without one or with it switched off does not: set by the Editor as it mounts and unmounts. */
-  editorOn: boolean;
+  /** Whether the layout holds an Editor panel to dock the Editor in, which a layout with it switched off does not: set by the panel as it mounts and unmounts. */
+  editorDock: boolean;
+  /** Whether the drawer over the terminal area shows the Editor, while it is not docked; in memory only. */
+  editorDrawer: boolean;
+  /** The Editor's part of the view kept for the next launch: docked or not, and how it draws a file's diff. */
+  editorUi: EditorUi;
 }
 
 /** How the session list lays its sessions out: by project and group, or flat, last worked on first. */
@@ -177,7 +181,7 @@ export function noFilter(): FilterState {
 }
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
-export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'tabBarExpanded'>;
+export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'tabBarExpanded' | 'editorUi'>;
 
 /** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
 export interface TabState {
@@ -365,7 +369,9 @@ export const store = createStore<AppState>(
     prNames: new Map(),
     settings: null,
     editorTabs: new Map(),
-    editorOn: false,
+    editorDock: false,
+    editorDrawer: false,
+    editorUi: defaultUi().editor,
   },
   {
     sessions: sameRows,
@@ -390,5 +396,6 @@ export const store = createStore<AppState>(
     prStatus: sameData,
     prNames: (a, b) => sameEntries(a, b, sameData),
     settings: sameData,
+    editorUi: sameData,
   },
 );

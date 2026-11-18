@@ -1,12 +1,7 @@
-/* THE EDITOR (types/editor/panel.ts): the file on show fills it, under the tabs its header holds. */
+/* THE EDITOR PANEL (types/editor/panel.ts): where the Editor's view docks, which fills it. */
 .editor-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 100%;
-}
-
-.editor-panel > .diff-file-view {
-  flex: 1;
-  min-height: 0;
 }

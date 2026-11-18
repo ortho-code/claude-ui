@@ -24,7 +24,7 @@ const sessions: PanelTypeDecl = { name: 'sessions', defaultTitle: () => 'Session
 const claude: PanelTypeDecl = { name: 'claude', defaultTitle: () => 'Claude', icon: 'claude', bare: true, singleton: true };
 const TYPES = { sessions, claude, command: commandType };
 // The Editor's declaration, apart from TYPES, so a test about anything else sees the file as written, with nothing added after the terminal.
-const editor: PanelTypeDecl = { name: 'editor', defaultTitle: () => 'Editor', icon: 'file', addedBeside: 'claude' };
+const editor: PanelTypeDecl = { name: 'editor', defaultTitle: () => 'Editor', icon: 'file', bare: true, addedBeside: 'claude' };
 const WITH_EDITOR = { ...TYPES, editor };
 const FILE = '/home/u/.config/claude-ui/config/layouts/default.json';
 
@@ -74,7 +74,7 @@ describe('the default layout', () => {
     // A fixed 320px beside a terminal that takes the rest: today's window, which does not widen the sidebar with the window.
     expect(group(root.children[0])).toMatchObject({ size: { px: 320 }, min: 220, bare: true, active: 'sessions' });
     expect(group(root.children[1])).toMatchObject({ size: null, min: DEFAULT_MIN, bare: true, active: 'cli' });
-    expect(group(root.children[2])).toMatchObject({ size: null, bare: false, active: 'files' });
+    expect(group(root.children[2])).toMatchObject({ size: { share: 0.67 }, bare: true, active: 'files' });
   });
 
   it('resolves the same written as a file', () => {
@@ -243,6 +243,17 @@ describe('a type added beside another', () => {
   it('is added right after the terminal’s group when the file leaves it out, with nothing said', () => {
     const root = withEditor(file({ id: 'side', panels: [{ id: 'status', type: 'command', options: { command: 'ls' } }] }));
     expect(ids(root)).toEqual(['sidebar', 'claude', '@editor', 'side']);
+    expect(said(root)).toEqual([]);
+  });
+
+  it('takes the default layout’s share beside a terminal that is its split’s only other flexible column, and an even part with nothing said where the file shares more', () => {
+    const fixedSidebar = { ...SIDEBAR, size: '320px' };
+    const columns = (side: object): unknown => ({ version: 2, root: { id: 'window', columns: [fixedSidebar, CLAUDE, side] } });
+    const fixed = { id: 'side', size: '360px', panels: [{ id: 'status', type: 'command', options: { command: 'ls' } }] };
+    expect(split(withEditor(columns(fixed))).children[2].size).toEqual({ share: 0.67 });
+    const shared = { id: 'side', size: 0.4, panels: [{ id: 'status', type: 'command', options: { command: 'ls' } }] };
+    const root = withEditor(columns(shared));
+    expect(split(root).children[2].size).toBeNull();
     expect(said(root)).toEqual([]);
   });
 

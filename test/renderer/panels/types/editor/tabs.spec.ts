@@ -2,7 +2,7 @@ import { PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { tab } from '../../../support/window';
 import { here } from '../../layout/layout';
-import { bootDiff, editor, editorTabs, file, fileDiff, rows, summary } from '../diff/diff';
+import { bootDiff, editor, editorPanel, editorTabs, file, fileDiff, rows, summary } from '../diff/diff';
 
 // The Editor's tabs: a press opens a preview the next press takes the place of, a double click keeps one, each session tab has its own, and the Editor takes no room once the last closes.
 
@@ -35,12 +35,12 @@ test('a double click on a row, or on its tab, keeps the file, so the next press 
   await expect(editorTabs(page)).toHaveText(['a.ts', 'b.ts', 'c.ts']);
 });
 
-test('closing the last tab gives the Editor’s room back, and the next file opened takes it again at its size', async ({ app, page }) => {
-  await bootDiff(app, { since: listed }, { files });
+test('closing the last tab gives the docked Editor’s room back, and the next file opened takes it again at its size', async ({ app, page }) => {
+  await bootDiff(app, { since: listed }, { files, editor: { docked: true } });
   await rows(page).nth(0).click();
   const width = (await editor(page).boundingBox())!.width;
   await editorTabs(page).first().locator('.tab-close').click();
-  await expect(editor(page)).toHaveCount(0);
+  await expect(editorPanel(page)).toBeHidden();
   await rows(page).nth(1).click();
   await expect(editorTabs(page)).toHaveText(['b.ts']);
   expect((await editor(page).boundingBox())!.width).toBeCloseTo(width, 0);
@@ -48,21 +48,21 @@ test('closing the last tab gives the Editor’s room back, and the next file ope
 
 test('each session tab has its own files in the Editor', async ({ app, page }) => {
   const other = session({ id: '00000000-0000-4000-8000-0000000000e1', title: 'Second here', cwd: PROJECT, repoRoot: PROJECT });
-  await bootDiff(app, { since: listed }, { files, also: other });
+  await bootDiff(app, { since: listed }, { files, also: other, editor: { docked: true } });
   await rows(page).nth(0).click();
   await expect(editorTabs(page)).toHaveText(['a.ts']);
   await tab(page, other.title).click();
-  await expect(editor(page)).toHaveCount(0);
+  await expect(editorPanel(page)).toBeHidden();
   await rows(page).nth(1).click();
   await expect(editorTabs(page)).toHaveText(['b.ts']);
   await tab(page, here.title).click();
   await expect(editorTabs(page)).toHaveText(['a.ts']);
 });
 
-test('a full-screen Editor whose last tab closes gives the layout back, and does not fill the window again on the next file', async ({ app, page }) => {
-  await bootDiff(app, { since: listed }, { files });
+test('a full-screen docked Editor whose last tab closes gives the layout back, and does not fill the window again on the next file', async ({ app, page }) => {
+  await bootDiff(app, { since: listed }, { files, editor: { docked: true } });
   await rows(page).nth(0).click();
-  await page.locator('.panel-group', { has: editor(page) }).getByRole('button', { name: 'Full screen' }).click();
+  await editor(page).getByRole('button', { name: 'Full screen' }).click();
   await expect(page.locator('#sidebar')).toBeHidden();
   await editorTabs(page).first().locator('.tab-close').click();
   await expect(page.locator('#sidebar')).toBeVisible();

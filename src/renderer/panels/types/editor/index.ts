@@ -2,15 +2,16 @@ import type { PanelType } from '../../contract';
 import { EditorPanel } from './panel';
 
 /**
- * The `editor` type: the files opened beside the session, in tabs, taking no room while none is open.
- * Placed at most once, and added as a column right after the one holding the terminal area when the layout leaves it out; `"hidden": true` on its entry switches it off.
+ * The `editor` type: where the Editor docks beside the terminal, taking no room while it is not docked or nothing is open in it.
+ * Placed at most once, and added as a column right after the one holding the terminal area when the layout leaves it out; `"hidden": true` on its entry means the Editor never docks, and opens as a drawer over the terminal area only.
  */
 export const editorType: PanelType = {
   name: 'editor',
   options: [],
   exactlyOne: [],
   icon: 'file',
+  bare: true,
   addedBeside: 'claude',
   defaultTitle: () => 'Editor',
-  mount: (slot, host) => new EditorPanel(slot, host),
+  mount: (_slot, host) => new EditorPanel(host),
 };

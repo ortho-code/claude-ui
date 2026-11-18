@@ -60,6 +60,19 @@ describe('tabBarExpanded', () => {
   });
 });
 
+describe('the Editor', () => {
+  it('starts as a drawer, drawing a diff Fit, whole and with whitespace', async () => {
+    expect((await getUiState()).editor).toEqual({ docked: false, view: 'fit', ignoreWs: false, changesOnly: false });
+  });
+
+  it('gives each field that is missing or of the wrong kind its default, keeping the rest', async () => {
+    await writeMetaFile({ ui: { editor: { docked: true, view: 'sideways', ignoreWs: 'yes' } }, version: 3 });
+    expect((await getUiState()).editor).toEqual({ docked: true, view: 'fit', ignoreWs: false, changesOnly: false });
+    await writeMetaFile({ ui: { editor: 'docked' }, version: 3 });
+    expect((await getUiState()).editor).toEqual({ docked: false, view: 'fit', ignoreWs: false, changesOnly: false });
+  });
+});
+
 describe('ui state', () => {
   const view = {
     search: 'psalm',
@@ -69,6 +82,7 @@ describe('ui state', () => {
     dateTo: 1_700_500_000_000,
     filterPanelOpen: true,
     tabBarExpanded: false,
+    editor: { docked: true, view: 'split' as const, ignoreWs: true, changesOnly: true },
     collapsedProjects: ['/home/me/work'],
     collapsedGroups: ['g1'],
     filterCollapsedProjects: ['/home/me/other'],
@@ -91,6 +105,7 @@ describe('ui state', () => {
       dateTo: null,
       filterPanelOpen: false,
       tabBarExpanded: true,
+      editor: { docked: false, view: 'fit', ignoreWs: false, changesOnly: false },
       collapsedProjects: [],
       collapsedGroups: [],
       filterCollapsedProjects: [],

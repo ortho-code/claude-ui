@@ -1,4 +1,5 @@
-import type { UiState } from '../../shared/types';
+import type { EditorUi, UiState } from '../../shared/types';
+import { isDiffView } from '../../shared/diff/picks';
 import type { PanelState } from '../../shared/panels';
 import { defaultUi } from '../../shared/config/defaults';
 
@@ -7,6 +8,18 @@ import { defaultUi } from '../../shared/config/defaults';
  * Only the containers are checked, not whether an id is still in the layout file — that file changes under the app, and the tree ignores state for an id it does not have.
  * The first slice's `{ width }` is not carried: it had one user and a week of life, and the tree starts that side from the file's size.
  */
+/** The Editor's part, field by field, each one missing or of the wrong kind taking its default. */
+function normalizeEditor(raw: unknown, bool: (value: unknown, fallback: boolean) => boolean): EditorUi {
+  const base = defaultUi().editor;
+  const editor = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    docked: bool(editor.docked, base.docked),
+    view: isDiffView(editor.view) ? editor.view : base.view,
+    ignoreWs: bool(editor.ignoreWs, base.ignoreWs),
+    changesOnly: bool(editor.changesOnly, base.changesOnly),
+  };
+}
+
 function normalizePanelState(raw: unknown, px: (value: unknown) => number | null, strings: (value: unknown) => string[]): PanelState {
   const record = (value: unknown): Record<string, unknown> =>
     value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -59,6 +72,7 @@ export function normalizeUi(raw: unknown): UiState {
     dateTo: ms(ui.dateTo),
     filterPanelOpen: bool(ui.filterPanelOpen, base.filterPanelOpen),
     tabBarExpanded: bool(ui.tabBarExpanded, base.tabBarExpanded),
+    editor: normalizeEditor(ui.editor, bool),
     collapsedProjects: strings(ui.collapsedProjects),
     collapsedGroups: strings(ui.collapsedGroups),
     filterCollapsedProjects: strings(ui.filterCollapsedProjects),

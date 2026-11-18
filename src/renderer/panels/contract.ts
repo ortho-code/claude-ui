@@ -135,6 +135,13 @@ export interface Asks {
   setAsideTabs(ids: readonly string[], done: { said: string; undo: () => void }): void;
   /** The terminal area's half of selecting a project: the tabs on show and the tab in front follow it. */
   showProject(repoRoot: string | null): void;
+  /**
+   * Show `el` in the drawer over the terminal area, taking it from whatever was on show there, which closes its own way; `close` is how a press on the scrim, or something else taking the drawer, closes `el`.
+   * `el` is kept laid out in the drawer from then on, until `hideFromDrawer`.
+   */
+  showInDrawer(el: HTMLElement, close: () => void): void;
+  /** Take `el` out of the drawer, closing the drawer while `el` is what it shows, and give the keys back to the live terminal when they were in it; anything else on show stays. */
+  hideFromDrawer(el: HTMLElement): void;
   // Answered by the session list.
   /** Select a project, or All for null, as the switcher does. */
   selectProject(repoRoot: string | null): void;

@@ -5,13 +5,14 @@ import { newSession } from '../../../dialogs/new-session';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
 import { setProjectOnShow } from '../../../state/project';
-import { projName, sessionById, tabWith, unopenableReason } from '../../../state/views';
+import { projName, sessionById, tabOnShow, tabWith, unopenableReason } from '../../../state/views';
 import { showToast } from '../../../ui/toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
 import { closeTabs, finishSessions, pressLeave, setAsideTabs } from './closing';
+import { drawer } from './pane';
 import { activateTab, createTab, startTab, switchWorkspaceTerminal } from './terminals';
-import type { TabLaunch } from './tab-state';
+import { terminalOf, type TabLaunch } from './tab-state';
 
 /**
  * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, finish one with its tabs, and follow the project chosen.
@@ -154,7 +155,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
 }
 
 /** The asks the terminal area answers. */
-export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressLeave' | 'finishSessions' | 'closeTabs' | 'setAsideTabs' | 'showProject'> = {
+export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressLeave' | 'finishSessions' | 'closeTabs' | 'setAsideTabs' | 'showProject' | 'showInDrawer' | 'hideFromDrawer'> = {
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
@@ -174,4 +175,16 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
   closeTabs,
   setAsideTabs: (ids, done) => setAsideTabs(ids, done),
   showProject: (repoRoot) => switchWorkspaceTerminal(repoRoot),
+  showInDrawer: (el, close) => {
+    drawer.hold(el, close);
+    drawer.set(el, 'over');
+  },
+  // Let go of, not only closed: what asked for the drawer can then be placed elsewhere, as the Editor is when it docks.
+  // The keys go back to the live terminal when they were in what closed, as they do when the history closes.
+  hideFromDrawer: (el) => {
+    const hadKeys = el.contains(document.activeElement);
+    drawer.release(el);
+    const tab = tabOnShow(store.get());
+    if (hadKeys && tab && tab.terminalId !== null) terminalOf(tab.token).term.focus();
+  },
 };

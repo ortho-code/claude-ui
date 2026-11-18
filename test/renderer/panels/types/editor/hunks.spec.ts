@@ -1,6 +1,7 @@
 import { PROJECT } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { bootDiff, diffLines, editor, file, fileDiff, fileNote, menuRows, picksData, position, rows, summary } from '../diff/diff';
+import { bootDiff, diffLines, editor, file, fileDiff, fileNote, menuRows, position, rows, summary } from '../diff/diff';
+import type { App } from '../../../support/harness';
 
 // A file pressed in the diff panel opens in the Editor: the whole file with its changes marked, unified while the Editor is narrow and split from 600px, the words that changed marked, and a stepper through the changes; Changes only folds the unchanged lines between them.
 
@@ -8,7 +9,9 @@ const fifty = Array.from({ length: 50 }, (_, at) => `line ${at + 1}`);
 const edited = fileDiff('src/a.ts', [{ old: 39, new: 39, heading: 'function a()', rows: [' line 39', '-line 40', '+line forty', ' line 41'] }], fifty.map((line, at) => (at === 39 ? 'line forty' : line)));
 const listed = summary({ files: [file('src/a.ts', { added: 1, deleted: 1 }), file('src/b.ts')] });
 const second = fileDiff('src/b.ts', [{ old: 1, new: 1, rows: ['+new first line', ' kept'] }], ['new first line', 'kept']);
-const changesOnly = picksData({ changesOnly: true });
+const changesOnly = { changesOnly: true };
+/** What the window last kept of the Editor. */
+const keptEditor = async (app: App): Promise<unknown> => ((await app.calls('setUiState')).at(-1)?.[0] as { editor: unknown } | undefined)?.editor;
 
 test('a file pressed in the list opens in the Editor, unified while it is narrow, and its row is marked', async ({ app, page }) => {
   await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited } });
@@ -22,21 +25,21 @@ test('a file pressed in the list opens in the Editor, unified while it is narrow
   expect((await app.calls('diffFile')).at(-1)).toEqual([PROJECT, 'aaaaaaa', 'src/a.ts', null, 3, false]);
 });
 
-test('from 600px wide the Editor draws Fit split, as full screen makes it', async ({ app, page }) => {
-  await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited } });
+test('from 600px wide the Editor draws Fit split, as full screen makes it docked', async ({ app, page }) => {
+  await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited }, editor: { docked: true } });
   await rows(page).first().click();
   await expect(editor(page).locator('.diff-hunks')).not.toHaveClass(/split/);
-  await page.locator('.panel-group', { has: editor(page) }).getByRole('button', { name: 'Full screen' }).click();
+  await editor(page).getByRole('button', { name: 'Full screen' }).click();
   await expect(editor(page).locator('.diff-hunks')).toHaveClass(/split/);
 });
 
-test('Split picked from the view menu holds in a narrow Editor, and is kept for the Editor', async ({ app, page }) => {
+test('Split picked from the view menu holds in a narrow Editor, and is kept for the window', async ({ app, page }) => {
   await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited } });
   await rows(page).first().click();
   await editor(page).locator('.diff-view-button').click();
   await menuRows(page).filter({ hasText: 'Split' }).click();
   await expect(editor(page).locator('.diff-hunks')).toHaveClass(/split/);
-  expect((await app.calls('setDiffPicks')).at(-1)).toEqual(['files', { question: 'since', view: 'split', ignoreWs: false, changesOnly: false }]);
+  await expect.poll(() => keptEditor(app)).toEqual({ docked: false, view: 'split', ignoreWs: false, changesOnly: false });
 });
 
 test('the whole file is shown, every unchanged line with no fold, its change marked in place', async ({ app, page }) => {
@@ -48,14 +51,14 @@ test('the whole file is shown, every unchanged line with no fold, its change mar
   await expect(diffLines(page).filter({ hasText: 'line forty' })).toHaveClass(/add/);
 });
 
-test('Changes only folds the unchanged lines around the changes, and is kept for the Editor', async ({ app, page }) => {
+test('Changes only folds the unchanged lines around the changes, and is kept for the window', async ({ app, page }) => {
   await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited } });
   await rows(page).first().click();
   await editor(page).locator('.diff-view-button').click();
   await menuRows(page).filter({ hasText: 'Changes only' }).click();
   await expect(editor(page).locator('.diff-fold').first()).toContainText('38 unchanged lines');
   await expect(diffLines(page).filter({ hasText: /^line 1$/ })).toHaveCount(0);
-  expect((await app.calls('setDiffPicks')).at(-1)).toEqual(['files', { question: 'since', view: 'fit', ignoreWs: false, changesOnly: true }]);
+  await expect.poll(() => keptEditor(app)).toEqual({ docked: false, view: 'fit', ignoreWs: false, changesOnly: true });
 });
 
 test('a file with no change against its base is shown whole', async ({ app, page }) => {
@@ -67,7 +70,7 @@ test('a file with no change against its base is shown whole', async ({ app, page
 });
 
 test('with Changes only, the unchanged lines before a change are folded, open twenty at a time from the change, and whole on a press', async ({ app, page }) => {
-  await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited }, editorData: changesOnly });
+  await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited }, editor: changesOnly });
   await rows(page).first().click();
   const fold = editor(page).locator('.diff-fold').first();
   await expect(fold).toContainText('38 unchanged lines');
@@ -79,7 +82,7 @@ test('with Changes only, the unchanged lines before a change are folded, open tw
 
 test('with Changes only, fewer than five unchanged lines are shown rather than folded', async ({ app, page }) => {
   const near = fileDiff('src/a.ts', [{ old: 4, new: 4, rows: [' line 4', '-line 5', '+line five', ' line 6'] }], fifty.slice(0, 6).map((line, at) => (at === 4 ? 'line five' : line)));
-  await bootDiff(app, { since: listed }, { files: { 'src/a.ts': near }, editorData: changesOnly });
+  await bootDiff(app, { since: listed }, { files: { 'src/a.ts': near }, editor: changesOnly });
   await rows(page).first().click();
   await expect(editor(page).locator('.diff-fold')).toHaveCount(0);
   await expect(diffLines(page).filter({ hasText: /^line 1$/ })).toHaveCount(1);
@@ -94,7 +97,7 @@ test('a tab in the code is four columns wide, not the browser’s eight', async 
 });
 
 test("with Changes only, git's heading for a change stands over it while the lines above it are folded", async ({ app, page }) => {
-  await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited }, editorData: changesOnly });
+  await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited }, editor: changesOnly });
   await rows(page).first().click();
   await expect(editor(page).locator('.diff-heading')).toHaveText('function a()');
 });
@@ -180,11 +183,11 @@ test('a binary file says so', async ({ app, page }) => {
   await expect(fileNote(page)).toHaveText('A binary file: nothing to show.');
 });
 
-test('hiding whitespace reads the file again without it, and is kept for the Editor', async ({ app, page }) => {
+test('hiding whitespace reads the file again without it, and is kept for the window', async ({ app, page }) => {
   await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited } });
   await rows(page).first().click();
   await editor(page).locator('.diff-view-button').click();
   await menuRows(page).filter({ hasText: 'Hide whitespace changes' }).click();
   await expect.poll(async () => (await app.calls('diffFile')).at(-1)?.[5]).toBe(true);
-  expect((await app.calls('setDiffPicks')).at(-1)).toEqual(['files', { question: 'since', view: 'fit', ignoreWs: true, changesOnly: false }]);
+  await expect.poll(() => keptEditor(app)).toEqual({ docked: false, view: 'fit', ignoreWs: true, changesOnly: false });
 });

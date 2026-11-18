@@ -20,10 +20,10 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A `diff` panel lists the files that changed in the checkout it looks in: since the branch left its base, not pushed yet, or not committed, flat or as a tree.
   It reads again as files change and when the session beside it finishes a turn.
   A press on a file opens it in the Editor.
-- The Editor, beside the terminal area, shows files in tabs, one set per session tab, and takes no room while none is open.
+- The Editor shows files in tabs, one set per session tab, as a drawer over the terminal area, or docked beside it from its Dock button.
   A file shows whole, with its changes and the changed words marked, coloured by its language, side by side once the Editor is wide enough, and `j` and `k` step through the changes.
-  A single press opens a preview the next file takes the place of; a double click keeps it.
-  `"hidden": true` on its layout entry switches it off.
+  A single press opens a preview the next file takes the place of; a double click or Pin keeps it.
+  `"hidden": true` on its layout entry keeps it from docking.
 
 ### Changed
 

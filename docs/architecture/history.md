@@ -7,6 +7,7 @@ So nothing here can follow claude's own scrolling, and marking lines in the term
 The app draws a history of its own instead, from the session's transcript, which holds every request and reply, outlives every restart, and keeps what a compaction took out of claude's own view.
 The code is in `src/main/sessions/transcript.ts` (reading) and `src/renderer/panels/types/claude/history/` (the view, the bar and the loupe), and what hands the pane to it and back — the ways in, the keys, and the sentence it stands under for a cold tab — is the pane's, `src/renderer/panels/types/claude/pane.ts`.
 The drawer it opens in is the terminal area's own (`src/renderer/panels/types/claude/drawer.ts`): its place over the pane, its slide, the scrim that dims claude and takes the click back, and its standing over the whole pane for a cold tab are the drawer's, and the history only says which of those it wants.
+The Editor opens in the same drawer while it is not docked ([§ The `editor` type](panels.md#the-editor-type)): the two take turns, each closing when the other takes the drawer, the history then closing whether it stood for a cold tab or was open over a live one, and leaving the keys to the Editor, and the history stays laid out in it, out of sight, while the Editor is on show, so the bar can go on measuring it.
 
 ### Opening it, and getting out
 

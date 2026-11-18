@@ -81,6 +81,12 @@ export function stepped(set: EditorTabs, key: string, ref: FileRef): EditorTabs 
   return { tabs: set.tabs.map((tab) => (tab.key === key ? { key: next, ref, preview: tab.preview } : tab)), active: set.active === key ? next : set.active };
 }
 
+/** Close every tab but `key`, which is put on show. */
+export function closedOthers(set: EditorTabs, key: string): EditorTabs {
+  const kept = set.tabs.filter((tab) => tab.key === key);
+  return kept.length === 0 ? set : { tabs: kept, active: key };
+}
+
 /** The tab `key` compared as `ref` says now, as when its file was read again against a newer commit, staying where it is and as it is. */
 export function updated(set: EditorTabs, key: string, ref: FileRef): EditorTabs {
   return { ...set, tabs: set.tabs.map((tab) => (tab.key === key ? { ...tab, ref } : tab)) };
@@ -111,11 +117,17 @@ export function changeEditorTabs(change: (set: EditorTabs) => EditorTabs): void 
   const all = new Map(view.editorTabs);
   if (next.tabs.length === 0) all.delete(key);
   else all.set(key, next);
-  store.set({ editorTabs: all });
+  // The last file closed takes the drawer with it, as nothing is left to show in it.
+  store.set(next.tabs.length === 0 ? { editorTabs: all, editorDrawer: false } : { editorTabs: all });
 }
 
-/** Open a file in the Editor for the tab on show: a preview unless `keep`; nothing while no Editor is on (`editorOn`), which the opener says itself. */
+/** Whether the Editor is docked now: docked by choice, with a panel in the layout to dock in. */
+export function editorDocked(view = store.get()): boolean {
+  return view.editorUi.docked && view.editorDock;
+}
+
+/** Open a file in the Editor for the tab on show, a preview unless `keep`, and put the Editor in sight: in the drawer while it is not docked. */
 export function openInEditor(ref: FileRef, keep: boolean): void {
-  if (!store.get().editorOn) return;
   changeEditorTabs((set) => opened(set, ref, keep));
+  if (!editorDocked()) store.set({ editorDrawer: true });
 }

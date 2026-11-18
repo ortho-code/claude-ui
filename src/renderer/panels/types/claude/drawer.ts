@@ -5,9 +5,10 @@ import './drawer.css';
 export type DrawerState = 'closed' | 'over' | 'whole';
 
 /**
- * The one drawer over the terminal area, which the terminal area owns and whatever it holds is drawn in.
+ * The one drawer over the terminal area, which the terminal area owns and what it holds is drawn in: the history, and the Editor while it is not docked.
  * Over a live claude it slides in from the right over about two-thirds of the pane, never narrower than 560px, and claude stays in view on the left, dimmed under the scrim, at its real size, so it never redraws; a press on the scrim is the way back.
- * It is KEPT LAID OUT while closed, hidden by visibility and never by display, so what it holds can still be measured, which is how the history's bar places its marks.
+ * It holds one thing on show at a time; whatever takes it closes what was on show, through that one's own way of closing.
+ * It is KEPT LAID OUT while closed, and so is all it holds, hidden by visibility and never by display, so what it holds can still be measured, which is how the history's bar places its marks.
  */
 export class Drawer {
   /** The drawer itself, which what it holds goes into. */
@@ -15,16 +16,52 @@ export class Drawer {
   /** What dims claude beside it while it is over a live claude; it goes into the terminal area just before `frame`. */
   readonly scrim = element('div', 'drawer-scrim');
   private state: DrawerState = 'closed';
+  /** What it holds, each with how it closes: `taken` when something else takes the drawer, which then keeps the keys, rather than a press on the scrim giving the pane back. */
+  private readonly held = new Map<HTMLElement, (taken: boolean) => void>();
+  /** What is on show in it, or was last; null before anything was. */
+  private onShow: HTMLElement | null = null;
 
-  /** `close` is a press on the scrim. */
-  constructor(close: () => void) {
+  constructor() {
     this.scrim.addEventListener('mousedown', (event) => {
       event.preventDefault();
-      close();
+      if (this.onShow) this.held.get(this.onShow)?.(false);
     });
   }
 
-  set(state: DrawerState): void {
+  /** Hold `el`, laid out and out of sight until it is shown; `close` closes it, for a press on the scrim or, `taken`, something else taking the drawer. */
+  hold(el: HTMLElement, close: (taken: boolean) => void): void {
+    el.classList.add('drawer-content');
+    this.held.set(el, close);
+    if (el.parentElement !== this.frame) this.frame.append(el);
+  }
+
+  /** Let go of `el`, closing the drawer first while it is what is on show, and taking it out, so it can be placed elsewhere. */
+  release(el: HTMLElement): void {
+    if (!this.held.has(el)) return;
+    this.set(el, 'closed');
+    this.held.delete(el);
+    el.classList.remove('drawer-content', 'on');
+    if (el.parentElement === this.frame) el.remove();
+    if (this.onShow === el) this.onShow = null;
+  }
+
+  /** Stand as `state` for `el`: show it so, or, closed, close the drawer when `el` is the one on show; closing anything else changes nothing. */
+  set(el: HTMLElement, state: DrawerState): void {
+    if (state === 'closed') {
+      if (el === this.onShow) this.place('closed');
+      return;
+    }
+    const before = this.onShow;
+    if (before !== el) {
+      this.onShow = el;
+      for (const held of this.held.keys()) held.classList.toggle('on', held === el);
+      // What was on show closes its own way, after the drawer is already the newcomer's, so its closing does not close the drawer.
+      if (before && this.state !== 'closed') this.held.get(before)?.(true);
+    }
+    this.place(state);
+  }
+
+  private place(state: DrawerState): void {
     if (state === this.state) return;
     const was = this.state;
     this.state = state;

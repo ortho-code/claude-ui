@@ -441,6 +441,17 @@ export interface Settings {
   approvals: Record<string, number>;
 }
 
+/** What the window keeps of the Editor: one per window, whatever the layout places. */
+export interface EditorUi {
+  /** Docked beside the terminal, where the layout places it, rather than opening as a drawer over the terminal area. */
+  docked: boolean;
+  view: DiffView;
+  /** Changes that only touch whitespace left out of a file's diff. */
+  ignoreWs: boolean;
+  /** A file's unchanged lines folded back to a few around each change, where the whole file is shown otherwise. */
+  changesOnly: boolean;
+}
+
 export interface UiState {
   /** The search box's contents. */
   search: string;
@@ -482,6 +493,8 @@ export interface UiState {
    * Open by default, every tab in sight; the terminal area's part of the stored view, where the rest is the sidebar's.
    */
   tabBarExpanded: boolean;
+  /** The Editor's part: whether it is docked beside the terminal or opens as a drawer over it, and how it draws a file's diff. */
+  editor: EditorUi;
   /** Folded-away projects, by repo root. */
   collapsedProjects: string[];
   /** Folded-away groups, by group id. */
@@ -503,7 +516,7 @@ export interface UiState {
 
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './helpers/folders';
-import type { BaseCandidate, DiffCommit, DiffPicks, DiffQuestion, DiffSummaryRead, FileDiff } from './diff/types';
+import type { BaseCandidate, DiffCommit, DiffPicks, DiffQuestion, DiffSummaryRead, DiffView, FileDiff } from './diff/types';
 import type { NeedsYouChange, NeedsYouRegistry } from './status/needs-you';
 import type { LogLevel } from './helpers/log';
 import type { Look } from './status/looks';

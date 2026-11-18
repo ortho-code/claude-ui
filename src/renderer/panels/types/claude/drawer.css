@@ -14,12 +14,27 @@
   visibility: visible;
 }
 
+/* What it holds, each filling it, laid out whether on show or not; only the one on show is seen, by `inherit`, so it hides with the drawer. */
+.drawer-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  visibility: hidden;
+}
+
+.drawer-content.on {
+  visibility: inherit;
+}
+
 /* Over a live claude it slides in from the right over about two-thirds of the pane, and claude stays in view on the left, dimmed, at its real size, so it never redraws; a click there is the way back.
    Two-thirds but never narrower than a reply reads at, and the whole pane when the pane is narrower than that.
    Standing in for a cold tab there is no live view under it, and it takes the whole pane. */
 .drawer:not(.whole) {
   left: clamp(0px, 34%, 100% - 560px);
-  border-left: 1px solid var(--border);
+  /* Edged on every side it does not share with the window's own edge, so it reads as one surface over the terminal. */
+  border: 1px solid var(--border);
+  border-bottom: 0;
   /* Cast to the left, onto the claude it slides over, rather than below as a floating surface's (--shadow-raised) is. */
   box-shadow: -8px 0 18px #00000080;
   transform: translateX(100%);

@@ -1,9 +1,5 @@
 /* THE HISTORY: the app's own view of a session's requests and claude's replies, drawn in the drawer over the terminal area (claude/drawer.css), which places it, slides it and hides it. */
 .history {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
   /* The app sets its type per component and the body sets none, so without this the history fell to the browser's 16px and read louder than everything around it. */
   font-size: var(--text-body);
 }

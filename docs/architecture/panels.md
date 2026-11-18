@@ -380,25 +380,33 @@ The same observer covers every later reveal — its tab picked, a switch on the 
 
 ### The `editor` type
 
-Files open beside the session in the Editor, a built-in type in `src/renderer/panels/types/editor/` ([decided 2026-11-18](../decisions/0229-files-open-in-an-editor-beside-the-session.md)).
-The layout places it at most once (`addedBeside` on its declaration): a file that leaves it out gets it as a column right after the one holding the terminal area, in the nearest split of columns above the terminal's group, else beside the whole root, wrapped in columns as an added singleton is, with nothing said.
+Files open in the Editor, one for the window ([decided 2026-11-18](../decisions/0229-files-open-in-an-editor-beside-the-session.md), [as a drawer or docked](../decisions/0230-the-editor-opens-as-a-drawer-or-docks.md)).
+Its view (`types/editor/view.ts`) is built once, apart from the layout, with a head of its own: its tabs, drawn with the tabs a panel's header draws (`HeaderTabs`), and a Dock button.
+One controller (`types/editor/controller.ts`), started with the window, keeps it where the store says: in the drawer over the terminal area while it is not docked and open there, through the terminal area's asks (`showInDrawer`, `hideFromDrawer`), or in the Editor panel while it is docked.
+A file opened while it is not docked opens the drawer (`editorDrawer`) and takes the keys, so `j` and `k` step through it at once; Esc, a press on the scrim, the last tab closing, the history taking the drawer, or any change of the tab on show closes it, and the keys go back to the live terminal when they were in the Editor.
+Dock and Undock switch the two, and docked or not is kept for the next launch with how it draws a diff (`editorUi`, `UiState.editor`), the window's rather than any panel's, since the Editor is one per window.
+
+**The Editor panel** (`types/editor/panel.ts`) is only where it docks: a built-in type, bare, since the view brings its own head, which takes the panel's full-screen button while docked.
+It says it has nothing to show (`setVacant`) while the Editor is not docked or nothing is open, so its group takes no room (§ Dividers and folding); the next file opened brings it back at its kept size, and a full-screen Editor whose last tab closes gives the layout back.
+The default layout gives it two-thirds of what it shares with the terminal, the width the drawer it docks from has.
+The layout places it at most once (`addedBeside` on its declaration): a file that leaves it out gets it as a column right after the one holding the terminal area, in the nearest split of columns above the terminal's group, else beside the whole root, wrapped in columns as an added singleton is, with nothing said; it takes the default layout's share only where the terminal's column is that split's one other flexible child and has no size of its own, and an even part elsewhere, so the file's own shares still add up as they did.
 No node of the file is moved or wrapped for it, so a size or a fold kept for one still means what it meant.
 A second copy is refused where it stands, and an entry for it that has a problem does not count as placed, so one is added and the broken entry stays, saying why, as for a singleton.
-Unlike a singleton's, `hidden` on its entry is honoured, and switches it off.
+Unlike a singleton's, `hidden` on its entry is honoured: the Editor then never docks, and has no Dock button, and files open in the drawer all the same.
+Whether a panel is mounted to dock in is the store's (`editorDock`), set as it mounts and unmounts.
 It is an ordinary panel, built afresh on each mount, so it is not one of the two elements that outlive the layout.
 
-**Its tabs** are the tree's header tabs (`setTabs`, as a `terminal` panel's), one per file.
-A press on a file in the diff panel opens it as a preview, its name in italics, which the next file opened without keeping takes the place of; a double click on the row, or on the tab's name, keeps it, so the next file gets a tab of its own.
+**Its tabs** are one per file.
+A press on a file in the diff panel opens it as a preview, its name in italics, which the next file opened without keeping takes the place of; a double click on the row, or on the tab's name, or Pin in its menu keeps it, so the next file gets a tab of its own.
+A tab's menu holds Pin while it is a preview, Copy path, Close other tabs while there are others, and Close.
 Closing the tab on show puts the one after it on show, else the one before.
-What is open is the store's (`editorTabs`, with its rules, pure and tested, in `src/renderer/state/editor-tabs.ts`), one set per session, by its id, and one while no tab is on show: switching session tabs switches the Editor's files, a remount or a layout change draws them again from there, a session closed and opened again in the same run gets its files back, and none outlives the run; a `/clear`, which puts a new session in its tab, starts with none.
-With none open the Editor says it has nothing to show (`setVacant`), so its group takes no room (§ Dividers and folding); the next file opened brings it back at its kept size, and a full-screen Editor whose last tab closes gives the layout back.
-Whether an Editor is on is the store's too (`editorOn`, set as it mounts and unmounts), which is how the diff panel tells a press with nowhere to open.
+What is open is the store's (`editorTabs`, with its rules, pure and tested, in `src/renderer/state/editor-tabs.ts`), one set per session, by its id, and one while no tab is on show: switching session tabs switches the Editor's files, a move between drawer and dock or a layout change draws them again from there, a session closed and opened again in the same run gets its files back, and none outlives the run; a `/clear`, which puts a new session in its tab, starts with none.
 
 **A file's tab** (`editor/file/`) shows the file's diff against what its opener asked: the checkout, the question and the commit the list was measured from, so the two describe the same diff.
 Each tab that has been on show reads its file again when the checkout's working tree changes, on a `TreeWatch` of its own, reading the changed files again for its question, so it needs no panel beside it; the diff panel and each such tab read the changed files apart.
 What a read finds, a newer commit to compare with or a new order of files, is written back to the tab in the store (`updated`), so the tab shows it again when it comes back on show.
 Every file says "Read only" in its header, since nothing in the Editor edits a file yet.
-How a diff is drawn, the view, hidden whitespace and Changes only, is the Editor's own pick, kept in its panel data file (`panel-data/<entry id>.json`, the `diff` field the diff panel keeps its question in).
+How a diff is drawn, the view, hidden whitespace and Changes only, is the Editor's own pick, kept for the window (`editorUi`).
 
 **The whole file is shown by default**, its changes marked where they are.
 Changes only, in the view menu, folds the unchanged lines between changes, five or more of them, fewer being shown, since a fold takes the room of what it hides: the whole fold on a press, or, on a fold hiding more than 20 lines, 20 at a time from the change beside it.
@@ -432,11 +440,11 @@ Its base comes from three layers, the branch's pick, the project's, the conventi
 Main reads all three; nothing in the window keeps a pick yet, so the base on screen is the convention's.
 The row over the list names the base, marks a guessed one so, and puts where it came from in its tooltip.
 The menu says beside Since branched and Unpushed how many commits each counts, in words, so the number is not read as files, and the row says how far the branch is behind its base, while it is, as a count with no action.
-The question picked is kept in the panel's own data file (`panel-data/<entry id>.json`), whose other picks the panel does not use; the list's view, flat or a tree, is switched in the panel's header and kept as a list panel's view is.
+The question picked is kept in the panel's own data file (`panel-data/<entry id>.json`), and a file that also holds how a diff was drawn, as the panel kept it before the Editor drew diffs, keeps only its question; the list's view, flat or a tree, is switched in the panel's header and kept as a list panel's view is.
 
 **A press on a file opens its diff in the Editor** (§ The `editor` type), with the list's order for its stepper, and the row of the file the Editor shows for the tab on show is marked; the panel itself is the list only, at its full width ([decided 2026-11-18](../decisions/0229-files-open-in-an-editor-beside-the-session.md), which replaces the panel's own diff and its layout by width of [0227](../decisions/0227-the-diff-panel-lays-itself-out-by-its-width.md)).
 A second press on the same row within half a second is a double click, which keeps the file in the Editor; the list tells the two apart itself rather than by the browser's `dblclick`, since the first press can open the Editor, which moves the list, and a row moved between the presses gets none.
-With the Editor switched off, a press, single or double, marks the row, the list says "Files open in the Editor, which this layout switches off." in place of its note on untracked files left out, and nothing opens; the note stays until an Editor is on again, and gives way to a sentence saying git could not read, there is no base, or nothing is listed (decided 2026-11-18, to be looked at again after use; a toast on every press, louder and repeating, and rows that cannot be pressed, quiet but easy to miss, were the other ways).
+With the Editor panel switched off, a press opens the file in the drawer all the same.
 
 Main does the reading (`src/main/diff/`), on git through the one runner main's read-only calls share (`src/main/git.ts`), and the parsing of git's output is shared and pure (`src/shared/diff/`).
 A summary lists the files with git's letter (a copy as added, a change of type as modified, and `U` for a file git does not track), their counts, a rename's old path, and whether each is binary or generated (a lockfile by name, or `linguist-generated` in the repository's attributes); untracked files come after the rest, one row each up to 500, the rest counted under the list.

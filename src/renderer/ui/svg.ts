@@ -30,6 +30,11 @@ export const chevronIcon = (direction: Direction, size: number): string => strok
 export const caretIcon = (collapsed: boolean, size: number): string => chevronIcon(collapsed ? 'right' : 'down', size);
 
 /** The plus that adds one more of something, such as a new session from a heading. */
+/** A pane with a column at its right and an arrow into it: dock beside the session. */
+export const DOCK_ICON = strokeIcon(14, '<rect x="2.5" y="3" width="11" height="10" rx="1.2" /><path d="M9.5 3v10" /><path d="M5 6.3 6.8 8 5 9.7" />');
+/** The same pane with the arrow out of the column: back over the terminal, as a drawer. */
+export const UNDOCK_ICON = strokeIcon(14, '<rect x="2.5" y="3" width="11" height="10" rx="1.2" /><path d="M9.5 3v10" /><path d="M6.8 6.3 5 8l1.8 1.7" />');
+
 export const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
 
 /** The cross that closes or removes: a toast, a filter chip, a cold tab, the window. */

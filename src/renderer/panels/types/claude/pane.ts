@@ -19,8 +19,8 @@ import './pane.css';
 
 const placeholder = fromMarkup(`<div id="term-placeholder" class="pane-placeholder">Pick a tab above, or a session in the sidebar, to resume it.</div>`);
 terminalsEl.prepend(placeholder);
-// The one drawer over the terminal area (drawer.ts); a press on its scrim gives the pane back to the live terminal.
-const drawer = new Drawer(() => showHistory(false));
+/** The one drawer over the terminal area (drawer.ts), which the history and, while it is not docked, the Editor are shown in. */
+export const drawer = new Drawer();
 // The active tab's history, in that drawer (history/view.ts): one view, pointed at whichever session the pane shows.
 export const history = new HistoryView({
   getHistory: (id, known, generation) => window.claudeUi.getHistory(id, known, generation),
@@ -28,9 +28,10 @@ export const history = new HistoryView({
   openExternal: (url) => window.claudeUi.openExternal(url),
   leave: () => showHistory(false),
   open: () => openHistory(),
-  place: (state) => drawer.set(state),
+  place: (state) => drawer.set(history.el, state),
 });
-drawer.frame.append(history.el);
+// A press on the scrim gives the pane back to the live terminal, with the keys; the Editor taking the drawer only closes the history, standing for a cold tab or not, and keeps the keys for itself.
+drawer.hold(history.el, (taken) => (taken ? history.close() : showHistory(false)));
 terminalsEl.append(drawer.scrim, drawer.frame);
 // Its bar, beside the terminal area: picking an entry on it opens the history there, from live or not.
 const historyBar = new HistoryBar(

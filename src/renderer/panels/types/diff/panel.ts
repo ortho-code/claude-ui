@@ -15,7 +15,6 @@ import './panel.css';
 /**
  * The diff panel: the files that changed in the checkout it looks in, as a flat list or a tree, for one of three questions.
  * A press on a file opens its diff in the Editor, a preview there unless it was a double click, with the list's order to step through; the row of the file the Editor shows is marked.
- * With no Editor to open in, a layout that leaves it off, the press marks the row and says once where files open (decided 2026-11-18, to be revisited after use).
  *
  * WHEN IT READS, through the gate every panel that runs something goes through (`RunGate`): on first being shown, on Refresh, on a context change once it has read, shown or not; and, unasked, when the checkout's working tree changes (`TreeWatch`), and when the session on show ends a turn, so the list catches up while you work beside it.
  * Each read checks the panel first (`prepare`), so it reads where the header says it looks.
@@ -31,9 +30,6 @@ const VIEWS: PanelView[] = [
 
 /** How long the session on show has to stay as it is before a turn's end reads the list again, so the changes of one moment, its status and what it wrote, are one read. */
 const SETTLE_MS = 2_000;
-
-/** What the list says, once, when a file is pressed with no Editor to open it in. */
-const NO_EDITOR = 'Files open in the Editor, which this layout switches off.';
 
 /** What the list says in place of files, by question, when there are none. */
 const NOTHING: Record<DiffQuestion, (summary: DiffSummary) => string> = {
@@ -55,10 +51,6 @@ export class DiffPanel extends Driven implements MountedPanel {
   private summary: DiffSummary | null = null;
   /** Why the latest read failed, as git said it; null after one that did not. */
   private failure: string | null = null;
-  /** The file pressed while no Editor was on, which its row marks; null once the Editor shows one. */
-  private pressed: string | null = null;
-  /** Whether the list has said where files open, which it says once. */
-  private saidNoEditor = false;
   /** Whether the panel passed its last check; null until the first has answered. */
   private runnable: boolean | null = null;
   /** The number of the read under way, or null for none: what it changes itself is no change to the tree. */
@@ -95,7 +87,7 @@ export class DiffPanel extends Driven implements MountedPanel {
     });
     this.driver = new GateDriver(this.gate, { check: () => this.check(), runnable: () => this.runnable, wentLive: () => this.tree.start() });
     this.stopWatchingSessions = host.watchSessions(() => this.sessionsMoved());
-    this.stopWatchingEditor = store.watch(['editorTabs', 'editorOn'], () => this.editorMoved());
+    this.stopWatchingEditor = store.watch(['editorTabs', 'tabs', 'activeTab'], () => this.editorMoved());
     host.setViews(VIEWS);
     this.say('Counting the changed files…');
     void this.loadPicks();
@@ -130,37 +122,25 @@ export class DiffPanel extends Driven implements MountedPanel {
     this.gate.refresh();
   }
 
-  /** Open the file pressed in the Editor, with the list's order to step through; with no Editor on, mark its row and say once where files open. */
+  /** Open the file pressed in the Editor, with the list's order to step through. */
   private pickFile(path: string, keep: boolean): void {
     const summary = this.summary;
     const file = summary?.files.find((each) => each.path === path);
     if (!summary?.against || !file) return;
-    if (!store.get().editorOn) {
-      this.pressed = path;
-      this.saidNoEditor = true;
-      this.drawRows();
-      return;
-    }
     const byPath = new Map(summary.files.map((each) => [each.path, each]));
     const files = this.files.order().flatMap((each) => byPath.get(each) ?? []);
     openInEditor({ root: summary.root, file, diff: { question: this.picks.question, against: summary.against }, files }, keep);
   }
 
-  /** The file the Editor shows for the tab on show, by its path in this checkout; or the one pressed while it was off. */
+  /** The file the Editor shows for the tab on show, by its path in this checkout. */
   private picked(): string | null {
-    const root = this.summary?.root;
     const set = editorTabsOnShow();
     const shown = set.tabs.find((tab) => tab.key === set.active);
-    if (store.get().editorOn) return shown && shown.ref.root === root ? shown.ref.file.path : null;
-    return this.pressed;
+    return shown && shown.ref.root === this.summary?.root ? shown.ref.file.path : null;
   }
 
-  /** The Editor's tabs changed, or it came or went: mark the row it shows, and drop the note once it is back. */
+  /** The Editor's tabs changed: mark the row it shows. */
   private editorMoved(): void {
-    if (store.get().editorOn) {
-      this.pressed = null;
-      this.saidNoEditor = false;
-    }
     if (this.summary) this.drawRows();
   }
 
@@ -210,7 +190,6 @@ export class DiffPanel extends Driven implements MountedPanel {
   private idle(): void {
     this.summary = null;
     this.dir = null;
-    this.pressed = null;
     this.toolbar.draw();
     this.files.draw([], this.view(), null);
     this.host.setCount(null);
@@ -228,14 +207,12 @@ export class DiffPanel extends Driven implements MountedPanel {
   /** The rows, the one the Editor shows marked, and what the list says under them. */
   private drawRows(): void {
     const files = this.summary?.files ?? [];
-    if (this.pressed !== null && !files.some((file) => file.path === this.pressed)) this.pressed = null;
     this.files.draw(files, this.view(), this.picked());
     const failure = this.failure;
     if (failure) this.say(`Git could not read the changes here: ${failure.replace(/\.$/, '')}.`);
     else if (!this.summary) this.say('');
     else if (this.picks.question === 'since' && !this.summary.base) this.say(`No base to measure from: neither upstream nor origin has a default branch, or a develop, main or master branch, here. ${QUESTION_NAMES.unpushed} and ${QUESTION_NAMES.uncommitted} still work.`);
     else if (!files.length) this.say(NOTHING[this.picks.question](this.summary));
-    else if (this.saidNoEditor) this.say(NO_EDITOR);
     else this.say(this.summary.untrackedLeftOut ? `And ${this.summary.untrackedLeftOut} more untracked files, not listed.` : '');
   }
 

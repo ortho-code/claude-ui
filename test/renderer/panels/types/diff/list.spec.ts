@@ -79,7 +79,7 @@ test('picking another question lists its files, and keeps the pick for the panel
   await menuRows(page).filter({ hasText: 'Uncommitted' }).click();
   await expect(rows(page)).toHaveText(['Monly.txt+1']);
   await expect(questionButton(page)).toHaveText('Uncommitted');
-  expect(await app.calls('setDiffPicks')).toEqual([['changes', { question: 'uncommitted', view: 'fit', ignoreWs: false, changesOnly: false }]]);
+  expect(await app.calls('setDiffPicks')).toEqual([['changes', { question: 'uncommitted' }]]);
   expect((await app.calls('diffSummary')).at(-1)).toEqual([PROJECT, 'uncommitted']);
 });
 

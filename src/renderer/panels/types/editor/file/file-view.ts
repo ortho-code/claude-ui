@@ -55,6 +55,8 @@ export class FileView {
   private openGenerated = false;
   private anchors: HTMLElement[] = [];
   private cursor = 0;
+  /** Asked to take the keys before the file was drawn. */
+  private wantsKeys = false;
   /** Where to put the stepper once the next file's blocks are drawn, when a step crossed into it. */
   private landing: 'first' | 'last' | null = null;
   /** The latest load, so an earlier one that answers last draws nothing. */
@@ -118,6 +120,18 @@ export class FileView {
     void this.load();
   }
 
+  /** Take the keys, so `j` and `k` step through the file: now when it is drawn, else once it is, since its body is hidden while it is read. */
+  focus(): void {
+    this.wantsKeys = true;
+    this.takeKeys();
+  }
+
+  private takeKeys(): void {
+    if (!this.wantsKeys || this.frame.hidden || !this.diff) return;
+    this.wantsKeys = false;
+    this.body.focus({ preventScroll: true });
+  }
+
   /** Whether the file on show has a change to step to, once it has been read. */
   hasChanges(): boolean {
     return this.anchors.length > 0;
@@ -160,6 +174,7 @@ export class FileView {
     this.cursor = this.landing === 'last' ? last : this.landing === 'first' ? 0 : Math.min(this.cursor, last);
     this.landing = null;
     this.mark();
+    this.takeKeys();
   }
 
   /** What stands in a file's place when it has no rows to show, or null for one that has. */

@@ -1,7 +1,8 @@
 import type { Locator, Page } from '@playwright/test';
 import { DEFAULT_DIFF_PICKS, type DiffFile, type DiffPicks, type DiffQuestion, type DiffRow, type DiffSummary, type FileDiff } from '../../../../../src/shared/diff/types';
 import type { LayoutReport, PanelData } from '../../../../../src/shared/panels';
-import type { SessionSummary } from '../../../../../src/shared/types';
+import type { EditorUi, Exchange, SessionSummary } from '../../../../../src/shared/types';
+import { defaultUi } from '../../../../../src/shared/config/defaults';
 import { type BridgeFixture, PROJECT } from '../../../support/fixture';
 import type { App } from '../../../support/harness';
 import { here, withLayout } from '../../layout/layout';
@@ -22,7 +23,7 @@ export const summary = (over: Partial<DiffSummary> = {}): DiffSummary => ({
 export const file = (path: string, over: Partial<DiffFile> = {}): DiffFile => ({ path, from: null, status: 'M', added: 1, deleted: 0, binary: false, generated: false, ...over });
 
 /** The layout: the sidebar, the terminal area, the Editor at `width` beside it, and a diff panel on the right; the Editor switched off when `editorOff`. */
-export const diffLayout = (width: string, editorOff: boolean): Partial<BridgeFixture> & { layout: LayoutReport } =>
+const diffLayout = (width: string | null, editorOff: boolean): Partial<BridgeFixture> & { layout: LayoutReport } =>
   withLayout({
     version: 2,
     root: {
@@ -30,7 +31,8 @@ export const diffLayout = (width: string, editorOff: boolean): Partial<BridgeFix
       columns: [
         { id: 'sidebar', size: '320px', panels: [{ id: 'sessions', type: 'sessions' }] },
         { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] },
-        { id: 'editor', size: width, panels: [{ id: 'files', type: 'editor', ...(editorOff ? { hidden: true } : {}) }] },
+        // With no width, the file leaves the Editor out, and the app adds it as it would to anyone's.
+        ...(width === null ? [] : [{ id: 'editor', size: width, panels: [{ id: 'files', type: 'editor', ...(editorOff ? { hidden: true } : {}) }] }]),
         { id: 'right', size: '360px', panels: [{ id: 'changes', type: 'diff' }] },
       ],
     },
@@ -41,23 +43,24 @@ export const picksData = (picks: Partial<DiffPicks>): PanelData => ({ sessions: 
 
 /**
  * Boot with the project's session on show, the Editor and the diff panel beside it, and main answering each question from `diffs`.
- * `data` is what the diff panel's own file keeps and `editorData` the Editor's, `tree` the project's working tree's fingerprint, `files` each file's diff by path, `width` the Editor's, `editorOff` the Editor switched off, and `also` a second session of the project open in a tab of its own.
+ * `data` is what the diff panel's own file keeps and `editor` what the window keeps of the Editor (docked, how it draws a diff), `tree` the project's working tree's fingerprint, `files` each file's diff by path, `width` the docked Editor's, null to leave it out of the file, `editorOff` the Editor panel switched off, `also` a second session of the project open in a tab of its own, and `history` the requests of the session on show.
  */
 export async function bootDiff(
   app: App,
   diffs: Partial<Record<DiffQuestion, DiffSummary>>,
-  options: { data?: PanelData; editorData?: PanelData; width?: string; editorOff?: boolean; tree?: string; files?: Record<string, FileDiff>; also?: SessionSummary } = {},
+  options: { data?: PanelData; editor?: Partial<EditorUi>; width?: string | null; editorOff?: boolean; tree?: string; files?: Record<string, FileDiff>; also?: SessionSummary; history?: Exchange[] } = {},
 ): Promise<void> {
   const also = options.also ? [options.also] : [];
   await app.boot({
-    ...diffLayout(options.width ?? '480px', options.editorOff === true),
+    ...diffLayout(options.width === undefined ? '480px' : options.width, options.editorOff === true),
     sessions: [here, ...also],
     openSessions: [here.id, ...also.map((each) => each.id)],
     activeSession: here.id,
-    history: Object.fromEntries([here, ...also].map((each) => [each.id, []])),
+    history: Object.fromEntries([here, ...also].map((each) => [each.id, each === here ? (options.history ?? []) : []])),
     diffs: { [PROJECT]: diffs },
     fileDiffs: { [PROJECT]: options.files ?? {} },
-    panelData: { ...(options.data ? { changes: options.data } : {}), ...(options.editorData ? { files: options.editorData } : {}) },
+    panelData: options.data ? { changes: options.data } : {},
+    uiState: { ...defaultUi(), editor: { ...defaultUi().editor, ...options.editor } },
     ...(options.tree ? { trees: { [PROJECT]: options.tree } } : {}),
   });
 }
@@ -88,12 +91,15 @@ export function fileDiff(path: string, hunks: { old: number; new: number; headin
   };
 }
 
-export const editor = (page: Page): Locator => page.locator('.editor-panel');
+/** The Editor's view, in the drawer or docked. */
+export const editor = (page: Page): Locator => page.locator('.editor-view');
+/** The Editor panel, where it docks. */
+export const editorPanel = (page: Page): Locator => page.locator('.editor-panel');
 export const diffLines = (page: Page): Locator => editor(page).locator('.diff-hunks .diff-line');
 export const fileNote = (page: Page): Locator => editor(page).locator('.diff-file-note');
 export const position = (page: Page): Locator => editor(page).locator('.diff-position');
 /** The Editor's tabs, in its header. */
-export const editorTabs = (page: Page): Locator => page.locator('.panel-group', { has: page.locator('.editor-panel') }).locator('.panel-tabs .tab');
+export const editorTabs = (page: Page): Locator => page.locator('.editor-view .panel-tabs .tab');
 
 export const panel = (page: Page): Locator => page.locator('.diff-panel');
 export const rows = (page: Page): Locator => panel(page).locator('.list-row');
