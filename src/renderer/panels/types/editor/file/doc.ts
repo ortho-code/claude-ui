@@ -1,7 +1,7 @@
 import type { DiffFile, DiffView } from '../../../../../shared/diff/types';
 import type { EditorUi } from '../../../../../shared/types';
 import type { FileRef } from '../../../../state/editor-tabs';
-import { TreeWatch } from '../../../tree-watch';
+import { checkoutReads, type ChangesRead } from '../../../checkout-reads';
 import { FileView } from './file-view';
 
 /** What a file's tab asks of the Editor it is in: the picks every tab draws by, and how wide the Editor is. */
@@ -17,13 +17,13 @@ export interface FileDocHost {
 }
 
 /**
- * One file's tab in the Editor: its diff against what its opener asked, drawn by the file view, and read again when its checkout's working tree changes, on its own watch, so it needs no panel beside it.
+ * One file's tab in the Editor: its diff against what its opener asked, drawn by the file view, and read again whenever a read of its checkout for its question tells it something new (`checkoutReads`): a change of the checkout's working tree, which is watched while any tab or Explorer follows it, or another reader's read of a newer tree, so it needs no panel beside it.
  * Its sequence steps from file to file as the list it was opened from orders them.
  */
 export class FileDoc {
   readonly view: FileView;
-  private readonly watch: TreeWatch;
-  private reading = false;
+  /** Stops following its checkout's changes for its question. */
+  private stopFollowing: () => void;
   private disposed = false;
 
   constructor(
@@ -42,23 +42,20 @@ export class FileDoc {
       stepFile: (delta) => void this.stepFile(delta),
       place: () => ({ at: this.ref.files.findIndex((file) => file.path === this.ref.file.path) + 1, of: this.ref.files.length }),
     });
-    this.watch = new TreeWatch({
-      watching: () => true,
-      runnable: () => !this.disposed,
-      running: () => this.reading,
-      look: () => this.look(),
-      changed: () => void this.reread(),
-    });
+    this.stopFollowing = this.follow();
     void this.view.show(ref.file);
-    void this.look().then((watched) => this.watch.settle(watched));
-    this.watch.start();
   }
 
   /** Show `ref`: the same file read again, compared as it now says, or another file afresh. */
   showRef(ref: FileRef): Promise<void> {
     if (ref === this.ref) return Promise.resolve();
     const same = ref.root === this.ref.root && ref.file.path === this.ref.file.path && ref.diff.against === this.ref.diff.against;
+    const followed = ref.root === this.ref.root && ref.diff.question === this.ref.diff.question;
     this.ref = ref;
+    if (!followed) {
+      this.stopFollowing();
+      this.stopFollowing = this.follow();
+    }
     if (same) {
       this.view.refreshed(ref.file);
       return Promise.resolve();
@@ -68,7 +65,7 @@ export class FileDoc {
 
   release(): void {
     this.disposed = true;
-    this.watch.stop();
+    this.stopFollowing();
   }
 
   /**
@@ -99,16 +96,12 @@ export class FileDoc {
     await this.view.show(start.file, delta > 0 ? 'first' : 'last');
   }
 
-  private async look(): Promise<{ dir: string; fingerprint: string } | null> {
-    const tree = await window.claudeUi.panelTree(this.ref.root);
-    return tree.kind === 'tree' ? { dir: this.ref.root, fingerprint: tree.fingerprint } : null;
+  private follow(): () => void {
+    return checkoutReads.follow(this.ref.root, this.ref.diff.question, (read) => this.heard(read));
   }
 
-  /** The checkout changed: read its changed files again for the question asked, and the file with them, or say it has nothing left to compare. */
-  private async reread(): Promise<void> {
-    this.reading = true;
-    const read = await window.claudeUi.diffSummary(this.ref.root, this.ref.diff.question);
-    this.reading = false;
+  /** Its checkout's changes were read again: take the comparison and the file from them, where git gave one. */
+  private heard(read: ChangesRead): void {
     if (this.disposed) return;
     if (read.kind === 'summary' && read.summary.against) {
       const summary = read.summary;
@@ -118,6 +111,5 @@ export class FileDoc {
       // Kept with the tab too, so the next draw of the tab shows this comparison rather than the one it was opened with.
       this.host.refreshed(this.ref);
     }
-    this.watch.settle(await this.look());
   }
 }

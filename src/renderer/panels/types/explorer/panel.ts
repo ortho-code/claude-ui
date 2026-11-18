@@ -4,8 +4,8 @@ import { editorTabsOnShow, openInEditor } from '../../../state/editor-tabs';
 import type { MountedPanel, PanelHost, PanelView } from '../../contract';
 import type { PanelSlot } from '../../layout';
 import { CWD_OPTION, optionsOf, type OptionsDecl } from '../../options';
-import { NO_CONTEXT, RunGate, prepare, resolveContext, runKey, type Watched } from '../../run';
-import { TreeWatch } from '../../tree-watch';
+import { checkoutReads, type ChangesRead } from '../../checkout-reads';
+import { NO_CONTEXT, RunGate, prepare, resolveContext, runKey } from '../../run';
 import { Driven, GateDriver } from '../../gate-driver';
 import { element } from '../../../ui/dom';
 import { FileList, type FilesView } from './files';
@@ -16,7 +16,8 @@ import './panel.css';
  * The Explorer: the files that changed in the checkout it looks in, as a flat list or a tree, for one of three questions.
  * A press on a file opens its diff in the Editor, a preview there unless it was a double click, with the list's order to step through; the row of the file the Editor shows is marked.
  *
- * WHEN IT READS, through the gate every panel that runs something goes through (`RunGate`): on first being shown, on Refresh, on a context change once it has read, shown or not; and, unasked, when the checkout's working tree changes (`TreeWatch`), and when the session on show ends a turn, so the list catches up while you work beside it.
+ * WHEN IT READS, through the gate every panel that runs something goes through (`RunGate`): on first being shown, on Refresh, on a context change once it has read, shown or not, and when the session on show ends a turn, so the list catches up while you work beside it.
+ * It reads through the window's one set of checkout reads (`checkoutReads`), and follows the checkout git answered for there, for its question: the checkout's working tree changing, or another reader's read of the same checkout and question, redraws it too, unasked.
  * Each read checks the panel first (`prepare`), so it reads where the header says it looks.
  */
 
@@ -44,7 +45,6 @@ export class ExplorerPanel extends Driven implements MountedPanel {
   private readonly files = new FileList((path, keep) => this.pickFile(path, keep));
   private readonly toolbar: Toolbar;
   private readonly gate: RunGate;
-  private readonly tree: TreeWatch;
   private readonly stopWatchingSessions: () => void;
   private readonly stopWatchingEditor: () => void;
   private picks: DiffPicks = DEFAULT_DIFF_PICKS;
@@ -53,8 +53,12 @@ export class ExplorerPanel extends Driven implements MountedPanel {
   private failure: string | null = null;
   /** Whether the panel passed its last check; null until the first has answered. */
   private runnable: boolean | null = null;
-  /** The number of the read under way, or null for none: what it changes itself is no change to the tree. */
-  private reading: number | null = null;
+  /** Stops following the checkout it last read, for the question it last asked; null before its first read. */
+  private stopFollowing: (() => void) | null = null;
+  /** What it follows now, to follow again only when either changes. */
+  private followed: { root: string; question: DiffQuestion } | null = null;
+  /** The read last drawn, so a read it asked and also heard as a follower draws once. */
+  private shown: ChangesRead | null = null;
   /** The checkout the latest read looked in. */
   private dir: string | null = null;
   protected readonly driver: GateDriver;
@@ -78,14 +82,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
       () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
       (number) => void this.read(number),
     );
-    this.tree = new TreeWatch({
-      watching: () => true,
-      runnable: () => this.runnable === true,
-      running: () => this.reading !== null,
-      look: () => this.look(),
-      changed: () => this.gate.changed(),
-    });
-    this.driver = new GateDriver(this.gate, { check: () => this.check(), runnable: () => this.runnable, wentLive: () => this.tree.start() });
+    this.driver = new GateDriver(this.gate, { check: () => this.check(), runnable: () => this.runnable });
     this.stopWatchingSessions = host.watchSessions(() => this.sessionsMoved());
     this.stopWatchingEditor = store.watch(['editorTabs', 'tabs', 'activeTab'], () => this.editorMoved());
     host.setViews(VIEWS);
@@ -98,7 +95,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
   unmount(): void {
     this.disposed = true;
     this.gate.stop();
-    this.tree.stop();
+    this.unfollow();
     this.stopWatchingSessions();
     this.stopWatchingEditor();
     if (this.settleTimer !== null) clearTimeout(this.settleTimer);
@@ -154,40 +151,59 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     return { problems, dir: run?.cwd ?? null };
   }
 
-  /** Read the list for read `number`, checking first; only the latest read draws, and its end gives the tree watch its baseline. */
+  /** Read the list for read `number`, checking first; only the latest read draws, and it then follows the checkout it read. */
   private async read(number: number): Promise<void> {
-    this.reading = number;
+    // Another question's answers stop drawing at once, rather than once its own comes back.
+    if (this.followed && this.followed.question !== this.picks.question) this.unfollow();
     const checked = await this.check();
     if (!checked || !this.gate.isLatest(number)) return;
     if (checked.problems.length || checked.dir === null) {
-      this.reading = null;
+      this.unfollow();
       if (checked.dir === null && !checked.problems.length) this.idle();
       if (!checked.problems.length) this.gate.ended(number);
       return;
     }
     this.host.setBusy(true);
-    const read = await window.claudeUi.diffSummary(checked.dir, this.picks.question);
+    const question = this.picks.question;
+    const read = await checkoutReads.read(checked.dir, question);
     if (this.disposed || !this.gate.isLatest(number)) return;
     this.host.setBusy(false);
-    this.summary = read.kind === 'summary' ? read.summary : null;
-    // The whole checkout is watched, since the diff covers it, whatever subfolder the panel looks in.
-    this.dir = this.summary?.root ?? checked.dir;
-    this.draw(read.kind === 'failed' ? read.error : null);
-    this.tree.settle(await this.look());
-    if (this.gate.isLatest(number)) this.reading = null;
+    this.show(read, checked.dir);
+    // The whole checkout is followed, since the diff covers it, whatever subfolder the panel looks in; a read git refused names no checkout to follow.
+    if (read.kind === 'summary') this.follow(read.summary.root, question);
+    else this.unfollow();
     this.gate.ended(number);
   }
 
-  /** The checkout's working tree as it is now, for the watch; null when it cannot be looked at. */
-  private async look(): Promise<Watched | null> {
-    const dir = this.dir;
-    if (dir === null) return null;
-    const tree = await window.claudeUi.panelTree(dir);
-    return tree.kind === 'tree' ? { dir, fingerprint: tree.fingerprint } : null;
+  /** Draw `read`, read in `dir`, unless it is the one drawn last. */
+  private show(read: ChangesRead, dir: string): void {
+    if (read === this.shown) return;
+    this.shown = read;
+    this.summary = read.kind === 'summary' ? read.summary : null;
+    this.dir = this.summary?.root ?? dir;
+    this.draw(read.kind === 'failed' ? read.error : null);
+  }
+
+  /** Follow `root`'s changes for `question`, letting go of what it followed before. */
+  private follow(root: string, question: DiffQuestion): void {
+    if (this.followed?.root === root && this.followed.question === question) return;
+    this.unfollow();
+    this.followed = { root, question };
+    this.stopFollowing = checkoutReads.follow(root, question, (read) => {
+      if (!this.disposed) this.show(read, root);
+    });
   }
 
   /** A panel that can run with nowhere to run: it says so, as a command panel does. */
+  private unfollow(): void {
+    this.stopFollowing?.();
+    this.stopFollowing = null;
+    this.followed = null;
+  }
+
   private idle(): void {
+    this.unfollow();
+    this.shown = null;
     this.summary = null;
     this.dir = null;
     this.toolbar.draw();

@@ -42,3 +42,20 @@ test('the session on show ending a turn reads the list again', async ({ app, pag
   await page.clock.fastForward(3_000);
   await expect(rows(page)).toHaveCount(2);
 });
+
+test('a change in the working tree is read once, for the list and every Editor tab on the checkout alike', async ({ app, page }) => {
+  await page.clock.install();
+  await bootDiff(app, { since: summary({ files: [file('a.txt'), file('c.txt')] }) }, { tree: 'clean' });
+  await expect(rows(page)).toHaveCount(2);
+  await rows(page).nth(0).dblclick();
+  await rows(page).nth(1).click();
+  await expect(page.locator('.editor-view .panel-tabs .tab')).toHaveCount(2);
+  const before = await reads(app);
+
+  await nowLists(page, ['a.txt', 'b.txt', 'c.txt']);
+  await page.evaluate((dir) => void (window.__claudeUiFixture.trees[dir] = 'edited'), PROJECT);
+  await page.clock.fastForward(POLL);
+  await page.clock.fastForward(POLL);
+  await expect(rows(page)).toHaveCount(3);
+  expect(await reads(app)).toBe(before + 1);
+});

@@ -10,8 +10,8 @@ export interface GateDriverHooks {
   check(fresh: boolean): Promise<{ problems: string[] } | null>;
   /** Whether the panel passed its last check; null until the first has answered. */
   runnable(): boolean | null;
-  /** The tree showed or hid the panel for the first time: what runs from then on, shown or not, starts here. */
-  wentLive(): void;
+  /** The tree showed or hid the panel for the first time: what runs from then on, shown or not, starts here; a panel with nothing to start there leaves it out. */
+  wentLive?(): void;
 }
 
 /**
@@ -43,7 +43,7 @@ export class GateDriver implements Pick<MountedPanel, 'refresh' | 'contextChange
     this.shown = visible;
     if (!this.live) {
       this.live = true;
-      this.hooks.wentLive();
+      this.hooks.wentLive?.();
     }
     const ran = this.gate.setVisible(visible);
     if (revealed && this.hooks.runnable() === false && !ran) this.look(true);
