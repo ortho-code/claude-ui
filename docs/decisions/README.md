@@ -242,3 +242,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0234](0234-a-finished-session-reopens-in-one-press.md) | 2026-11-18 | A finished session reopens in one press | [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it) |
 | [0235](0235-the-performance-checks-run-on-their-own.md) | 2026-11-18 | The performance checks run on their own | [The performance checks](../architecture/build-and-checks.md#the-performance-checks) |
 | [0236](0236-rows-out-of-sight-are-not-drawn.md) | 2026-11-18 | Session rows out of sight are not drawn | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
+| [0237](0237-repaints-a-status-makes-wait-for-the-frame.md) | 2026-11-18 | The repaints a status makes wait for the frame | [The store](../architecture/processes.md#the-store) |

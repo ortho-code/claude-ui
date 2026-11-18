@@ -66,7 +66,7 @@ store.watch(['filter', 'folds', 'filterPanelOpen', 'tabBarExpanded'], () => pers
 store.watch(WHERE_SLICES, treeContextChanged);
 
 // A panel's rows mark the sessions they started or name — each one's title, status dot and the work behind it, mark read, whether it runs, and its note — so the panels hear of every change to those, to the strength order and the categories that decide what a dot shows, and to which sessions a panel's rows started (its data, panels/links.ts).
-store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'notes', 'tabs', 'panelData', 'settings', 'needsYouTypes'], treeSessionsChanged);
+store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'notes', 'tabs', 'panelData', 'settings', 'needsYouTypes'], treeSessionsChanged, { frame: true });
 
 startLooks((slices, fn) => store.watch(slices, fn), store.get());
 

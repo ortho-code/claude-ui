@@ -34,8 +34,8 @@ export const sessionsWatch = {
     // The switcher counts every project's sessions, rolls up their statuses and names the project on show.
     // A session with no transcript yet is in its project only through its tab, so the tabs are among what it counts.
     // The strength order, and the categories that place a reason in it, decide which state each roll-up shows.
-    store.watch(['sessions', 'statuses', 'acked', 'needsYou', 'setAside', 'finished', 'pendingDeletes', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'settings', 'needsYouTypes'], refreshSwitcher);
+    store.watch(['sessions', 'statuses', 'acked', 'needsYou', 'setAside', 'finished', 'pendingDeletes', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'settings', 'needsYouTypes'], refreshSwitcher, { frame: true });
     // The sidebar's rail icon waits while any session anywhere waits for you: the switcher's roll-up, from the same sessions.
-    store.watch(['sessions', 'statuses', 'acked', 'needsYou', 'setAside', 'finished', 'pendingDeletes', 'tabs', 'settings', 'needsYouTypes'], railStatusFollowsSessions, { reads: ['projectNames', 'projectOrder'] });
+    store.watch(['sessions', 'statuses', 'acked', 'needsYou', 'setAside', 'finished', 'pendingDeletes', 'tabs', 'settings', 'needsYouTypes'], railStatusFollowsSessions, { reads: ['projectNames', 'projectOrder'], frame: true });
   },
 };

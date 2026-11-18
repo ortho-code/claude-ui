@@ -18,6 +18,11 @@
  * A slice that has not changed since by its equality is handed as it is now, so `before.x !== view.x` exactly when `x` changed: an equal new value, stored without telling, is not a change to anyone comparing them.
  * Per watcher, from its subscription on, so a watcher told twice in one round sees only what moved since its own last call.
  *
+ * A watcher that only repaints, with nothing measuring what it drew right after, can ask to be told once a frame instead (`frame`): at the next animation frame, once however many changes came before it, with `before` spanning them all, and not at all when they came back to where its last call left them.
+ * So twenty status events in one task cost a repaint, not twenty.
+ * Only a watcher that is the one painter of what it draws can wait: one that repaints only what moved since its last call, while another watcher also paints the same marks, would miss a change that came and went between the two (the session list's dots, which the list's own draw paints too).
+ * A watcher whose drawing a flow measures at once, such as the session list's, stays synchronous too.
+ *
  * Every slice also knows how new its value is, so a read from main that lands after something newer does not put the older answer back.
  * A plain `set` is true now.
  * A read takes a `stamp` before it asks and writes with it as `readAt`: a slice written with anything newer is left as it is, and one it does write is as new as the moment it asked, so a read asked later still wins over it, whichever lands first.
@@ -48,11 +53,12 @@ export interface Store<S extends object> {
   batch(fn: () => void): void;
   /**
    * Call `fn` whenever one of `slices` changes, with a view of only those slices and the ones it `reads` without being told about them, and with `slices` as they were when it was last called; answers the unsubscribe.
+   * With `frame`, at the next animation frame rather than at once, once for every change before it.
    */
   watch<K extends keyof S, R extends keyof S = never>(
     slices: readonly K[],
     fn: (view: Readonly<Pick<S, K | R>>, before: Readonly<Pick<S, K>>) => void,
-    options?: { reads: readonly R[] },
+    options?: { reads?: readonly R[]; frame?: boolean },
   ): () => void;
 }
 
@@ -75,6 +81,8 @@ interface Watcher<S> {
   fn: (view: Readonly<S>, before: Readonly<S>) => void;
   /** Its slices as they were at its last call; typed as the whole state, of which it holds only those. */
   seen: S;
+  /** Told at the next animation frame rather than at once. */
+  frame: boolean;
 }
 
 /** `slices` of `state` as they are now. */
@@ -125,11 +133,29 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
         // A copy, so a watcher that unsubscribes another mid-round does not shift the ones still to come.
         for (const watcher of [...watchers]) {
           if (!watchers.includes(watcher) || ![...told].some((slice) => watcher.slices.has(slice))) continue;
-          callWatcher(watcher, state, equal);
+          if (watcher.frame) toldAtFrame(watcher);
+          else callWatcher(watcher, state, equal);
         }
       }
     } finally {
       telling = false;
+    }
+  }
+
+  /** The watchers told once a frame that something they watch changed since their last call. */
+  const due = new Set<Watcher<S>>();
+
+  function toldAtFrame(watcher: Watcher<S>): void {
+    if (due.size === 0) requestAnimationFrame(atFrame);
+    due.add(watcher);
+  }
+
+  /** Tell each watcher due, in the order they subscribed, unless it unsubscribed or what it watches came back to where its last call left it. */
+  function atFrame(): void {
+    const now = watchers.filter((watcher) => due.has(watcher));
+    due.clear();
+    for (const watcher of now) {
+      if ([...watcher.slices].some((slice) => !equal(slice, watcher.seen[slice], state[slice]))) callWatcher(watcher, state, equal);
     }
   }
 
@@ -158,8 +184,8 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
       }
       tell();
     },
-    watch(slices, fn) {
-      const watcher: Watcher<S> = { slices: new Set(slices), fn, seen: snapshot(state, slices) };
+    watch(slices, fn, options) {
+      const watcher: Watcher<S> = { slices: new Set(slices), fn, seen: snapshot(state, slices), frame: options?.frame === true };
       watchers.push(watcher);
       return () => {
         watchers = watchers.filter((each) => each !== watcher);

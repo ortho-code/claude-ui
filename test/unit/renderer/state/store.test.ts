@@ -31,6 +31,73 @@ function thrown(task: () => void): string {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+/** The frames asked for from now on, held here, run by `frame()` one at a time. */
+function frames(): { frame: () => void; asked: () => number } {
+  const queue: FrameRequestCallback[] = [];
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => queue.push(callback));
+  return { frame: () => queue.splice(0).forEach((callback) => callback(0)), asked: () => queue.length };
+}
+
+describe('a watcher told once a frame', () => {
+  it('is told at the next frame, once, with what moved since its last call, while a plain watcher is told at once', () => {
+    const { frame, asked } = frames();
+    const store = fresh();
+    const told: string[] = [];
+    store.watch(['count'], (view, before) => told.push(`frame ${before.count}->${view.count}`), { frame: true });
+    store.watch(['count'], (view) => told.push(`now ${view.count}`));
+    store.set({ count: 1 });
+    store.set({ count: 2 });
+    expect(told).toEqual(['now 1', 'now 2']);
+    expect(asked()).toBe(1);
+    frame();
+    expect(told).toEqual(['now 1', 'now 2', 'frame 0->2']);
+    frame();
+    expect(told).toHaveLength(3);
+  });
+
+  it('is not told once it unsubscribed, even of a change before that', () => {
+    const { frame } = frames();
+    const store = fresh();
+    let told = 0;
+    const unsubscribe = store.watch(['count'], () => told++, { frame: true });
+    store.set({ count: 1 });
+    unsubscribe();
+    frame();
+    expect(told).toBe(0);
+  });
+
+  it('is not told of a change undone before the frame', () => {
+    const { frame } = frames();
+    const store = fresh();
+    let told = 0;
+    store.watch(['count'], () => told++, { frame: true });
+    store.set({ count: 1 });
+    store.set({ count: 0 });
+    frame();
+    expect(told).toBe(0);
+  });
+
+  it('does not keep the others from being told when it throws, and the throw is reported', () => {
+    const { frame } = frames();
+    const queued = reports();
+    const store = fresh();
+    let told = 0;
+    store.watch(
+      ['count'],
+      () => {
+        throw new Error('broken repaint');
+      },
+      { frame: true },
+    );
+    store.watch(['count'], () => told++, { frame: true });
+    store.set({ count: 1 });
+    frame();
+    expect(told).toBe(1);
+    expect(queued.map(thrown)).toEqual(['broken repaint']);
+  });
 });
 
 describe('createStore', () => {
