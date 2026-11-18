@@ -15,7 +15,7 @@ import { clearSetAside, markSetAside, setAsideAnew } from '../../../state/set-as
 import { clearNeedsYou, restoreNeedsYou } from '../../../state/needs-you';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
 import { setAsideDialog } from '../../../dialogs/set-aside-dialog';
-import { isFiltering, leaveTab, projName, projectGroups, sessionById, sessionStarting, tabWith, unopenableReason } from '../../../state/views';
+import { isFiltering, leaveTab, projName, projectGroups, sessionById, sessionStarting, tabWith } from '../../../state/views';
 import { copyText, showToast } from '../../../ui/toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
@@ -48,11 +48,11 @@ function siblingsOf(session: SessionSummary): SessionSummary[] {
 }
 
 // Menu items for a sibling list; siblings often share a title, so each shows title + when.
-// One that cannot be opened, a finished one say, stays in the list whatever `unavailableItems` says, dimmed and saying why (`unopenableReason`), since the list says what siblings there are.
+// One whose folder is gone stays in the list whatever `unavailableItems` says, dimmed and saying why (`unstartableReason`), since the list says what siblings there are; a finished one is reopened, as any open of one is.
 function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   return siblings.map((sibling) => {
     const label = `${sessionLabel(sibling)} · ${relativeTime(sibling.lastActivity)}`;
-    const refused = unopenableReason(sibling);
+    const refused = unstartableReason(sibling);
     return refused ? { label, disabled: refused, listed: true } : { label, onSelect: () => hostOf('sessions').openSession(sibling.id) };
   });
 }
@@ -179,8 +179,8 @@ export function moveToGroupItems(sessions: readonly SessionSummary[]): MenuItem[
   return items;
 }
 
-// Make one session unfinished, leaving tabs alone: from the finished view's row button and the finished session's menu.
-export async function unfinishFor(key: string): Promise<void> {
+// Make one session unfinished, leaving tabs alone: from the finished session's menu.
+async function unfinishFor(key: string): Promise<void> {
   store.set({ finished: new Map(Object.entries(await window.claudeUi.unfinish([key]))) });
 }
 
@@ -228,7 +228,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface, 
     { label: '', separator: true },
     ...(own.length > 0 ? [...own, { label: '', separator: true }] : []),
   ];
-  // A finished session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the finished view reach them, its id, and the finished view's two actions, and on its row Select…; nothing that starts or files it, which that view does not offer.
+  // A finished session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the finished view reach them, its id, Reopen and the finished view's two actions, and on its row Select…; nothing else that starts or files it, which that view does not offer.
   if (store.get().finished.has(entityKey(session))) {
     return [
       ...items,
@@ -236,6 +236,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface, 
       noteItem(session),
       copyIdItem(session),
       { label: '', separator: true },
+      cannotRun ? { label: 'Reopen', disabled: cannotRun } : { label: 'Reopen', onSelect: () => hostOf('sessions').openTab(session.id) },
       { label: 'Unfinished', onSelect: () => void unfinishFor(entityKey(session)) },
       { label: 'Delete session…', onSelect: () => void confirmAndDelete([entityKey(session)]) },
       // Selecting several starts in the list, so only its row offers it (docs/architecture/session-list.md § Selecting several).

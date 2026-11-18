@@ -55,7 +55,7 @@ Where a status event names another id than the tab's before any start has said w
 A `SessionEnd` never moves a tab, since it says the reporting tab's claude has left that session: main reads each status file as it changes, and the reads can finish in either order, so the session a tab left can report its end after the next one's start.
 
 Finishing is this app's, and claude cannot see it, so its `/resume` can land in a finished session.
-That session is made unfinished as soon as the app hears of it, and a toast says so, since nobody pressed Unfinished: the app opens no finished session (§ A session's menu holds everything about it), and claude has already gone on in it ([decided 2026-10-20](../decisions/0091-a-resume-into-a-finished-session-unfinishes-it.md)).
+That session is made unfinished as soon as the app hears of it, and a toast says so, since nobody pressed Reopen or Unfinished (§ A session's menu holds everything about it), and claude has already gone on in it ([decided 2026-10-20](../decisions/0091-a-resume-into-a-finished-session-unfinishes-it.md)).
 
 A session that another tab holds is a different case, and there the switch is undone.
 claude lets a second claude resume a session another runs, with no warning, and the two then branch its transcript: each one's turn hangs off the same message, and a later resume follows one branch, dropping the other's turn (measured on claude 2.1.302).
@@ -284,8 +284,10 @@ A close of one tab of a session already set aside says until when, "Closed "<tit
 So whichever is pressed, the toast after it goes back to before the close; the close's own Undo goes with the toast it was on, since the bar holds one.
 It stays 8 s, held while the pointer is on it, as any toast with a button; its buttons never wrap, and a long title wraps beside them.
 
-**Every way the app opens a session refuses a finished one** (`unopenableReason`, `state/views.ts`): the asks that open a session refuse it with a toast, a finished sibling in the menu is unavailable and says why, and a tab kept for one is dropped at launch ([decided 2026-11-05](../decisions/0167-a-finished-session-is-never-opened.md)).
-Its menu, the same on every surface but for its row's Select… ([§ Selecting several](session-list.md#selecting-several)), holds its siblings, PRs, worktrees, scheduled tasks and note, as its row's marks reach them, its id, Unfinished and Delete, and nothing that starts or files it; its dot is never a control.
+**Every ask that opens a session reopens a finished one** (`openAsked`, `claude/asks.ts`): the session is made unfinished in one write and opened, and a toast says "Reopened" with an Undo that finishes it again, once the start the open made has ended ([decided 2026-11-18](../decisions/0234-a-finished-session-reopens-in-one-press.md)).
+That covers its row's Reopen button and its menu's Reopen, a finished sibling in a menu and a panel's link to one; a press on the finished row itself opens nothing, and a tab kept for a finished session is still dropped at launch.
+Its menu, the same on every surface but for its row's Select… ([§ Selecting several](session-list.md#selecting-several)), holds its siblings, PRs, worktrees, scheduled tasks and note, as its row's marks reach them, its id, Reopen, Unfinished and Delete, and nothing else that starts or files it; its dot is never a control.
+Unfinished, there and on the bar for selecting several, only makes it unfinished and opens nothing.
 
 **A heading's menu holds the ways to start a session there** ([decided 2026-10-20](../decisions/0090-a-headings-menu-starts-sessions-there.md)): New session and New worktree session…, from one function (`newSessionItems`, `sessions/controls.ts`) that the "+"'s caret draws too, so the dropdown and the two menus cannot drift; on a project also New session in group, a submenu of every group the project has (`projectGroups` reads no filter), which reaches a group a filter left without a heading, or unavailable when the project has no groups or its folder is gone.
 Each opens with a header naming its heading in full, which the heading cuts at the sidebar's width: a project's with its folder's path, a group's with its project ([decided 2026-11-16](../decisions/0226-a-menus-header-says-what-only-a-tooltip-said.md)).
@@ -314,7 +316,7 @@ A missing worktree names the tree to recreate, since `git worktree add` at the s
 Both are re-derived on every listing rather than cached beside the summary: a folder can be removed or put back without the transcript changing, and one stat per distinct path covers hundreds of sessions.
 
 What that buys is a row that says so before you click it.
-A session whose folder is gone is dimmed and unclickable with the reason in its tooltip, its **Open** and **Fork** items are unavailable, left out of the kebab or dimmed and inert as `unavailableItems` says, and the "+" on a project whose root is gone is unavailable with the same explanation.
+A session whose folder is gone is dimmed and unclickable with the reason in its tooltip, its **Open**, **Reopen** and **Fork** items are unavailable, left out of the kebab or dimmed and inert as `unavailableItems` says, and the "+" on a project whose root is gone is unavailable with the same explanation.
 Its tab, if it has one, is dimmed by the same rule with the same tooltip, and that is what tells it apart from a cold tab: cold is unfilled and resumes on a click, dimmed will not start at all.
 The tab still selects on a click, since the pane is where the reason is said in full.
 A menu leaves out an action that cannot be taken now, so it holds only what can be done and keeps nothing behind a hover; `unavailableItems` set to `"dim"` shows it dimmed instead, with the reason as its tooltip, for whoever would rather have a menu keep one shape and an item answer why it cannot be done ([decided 2026-11-16](../decisions/0227-a-menu-leaves-out-what-cannot-be-done.md)).

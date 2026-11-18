@@ -38,7 +38,7 @@ export async function restoreOpenTabs(): Promise<void> {
       let toActivate: string | null = null;
       for (const key of openKeys) {
         const session = tips.get(key);
-        // Not a finished one, which is put away rather than resumed (`unopenableReason`): the list has read the finished ones by now, and the tab is dropped from what is kept.
+        // Not a finished one, which is put away rather than resumed (only a reopen brings one back): the list has read the finished ones by now, and the tab is dropped from what is kept.
         if (!session || store.get().finished.has(key)) continue;
         const wasRunning = runningKeys.includes(key);
         // What it said was scheduled when its claude went, which it goes on saying until a claude started on it reports.

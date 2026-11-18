@@ -60,5 +60,5 @@ function jumpToTab(token: string): void {
   // Closed since the toast went up: there is nothing left to go to.
   if (!tab) return;
   hostOf('claude').bringIntoView();
-  jumpToSession(tab.session);
+  void jumpToSession(tab.session);
 }

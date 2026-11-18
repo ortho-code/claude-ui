@@ -78,7 +78,7 @@ function removedTab(tab: TabState, running = false): RemovedTab {
  * Undo's put-back: each tab back where it stood, as a tab restored at launch is, and marked as needing you again if it was.
  * One whose claude the close or the finish ended gets claude started again, unless `undoRunning` says to leave it cold or its folder has gone (decided 2026-11-11); any other comes back cold.
  * `removed` is in the order the tabs went, each `at` counted among the tabs as they were then, so they come back last first.
- * A session another tab holds by now, opened again meanwhile, keeps that tab rather than gaining a second, and a finished one gets none, since the app opens no finished session.
+ * A session another tab holds by now, opened again meanwhile, keeps that tab rather than gaining a second, and a finished one gets none: the app gives a finished session a tab only by reopening it.
  */
 function putBack(removed: readonly RemovedTab[]): void {
   const toStart: string[] = [];

@@ -187,7 +187,7 @@ onAct('delete', (keys) => void confirmAndDelete(keys));
 
 /**
  * Unfinished from the bar in the finished view: every ticked session in one write, and one toast whose Undo finishes them again in one write.
- * Their rows leave the finished view, which is what the toast is for; a finished row's own Unfinished button raises none, as before.
+ * Their rows leave the finished view, which is what the toast is for; Unfinished in a finished session's menu raises none.
  */
 async function unfinishSessions(keys: readonly string[]): Promise<void> {
   const what = named(keys);

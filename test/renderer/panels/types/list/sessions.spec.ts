@@ -77,13 +77,14 @@ test("a row's session mark goes to its session: its tab opens, resumed, on show"
   await expect(tab(page, reviewed.title)).toHaveClass(/\bactive\b/);
 });
 
-// Finished is put away, not resumed: a panel row's mark refuses it and opens no tab.
-test("a row's session mark for a finished session says so, and opens nothing", async ({ app, page }) => {
+// A panel row's mark opens a finished session as any open of one does: reopened, with the toast saying so.
+test("a row's session mark for a finished session reopens it", async ({ app, page }) => {
   await bootQueue(app, page, undefined, { finished: { [reviewed.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
   await mark(page, 'Fix the login redirect').click();
-  await expect(page.locator('#toast-message')).toHaveText('Finished: make it unfinished from the finished sessions to open it');
-  await expect(tab(page, reviewed.title)).toHaveCount(0);
-  expect(await app.calls('startTerminal')).toEqual([]);
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  expect(await app.calls('unfinish')).toEqual([[[reviewed.id]]]);
+  await expect(page.locator('#toast-message')).toHaveText(`Reopened "${reviewed.title}"; it is no longer finished`);
+  await expect(tab(page, reviewed.title)).toHaveClass(/\bactive\b/);
 });
 
 test("a row's action starts a session through the app's dialog, remembered under the row from the start", async ({ app, page }) => {

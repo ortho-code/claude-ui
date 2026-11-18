@@ -109,18 +109,20 @@ test('Show in list says so when a filter leaves the session out', async ({ app, 
   await expect(page.locator('#toast-message')).toHaveText(`"${full.title}" is left out by the filter. Clear it to see its row.`);
 });
 
-// A finished sibling stays in the list of siblings, unavailable and saying why: finished is put away, not opened.
-test("a finished sibling in a session's menu is unavailable, saying it is finished", async ({ app, page }) => {
+// A finished sibling is opened as any open of a finished session is: reopened, with the toast saying so.
+test("a finished sibling in a session's menu reopens it", async ({ app, page }) => {
   const kept = session({ id: '00000000-0000-4000-8000-0000000000f2', title: 'Kept sibling', isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000f3'] });
   const put = session({ id: '00000000-0000-4000-8000-0000000000f3', title: 'Archived sibling', isSibling: true, siblingIds: [kept.id] });
-  await app.boot({ sessions: [kept, put], finished: { [put.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
+  // The reopened tab, on show, reads its history; what it holds is not what is checked here.
+  await app.boot({ sessions: [kept, put], history: { [put.id]: [] }, finished: { [put.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
   await row(page, kept.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button.menu-row', { hasText: 'Siblings (1)' }).hover();
   const sibling = page.locator('.kebab-menu.submenu button.menu-row', { hasText: put.title });
-  await expect(sibling).toHaveClass(/\bunavailable\b/);
-  await expect(sibling).toHaveAttribute('data-tooltip', 'Finished: make it unfinished from the finished sessions to open it');
-  await sibling.click({ force: true });
-  expect(await app.calls('startTerminal')).toEqual([]);
+  await expect(sibling).not.toHaveClass(/\bunavailable\b/);
+  await sibling.click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  expect(await app.calls('unfinish')).toEqual([[[put.id]]]);
+  await expect(page.locator('#toast-message')).toHaveText(`Reopened "${put.title}"; it is no longer finished`);
 });
 
 test("a row's menu has no Show in list, since the row is what it would show", async ({ app, page }) => {
@@ -377,22 +379,23 @@ for (const [state, setAsideMarks] of [['cold', {}], ['cold and set aside', setAs
 // The finished view's rows carry the kebab too, holding what the row's marks reach but its dot, its id, and the view's two buttons.
 const finishedView = { sessions: [full], finished: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } };
 
-test("a finished session's menu holds its note, its id, Unfinished and Delete, Select… on its row, and nothing that starts or files it", async ({ app, page }) => {
+test("a finished session's menu holds its note, its id, Reopen, Unfinished and Delete, Select… on its row, and nothing else that starts or files it", async ({ app, page }) => {
   await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
-  await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Unfinished', 'Delete session…', 'Select…']);
+  await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Reopen', 'Unfinished', 'Delete session…', 'Select…']);
   // When it was finished, in full as the row's tooltip gives it, where the row says how long ago, below when it was last active.
   const finished = (await row(page, full.title).getAttribute('data-tooltip'))!.split('\n').find((line) => line.startsWith('Finished: '));
   expect(finished).toBeDefined();
   await expect(lines(page).nth(3)).toHaveText(finished!);
 });
 
-test("Unfinished in a finished session's menu takes it out of the finished view, as the row's button does", async ({ app, page }) => {
+test("Unfinished in a finished session's menu takes it out of the finished view, and opens nothing", async ({ app, page }) => {
   await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
   await item(page, 'Unfinished').click();
   await expect(row(page, full.title)).toHaveCount(0);
   expect(await app.calls('unfinish')).toEqual([[[full.id]]]);
+  expect(await app.calls('startTerminal')).toEqual([]);
 });
 
 test("Delete session in a finished session's menu asks first, as the row's button does", async ({ app, page }) => {
@@ -408,8 +411,8 @@ test("Delete session in a finished session's menu asks first, as the row's butto
 test("a finished row's trailing controls sit 4px apart, delete second from the right", async ({ app, page }) => {
   await app.boot(finishedView);
   const box = async (selector: string): Promise<{ x: number; width: number }> => (await row(page, full.title).locator(selector).boundingBox())!;
-  const [unfinish, del, kebab] = [await box('.unfinish-btn'), await box('.delete-btn'), await box('.session-kebab')];
-  expect(Math.round(del.x - (unfinish.x + unfinish.width))).toBe(4);
+  const [reopen, del, kebab] = [await box('.reopen-btn'), await box('.delete-btn'), await box('.session-kebab')];
+  expect(Math.round(del.x - (reopen.x + reopen.width))).toBe(4);
   expect(Math.round(kebab.x - (del.x + del.width))).toBe(4);
 });
 

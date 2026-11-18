@@ -19,7 +19,7 @@ import { PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON
 import { showToast } from '../../../ui/toast';
 import { setTooltip } from '../../../ui/tooltip';
 import { hostOf } from '../builtin';
-import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor, unfinishFor } from './actions';
+import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor } from './actions';
 import { pressRowInBulk, tickBox } from './bulk';
 import { activityMoment, finishedMoment, rowTooltip } from './describe';
 import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
@@ -38,9 +38,9 @@ export function drawRow(key: string): HTMLElement {
 }
 
 // Take it back out of the box.
-// Finishing has no row icon — it is a kebab item (text) in the normal view; only making unfinished, the finished view's primary action, stays a button on the row.
+// Finishing has no row icon — it is a kebab item (text) in the normal view; only reopening, the finished view's primary action, stays a button on the row.
 // Redrawn from its 24-unit original at two-thirds scale, onto the 16-unit grid the helper draws on.
-const UNFINISH_ICON = strokeIcon(14, '<path d="M.67 2.67v4h4" /><path d="M2.34 10a6 6 0 1 0 1.42-6.24L.67 6.67" />');
+const REOPEN_ICON = strokeIcon(14, '<path d="M.67 2.67v4h4" /><path d="M2.34 10a6 6 0 1 0 1.42-6.24L.67 6.67" />');
 
 interface RowEls {
   dot: HTMLElement;
@@ -59,7 +59,7 @@ interface RowEls {
   meta: HTMLElement;
   metaText: HTMLElement;
   pin: HTMLButtonElement;
-  unfinishBtn: HTMLButtonElement;
+  reopenBtn: HTMLButtonElement;
   deleteBtn: HTMLButtonElement;
   kebab: HTMLButtonElement;
 }
@@ -90,8 +90,8 @@ function menuBadge(className: string, icon: string, open: (anchor: HTMLElement) 
   return { badge, count };
 }
 
-/** A row's buttons at its end, each acting on the session listed under `key` when pressed: its pin, Unfinished and Delete, which the finished view shows, and its menu. */
-function rowButtons(key: string): { pin: HTMLButtonElement; unfinishBtn: HTMLButtonElement; deleteBtn: HTMLButtonElement; kebab: HTMLButtonElement } {
+/** A row's buttons at its end, each acting on the session listed under `key` when pressed: its pin, Reopen and Delete, which the finished view shows, and its menu. */
+function rowButtons(key: string): { pin: HTMLButtonElement; reopenBtn: HTMLButtonElement; deleteBtn: HTMLButtonElement; kebab: HTMLButtonElement } {
   const pin = document.createElement('button');
   pin.className = 'icon-btn pin';
   pin.addEventListener('click', (event) => {
@@ -106,15 +106,16 @@ function rowButtons(key: string): { pin: HTMLButtonElement; unfinishBtn: HTMLBut
     });
   });
 
-  // Unfinished lives on the row because it is what the finished view is for; finishing a live session is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
-  const unfinishBtn = document.createElement('button');
-  unfinishBtn.className = 'icon-btn unfinish-btn';
-  unfinishBtn.hidden = true;
-  unfinishBtn.innerHTML = UNFINISH_ICON;
-  setTooltip(unfinishBtn, 'Unfinished');
-  unfinishBtn.addEventListener('click', (event) => {
+  // Reopen lives on the row because it is what the finished view is for; finishing a live session is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
+  // It stays pressable when the session's folder is gone, and the open says why, as a press on a normal row does.
+  const reopenBtn = document.createElement('button');
+  reopenBtn.className = 'icon-btn reopen-btn';
+  reopenBtn.hidden = true;
+  reopenBtn.innerHTML = REOPEN_ICON;
+  setTooltip(reopenBtn, 'Reopen: make it unfinished and open it');
+  reopenBtn.addEventListener('click', (event) => {
     event.stopPropagation();
-    void unfinishFor(key);
+    hostOf('sessions').openTab(key);
   });
 
   // Delete lives only in the finished view (shown/hidden in updateRow); trash-based + confirmed.
@@ -133,7 +134,7 @@ function rowButtons(key: string): { pin: HTMLButtonElement; unfinishBtn: HTMLBut
     const session = currentByKey.get(key);
     return session ? sessionMenuItems(session, 'row') : null;
   });
-  return { pin, unfinishBtn, deleteBtn, kebab };
+  return { pin, reopenBtn, deleteBtn, kebab };
 }
 
 // Build a row once.
@@ -195,19 +196,19 @@ function createSessionRow(key: string): HTMLElement {
   subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge);
   content.append(subline);
 
-  const { pin, unfinishBtn, deleteBtn, kebab } = rowButtons(key);
+  const { pin, reopenBtn, deleteBtn, kebab } = rowButtons(key);
 
   // Its box in bulk mode, before the dot (bulk.ts); drawn only then, and a press anywhere on the row ticks it then.
   item.prepend(tickBox(), dot);
-  item.append(pin, unfinishBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unfinishBtn, deleteBtn, kebab });
+  item.append(pin, reopenBtn, deleteBtn, kebab);
+  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, reopenBtn, deleteBtn, kebab });
   item.addEventListener('click', (event) => {
     // In bulk mode a press ticks the row rather than opening it; the dot, the marks, the pin and the kebab keep their own presses, which stop here.
     if (store.get().bulk) {
       pressRowInBulk(key, event.shiftKey);
       return;
     }
-    // Finished sessions are inert: manage them (make unfinished/delete), don't resume them.
+    // A press on a finished row does nothing, so a stray press cannot reopen it: its Reopen button and its menu's Reopen do.
     if (store.get().filter.filters.finished) return;
     const session = currentByKey.get(key);
     if (!session) return;
@@ -334,7 +335,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   els.pin.disabled = false;
   els.pin.hidden = finishedView;
 
-  // Unfinished and delete are the finished view's two buttons, shortcuts to the items its kebab holds, and appear nowhere else.
-  els.unfinishBtn.hidden = !finishedView;
+  // Reopen and delete are the finished view's two buttons, shortcuts to the items its kebab holds, and appear nowhere else.
+  els.reopenBtn.hidden = !finishedView;
   els.deleteBtn.hidden = !finishedView;
 }

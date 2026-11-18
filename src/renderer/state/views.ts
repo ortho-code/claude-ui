@@ -7,7 +7,7 @@ import type { SetAside, NeedsYou, SessionGroup, SessionSummary } from '../../sha
 import { tabButton, type TabButton, type TabButtonTab } from '../rules/claude';
 import { inView } from '../rules/session-filter';
 import { projectsForSwitcher, type SwitcherModel } from '../rules/switcher';
-import { displayName, entityKey, projectRootExists, sessionsByKey, unstartableReason } from '../rules/sessions';
+import { displayName, entityKey, projectRootExists, sessionsByKey } from '../rules/sessions';
 import { sessionPart, type NudgeStatus } from '../status/rollup';
 import { isNeeds, shownState, type Strength } from '../status/shown';
 import { sameOrder, store, type TabState, type View } from './app';
@@ -16,15 +16,6 @@ import { sameOrder, store, type TabState, type View } from './app';
 
 /** A project's name: the one you gave it, or its folder's. */
 export const projName = (repoRoot: string, view: View<'projectNames'>): string => displayName(repoRoot, view.projectNames);
-
-/**
- * Why a session cannot be opened, or null for one that can: finished, which is put away rather than resumed, as its row in the finished view does not open it either, or its folder gone (`unstartableReason`).
- * One rule for every ask that opens a session (`openSession`, `openTab`), and the session's siblings in its menu.
- */
-export function unopenableReason(session: SessionSummary, view: View<'finished'> = store.get()): string | null {
-  if (view.finished.has(entityKey(session))) return 'Finished: make it unfinished from the finished sessions to open it';
-  return unstartableReason(session);
-}
 
 /** The groups belonging to one project, in registry order. */
 export function projectGroups(repoRoot: string, { groupState }: View<'groupState'>): SessionGroup[] {

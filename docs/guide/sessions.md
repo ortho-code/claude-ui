@@ -40,7 +40,7 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 
 - A session's kebab holds everything about it, one menu on its row, its tab and a panel's row that names it: what the session is, at its top — title, project, group, each state it is in with its dot, such as ready and needing you at once, where its dot shows only the strongest, when it was last active and on what model, when it was finished, worktree, the start of its note — and the actions its row and tab offer, such as open, show in list, pin, mark read, stop, close, besides fork, siblings, PRs, worktrees, what is scheduled, set aside, note, group, copy id and finished.
 - Its kebab stops a running session, and closes it or marks it finished, each in one press, also while claude is on its way out, where one pressed changes what its going does; not while it starts.
-- A finished session's row has one too, with what it is, its siblings, PRs, worktrees, what is scheduled and its note, its id, unfinished, delete and select.
+- A finished session's row has one too, with what it is, its siblings, PRs, worktrees, what is scheduled and its note, its id, Reopen, unfinished, delete and select.
 - A project's and a group's kebab start a session there, plain or in a worktree, and a project's starts one in any of its groups, a group a filter hides included, and jumps to one of its groups or to its ungrouped sessions.
 
 ## Forks and worktrees
@@ -61,7 +61,7 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 ## Finishing, setting aside and the review
 
 - Pin, Finished, and delete (to the OS trash); a project whose sessions are all finished stays in the list until they are deleted.
-  Finished is one press on a running session too: claude is asked to leave, its tab staying for anything it asks on its way out, and the session is finished once claude has gone; the app does not open a finished session again until you make it unfinished.
+  Finished is one press on a running session too: claude is asked to leave, its tab staying for anything it asks on its way out, and the session is finished once claude has gone; Reopen, on a finished session's row and in its menu, makes it unfinished and opens it in one press, with a message whose Undo finishes it again; opening a finished sibling or a panel's link to one reopens it too.
 - Set aside… in a session's kebab asks when to come back, from your own choices, a day and time you pick or whenever, and where it stands, which is the session's note, shown as a bookmark on its row and its tab, and a filter finds them; at that day and time it needs you, within the hour if the machine slept through it, and a needs-you mark from before it was set aside stays dimmed while it stays set aside, news after it too when `setAsideNews` in [Settings](settings.md) says `"wait"`, with claude's own status, such as ready when its turn ends, showing over it.
   A claude running in its tab is asked to leave, as Stop asks, and the tab closes once it has gone, unless `setAsideRunning` in [Settings](settings.md) says to keep the tab or to leave claude running; a message says until when, and its Undo puts it all back, claude started again included.
   The mark goes when its day comes, when you send a prompt there, when you finish the session, or with Clear set aside, which a close's message offers too.
