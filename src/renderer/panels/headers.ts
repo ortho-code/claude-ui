@@ -58,10 +58,12 @@ export function header(title: string, controls: HTMLElement[] = []): HTMLElement
   return row;
 }
 
-/** A header whose panel has tabs: the tabs where the title would be, then its controls, and the tabs' fold on its bottom line (panels/tabs.ts). */
+/** A header whose panel has tabs: the tabs where the title would be, then its controls, on the tabs' first line however many they wrap onto, and the tabs' fold on its bottom line (panels/tabs.ts). */
 export function tabsHeader(tabs: HeaderTabs, controls: HTMLElement[]): HTMLElement {
   const row = element('div', 'panel-header with-tabs');
-  row.append(tabs.el, ...controls, tabs.foldButton);
+  const line = element('span', 'panel-header-controls');
+  line.append(...controls);
+  row.append(tabs.el, line, tabs.foldButton);
   return row;
 }
 

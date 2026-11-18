@@ -57,6 +57,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session marked for a PR's failing checks, merge conflict or requested changes is no longer marked for it once GitHub stops saying it, such as when the checks run again, while PR status is on and a session still links the PR.
 - Quitting the app on Linux ends what a session, a panel's shell or a panel's command left running, such as a process that ignored the stop or a background job started with `nohup`, and a PR lookup or git still under way, where those ran on after the app had gone.
 - A request in the history has the whole width for its words, its number, time and any mark on a line of their own under it, where in a narrow history a long mark such as "sent while claude was working" squeezed the words to one a line.
+- A panel's buttons beside its tabs stay on the tabs' first line when the tabs wrap onto more lines, as the terminal's tab bar keeps its own, where they sank to the middle of the header.
 
 ## 0.4.0 — 2026-11-09
 

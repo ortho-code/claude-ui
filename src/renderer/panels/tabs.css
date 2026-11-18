@@ -11,9 +11,15 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* What else the header holds stays centred beside the tabs. */
-.panel-header.with-tabs > :not(.panel-tabs, .panel-tabs-fold) {
-  align-self: center;
+/* Its controls stay on the tabs' first line, centred on it, however many lines the tabs wrap onto, as the terminal's tab bar keeps its own buttons (claude/tab-bar.css).
+   26px is one line of the header: its 28px less its top padding and bottom border. */
+.panel-header-controls {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
 }
 
 /* The fold (fold-chevron.css), centred along the bottom line and on it: 11px across a 1px line, so it reaches 5px up into a tab's bottom padding, where it covers none of a tab's buttons but takes a press on those 5px of the tab under it, and 5px down over the top of what is below, which a terminal's padding leaves empty.

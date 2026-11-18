@@ -70,7 +70,7 @@ export class EditorView {
     this.fullScreen?.remove();
     this.fullScreen = button;
     // Before Close all files, which stays the last of the head's own buttons.
-    if (button) this.head.insertBefore(button, this.closeButton);
+    if (button) this.closeButton.before(button);
   }
 
   private picks(): EditorUi {

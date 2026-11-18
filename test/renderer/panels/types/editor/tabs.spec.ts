@@ -70,3 +70,19 @@ test('a full-screen docked Editor whose last tab closes gives the layout back, a
   await expect(editorTabs(page)).toHaveText(['b.ts']);
   await expect(page.locator('#sidebar')).toBeVisible();
 });
+
+test("with its tabs on more than one line, the head's own buttons stay on the first line, as the terminal's tab bar keeps its own", async ({ app, page }) => {
+  const names = ['form-filler-viewer.component', 'create-review-task-form', 'actor.store', 'workflow-processes-list.component', 'session-panel.renderer'];
+  const long = summary({ files: names.map((name) => file(`src/${name}.ts`)) });
+  const longFiles = Object.fromEntries(names.map((name) => [`src/${name}.ts`, fileDiff(`src/${name}.ts`, [{ old: 1, new: 1, rows: [`+${name}`] }], [name])]));
+  await bootDiff(app, { since: long }, { files: longFiles });
+  for (let n = 0; n < names.length; n++) await rows(page).nth(n).dblclick();
+  await expect(editorTabs(page)).toHaveCount(names.length);
+  const first = (await editorTabs(page).first().boundingBox())!;
+  const last = (await editorTabs(page).last().boundingBox())!;
+  expect(last.y).toBeGreaterThan(first.y + first.height / 2);
+  for (const name of ['Dock beside the session', 'Close all files']) {
+    const button = (await editor(page).getByRole('button', { name }).boundingBox())!;
+    expect(Math.abs(button.y + button.height / 2 - (first.y + first.height / 2))).toBeLessThanOrEqual(1);
+  }
+});
