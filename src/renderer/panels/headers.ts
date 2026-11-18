@@ -1,7 +1,7 @@
 import { needsShown } from '../status/shown';
 import { badgeClass } from '../status/status-dot';
 import { element } from '../ui/dom';
-import { strokeIcon } from '../ui/svg';
+import { DOCK_ICON, strokeIcon, UNDOCK_ICON } from '../ui/svg';
 import { setTooltip } from '../ui/tooltip';
 import type { PanelStatus } from './contract';
 import type { HeaderTabs } from './tabs';
@@ -37,6 +37,15 @@ export function drawFullScreenButton(button: HTMLButtonElement, on: boolean): vo
   button.innerHTML = on ? BACK_TO_LAYOUT_ICON : FULL_SCREEN_ICON;
   button.setAttribute('aria-label', label);
   button.setAttribute('aria-pressed', String(on));
+  setTooltip(button, label);
+}
+
+/** A Dock button as it now stands: docking beside the session, or putting back in the drawer, its icon saying which, as the full-screen button's does. */
+export function drawDockButton(button: HTMLButtonElement, docked: boolean): void {
+  const label = docked ? 'Undock' : 'Dock beside the session';
+  if (button.getAttribute('aria-label') === label) return;
+  button.innerHTML = docked ? UNDOCK_ICON : DOCK_ICON;
+  button.setAttribute('aria-label', label);
   setTooltip(button, label);
 }
 

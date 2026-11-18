@@ -5,10 +5,8 @@ import { element } from '../../../ui/dom';
 import type { MenuItem } from '../../../ui/menu';
 import { copyText } from '../../../ui/toast';
 import type { PanelTab, PanelTabs } from '../../contract';
-import { tabsHeader } from '../../headers';
+import { drawDockButton, tabsHeader } from '../../headers';
 import { HeaderTabs } from '../../tabs';
-import { DOCK_ICON, UNDOCK_ICON } from '../../../ui/svg';
-import { setTooltip } from '../../../ui/tooltip';
 import { FileDoc } from './file/doc';
 import './view.css';
 
@@ -86,11 +84,7 @@ export class EditorView {
   private drawHead(): void {
     const { editorDock, editorUi } = store.get();
     this.dockButton.hidden = !editorDock;
-    const label = editorUi.docked ? 'Undock' : 'Dock beside the session';
-    if (this.dockButton.getAttribute('aria-label') === label) return;
-    this.dockButton.innerHTML = editorUi.docked ? UNDOCK_ICON : DOCK_ICON;
-    this.dockButton.setAttribute('aria-label', label);
-    setTooltip(this.dockButton, label);
+    drawDockButton(this.dockButton, editorUi.docked);
   }
 
   private measure(): void {
