@@ -10,7 +10,7 @@ Docked or not is kept for the window, with how it draws a diff, in the view kept
 The Editor's view is one for the window, built apart from the layout; the Editor panel in the layout is only where it docks, so `"hidden": true` on it means the Editor never docks, and files still open in the drawer.
 The Editor and the history take turns in the drawer; docked, the Editor stays in view while the history opens over the terminal.
 While the drawer is open and both have something to show, a rail of icons on its left edge, drawn as a panel group's rail is, switches between them: the one on show lit, a press on it closing the drawer, a press on the other showing that one, the history back where it was when the Editor took the drawer from it; what is docked leaves the rail.
-A tab's menu holds Pin, which keeps a preview, Copy path, Close other tabs and Close.
+A tab's menu holds Pin, which keeps a preview, Copy path, Close other tabs, Close and Close all; Close all files in the head closes them all at once, docked or not, where Esc and a press on claude close only the drawer and keep the files.
 
 ## Why
 

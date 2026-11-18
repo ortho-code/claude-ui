@@ -399,7 +399,8 @@ It is an ordinary panel, built afresh on each mount, so it is not one of the two
 
 **Its tabs** are one per file.
 A press on a file in the diff panel opens it as a preview, its name in italics, which the next file opened without keeping takes the place of; a double click on the row, or on the tab's name, or Pin in its menu keeps it, so the next file gets a tab of its own.
-A tab's menu holds Pin while it is a preview, Copy path, Close other tabs while there are others, and Close.
+A tab's menu holds Pin while it is a preview, Copy path, Close other tabs while there are others, Close, and Close all while there are others.
+Close all files at the end of the head closes every file of the tab on show at once, docked or in the drawer; docked, the Editor then gives back its room.
 Closing the tab on show puts the one after it on show, else the one before.
 What is open is the store's (`editorTabs`, with its rules, pure and tested, in `src/renderer/state/editor-tabs.ts`), one set per session, by its id, and one while no tab is on show: switching session tabs switches the Editor's files, a move between drawer and dock or a layout change draws them again from there, a session closed and opened again in the same run gets its files back, and none outlives the run; a `/clear`, which puts a new session in its tab, starts with none.
 

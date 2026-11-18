@@ -1,9 +1,11 @@
 import type { EditorUi } from '../../../../shared/types';
-import { changeEditorTabs, closed, closedOthers, editorSetKey, editorTabsOnShow, keyOf, kept, picked, reordered, stepped, updated, type EditorTabs, type FileRef } from '../../../state/editor-tabs';
+import { changeEditorTabs, closed, closedOthers, editorSetKey, editorTabsOnShow, keyOf, kept, NO_TABS, picked, reordered, stepped, updated, type EditorTabs, type FileRef } from '../../../state/editor-tabs';
 import { store } from '../../../state/app';
 import { element } from '../../../ui/dom';
 import type { MenuItem } from '../../../ui/menu';
+import { closeIcon } from '../../../ui/svg';
 import { copyText } from '../../../ui/toast';
+import { setTooltip } from '../../../ui/tooltip';
 import type { PanelTab, PanelTabs } from '../../contract';
 import { drawDockButton, tabsHeader } from '../../headers';
 import { HeaderTabs } from '../../tabs';
@@ -12,6 +14,8 @@ import './view.css';
 
 /** The Editor's width from which Fit draws a diff split. */
 const WIDE_PX = 600;
+/** The head's close button's label and tooltip. */
+const CLOSE_ALL = 'Close all files';
 
 /**
  * THE EDITOR'S VIEW, one for the window: the files open for the tab on show as tabs in its own head, the one on show below them.
@@ -25,9 +29,11 @@ export class EditorView {
   private readonly tabs = new HeaderTabs();
   /** Docks the Editor beside the terminal, or puts it back in the drawer, its icon saying which, as the full-screen button's does; there only while the layout has an Editor panel to dock in. */
   private readonly dockButton = element('button', 'icon-btn compact editor-dock');
+  /** Closes every file of the tab on show at once, docked or in the drawer, where Esc and a press on claude only close the drawer and keep them. */
+  private readonly closeButton = element('button', 'icon-btn compact editor-close');
   /** Its head: the header a panel with tabs has, the same in the drawer and docked. */
-  private readonly head = tabsHeader(this.tabs, [this.dockButton]);
-  /** The docked Editor panel's full-screen button, placed at the end of the head while it is docked; null otherwise. */
+  private readonly head = tabsHeader(this.tabs, [this.dockButton, this.closeButton]);
+  /** The docked Editor panel's full-screen button, placed in the head before Close all files while it is docked; null otherwise. */
   private fullScreen: HTMLButtonElement | null = null;
   private readonly docs = new Map<string, FileDoc>();
   private wide = false;
@@ -37,6 +43,11 @@ export class EditorView {
   constructor() {
     this.dockButton.type = 'button';
     this.dockButton.addEventListener('click', () => this.toggleDock());
+    this.closeButton.type = 'button';
+    this.closeButton.innerHTML = closeIcon(14);
+    this.closeButton.setAttribute('aria-label', CLOSE_ALL);
+    setTooltip(this.closeButton, CLOSE_ALL);
+    this.closeButton.addEventListener('click', () => changeEditorTabs(() => NO_TABS));
     this.el.append(this.head, this.body);
     // Esc closes the drawer it is in, as it closes the history; docked, there is nothing to close.
     this.el.addEventListener('keydown', (event) => {
@@ -54,11 +65,12 @@ export class EditorView {
     this.draw();
   }
 
-  /** Place the docked Editor panel's full-screen button at the end of the head, or take it out with null. */
+  /** Place the docked Editor panel's full-screen button in the head before Close all files, or take it out with null. */
   setFullScreenButton(button: HTMLButtonElement | null): void {
     this.fullScreen?.remove();
     this.fullScreen = button;
-    if (button) this.head.insertBefore(button, this.tabs.foldButton);
+    // Before Close all files, which stays the last of the head's own buttons.
+    if (button) this.head.insertBefore(button, this.closeButton);
   }
 
   private picks(): EditorUi {
@@ -176,7 +188,7 @@ export class EditorView {
     };
   }
 
-  /** A tab's menu: Pin while it is a preview, Copy path, Close other tabs while there are others, and Close. */
+  /** A tab's menu: Pin while it is a preview, Copy path, Close other tabs while there are others, Close, and Close all while there are others. */
   private menu(set: EditorTabs, id: string): MenuItem[] | null {
     const tab = set.tabs.find((each) => each.key === id);
     if (!tab) return null;
@@ -186,6 +198,7 @@ export class EditorView {
       { label: 'Copy path', onSelect: () => void copyText(path, 'Path copied.') },
       ...(set.tabs.length > 1 ? [{ label: 'Close other tabs', onSelect: () => changeEditorTabs((each) => closedOthers(each, id)) }] : []),
       { label: 'Close', onSelect: () => changeEditorTabs((each) => closed(each, id)) },
+      ...(set.tabs.length > 1 ? [{ label: 'Close all', onSelect: () => changeEditorTabs(() => NO_TABS) }] : []),
     ];
   }
 }

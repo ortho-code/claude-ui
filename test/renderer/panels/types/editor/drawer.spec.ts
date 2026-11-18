@@ -94,7 +94,7 @@ test('a switch of session tabs closes the drawer', async ({ app, page }) => {
   await expect(editor(page)).toHaveCount(0);
 });
 
-test("a tab's menu holds Pin on a preview, Copy path, Close other tabs and Close, and each does what it says", async ({ app, page }) => {
+test("a tab's menu holds Pin on a preview, Copy path, Close other tabs, Close and Close all, and each does what it says", async ({ app, page }) => {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await bootDiff(app, { since: listed }, { files });
   await rows(page).nth(2).click();
@@ -102,12 +102,12 @@ test("a tab's menu holds Pin on a preview, Copy path, Close other tabs and Close
   await rows(page).nth(1).click();
   await expect(editorTabs(page)).toHaveText(['a.ts', 'b.ts']);
   await editorTabs(page).nth(1).click({ button: 'right' });
-  await expect(menuRows(page)).toHaveText(['Pin', 'Copy path', 'Close other tabs', 'Close']);
+  await expect(menuRows(page)).toHaveText(['Pin', 'Copy path', 'Close other tabs', 'Close', 'Close all']);
   await menuRows(page).filter({ hasText: 'Pin' }).click();
   await expect(editorTabs(page).nth(1)).not.toHaveClass(/\bpreview\b/);
 
   await editorTabs(page).nth(1).click({ button: 'right' });
-  await expect(menuRows(page)).toHaveText(['Copy path', 'Close other tabs', 'Close']);
+  await expect(menuRows(page)).toHaveText(['Copy path', 'Close other tabs', 'Close', 'Close all']);
   await menuRows(page).filter({ hasText: 'Copy path' }).click();
   await expect(page.locator('#toast-message')).toHaveText('Path copied.');
   expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/src\/b\.ts$/);
@@ -148,4 +148,24 @@ test('the Editor taking the drawer from a history standing in for a cold tab clo
   await expect(page.locator('.drawer .editor-view')).toBeVisible();
   await expect(page.locator('.history')).not.toHaveClass(/\bstandalone\b/);
   await expect(page.locator('.history-note')).toBeHidden();
+});
+
+test("Close all in a tab's menu closes every file of the session tab, and the drawer with them", async ({ app, page }) => {
+  await bootDiff(app, { since: listed }, { files });
+  await rows(page).nth(0).dblclick();
+  await rows(page).nth(1).click();
+  await expect(editorTabs(page)).toHaveCount(2);
+  await editorTabs(page).nth(0).click({ button: 'right' });
+  await menuRows(page).filter({ hasText: 'Close all' }).click();
+  await expect(editor(page)).toHaveCount(0);
+});
+
+test('Close all files in the head closes every file of the session tab, docked too, and the docked Editor gives back its room', async ({ app, page }) => {
+  await bootDiff(app, { since: listed }, { files, editor: { docked: true } });
+  await rows(page).nth(0).dblclick();
+  await rows(page).nth(1).click();
+  await expect(editorPanel(page).locator('.editor-view')).toBeVisible();
+  await editor(page).getByRole('button', { name: 'Close all files' }).click();
+  await expect(editorTabs(page)).toHaveCount(0);
+  await expect(editorPanel(page)).toHaveCount(0);
 });
