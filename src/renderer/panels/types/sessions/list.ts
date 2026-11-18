@@ -12,15 +12,15 @@ import { setUnavailable } from '../../../ui/unavailable';
 import { recentOrder } from '../../../rules/recent';
 import { reviewCount, type ReviewSection } from '../../../rules/review';
 import { endBulk } from '../../../state/bulk';
-import { container, currentByKey, drawnKeys, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
+import { container, currentByKey, drawnKeys, rowInputs, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
 import { createFlatSection, createGroupSection, createProjectSection } from './headings';
 import { whereOf } from './describe';
 import { reviewFlat, reviewInScope } from './review';
-import { syncStickyOffset } from './reveal';
-import { drawRow, showTabMarks, updateRow, type FlatLine, type RowView } from './rows';
+import { syncStickyOffsetSoon } from './reveal';
+import { drawRow, ROW_SLICES, showTabMarks, updateRow, type FlatLine, type RowView } from './rows';
 import './list.css';
 
 /**
@@ -99,6 +99,8 @@ const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'needsYou', 'folds',
 /** Everything the list draws from the store. */
 type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (typeof LIST_QUIET)[number]>;
 
+type RowSlice = (typeof ROW_SLICES)[number];
+
 /** The list's watchers, registered in the sidebar's repaints (watch.ts), each slice named once above. */
 export function watchList(): void {
   store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
@@ -114,9 +116,10 @@ export function watchList(): void {
 /** The list follows the store, with the filter's count and chips it draws. */
 function listChanged(view: ListView, before: View<'filter' | 'activeProject' | 'arrangement'>): void {
   const reshaped = view.filter !== before.filter || view.activeProject !== before.activeProject || view.arrangement !== before.arrangement;
-  renderList(view);
   // A new filter, another project or the other arrangement reshapes the list, so it starts at the top rather than at a stale scroll offset — whoever chose the project, the switcher or a new tab elsewhere dropping the list to All.
+  // Set before the rows change, while the page's layout is still the one drawn, since setting it after would make the browser lay out the whole list at once.
   if (reshaped) container.scrollTop = 0;
+  renderList(view);
 }
 
 // Render from the cached session list, applying the current search filter.
@@ -184,7 +187,20 @@ function catchUp(): void {
   if (!sameOrder(keysOf(listShape(view)), drawnKeys())) renderList(view);
 }
 
+/** The slices rows draw from, as the last draw read them. */
+const rowsDrewFrom = new Map<RowSlice, unknown>();
+
+/**
+ * Count a change for the rows (`rowInputs`) when anything they draw from besides their sessions changed since the last draw, by each slice's own equality: compared with that draw rather than with `before`, since the statuses and the other slices the list is not told of change between draws without a call here.
+ */
+function rowsFollow(view: ListView): void {
+  const moved = (slice: RowSlice): boolean => !rowsDrewFrom.has(slice) || !store.same(slice, rowsDrewFrom.get(slice) as never, view[slice]);
+  if (ROW_SLICES.some(moved)) rowInputs.generation++;
+  for (const slice of ROW_SLICES) rowsDrewFrom.set(slice, view[slice]);
+}
+
 function renderList(view: ListView): void {
+  rowsFollow(view);
   const shape = listShape(view);
   if ('review' in shape) {
     // A review left with nothing in it ends, as an empty review has nothing to decide; said by nothing of its own: the act that emptied it raises its toast after this, with the Undo that matters more, and the Review button then says there is nothing to review.
@@ -206,7 +222,6 @@ function renderList(view: ListView): void {
     return;
   }
   const { tree } = shape;
-  const scroll = container.scrollTop;
   statusDots.clear();
   rowTabMarks.clear();
   currentByKey.clear();
@@ -221,10 +236,9 @@ function renderList(view: ListView): void {
   renderedSections.groups = tree.flatMap((p) => p.groups.map((g) => g.group.id));
   reconcileProjectSections(tree, view);
 
-  container.scrollTop = scroll;
   updateSidebarHighlight(view);
   updateCollapseToggle(view);
-  syncStickyOffset();
+  syncStickyOffsetSoon();
   // The rows this draw made have no box drawn yet, and those it took away no longer count.
   showBulk(view);
 }
@@ -263,16 +277,16 @@ function renderSections(sections: readonly FlatSection[], view: ListView): void 
   projectSections.sweep();
   groupSections.sweep();
   flatSections.sweep();
-  sessionRows.sweep();
+  sessionRows.sweep(inListing);
   updateSidebarHighlight(view);
   showBulk(view);
 }
 
 /** The list with nothing to draw, saying `text` in place of its rows. */
 function showEmpty(text: string, view: ListView): void {
-  clearList();
   currentByKey.clear();
   for (const s of visibleSessions(view)) currentByKey.set(entityKey(s), s);
+  clearList();
   const message = document.createElement('div');
   message.className = 'empty-message';
   message.textContent = text;
@@ -284,10 +298,15 @@ function showEmpty(text: string, view: ListView): void {
   showBulk(view);
 }
 
-// Reset to a blank list: drop every cached node so the next non-empty render rebuilds fresh.
+/**
+ * Whether a session's row is kept off the page when a draw leaves it out, so a filter that brings it back draws it without building it again: for as long as the session is in the listing (`currentByKey`, filled before each sweep).
+ */
+const inListing = (key: string): boolean => currentByKey.has(key);
+
+// Reset to a blank list: drop every section, and take the rows off the page, keeping those still in the listing for the next draw that shows them.
 function clearList(): void {
   container.replaceChildren();
-  sessionRows.clear();
+  sessionRows.sweep(inListing);
   projectSections.clear();
   groupSections.clear();
   flatSections.clear();
@@ -357,6 +376,6 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
   projectSections.sweep();
   groupSections.sweep();
   flatSections.sweep();
-  sessionRows.sweep();
+  sessionRows.sweep(inListing);
   applyFolds(view);
 }

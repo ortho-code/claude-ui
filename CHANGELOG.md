@@ -17,6 +17,10 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - `setAsideNews` in Settings can keep news on a set-aside session, such as a change on its PR, dimmed and uncounted while the session stays set aside (`"wait"`), instead of showing it at once (`"show"`, as before).
 - A session's list of PRs says when each merged or closed, or since when it is open, and a panel type is given those dates too.
 - Clear and close, beside Clear under the open filter panel, empties the filter and shuts the panel in one press.
+- A panel with Refresh says beside it how long ago what it shows came from a run, with the moment in full when you point at it.
+- A press on the folder a panel names beside its title opens a menu with the folder's whole name and path, the session's worktrees to point the panels at, and Copy path.
+- A panel type is given each session's place in the order its dot follows, and whether its set-aside mark holds its reasons back, with its reasons strongest first, so it can sort sessions as the app does.
+- A review or comment a session posts through GitHub's GraphQL, such as one added to a review you started by hand, links its PR to that session once GitHub says which PR it is on, looked for up to 30 days after the post.
 - A `diff` panel lists the files that changed in the checkout it looks in: since the branch left its base, not pushed yet, or not committed, flat or as a tree.
   It reads again as files change and when the session beside it finishes a turn.
   A press on a file opens it in the Editor.
@@ -43,6 +47,15 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A row in the review reads as it does anywhere in the list, with its time and model, since its set's heading already says why it is there.
   Its PRs and when they merged or closed are in its tooltip.
 - Hovering anywhere on a session's row shows its name, its line in full, its state, its times, its PRs with their dates where GitHub gave them, and its whole note, where the name and the time each had a tooltip of their own before.
+- A session's whole name shows at the top of its menu, a project's whole name in the project switcher's list, and a session's whole name in a notification, wrapped rather than cut short.
+  A session's or group's name in a menu wraps in full too, where it was cut on one line, and a name without spaces wraps rather than running out of the menu.
+- A session's menu says when claude has not left a stop, and when the session was last active and when it was finished, where that is known, as a date and time rather than how long ago.
+  A project's menu opens with its name and its folder's path, and a group's with its name and its project.
+- A menu leaves out what cannot be done now, such as Clear needs you on a session nothing marked, where it showed it dimmed with why in its tooltip.
+  `unavailableItems` in Settings set to `"dim"` shows them dimmed, as before.
+  A session's Siblings and Worktrees still list every one, a sibling whose folder is gone or a gone checkout dimmed.
+- A list panel's line saying its last run failed unfolds, on a press, what the script wrote about it, where that was on hover only.
+- A finished session reopens in one press, from Reopen on its row or in its menu, a sibling or a panel's link, where it took Unfinished first; a message says so, and its Undo finishes it again.
 
 ### Fixed
 
@@ -56,6 +69,9 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Under WSL a link the app cannot hand to Windows now says so, and why, where it did nothing, as when the app's way to Windows had broken.
 - A session marked for a PR's failing checks, merge conflict or requested changes is no longer marked for it once GitHub stops saying it, such as when the checks run again, while PR status is on and a session still links the PR.
 - Quitting the app on Linux ends what a session, a panel's shell or a panel's command left running, such as a process that ignored the stop or a background job started with `nohup`, and a PR lookup or git still under way, where those ran on after the app had gone.
+- A menu taller than the window stops at the window's edge and its items scroll, where the items past the edge could not be reached.
+- Setting a session aside again takes off the reminder the earlier set aside left, where it stayed listed and, on the new day, the old day's reminder was the one that came back.
+  The new day now brings its own reminder, unless something else the session needs you for still stands.
 - A request in the history has the whole width for its words, its number, time and any mark on a line of their own under it, where in a narrow history a long mark such as "sent while claude was working" squeezed the words to one a line.
 - A panel's buttons beside its tabs stay on the tabs' first line when the tabs wrap onto more lines, as the terminal's tab bar keeps its own, where they sank to the middle of the header.
 

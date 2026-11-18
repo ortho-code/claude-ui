@@ -36,6 +36,49 @@ export function webCreates(command: string): WebCreate[] {
   });
 }
 
+/** The GraphQL mutations that post a review or a comment, each naming what it posts on by its id; resolving a thread posts nothing, as a REST call that does not post links nothing. */
+const POSTING_MUTATION = /\b(?:addPullRequestReview|addPullRequestReviewThread|addPullRequestReviewThreadReply|addPullRequestReviewComment|submitPullRequestReview|addComment)\b/;
+
+/** An id GitHub gives a review, a review thread, a review comment or a PR. */
+const NODE_ID = /\b(?:PRRC|PRRT|PRR|PR)_[\w-]{8,}/g;
+
+/** A field's value that is a shell variable alone, `$NAME` or `${NAME}`, which the shell expands and the command's words keep as written. */
+const VARIABLE = /^\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})$/;
+
+/**
+ * The ids a shell command posts a review or comment on through `gh api graphql`: a call whose `query` field names a mutation that posts (`POSTING_MUTATION`), and every id of a review, a review thread, a review comment or a PR in its fields, the query included (`NODE_ID`), each once.
+ * A field that is a shell variable alone is read through a plain assignment to it in the same command (`assignmentsIn`), as a query or an id kept in a variable before the call is; one the command does not set, or sets with `export`, `local` or `declare`, reads as nothing, and a body given with `--input` is not read.
+ */
+export function postedNodes(command: string): string[] {
+  const set = assignmentsIn(command);
+  const nodes = ghCalls(command).flatMap((args) => {
+    if (args[0] !== 'api' || args[1] !== 'graphql') return [];
+    const fields = parsed(args.slice(2), API_VALUE_FLAGS).options.flatMap(({ flag, value }) => (FIELD_FLAGS.has(flag) && value?.includes('=') ? [fieldOf(value, set)] : []));
+    if (!POSTING_MUTATION.test(fields.find((field) => field.name === 'query')?.value ?? '')) return [];
+    return fields.flatMap((field) => field.value.match(NODE_ID) ?? []);
+  });
+  return [...new Set(nodes)];
+}
+
+/** A `name=value` field, its value read through `set` when it is a shell variable alone. */
+function fieldOf(word: string, set: ReadonlyMap<string, string>): { name: string; value: string } {
+  const equals = word.indexOf('=');
+  const value = word.slice(equals + 1);
+  const variable = VARIABLE.exec(value);
+  return { name: word.slice(0, equals), value: variable ? (set.get((variable[1] ?? variable[2])!) ?? '') : value };
+}
+
+/** The shell variables a command sets before the commands its invocations run, or as an invocation of its own, by name, the last kept. */
+function assignmentsIn(command: string): Map<string, string> {
+  const set = new Map<string, string>();
+  for (const words of invocations(command)) {
+    for (const word of words.slice(0, commandAt(words))) {
+      if (ASSIGNMENT.test(word)) set.set(word.slice(0, word.indexOf('=')), word.slice(word.indexOf('=') + 1));
+    }
+  }
+  return set;
+}
+
 /** The arguments of each `gh` an invocation of `command` runs, after `gh` itself, without redirections. */
 function ghCalls(command: string): string[][] {
   return invocations(command).flatMap((words) => {
@@ -55,8 +98,11 @@ const CREATE_VALUE_FLAGS = new Set(['-t', '--title', '-b', '--body', '-F', '--bo
 /** `gh api`'s options that take a value, which is never the endpoint. */
 const API_VALUE_FLAGS = new Set(['-X', '--method', '-f', '--raw-field', '-F', '--field', '-H', '--header', '--input', '-q', '--jq', '-t', '--template', '--hostname', '--cache', '-p', '--preview']);
 
+/** `gh api`'s options that each give one field of the request, `name=value`. */
+const FIELD_FLAGS = new Set(['-f', '--raw-field', '-F', '--field']);
+
 /** `gh api`'s options that send a body, which makes a request without a method of its own a POST. */
-const BODY_FLAGS = new Set(['-f', '--raw-field', '-F', '--field', '--input']);
+const BODY_FLAGS = new Set([...FIELD_FLAGS, '--input']);
 
 const REVIEW_ENDPOINT = /^(?:https:\/\/api\.github\.com)?\/?repos\/([^/{}\s]+\/[^/{}\s]+)\/pulls\/([1-9]\d*)\/(?:reviews|comments)(?:[/?].*)?$/;
 /** A repository as `--repo` takes it: `owner/name`, or with GitHub's host or page address before it. */

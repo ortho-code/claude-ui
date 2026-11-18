@@ -109,3 +109,8 @@ export function tabButton(tab: TabButtonTab, choice: LeaveButton = 'stop-close')
 export function notLeftWords(tab: TabButtonTab): string | null {
   return tab.stopping && tab.notLeft ? "hasn't left" : null;
 }
+
+/** The same in a sentence, where there is room for one, such as a toast and the session's menu; null where `notLeftWords` is. */
+export function notLeftSentence(tab: TabButtonTab): string | null {
+  return notLeftWords(tab) && "Claude hasn't left — it may be asking you something";
+}

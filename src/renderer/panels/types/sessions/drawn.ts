@@ -22,6 +22,11 @@ export interface RowTabMarks {
 }
 // The rows' marks from their tabs the same way, which a tab's change can alter without the list drawing again (`listFollowsTabs`).
 export const rowTabMarks = new Map<string, RowTabMarks>();
+/**
+ * How many times what rows draw from besides their own session has changed: a row drawn at the same count, for a session drawn the same, is left as it is (`updateRow`).
+ * The draw moves it (`rowsFollow`, list.ts); an object rather than a number, since a module cannot assign to a binding another module exports.
+ */
+export const rowInputs = { generation: 0 };
 // Row elements by entity key (the session id), kept across renders and left where they are (keyed.ts) — no flicker, no scroll jump, and a press or the focus on a row that keeps its place survives a render.
 export const sessionRows = new Keyed<HTMLElement>((row) => row);
 // Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen rather than on everything that has ever existed.

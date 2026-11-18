@@ -119,6 +119,7 @@ const STARTER_NOTES: Record<SettingKey, string> = {
   looks: 'How a status, "needs-you", a needs-you category or type is drawn, by its id, such as "finish-up": { "colour": "green" }: "colour" a name such as "peach" or "#rrggbb", "mark" "dot", "ring", "spinner" or an icon\'s name, "core" a colour inside a spinner, "pulse" true or false, and "looksLike" another id whose look it takes for the rest',
   needsYou: 'What you change of the needs-you categories and types the app ships, by id, such as "pr.merged": { "enabled": false }: a category its "label", "order" and "enabled", a type its "label", "category" and "enabled", and a PR\'s type its "roles", of "own", "reviewing" and "other"',
   approvals: 'How many approvals a PR needs before it counts as approved, by repository, such as "acme/app": 2; a repository not named counts as approved when GitHub says so',
+  unavailableItems: 'What a menu does with an item that cannot be done now: "hide" leaves it out, "dim" shows it dimmed with why in its tooltip',
 };
 
 /** A new `settings.json`: every setting at its default, under a line saying what it is. */

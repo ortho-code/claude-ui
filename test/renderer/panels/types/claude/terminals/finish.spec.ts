@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { exitLater } from '../../../../support/clock';
-import { session } from '../../../../support/fixture';
+import { DIMMED, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab, tabs } from '../../../../support/window';
 
@@ -160,7 +160,7 @@ for (const leave of ['Stop session', 'Close tab'] as const) {
 
 // There is no claude yet to ask to leave, as Stop session says too.
 test('Finished is unavailable while the tab starts, saying so, and finishes nothing', async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await app.hold('startTerminal');
   await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);

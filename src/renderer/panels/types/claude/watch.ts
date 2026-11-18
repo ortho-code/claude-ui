@@ -20,7 +20,7 @@ import { adoptReplacement } from './adopt';
 function followSwitch(tabToken: string, id: string, source: string): void {
   const runningIt = adoptReplacement(tabToken, id, source);
   if (!runningIt) return;
-  jumpToSession(runningIt.session);
+  void jumpToSession(runningIt.session);
   showToast(`"${sessionLabel(runningIt.session)}" is already running in another tab`);
 }
 

@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { exitLater } from '../../../../support/clock';
-import { session, settingsFileWith } from '../../../../support/fixture';
+import { DIMMED, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { needsYouFile, switchedOff } from '../../../../support/needs-you';
 import { openSettings } from '../../../../support/settings';
@@ -171,7 +171,7 @@ test('a click on its dot marks it seen, dimmed, and keeps the mark', async ({ ap
 });
 
 test('Clear needs you in its menu takes it off without opening it', async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await (await menuItem(page, one.title, 'Clear needs you')).click();
   for (const dot of [row(page, one.title).locator('.nudge'), tab(page, one.title).locator('.nudge')]) await expect(dot).not.toHaveClass(/\bneeds\b/);
   expect(await app.calls('clearNeedsYou')).toEqual([[one.id, 'cleared']]);

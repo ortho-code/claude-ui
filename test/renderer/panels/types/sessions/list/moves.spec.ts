@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { HOME, PROJECT, session } from '../../../../support/fixture';
+import { DIMMED, HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { chooseProject, groupHeading, projectHeading } from '../../../../support/window';
 
@@ -24,6 +24,8 @@ const fixture = {
     ],
     groupOf: { [inFirst.id]: 'g-first', [inMiddle.id]: 'g-middle', [inLast.id]: 'g-last', [inLone.id]: 'g-lone' },
   },
+  // Every item listed, a Jump to group with nowhere to go among them, so each heading's options read the same whatever can be done now.
+  settings: DIMMED,
 };
 
 // The ways to add something there, the heading's own, on a project Jump to group, and the moves last of all (heading-menu.spec.ts).
@@ -31,10 +33,12 @@ const GROUP_OWN = ['New session', 'New worktree session…', '—', 'Select sess
 const PROJECT_OWN = ['New session', 'New worktree session…', 'New session in group', 'New group…', '—', 'Select sessions…', 'Rename…', 'Copy path', '—', 'Jump to group'];
 const ALL_MOVES = ['Move to top', 'Move up', 'Move down', 'Move to bottom'];
 
-/** Open the options behind `kebab` and read them as they are listed, a rule as "—". */
+/** Open the options behind `kebab` and read them as they are listed, a rule as "—", after the header that names the heading. */
 async function optionsOf(page: Page, kebab: Locator): Promise<string[]> {
   await kebab.click();
-  return page.locator('.kebab-menu:not(.submenu)').evaluate((menu) => [...menu.children].map((child) => (child.classList.contains('menu-separator') ? '—' : child.textContent)));
+  return page
+    .locator('.kebab-menu:not(.submenu) > .menu-list')
+    .evaluate((menu) => [...menu.children].filter((child) => !child.classList.contains('menu-header')).map((child) => (child.classList.contains('menu-separator') ? '—' : child.textContent)));
 }
 const groupOptions = (page: Page, name: string): Promise<string[]> => optionsOf(page, groupHeading(page, name).locator('.group-kebab'));
 const projectOptions = (page: Page, name: string): Promise<string[]> => optionsOf(page, projectHeading(page, name).locator('.project-kebab'));

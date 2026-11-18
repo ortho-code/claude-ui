@@ -17,6 +17,30 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
 export function momentLabel(at: number, tag: string, now: number = Date.now()): string {
   const moment = new Date(at);
   const otherYear = moment.getFullYear() !== new Date(now).getFullYear();
-  const day = new Intl.DateTimeFormat(tag, { weekday: 'short', day: 'numeric', month: 'short', ...(otherYear ? { year: 'numeric' } : {}) }).format(moment);
-  return `${day}, ${new Intl.DateTimeFormat(tag, { timeStyle: 'short' }).format(moment)}`;
+  return `${formatter(tag, otherYear ? 'day-year' : 'day').format(moment)}, ${formatter(tag, 'time').format(moment)}`;
+}
+
+/** How `momentLabel` writes a part of a moment: its day, its day with the year, or its time. */
+type Form = 'day' | 'day-year' | 'time';
+
+const FORMS: Record<Form, Intl.DateTimeFormatOptions> = {
+  day: { weekday: 'short', day: 'numeric', month: 'short' },
+  'day-year': { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' },
+  time: { timeStyle: 'short' },
+};
+
+/**
+ * Formatters by language and form, each built once.
+ * Building an `Intl.DateTimeFormat` costs far more than formatting with one, and the session list writes a moment for every row it draws.
+ */
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+function formatter(tag: string, form: Form): Intl.DateTimeFormat {
+  const key = `${tag}|${form}`;
+  let made = formatters.get(key);
+  if (!made) {
+    made = new Intl.DateTimeFormat(tag, FORMS[form]);
+    formatters.set(key, made);
+  }
+  return made;
 }

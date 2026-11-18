@@ -61,6 +61,8 @@ export interface BridgeFixture {
   prProblem: string | null;
   /** The page of the PR each branch opened in the browser became, by `<repository>\n<head>`, as main would find it; one left out has no PR yet. */
   createdPrs: Record<string, string>;
+  /** The page of the PR each posted review or comment id belongs to, by its id, as main would find it; one left out is an id GitHub does not know. */
+  nodePrs: Record<string, string>;
   historyPins: Record<string, HistoryPin>;
   /** Session id -> its transcript's exchanges, as main reads them; a listed session left out has no history the stand-in can answer for, and one the listing does not have has no transcript yet. */
   history: Record<string, Exchange[]>;
@@ -130,6 +132,7 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
     siblingIds: [],
     prs: [],
     webCreates: [],
+    postedNodes: [],
     postCompactHeads: [],
     cwdExists: true,
     repoRootExists: true,
@@ -148,6 +151,9 @@ const noSettingsFile = (name: string): SettingsFileRead => ({ name, status: 'mis
 
 /** A settings file holding `json`, as main reads one. */
 export const settingsFileWith = (name: string, json: unknown): SettingsFileRead => ({ name, status: 'read', error: null, json });
+
+/** Settings under which a menu shows what cannot be done now, dimmed with why on its hover, for a check of an item's reason or of a menu's every item. */
+export const DIMMED = settingsFileWith('settings.json', { unavailableItems: 'dim' });
 
 /** The titles of `sessions`, sorted: what a check expects the list to show, against `sortedTitles`. */
 export const sorted = (...sessions: { title: string }[]): string[] => sessions.map((s) => s.title).sort();
@@ -193,6 +199,7 @@ export function defaultFixture(): BridgeFixture {
     prStatuses: {},
     prProblem: null,
     createdPrs: {},
+    nodePrs: {},
     historyPins: {},
     history: {},
     layout: { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, status: 'missing', error: null, json: null, types: [], local: noLocalLayout() },

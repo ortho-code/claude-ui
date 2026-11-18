@@ -1,4 +1,4 @@
-import { changedSettings, LEAVE_BUTTON, RUNNING_AT_LAUNCH, SET_ASIDE_NEWS, SET_ASIDE_RUNNING, UNDO_RUNNING, type LeaveButton, type RunningAtLaunch, type SetAsideNews, type SetAsideRunning, type SettingKey, type SettingsView, type UndoRunning } from '../../../shared/config/settings';
+import { changedSettings, LEAVE_BUTTON, RUNNING_AT_LAUNCH, SET_ASIDE_NEWS, SET_ASIDE_RUNNING, UNAVAILABLE_ITEMS, UNDO_RUNNING, type LeaveButton, type RunningAtLaunch, type SetAsideNews, type SetAsideRunning, type SettingKey, type SettingsView, type UnavailableItems, type UndoRunning } from '../../../shared/config/settings';
 import { store } from '../../state/app';
 // The section list's entries are menu rows.
 import '../../ui/menu-row.css';
@@ -37,6 +37,12 @@ const SET_ASIDE_NEWS_LABELS: Record<SetAsideNews, string> = {
   wait: 'Wait for its day',
 };
 
+/** Each choice for a menu item that cannot be done now, in words: the dropdown's options. */
+const UNAVAILABLE_ITEMS_LABELS: Record<UnavailableItems, string> = {
+  hide: 'Leave them out',
+  dim: 'Show them dimmed',
+};
+
 type SectionId = 'general' | 'sessions' | 'needs-you' | 'appearance' | 'version-control' | 'logs';
 
 /** Each setting's words. */
@@ -55,6 +61,7 @@ const SETTING_LABELS: Record<SettingKey, string> = {
   looks: 'Status dots: the looks',
   needsYou: 'What can mark a session',
   approvals: 'Approvals',
+  unavailableItems: 'Menu items that cannot be done now',
 };
 
 /** One of Settings' sections: its place in the list, and the settings whose mistakes mark it there. */
@@ -160,8 +167,15 @@ export const SECTIONS: Section[] = [
   {
     id: 'appearance',
     label: 'Appearance',
-    keys: ['strength', 'looks'],
+    keys: ['unavailableItems', 'strength', 'looks'],
     body: `
+      <div class="dialog-group">
+        <label class="dialog-label" for="settings-unavailable-items">${SETTING_LABELS.unavailableItems}</label>
+        <p class="dialog-detail">Such as Clear needs you on a session nothing marked. Dimmed, they keep a menu's shape the same from session to session, and pointing at one says why it cannot be done.</p>
+        <select id="settings-unavailable-items" class="dialog-field">
+          ${UNAVAILABLE_ITEMS.map((choice) => `<option value="${choice}">${UNAVAILABLE_ITEMS_LABELS[choice]}</option>`).join('')}
+        </select>
+      </div>
       <div class="dialog-group" data-setting="looks">
         <span class="dialog-label">Status dots</span>
         <p class="dialog-detail">Which state a session's dot shows when several hold, such as busy and needing you, is <code>strength</code> in settings.json, and how each status, category and type is drawn is <code>looks</code>, both set there by hand.</p>

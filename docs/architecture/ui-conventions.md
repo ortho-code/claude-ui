@@ -21,6 +21,7 @@ A row holding the trigger keeps its own hover look too, the card by `:has(.menu-
 
 Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an `attach-top`/`attach-bottom`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a small notch on the menu's edge pointing at the trigger's center.
 Anything new that floats near an anchor should go through those helpers so it gets the notch (and the active-state stamping) for free rather than reinventing positioning.
+A menu taller than the room the window has for it on its side stops at the window's edge, and its rows scroll inside it, in a list of their own (`.menu-list`), since the menu scrolling itself would clip its notch; a submenu stops at the window's top and bottom alike.
 The notch straddles the edge, so its inner half lies over the row beside that edge, the first one for a popover below its trigger, and it is drawn beneath the popover's content (`z-index: -1` inside the popover's own stacking context): drawn on top, it bit a notch-shaped piece out of any row with a fill of its own under it, a hovered item, the switcher's entry on show, or a row scrolled up under it.
 
 **An open kebab menu follows what it lists.**
@@ -47,7 +48,7 @@ When a variant genuinely differs — a group heading is deliberately lighter tha
 **A surface drawn again while it is used keeps its elements.**
 A click is a press and a release on the same element, so a surface that takes the pressed element away between the two produces no click at all, and one that takes out the focused element drops the focus to the page.
 The surfaces that keep their elements are drawn again on events nobody times — the session list when a transcript is written or a model switched, the project switcher whenever a session's status changes, the tab bar whenever one of its tabs' sessions' does, a list panel on each run that prints a list and its rows' session marks whenever one of their sessions changes — so that press is an everyday one rather than a race.
-So a surface keeps its elements by key and leaves in place what already is, through one helper, `keyed.ts`: `Keyed` holds the elements, built the first time a render draws a key and swept once one no longer does, and `placeChildren` puts them in order, keeping the longest run already in order where it is, so only what really moved is taken out.
+So a surface keeps its elements by key and leaves in place what already is, through one helper, `keyed.ts`: `Keyed` holds the elements, built the first time a render draws a key and swept once one no longer does, or kept off the page where the surface says so, as the session list keeps a row while its session is in the listing, so a search that brings it back does not build it again; and `placeChildren` puts them in order, keeping the longest run already in order where it is, so only what really moved is taken out.
 Keeping them is not enough on its own: in Chromium, `appendChild`, `insertBefore` and `replaceChildren` take out even an element already where it belongs, which is how the session list, which had always kept its rows, still lost both.
 The same goes for an icon inside a kept element: setting its markup again replaces the icon's own element, which sits over the middle of an icon button where a press lands, so an icon a render sets is set through `setMarkup`, which leaves the same markup alone.
 A kept element outlives what it was built for, so its handlers look up what they act on by its key when they run, as a session row's read `currentByKey`, never what was current when it was built.
@@ -167,6 +168,14 @@ The group's pill fills with `--bg` because its heading bar is already `--surface
 **Icon-only controls carry a tooltip and an `aria-label`.**
 The filter pills are icon-only because words cost the panel an extra line at a 320px sidebar; the meaning has to survive that, so both attributes are mandatory rather than optional there.
 
+**A tooltip only repeats what can be read without it** ([decided 2026-11-15](../decisions/0225-a-tooltip-only-repeats.md)).
+Text is cut only in a strip of a fixed size, such as a session row, a tab, a panel's header, a heading or the switcher's title, with the text in full one press away: in the menu it opens, or for a filter chip in the filter panel.
+A menu, a popover and a notification's lines wrap in full instead: a menu's header, every menu item's label (`.menu-item-label`), the switcher's list and a notification's title and project, a name with no break point breaking wherever the line runs out (`overflow-wrap: anywhere`).
+What a panel type puts in a `tooltip` is the type's, and shows on hover alone: it says more about what the row shows, never what the row is there to tell ([decided 2026-11-16](../decisions/0228-a-panel-rows-tooltip-stays-on-hover-and-a-kebab-comes-with-actions.md)).
+
+**A kebab comes only with actions** ([decided 2026-11-16](../decisions/0228-a-panel-rows-tooltip-stays-on-hover-and-a-kebab-comes-with-actions.md)).
+Its header may say what the row or a tooltip also says, such as a name in full, but a kebab holding nothing but words is never added.
+
 ### Traps worth knowing
 
 **A sticky element pins its MARGIN box, not its border box.**
@@ -221,6 +230,11 @@ The annotation is the whole mechanism: adding a field to `SessionSummary` **fail
 Only two are `false`, each with its reason written beside it — `lastActivity`, rewritten on every message of a running session and drawn as the row's time, which a clock keeps current instead (§ UI conventions), and `postCompactHeads`, which no row reads.
 `lastActivity` had once been marked as drawn by nothing, and every row's time stayed what it was at the list's last redraw.
 The general rule this stands for: **where stale is worse than an extra rebuild, make the exhaustive case the one the compiler enforces**, rather than trusting a list to be complete.
+
+The same line decides, row by row, which rows a redraw brings up to date: a row on the page is left as it is when its session's line and last activity are what it was drawn for, and nothing else it draws from has changed since (`updateRow`, `rows.ts`), so a key in the search costs the rows it changes rather than all of them.
+What else a row draws from is one list, `ROW_SLICES`, and the type of what a row may read is made from it, so a row that reads a slice the list leaves out does not compile; each draw compares those slices with what the last one read, by the store's own equality (`store.same`), and counts a change for every row when one moved (`rowsFollow`, `list.ts`).
+That comparison is with the last draw rather than with `before`, because the statuses and the other slices the list is not told of change between draws.
+A row drawn flat, in Recent or the review, is always brought up to date, since where it sits leads its line and is not in the count.
 
 **Two surfaces can disagree about the same list, because only one of them re-rendered.**
 The session list is assigned before that signature check decides whether to draw, so a transcript merely growing updates the data and skips the render.

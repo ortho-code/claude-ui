@@ -279,6 +279,10 @@ beforeAll(async () => {
       shell('Bash', 'gh pr create -w -R ScientaNL/demo -H other', '2026-01-03T09:05:00.000Z'),
       shell('Bash', 'gh pr create  --web --repo ScientaNL/demo --head me:fix', '2026-01-03T09:10:00.000Z'),
       shell('Bash', 'gh pr create --web --repo ScientaNL/demo --head untimed'),
+      // Reviews posted through GraphQL, which name the review only by its id: one posted twice, kept at its later post, and one in a record with no time.
+      shell('Bash', "gh api graphql -f query='mutation($r:ID!){submitPullRequestReview(input:{pullRequestReviewId:$r,event:COMMENT}){clientMutationId}}' -f r=PRR_kwDOAAAAAAAAAAAAone", '2026-01-03T10:00:00.000Z'),
+      shell('Bash', "gh api graphql -f query='mutation($r:ID!){addPullRequestReviewThread(input:{pullRequestReviewId:$r,path:\"a\",line:1,body:\"b\"}){thread{id}}}' -f r=PRR_kwDOAAAAAAAAAAAAone", '2026-01-03T10:05:00.000Z'),
+      shell('Bash', "gh api graphql -f query='mutation($r:ID!){submitPullRequestReview(input:{pullRequestReviewId:$r,event:COMMENT}){clientMutationId}}' -f r=PRR_kwDOAAAAAAAAAAAAtwo"),
     ),
   );
 
@@ -331,6 +335,12 @@ describe('listSessions', () => {
       { repository: 'ScientaNL/demo', head: 'me:fix', at: '2026-01-03T09:10:00.000Z' },
     ]);
     expect(sessions.find((s) => s.id === 'pr')?.webCreates).toEqual([]);
+  });
+
+  it('reads the ids a review or comment posted through GraphQL names, each once at its latest post, and none in a record with no time', async () => {
+    const sessions = await listSessions();
+    expect(sessions.find((s) => s.id === 'posted')?.postedNodes).toEqual([{ node: 'PRR_kwDOAAAAAAAAAAAAone', at: '2026-01-03T10:05:00.000Z' }]);
+    expect(sessions.find((s) => s.id === 'pr')?.postedNodes).toEqual([]);
   });
 
   it('keeps the latest model reported across the transcript', async () => {

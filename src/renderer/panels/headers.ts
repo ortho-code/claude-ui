@@ -1,9 +1,12 @@
 import { needsShown } from '../status/shown';
 import { badgeClass } from '../status/status-dot';
 import { element } from '../ui/dom';
+import { clockInLanguage } from '../ui/locale';
+import { forgetMoment, momentLine, showMoment, type Moment } from '../ui/moments';
 import { DOCK_ICON, strokeIcon, UNDOCK_ICON } from '../ui/svg';
+import { relativeTime } from '../ui/time-words';
 import { setTooltip } from '../ui/tooltip';
-import type { PanelStatus } from './contract';
+import type { PanelStatus, Refreshed } from './contract';
 import type { HeaderTabs } from './tabs';
 
 const REFRESH_ICON = strokeIcon(14, '<path d="M12.8 8.6A4.8 4.8 0 1 1 11.6 4.5" /><path d="M12.9 2.8v2.6h-2.6" />');
@@ -28,6 +31,71 @@ export function actionButton(label: string): HTMLButtonElement {
   setTooltip(button, label);
   button.innerHTML = REFRESH_ICON;
   return button;
+}
+
+/**
+ * The header's time beside its button: how long ago what the panel shows came from a run, on the clock every "x ago" ages on, with the moment in full in its tooltip, and the failed run after it where one failed since.
+ * The button's tooltip gives the moment too, as the one place it stays when a narrow header drops the time (`fitHeader`); it is set with each drawing of the time, so a change of the language reaches both.
+ */
+export function drawRefreshed(time: HTMLElement, action: HTMLButtonElement | null, refreshed: Refreshed | null): void {
+  if (refreshed === null) {
+    time.hidden = true;
+    forgetMoment(time);
+    if (action) setTooltip(action, action.getAttribute('aria-label'));
+    return;
+  }
+  const at = refreshed.at.toISOString();
+  const moment = (): Moment => {
+    if (action) setTooltip(action, `${action.getAttribute('aria-label') ?? ''}\n${momentLine('Last refreshed', at)}`);
+    const failed = refreshed.failedAt ? [`The run at ${clockInLanguage(refreshed.failedAt)} failed`] : [];
+    return { text: relativeTime(at), at, label: 'Refreshed', tooltip: [momentLine('Refreshed', at), ...failed].join('\n') };
+  };
+  time.hidden = false;
+  showMoment(time, moment(), moment);
+}
+
+/** Drop the header's time while its title would be cut beside it, so the title gives way last; Refresh's tooltip still gives the time. */
+function fitHeader(row: HTMLElement): void {
+  const title = row.querySelector<HTMLElement>(':scope > .panel-title');
+  const time = row.querySelector<HTMLElement>(':scope > .panel-refreshed');
+  if (!title || !time) return;
+  time.classList.remove('dropped');
+  if (title.scrollWidth > title.clientWidth) time.classList.add('dropped');
+}
+
+/** Fit a header again whenever it or its title changes size: the header with the window, the title as the time beside it grows a word. */
+const headerSizes = new ResizeObserver((entries) => {
+  for (const { target } of entries) {
+    const row = target.closest<HTMLElement>('.panel-header');
+    if (row?.isConnected) fitHeader(row);
+  }
+});
+
+/** What `headerSizes` watches: one observer for every header, since the tree builds a new header at each draw, so the ones gone from the page are let go once a draw is done (`letGoOfGone`). */
+const watched = new Set<Element>();
+let letGoQueued = false;
+
+/** Stop watching the headers no longer in the page; run after the task that drew the tree, since a header is built before its place in the page is. */
+function letGoOfGone(): void {
+  letGoQueued = false;
+  for (const el of watched) {
+    if (el.isConnected) continue;
+    headerSizes.unobserve(el);
+    watched.delete(el);
+  }
+}
+
+/** Keep `row`'s time dropped while its title would be cut beside it (`fitHeader`). */
+export function watchHeaderFit(row: HTMLElement): void {
+  if (!letGoQueued) {
+    letGoQueued = true;
+    queueMicrotask(letGoOfGone);
+  }
+  const title = row.querySelector(':scope > .panel-title');
+  for (const el of title ? [row, title] : [row]) {
+    headerSizes.observe(el);
+    watched.add(el);
+  }
 }
 
 /** The full-screen button as it stands: pressed, saying the way back, while its panel fills the window. */

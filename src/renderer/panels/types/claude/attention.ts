@@ -1,4 +1,4 @@
-import { notLeftWords } from '../../../rules/claude';
+import { notLeftSentence } from '../../../rules/claude';
 import { sessionLabel } from '../../../rules/sessions';
 import { clockOf, clockText } from '../../../status/clock';
 import { showAttentionToast } from '../../../window/notifications';
@@ -39,15 +39,16 @@ const notLeftToasts = new Map<string, () => void>();
 export function toastNotLeft(view: View<'tabs' | 'activeTab' | 'scheduledTasks' | 'projectNames'>): void {
   for (const [token, takeDown] of notLeftToasts) {
     const tab = view.tabs.find((t) => t.token === token);
-    if (tab && notLeftWords(tab)) continue;
+    if (tab && notLeftSentence(tab)) continue;
     takeDown();
     notLeftToasts.delete(token);
   }
   for (const tab of view.tabs) {
-    if (!notLeftWords(tab) || tab.token === view.activeTab || notLeftToasts.has(tab.token)) continue;
+    const sentence = notLeftSentence(tab);
+    if (!sentence || tab.token === view.activeTab || notLeftToasts.has(tab.token)) continue;
     const { token } = tab;
     const tasks = clockText(clockOf(view.scheduledTasks.get(tab.session.id), tab));
-    const detail = ["Claude hasn't left — it may be asking you something", ...(tasks ? [tasks] : [])].join('\n');
+    const detail = [sentence, ...(tasks ? [tasks] : [])].join('\n');
     notLeftToasts.set(token, showAttentionToast({ status: 'waiting', label: sessionLabel(tab.session), project: projName(tab.session.repoRoot, view), detail, open: () => jumpToTab(token) }, true));
   }
 }
@@ -59,5 +60,5 @@ function jumpToTab(token: string): void {
   // Closed since the toast went up: there is nothing left to go to.
   if (!tab) return;
   hostOf('claude').bringIntoView();
-  jumpToSession(tab.session);
+  void jumpToSession(tab.session);
 }

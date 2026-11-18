@@ -1,5 +1,6 @@
 import type { NudgeStatus } from '../status/rollup';
 import { store, type AppState } from '../state/app';
+import { defaultSettings } from '../../shared/config/defaults';
 import { badgeClass, sessionDotClass } from '../status/status-dot';
 import { chevronIcon, strokeIcon } from './svg';
 import { setTooltip } from './tooltip';
@@ -43,13 +44,14 @@ export interface MenuItem {
   /** Dims the label — used for "Ungrouped", which is a place rather than a named thing. */
   muted?: boolean;
   /**
-   * The action exists but cannot be taken right now, with `disabled` saying why.
-   * Kept in the list rather than dropped: a menu that changes SHAPE is one you have to re-read, and an action that silently disappears looks like it was never there — where a dimmed one with a reason answers the question you opened the menu to ask.
+   * The action exists but cannot be taken right now, with `disabled` saying why: left out of the menu, or drawn dimmed with the reason as its tooltip, as `unavailableItems` says (`shownItems`).
    */
   disabled?: string;
+  /** An entry of a list of what there is, such as a session's siblings, whose being there is what the list says: drawn dimmed when it cannot be taken, whatever `unavailableItems` says. */
+  listed?: boolean;
   /**
    * Not an item but what the menu is about, at its top: the label as its first line and these after it, muted, taking no hover and no click.
-   * The first line, too long for the menu, is cut with an ellipsis and carries its whole text as its tooltip; the lines after it wrap (menu.css).
+   * Every line wraps, the first too, so what a header says is all there in a menu at most 300px wide (menu.css).
    * A line can lead with a dot, classed by whoever lists it, such as each state a session is in.
    */
   header?: HeaderLine[];
@@ -92,11 +94,29 @@ function onMenuOutside(event: MouseEvent): void {
     closeMenu();
 }
 
+/**
+ * The items a menu draws, as `unavailableItems` in the settings says: all of them with `"dim"`; with `"hide"`, none that cannot be taken now but an entry of a list of what there is (`listed`), and no submenu left with no item or header in it.
+ * A rule is kept only between what is kept, so leaving items out never leaves two rules together or one at either end.
+ */
+function shownItems(items: MenuItem[]): MenuItem[] {
+  if ((store.get().settings?.unavailableItems.value ?? defaultSettings().unavailableItems) === 'dim') return items;
+  // A header is something to read, as Scheduled's tasks are, so a submenu that keeps one is not empty.
+  const kept = items.filter((item) => (!item.disabled || item.listed) && (!item.submenu || shownItems(item.submenu).some((child) => !child.separator)));
+  const shown: MenuItem[] = [];
+  for (const item of kept) {
+    const last = shown.at(-1);
+    if (item.separator && (last === undefined || last.separator)) continue;
+    shown.push(item);
+  }
+  if (shown.at(-1)?.separator) shown.pop();
+  return shown;
+}
+
 // Render `items` as buttons into `menu`.
 // A leaf runs its onSelect and closes everything; a submenu-parent opens its child list on hover (and on click, for non-hover input).
 // `isRoot` marks the top menu: only its leaves close an open submenu on hover — a submenu's own leaves must not, or hovering toward them would close the very submenu being reached for.
 function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
-  for (const item of items) {
+  for (const item of shownItems(items)) {
     if (item.separator) {
       const rule = document.createElement('div');
       rule.className = 'menu-separator';
@@ -110,7 +130,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'menu-row';
-    button.textContent = item.label;
+    button.append(menuLabel(item));
     if (item.disabled) {
       // Nothing is wired below: it takes no click and opens no submenu, and it carries the reason as its tooltip.
       setUnavailable(button, item.disabled);
@@ -119,7 +139,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       menu.append(button);
       continue;
     }
-    // A row led by a dot: a session's own, one its lister classes, or the roll-up of something countable (a group, say), whose count then sits in its own column at the right; the label takes the room it needs and ellipsizes.
+    // A row led by a dot: a session's own, one its lister classes, or the roll-up of something countable (a group, say), whose count then sits in its own column at the right.
     if (item.count !== undefined || item.session || item.dot !== undefined) dottedRow(button, item);
     if (item.checked !== undefined) button.prepend(tickColumn(item.checked));
     if (item.submenu) {
@@ -170,16 +190,20 @@ function menuHeader(label: string, lines: HeaderLine[]): HTMLElement {
   return header;
 }
 
-/** A row led by a dot, in place of its plain label: the dot, the label, and its detail line and count where it has them. */
-function dottedRow(button: HTMLButtonElement, item: MenuItem): void {
+/** An item's label, which wraps in full (menu.css). */
+function menuLabel(item: MenuItem): HTMLElement {
   const label = document.createElement('span');
   label.className = 'menu-item-label';
   label.textContent = item.label;
   if (item.muted) label.classList.add('muted');
+  return label;
+}
+
+/** A row led by a dot, ahead of its label: the dot, and its detail line and count where it has them. */
+function dottedRow(button: HTMLButtonElement, item: MenuItem): void {
   const dot = document.createElement('span');
   dot.className = item.session ? sessionDotClass(item.session.status, item.session.acked) : (item.dot ?? badgeClass(item.badge ?? null));
-  button.textContent = '';
-  button.append(dot, label);
+  button.prepend(dot);
   if (item.detail !== undefined) {
     const detail = document.createElement('span');
     detail.className = 'menu-item-detail';
@@ -203,13 +227,6 @@ function tickColumn(checked: boolean): HTMLElement {
   return tick;
 }
 
-/** Give each header line the menu had to cut, a first line, its whole text as its tooltip; measured once the menu is in the page, since only then has it a width. */
-function tipCutLines(menu: HTMLElement): void {
-  for (const line of menu.querySelectorAll<HTMLElement>('.menu-header-line')) {
-    if (line.scrollWidth > line.clientWidth) setTooltip(line, line.textContent);
-  }
-}
-
 /** How far from the end of its edge a popover's notch may start, clear of the rounded corner there (popover.css). */
 const NOTCH_CLEAR_END = 18;
 
@@ -223,15 +240,30 @@ function notchAt(centre: number, start: number, border: number, length: number):
   return Math.max(10, Math.min(centre - start - border - NOTCH_HALF, length - NOTCH_CLEAR_END));
 }
 
+/** A menu's popover and the list inside it that holds its rows and scrolls, so the popover's notch, which stands out of its edge, is never clipped (menu.css). */
+function menuShell(className: string): { menu: HTMLElement; list: HTMLElement } {
+  const menu = document.createElement('div');
+  menu.className = className;
+  const list = document.createElement('div');
+  list.className = 'menu-list';
+  menu.append(list);
+  return { menu, list };
+}
+
+/** Cap a menu's list at `room`, the height the window has for the whole menu, inside its border; past that its rows scroll. */
+function capList(menu: HTMLElement, list: HTMLElement, room: number): void {
+  const style = getComputedStyle(menu);
+  list.style.maxHeight = `${room - parseFloat(style.borderTopWidth) - parseFloat(style.borderBottomWidth)}px`;
+}
+
 // Open a child list beside its parent item; prefer the right, flip left when it would overflow.
 function openSubmenu(item: HTMLElement, items: MenuItem[]): void {
   if (openSubmenuOwner === item) return; // already open for this item; don't rebuild/flicker
   closeSubmenu();
-  const menu = document.createElement('div');
-  menu.className = 'kebab-menu popover submenu';
-  fillMenu(menu, items, false);
+  const { menu, list } = menuShell('kebab-menu popover submenu');
+  fillMenu(list, items, false);
   document.body.append(menu);
-  tipCutLines(menu);
+  capList(menu, list, window.innerHeight - 8 - 8);
   const r = item.getBoundingClientRect();
   const flipped = r.right + menu.offsetWidth + 8 > window.innerWidth;
   menu.classList.add(flipped ? 'attach-left' : 'attach-right');
@@ -261,12 +293,10 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[], follow?: () => 
     return;
   }
   closeMenu();
-  const menu = document.createElement('div');
-  menu.className = 'kebab-menu popover';
-  fillMenu(menu, items, true);
+  const { menu, list } = menuShell('kebab-menu popover');
+  fillMenu(list, items, true);
   document.body.append(menu);
-  tipCutLines(menu);
-  placeMenu(menu, anchor);
+  placeMenu(menu, list, anchor);
   openMenuEl = menu;
   openMenuAnchor = anchor;
   anchor.classList.add('menu-open'); // trigger shows an open/active state while its menu is up
@@ -287,10 +317,9 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[], follow?: () => 
     // An open submenu goes with the row it hangs from, and is opened again under the row drawn in its place, found by its label, so it stays under the pointer wherever that row is drawn where it was.
     const reopen = openSubmenuOwner?.dataset.submenu;
     closeSubmenu();
-    menu.replaceChildren();
-    fillMenu(menu, now, true);
-    tipCutLines(menu);
-    placeMenu(menu, anchor);
+    list.replaceChildren();
+    fillMenu(list, now, true);
+    placeMenu(menu, list, anchor);
     // Available, as the rows `fillMenu` marks are, so the item and the row are the same one.
     const parent = now.find((item) => item.submenu && !item.disabled && item.label === reopen);
     const row = [...menu.querySelectorAll<HTMLElement>('.has-submenu')].find((button) => button.dataset.submenu === reopen);
@@ -303,12 +332,16 @@ function menuShape(items: MenuItem[]): string {
   return JSON.stringify(items, (_key, value: unknown) => (typeof value === 'function' ? undefined : value));
 }
 
-/** Put a menu under its anchor, or above it where there is no room below, its notch pointing at the anchor. */
-function placeMenu(menu: HTMLElement, anchor: HTMLElement): void {
+/** Put a menu under its anchor, or above it where there is no room below, its notch pointing at the anchor, and its list capped at the room on that side. */
+function placeMenu(menu: HTMLElement, list: HTMLElement, anchor: HTMLElement): void {
   const r = anchor.getBoundingClientRect();
+  // Measured at its full height, which a cap from an earlier placing would hide.
+  list.style.maxHeight = '';
   // Below the trigger, and above it when the menu would run off the bottom of the window and there is more room above — a row near the bottom of the list opened its menu half out of sight.
   const roomBelow = window.innerHeight - r.bottom - 5 - 8;
-  const flipped = menu.offsetHeight > roomBelow && r.top - 5 - 8 > roomBelow;
+  const roomAbove = r.top - 5 - 8;
+  const flipped = menu.offsetHeight > roomBelow && roomAbove > roomBelow;
+  capList(menu, list, flipped ? roomAbove : roomBelow);
   menu.classList.toggle('attach-bottom', flipped);
   menu.classList.toggle('attach-top', !flipped);
   menu.style.top = `${flipped ? Math.max(8, r.top - 5 - menu.offsetHeight) : r.bottom + 5}px`;

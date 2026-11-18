@@ -67,16 +67,17 @@ test('finishing closes the session\'s tab and moves its row to the finished view
   await expect(tabLabel(page, older.title)).toHaveCount(0);
   await expect(titles(page)).toHaveText([newer.title]);
 
-  // The finished view manages it rather than resuming it: an unfinish and a delete on the row, and its menu, no pin.
+  // The finished view puts it back rather than working it: a reopen and a delete on the row, and its menu, no pin.
   await page.locator('#filter-toggle').click();
   await page.locator('#finished-filter').click();
   await expect(titles(page)).toHaveText([older.title]);
   await expect(row(page, older.title).locator('.card-meta')).toContainText('finished');
-  await expect(row(page, older.title).locator('.unfinish-btn')).toBeVisible();
+  await expect(row(page, older.title).locator('.reopen-btn')).toBeVisible();
   await expect(row(page, older.title).locator('.pin')).toBeHidden();
   await expect(row(page, older.title).locator('.session-kebab')).toBeVisible();
 
-  await row(page, older.title).locator('.unfinish-btn').click();
+  await row(page, older.title).locator('.session-kebab').click();
+  await page.locator('.kebab-menu button.menu-row', { hasText: /^Unfinished$/ }).click();
   await expect(titles(page)).toHaveText([]);
   await page.locator('#finished-filter').click();
   await expect(titles(page)).toHaveText([newer.title, older.title]);

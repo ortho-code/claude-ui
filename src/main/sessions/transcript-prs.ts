@@ -1,6 +1,6 @@
 import { prKey } from '../../shared/sessions/prs';
-import type { PendingPr, SessionPr } from '../../shared/types';
-import { postedPrs, webCreates } from './posted-prs';
+import type { PendingNode, PendingPr, SessionPr } from '../../shared/types';
+import { postedNodes, postedPrs, webCreates } from './posted-prs';
 import { shellCommands } from './tool-calls';
 
 /**
@@ -10,6 +10,7 @@ import { shellCommands } from './tool-calls';
 export class TranscriptPrs {
   private readonly byKey = new Map<string, SessionPr>();
   private readonly creates = new Map<string, PendingPr>();
+  private readonly nodes = new Map<string, PendingNode>();
 
   /** A `pr-link` record, as Claude Code writes one when a session opens or links a PR. */
   linked(event: Record<string, unknown>): void {
@@ -19,7 +20,7 @@ export class TranscriptPrs {
 
   /**
    * An assistant record: a review or comment claude posted links its PR, since Claude Code links none for a review, nor for a comment posted through `gh api`.
-   * A PR it opened in the browser to be created is kept apart, with when, since there is no PR yet to link.
+   * A PR it opened in the browser to be created is kept apart, with when, since there is no PR yet to link, and so is an id a review or comment posted through GraphQL names, since only GitHub can say which PR that is.
    */
   posted(event: Record<string, unknown>): void {
     for (const command of shellCommands(event)) {
@@ -30,6 +31,11 @@ export class TranscriptPrs {
         // Moved to the end with its newer time: a second try on the same branch is the one its PR follows.
         this.creates.delete(key);
         this.creates.set(key, { ...create, at: event.timestamp });
+      }
+      for (const node of postedNodes(command)) {
+        // Moved to the end with its newer time, so it is looked for as long after its latest post.
+        this.nodes.delete(node);
+        this.nodes.set(node, { node, at: event.timestamp });
       }
     }
   }
@@ -42,6 +48,11 @@ export class TranscriptPrs {
   /** The PRs opened in the browser to be created, each repository and branch once, oldest first. */
   get webCreates(): PendingPr[] {
     return [...this.creates.values()];
+  }
+
+  /** The ids reviews and comments posted through GraphQL name, each once, oldest first. */
+  get postedNodes(): PendingNode[] {
+    return [...this.nodes.values()];
   }
 
   private keep(pr: SessionPr): void {

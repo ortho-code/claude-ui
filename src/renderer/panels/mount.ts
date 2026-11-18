@@ -5,8 +5,9 @@ import { element } from '../ui/dom';
 import { PINNED_BADGE_ICON, WORKTREE_ICON } from '../ui/svg';
 import { copyText } from '../ui/toast';
 import { setTooltip } from '../ui/tooltip';
-import type { MountedPanel, PanelHost, PanelType, PanelView } from './contract';
-import { actionButton, drawFullScreenButton, showStatus } from './headers';
+import { openMenu } from '../ui/menu';
+import type { Asks, MountedPanel, PanelFolder, PanelHost, PanelType, PanelView, Refreshed } from './contract';
+import { actionButton, drawFullScreenButton, drawRefreshed, showStatus } from './headers';
 import type { PanelSlot } from './layout';
 import { linkedSessions, pickSession, sessionNamed, startSession } from './links';
 import { optionsOf } from './options';
@@ -53,6 +54,10 @@ export interface Mounted {
   vacant: boolean;
   /** Its full-screen button, in the header the tree draws, or in a bare panel's own bar (`PanelHost.fullScreenButton`). */
   fullScreenButton: HTMLButtonElement;
+  /** How long ago what it shows came from a run, beside its button, hidden until it says (`setRefreshed`). */
+  refreshed: HTMLElement;
+  /** What it last said of that, which the tree draws again in each header it builds, since the clock lets go of a time once its header has gone. */
+  refreshedAt: Refreshed | null;
 }
 
 /** What mounting a panel needs of the tree that places it. */
@@ -71,9 +76,15 @@ export interface MountContext {
   bringIntoView(key: string): void;
 }
 
-/** The folder a panel looks in, beside its title: the worktree mark and the checkout's name, in the badge a session row wears, and the star of a pin while that checkout was picked for the session rather than followed. */
-function folderMark(): { element: HTMLElement; set: PanelHost['setFolder'] } {
+/**
+ * The folder a panel looks in, beside its title: the worktree mark and the checkout's name, in the badge a session row wears, and the star of a pin while that checkout was picked for the session rather than followed.
+ * A press on it opens a menu naming the folder in full with its path, which the header cuts at its width, then the session's list of where the panels look to pick from, and Copy path.
+ */
+function folderMark(asks: Pick<Asks, 'checkoutMenu'>): { element: HTMLElement; set: PanelHost['setFolder'] } {
   const folder = element('span', 'panel-folder');
+  folder.setAttribute('role', 'button');
+  folder.setAttribute('aria-haspopup', 'menu');
+  folder.tabIndex = 0;
   const folderIcon = element('span', 'badge-icon');
   folderIcon.innerHTML = WORKTREE_ICON;
   const folderName = element('span', 'badge-text');
@@ -81,8 +92,25 @@ function folderMark(): { element: HTMLElement; set: PanelHost['setFolder'] } {
   folderPicked.innerHTML = PINNED_BADGE_ICON;
   folder.append(folderIcon, folderName, folderPicked);
   folder.hidden = true;
+  let shown: PanelFolder | null = null;
+  const open = (): void => {
+    if (!shown) return;
+    const { name, path, session } = shown;
+    const checkouts = session === null ? null : asks.checkoutMenu(session);
+    openMenu(folder, [{ label: name, header: [path] }, { label: '', separator: true }, ...(checkouts ? [...checkouts, { label: '', separator: true }] : []), { label: 'Copy path', onSelect: () => void copyText(path, 'Path copied.') }]);
+  };
+  folder.addEventListener('click', (event) => {
+    event.stopPropagation();
+    open();
+  });
+  folder.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    open();
+  });
   // In place, as the count is: the element stands in the header whatever it says.
   const set: PanelHost['setFolder'] = (named) => {
+    shown = named;
     folder.hidden = named === null;
     if (!named) return;
     folder.classList.toggle('main', !named.worktree);
@@ -145,41 +173,46 @@ function viewSwitch(slot: PanelSlot, context: MountContext): { element: HTMLElem
   return { element: views, picked: pickedView, show: showViews, keep: keepPick, notes: () => viewNotesNow };
 }
 
-/** A panel's marks in its header and on its rail icon, made once with it and empty until it reports: the busy mark, the run's last word, its button, its full-screen button, the rail's dot and the count in both places. */
-function headerMarks(type: PanelType, slot: PanelSlot, context: MountContext): Pick<Mounted, 'busy' | 'end' | 'action' | 'fullScreenButton' | 'badge' | 'count' | 'railCount'> {
+/** The marks the panel's reports change, in its header and on its rail icon, each hidden until the panel says something: the busy mark, the run's last word, how long ago it refreshed, the rail's dot, and its count beside its title and on the rail. */
+function reportMarks(): { busy: HTMLElement; end: HTMLElement; refreshed: HTMLElement; badge: HTMLElement; count: HTMLElement; railCount: HTMLElement } {
   const busy = element('span', 'nudge running');
-  busy.hidden = true;
   const end = element('span', 'panel-end');
-  // Per entry, since what the button would do can depend on the options; a terminal has none.
-  const label = type.bare ? null : type.actionLabel ? type.actionLabel(optionsOf(slot.entry)) : 'Refresh';
-  const action = label === null ? null : actionButton(label);
-  const fullScreenButton = element('button', 'icon-btn full-screen-toggle');
-  fullScreenButton.type = 'button';
-  // A bare panel's own bar sizes it with its other buttons; the tree's header takes the compact box its Refresh has.
-  if (!type.bare) fullScreenButton.classList.add('compact');
-  fullScreenButton.addEventListener('click', () => context.toggleFullScreen(slot.key));
-  drawFullScreenButton(fullScreenButton, false);
+  const refreshed = element('span', 'panel-refreshed');
   const badge = element('span', badgeClass(null));
-  badge.hidden = true;
   const count = element('span', 'panel-count');
   const railCount = makeRailCount();
-  count.hidden = true;
-  return { busy, end, action, fullScreenButton, badge, count, railCount };
+  busy.hidden = refreshed.hidden = badge.hidden = count.hidden = true;
+  return { busy, end, refreshed, badge, count, railCount };
+}
+
+/** The panel's full-screen button, in its header or its own bar. */
+function fullScreenToggle(slot: PanelSlot, type: PanelType, context: MountContext): HTMLButtonElement {
+  const button = element('button', 'icon-btn full-screen-toggle');
+  button.type = 'button';
+  // A bare panel's own bar sizes it with its other buttons; the tree's header takes the compact box its Refresh has.
+  if (!type.bare) button.classList.add('compact');
+  button.addEventListener('click', () => context.toggleFullScreen(slot.key));
+  drawFullScreenButton(button, false);
+  return button;
 }
 
 /** Mount the panel for a slot, with its header's marks and controls and the host it reports through. */
 export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
   const type = context.typeOf(slot.type!);
-  const { busy, end, action, fullScreenButton, badge, count, railCount } = headerMarks(type, slot, context);
-  const folder = folderMark();
+  const { busy, end, refreshed, badge, count, railCount } = reportMarks();
+  // Per entry, since what the button would do can depend on the options; a terminal has none.
+  const label = type.bare ? null : type.actionLabel ? type.actionLabel(optionsOf(slot.entry)) : 'Refresh';
+  const action = label === null ? null : actionButton(label);
+  const fullScreenButton = fullScreenToggle(slot, type, context);
+  const folder = folderMark(context.host.asks);
   const views = viewSwitch(slot, context);
   // What the panel reports about itself, held here so a report made while it is still mounting is not lost; a change re-renders, since both the panel's place and its rail icon draw from it.
   const said = { problems: [] as string[], notes: [] as string[], vacant: false };
-  const report = (field: 'problems' | 'notes', lines: string[]): void => {
-    if (lines.join('\n') === said[field].join('\n')) return;
-    said[field] = lines;
+  const report = <K extends keyof typeof said>(field: K, value: (typeof said)[K]): void => {
+    if (JSON.stringify(value) === JSON.stringify(said[field])) return;
+    said[field] = value;
     const current = context.entry(slot.key);
-    if (current) current[field] = lines;
+    if (current) Object.assign(current, { [field]: value });
     context.queueRender();
   };
   // Built on the first call that has tabs and kept from then on, so a panel that says none for a while and then some again keeps its tabs' elements; only having tabs or not changes the header, which a render draws.
@@ -209,6 +242,11 @@ export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
     setEnd: (label) => {
       end.textContent = label;
     },
+    setRefreshed: (at) => {
+      const current = context.entry(slot.key);
+      if (current) current.refreshedAt = at;
+      drawRefreshed(refreshed, action, at);
+    },
     setStatus: (status, look) => showStatus(badge, status, look),
     setCount: (value) => {
       const current = context.entry(slot.key);
@@ -222,13 +260,7 @@ export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
     },
     setProblems: (problems) => report('problems', problems),
     setNotes: (notes) => report('notes', notes),
-    setVacant: (vacant) => {
-      if (vacant === said.vacant) return;
-      said.vacant = vacant;
-      const current = context.entry(slot.key);
-      if (current) current.vacant = vacant;
-      context.queueRender();
-    },
+    setVacant: (vacant) => report('vacant', vacant),
     setFolder: folder.set,
     // The session links are remembered under the panel's own entry key.
     startSession: (request) => void startSession(slot.key, request, context.host.asks),
@@ -245,5 +277,5 @@ export function mountPanel(slot: PanelSlot, context: MountContext): Mounted {
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
   // A panel that said its tabs while it was mounting has them from the start.
-  return { panel, slot, viewNotes: views.notes(), view: views.picked, viewTold: views.picked(), signature: context.signatureOf(slot), busy, end, views: views.element, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder: folder.element, fullScreenButton, ...said };
+  return { panel, slot, viewNotes: views.notes(), view: views.picked, viewTold: views.picked(), signature: context.signatureOf(slot), busy, end, views: views.element, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder: folder.element, fullScreenButton, refreshed, refreshedAt: null, ...said };
 }

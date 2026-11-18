@@ -84,6 +84,17 @@ The Settings button's corner is none of the window's doing: the layout and every
 The comparison lists them, as it lists every pixel that differs, rather than excusing them, and one capture alone is no baseline, so a change is compared against two of the build before it.
 The comparison sorts each state's lines, and takes a map of the classes a change renames (`{ "old": "new" }`), applied to the before-capture's element keys only, so a pure rename compares empty.
 
+## The performance checks
+
+`npm run test:perf` holds the window to its performance budgets: it builds, then Playwright loads the built `dist/renderer` on the window checks' own harness and stand-in (`test/perf/`), with a list of 1,000 sessions, and times what the list does.
+Each check runs twice, as two Playwright projects: at the machine's own speed, and with Chromium's CPU slowed four times over, which stands in for a slower laptop.
+A key in the query field is timed to the second frame after it (`query-field.spec.ts`); a status change, twenty at once, and a session renamed in the listing are timed by their longest task, the longest the window went without a turn for anything else (`live-updates.spec.ts`), and so is the minute's clock, over a real minute, since faking the page's clock would also fake the time the checks read.
+Every check prints a line per event with its median, its 95th percentile and its budget, so a pass also says by how much, and holds the 95th percentile to the budget.
+
+It runs on its own, never in `npm test`, `npm run test:renderer` or CI ([decided 2026-11-18](../decisions/0235-the-performance-checks-run-on-their-own.md)): a timing on a shared runner flakes, and a gate made to pass there with retries or wide margins would hold nothing.
+So it runs one check at a time, and starts by reading the machine's load: above half the cores, every line and every failure says so, since the slowed runs suffer most, and a failure is still a failure rather than skipped, so a real slowdown is never hidden.
+It does not cover main's answers, which the stand-in gives, or Electron's own window.
+
 ## Which checks a change needs
 
 What a commit runs follows from what it changed, since most of the time goes on the window's checks, and most changes cannot reach them.
@@ -97,7 +108,10 @@ The table is the widest each folder can need; a small change runs only the check
 | `src/renderer`, `src/shared`, `test/renderer`, `assets/` | all five: `npm run build`, `npm test`, `npm run lint`, `npm run fallow`, `npm run test:renderer` |
 | `package.json`, `package-lock.json`, a `tsconfig*.json`, a tool's config, `mise.toml` | all five |
 
+| `test/perf` | `npm run build`, `npm run lint`, `npm run fallow`, `npm run test:perf` |
+
 A change across rows runs what each of its rows lists.
+A change to how the session list draws, or to when the store tells its readers, also runs `npm run test:perf` (§ The performance checks).
 The first takes about ten seconds, the next two about half a minute, and the last two up to two minutes, most of it the window's checks.
 
 A doc needs more than the text rules where a unit test holds it to the code: the variables `docs/panel-types.md` names, the icon names in `docs/guide/layout.md`; those tests name the doc they read, so a search of `test/unit` for its file name finds them, and `npm test` covers every one at once.

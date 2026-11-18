@@ -57,6 +57,14 @@ describe('createStore', () => {
     expect(told).toBe(1);
   });
 
+  it('answers whether two values of a slice are the same by that slice’s own equality, and by identity where it has none', () => {
+    const store = createStore<Shape>({ count: 0, name: 'a', items: ['x'] }, { items: (a, b) => a.join() === b.join() });
+    expect(store.same('items', ['x', 'y'], ['x', 'y'])).toBe(true);
+    expect(store.same('items', ['x'], ['y'])).toBe(false);
+    expect(store.same('count', 1, 1)).toBe(true);
+    expect(store.same('name', 'a', 'b')).toBe(false);
+  });
+
   it('tells once at the end of a batch, with everything it changed, and only at the outermost of nested ones', () => {
     const store = fresh();
     const views: string[] = [];

@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../src/shared/config/defaults';
-import { HOME, PROJECT, session } from '../../../support/fixture';
+import { DIMMED, HOME, PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { row, tab, tabLabel } from '../../../support/window';
 
@@ -27,11 +27,11 @@ for (const [surface, kebab] of [
     await tabLabel(page, full.title).click();
     await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
     expect(await app.emit('onSessionStatus', full.id, 'waiting', '', '')).toBe(1);
-    const meta = await row(page, full.title).locator('.meta-text').textContent();
+    // The moment in full, as the row's tooltip gives it, where the row says how long ago, with the model the row names.
+    const lastActive = (await row(page, full.title).getAttribute('data-tooltip'))!.split('\n').find((line) => line.startsWith('Last active: '));
+    expect(lastActive).toBeDefined();
     await kebab(page).click();
-    await expect(lines(page)).toHaveText([full.title, 'demo · Bugs', 'Waiting for you', meta!, 'Linked git worktree: feat-drag', 'Check it on a mac']);
-    // Outside the finished view, the row's meta line and the header's are one rule.
-    expect(meta).toMatch(/ · Opus 5\.5$/);
+    await expect(lines(page)).toHaveText([full.title, 'demo · Bugs', 'Waiting for you', `${lastActive!} · Opus 5.5`, 'Linked git worktree: feat-drag', 'Check it on a mac']);
   });
 }
 
@@ -51,17 +51,17 @@ test("a session whose folder is gone says why in its menu's header", async ({ ap
   await expect(lines(page).last()).toHaveText(reason);
 });
 
-// A menu is at most 300px wide: the header's first line, the session's name, stays one line, cut, with its whole text as its tooltip, and the lines under it wrap, a path inside them too, so what they say is all there.
-test("a session's menu header cuts a long name and wraps the lines under it", async ({ app, page }) => {
+// A menu is at most 300px wide: every line of the header wraps, the session's name too, and a path inside them, so what they say is all there.
+test("a session's menu header wraps a long name and the lines under it", async ({ app, page }) => {
   // A folder name wider than the menu with nowhere to break, not even a hyphen, so the path itself has to break.
   const cwd = `${HOME}/projects/afolderwhosenamehasnowheretobreakandiswiderthanthemenuitsin`;
   const long = session({ title: 'A session with a name far too long to fit on one line of its menu', cwd, cwdExists: false, repoRootExists: false });
   await app.boot({ sessions: [long] });
   await row(page, long.title).locator('.session-kebab').click();
   const cut = await lines(page).evaluateAll((all) => all.map((line) => line.scrollWidth > line.clientWidth));
-  expect(cut[0]).toBe(true);
-  await expect(lines(page).first()).toHaveAttribute('data-tooltip', long.title);
-  expect(cut.slice(1)).toEqual(cut.slice(1).map(() => false));
+  expect(cut).toEqual(cut.map(() => false));
+  await expect(lines(page).first()).toHaveText(long.title);
+  await expect(lines(page).first()).not.toHaveAttribute('data-tooltip');
   // The reason why it cannot run, naming that folder, is longer than the menu is wide.
   const reason = lines(page).last();
   expect(await reason.evaluate((line) => line.getBoundingClientRect().height)).toBeGreaterThan(await lines(page).nth(1).evaluate((line) => line.getBoundingClientRect().height));
@@ -109,18 +109,20 @@ test('Show in list says so when a filter leaves the session out', async ({ app, 
   await expect(page.locator('#toast-message')).toHaveText(`"${full.title}" is left out by the filter. Clear it to see its row.`);
 });
 
-// A finished sibling stays in the list of siblings, unavailable and saying why: finished is put away, not opened.
-test("a finished sibling in a session's menu is unavailable, saying it is finished", async ({ app, page }) => {
+// A finished sibling is opened as any open of a finished session is: reopened, with the toast saying so.
+test("a finished sibling in a session's menu reopens it", async ({ app, page }) => {
   const kept = session({ id: '00000000-0000-4000-8000-0000000000f2', title: 'Kept sibling', isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000f3'] });
   const put = session({ id: '00000000-0000-4000-8000-0000000000f3', title: 'Archived sibling', isSibling: true, siblingIds: [kept.id] });
-  await app.boot({ sessions: [kept, put], finished: { [put.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
+  // The reopened tab, on show, reads its history; what it holds is not what is checked here.
+  await app.boot({ sessions: [kept, put], history: { [put.id]: [] }, finished: { [put.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
   await row(page, kept.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button.menu-row', { hasText: 'Siblings (1)' }).hover();
   const sibling = page.locator('.kebab-menu.submenu button.menu-row', { hasText: put.title });
-  await expect(sibling).toHaveClass(/\bunavailable\b/);
-  await expect(sibling).toHaveAttribute('data-tooltip', 'Finished: make it unfinished from the finished sessions to open it');
-  await sibling.click({ force: true });
-  expect(await app.calls('startTerminal')).toEqual([]);
+  await expect(sibling).not.toHaveClass(/\bunavailable\b/);
+  await sibling.click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  expect(await app.calls('unfinish')).toEqual([[[put.id]]]);
+  await expect(page.locator('#toast-message')).toHaveText(`Reopened "${put.title}"; it is no longer finished`);
 });
 
 test("a row's menu has no Show in list, since the row is what it would show", async ({ app, page }) => {
@@ -179,7 +181,7 @@ test("a finished row's dot is no control, whatever status it still shows", async
 });
 
 test('Mark as read is unavailable, with the reason, while the session is busy', async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await tabLabel(page, full.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   expect(await app.emit('onSessionStatus', full.id, 'busy', '', '')).toBe(1);
@@ -190,7 +192,7 @@ test('Mark as read is unavailable, with the reason, while the session is busy', 
 
 // The tab's button is a shortcut to one of the menu's leave items: one rule for the two (`leaveAction`), so the item says and does what the button would.
 test("Stop session in a row's menu stops it as the tab's button does, and then offers the force, unavailable while it says it is stopping", async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await tabLabel(page, full.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await row(page, full.title).locator('.session-kebab').click();
@@ -232,7 +234,7 @@ test("Close tab in a running session's menu asks claude to leave, keeps the tab 
 });
 
 test("a cold tab's menu has nothing to stop, and closes and finishes it", async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await row(page, full.title).locator('.session-kebab').click();
   await expect(item(page, 'Stop session')).toHaveClass(/\bunavailable\b/);
   await expect(item(page, 'Stop session')).toHaveAttribute('data-tooltip', 'Not running');
@@ -301,7 +303,7 @@ test("the tab button's item pressed after its tab moved on does what it said or 
 
 // An open menu follows its session, as the tab and its button do, so what it offers is what can be done now.
 test("a session's menu open while its stop waits for claude turns into a stopped tab's once claude has gone", async ({ app, page }) => {
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: DIMMED });
   await tabLabel(page, full.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await row(page, full.title).locator('.session-kebab').click();
@@ -355,7 +357,7 @@ test("Close tab in a row's menu closes a session's cold tab, set aside or not", 
 });
 
 test('Close tab is unavailable, with the reason, for a session with no tab', async ({ app, page }) => {
-  await app.boot({ sessions: [full] });
+  await app.boot({ sessions: [full], settings: DIMMED });
   await row(page, full.title).locator('.session-kebab').click();
   await expect(item(page, 'Close tab')).toHaveClass(/\bunavailable\b/);
   await expect(item(page, 'Close tab')).toHaveAttribute('data-tooltip', 'Not open in a tab');
@@ -377,22 +379,23 @@ for (const [state, setAsideMarks] of [['cold', {}], ['cold and set aside', setAs
 // The finished view's rows carry the kebab too, holding what the row's marks reach but its dot, its id, and the view's two buttons.
 const finishedView = { sessions: [full], finished: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } };
 
-test("a finished session's menu holds its note, its id, Unfinished and Delete, Select… on its row, and nothing that starts or files it", async ({ app, page }) => {
+test("a finished session's menu holds its note, its id, Reopen, Unfinished and Delete, Select… on its row, and nothing else that starts or files it", async ({ app, page }) => {
   await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
-  await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Unfinished', 'Delete session…', 'Select…']);
-  // When it was finished, as its row says it, below when it was last active.
-  const finished = await row(page, full.title).locator('.meta-text').textContent();
+  await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Reopen', 'Unfinished', 'Delete session…', 'Select…']);
+  // When it was finished, in full as the row's tooltip gives it, where the row says how long ago, below when it was last active.
+  const finished = (await row(page, full.title).getAttribute('data-tooltip'))!.split('\n').find((line) => line.startsWith('Finished: '));
+  expect(finished).toBeDefined();
   await expect(lines(page).nth(3)).toHaveText(finished!);
-  expect(finished).toMatch(/^finished /);
 });
 
-test("Unfinished in a finished session's menu takes it out of the finished view, as the row's button does", async ({ app, page }) => {
+test("Unfinished in a finished session's menu takes it out of the finished view, and opens nothing", async ({ app, page }) => {
   await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
   await item(page, 'Unfinished').click();
   await expect(row(page, full.title)).toHaveCount(0);
   expect(await app.calls('unfinish')).toEqual([[[full.id]]]);
+  expect(await app.calls('startTerminal')).toEqual([]);
 });
 
 test("Delete session in a finished session's menu asks first, as the row's button does", async ({ app, page }) => {
@@ -408,14 +411,14 @@ test("Delete session in a finished session's menu asks first, as the row's butto
 test("a finished row's trailing controls sit 4px apart, delete second from the right", async ({ app, page }) => {
   await app.boot(finishedView);
   const box = async (selector: string): Promise<{ x: number; width: number }> => (await row(page, full.title).locator(selector).boundingBox())!;
-  const [unfinish, del, kebab] = [await box('.unfinish-btn'), await box('.delete-btn'), await box('.session-kebab')];
-  expect(Math.round(del.x - (unfinish.x + unfinish.width))).toBe(4);
+  const [reopen, del, kebab] = [await box('.reopen-btn'), await box('.delete-btn'), await box('.session-kebab')];
+  expect(Math.round(del.x - (reopen.x + reopen.width))).toBe(4);
   expect(Math.round(kebab.x - (del.x + del.width))).toBe(4);
 });
 
 test("Open is unavailable, with the reason, for a session whose folder is gone", async ({ app, page }) => {
   const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });
-  await app.boot({ sessions: [gone] });
+  await app.boot({ sessions: [gone], settings: DIMMED });
   // The row's tooltip says why under the session's name.
   const reason = (await row(page, gone.title).getAttribute('data-tooltip'))!.split('\n')[1];
   await row(page, gone.title).locator('.session-kebab').click();

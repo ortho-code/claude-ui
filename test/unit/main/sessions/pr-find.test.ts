@@ -4,7 +4,7 @@ vi.mock('electron', () => ({ ipcMain: { handle: () => {}, on: () => {} } }));
 vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../../../src/main/logs/log')>()), log: () => {} }));
 vi.mock('../../../../src/main/sessions/meta', () => ({ addPrLink: () => Promise.resolve() }));
 
-import { findCreated, findQueryArgs, foundUrl } from '../../../../src/main/sessions/pr-find';
+import { findAndLink, findQueryArgs, foundUrl, nodeQueryArgs } from '../../../../src/main/sessions/pr-find';
 import type { GhRun } from '../../../../src/main/sessions/pr-status';
 import type { PrToFind } from '../../../../src/shared/types';
 
@@ -31,6 +31,17 @@ describe('findQueryArgs', () => {
   });
 });
 
+describe('nodeQueryArgs', () => {
+  it('asks each id for the PR it belongs to, whichever of a review, a thread, a comment or a PR it is, the id as a variable', () => {
+    expect(nodeQueryArgs([{ id: 's1', node: 'PRR_kwDOAHFIWc8AAAABXz2W6w', at: FORK.at }])).toEqual([
+      '-f',
+      'query=query($n0:ID!){n0:node(id:$n0){...on PullRequestReview{pullRequest{url}} ...on PullRequestReviewThread{pullRequest{url}} ...on PullRequestReviewComment{pullRequest{url}} ...on PullRequest{url}}}',
+      '-f',
+      'n0=PRR_kwDOAHFIWc8AAAABXz2W6w',
+    ]);
+  });
+});
+
 describe('foundUrl', () => {
   it('takes the PR made from the fork the head names after the command ran', () => {
     expect(foundUrl(FORK, ANSWERED)).toBe('https://github.com/ScientaNL/scienta/pull/36788');
@@ -53,27 +64,50 @@ describe('foundUrl', () => {
   });
 });
 
-describe('findCreated', () => {
+describe('findAndLink', () => {
   const answering = (data: unknown): GhRun => ({ code: 0, stdout: JSON.stringify({ data }), stderr: '' });
 
   it('links each found PR to the session that opened it, and says which', async () => {
     const link = vi.fn(() => Promise.resolve());
     const other: PrToFind = { id: 's2', repository: 'acme/app', head: 'none-yet', at: FORK.at };
-    const result = await findCreated([FORK, other], () => Promise.resolve(answering({ r0: ANSWERED, r1: { pullRequests: { nodes: [] } } })), link);
-    expect(result).toEqual({ found: [{ create: FORK, url: 'https://github.com/ScientaNL/scienta/pull/36788' }], problem: null });
+    const result = await findAndLink([FORK, other], () => Promise.resolve(answering({ r0: ANSWERED, r1: { pullRequests: { nodes: [] } } })), link);
+    expect(result).toEqual({ found: [{ asked: FORK, url: 'https://github.com/ScientaNL/scienta/pull/36788' }], problem: null });
     expect(link.mock.calls).toEqual([['s1', 'https://github.com/ScientaNL/scienta/pull/36788']]);
   });
 
   it('links nothing and says why when gh gives no answer', async () => {
     const link = vi.fn(() => Promise.resolve());
-    const result = await findCreated([FORK], () => Promise.resolve({ code: 4, stdout: '', stderr: '' }), link);
+    const result = await findAndLink([FORK], () => Promise.resolve({ code: 4, stdout: '', stderr: '' }), link);
     expect(result).toEqual({ found: [], problem: 'gh is not logged in; run gh auth login' });
     expect(link).not.toHaveBeenCalled();
   });
 
+  // Asked on 2026-11-17: a review, a thread, a comment and the PR itself each resolved to #36867; an id GitHub does not know comes back null, gh exiting 1 with the rest answered.
+  it('links the PR each posted id belongs to, by a review, a thread, a comment or the PR itself, and passes over an id GitHub does not know', async () => {
+    const link = vi.fn(() => Promise.resolve());
+    const at = '2026-11-13T10:00:00.000Z';
+    const posted: PrToFind[] = [
+      { id: 's1', node: 'PRR_kwDOAHFIWc8AAAABXz2W6w', at },
+      { id: 's2', node: 'PR_kwDOAHFIWc8AAAABO5dE8A', at },
+      { id: 's3', node: 'PRR_doesnotexist', at },
+    ];
+    const url = 'https://github.com/ScientaNL/scienta/pull/36867';
+    const answer = { code: 1, stdout: JSON.stringify({ data: { n0: { pullRequest: { url } }, n1: { url }, n2: null } }), stderr: "gh: Could not resolve to a node with the global id of 'PRR_doesnotexist'" };
+    const result = await findAndLink(posted, () => Promise.resolve(answer), link);
+    expect(result).toEqual({ found: [{ asked: posted[0], url }, { asked: posted[1], url }], problem: null });
+    expect(link.mock.calls).toEqual([['s1', url], ['s2', url]]);
+  });
+
+  it('asks for browser creates and posted ids in requests of their own', async () => {
+    const gh = vi.fn((args: readonly string[]) => Promise.resolve(answering(args.some((arg) => arg.includes('node(id:')) ? { n0: { pullRequest: { url: 'https://github.com/acme/app/pull/2' } } } : { r0: ANSWERED })));
+    const result = await findAndLink([FORK, { id: 's2', node: 'PRR_kwDOAAAAAAAAAAAAone', at: FORK.at }], gh);
+    expect(result.found.map((each) => each.url)).toEqual(['https://github.com/ScientaNL/scienta/pull/36788', 'https://github.com/acme/app/pull/2']);
+    expect(gh).toHaveBeenCalledTimes(2);
+  });
+
   it('never asks for a repository that is not owner/name', async () => {
     const gh = vi.fn(() => Promise.resolve(answering({})));
-    expect(await findCreated([{ ...FORK, repository: 'nobody' }], gh)).toEqual({ found: [], problem: null });
+    expect(await findAndLink([{ ...FORK, repository: 'nobody' }], gh)).toEqual({ found: [], problem: null });
     expect(gh).not.toHaveBeenCalled();
   });
 });

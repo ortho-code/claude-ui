@@ -2,6 +2,7 @@
 
 - **Date:** 2026-10-27
 - **Area:** [A session's menu holds everything about it](../architecture/claude.md#a-sessions-menu-holds-everything-about-it)
+- **Partly replaced** by [0225](0225-a-tooltip-only-repeats.md) on 2026-11-15: the first line wraps as the lines under it do, with no tooltip.
 
 ## Decision
 

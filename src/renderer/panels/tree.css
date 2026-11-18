@@ -71,7 +71,7 @@
   white-space: nowrap;
 }
 
-/* The folder a panel looks in, right after its title: the badge pill (badge.css), muted for the main checkout, in the accent with the worktree mark for a worktree, its whole path in its tooltip.
+/* The folder a panel looks in, right after its title: the badge pill (badge.css), muted for the main checkout, in the accent with the worktree mark for a worktree, its whole path in its tooltip and in the menu a press on it opens (mount.ts).
    Beside it, the title hugs its text, and the room up to the end goes to an auto margin, which keeps the count and the controls at the end as the title did: the count's own (card.css) when it shows one, else the mark's.
    It gives way first when the header is narrow (a flex-shrink of 100 against the title's 1), down to 26px, which is the icon for a worktree; its name is cut at its end. */
 .panel-header:has(> .panel-folder:not([hidden])) > .panel-title {
@@ -83,6 +83,12 @@
   min-width: 26px;
   margin-right: auto;
   font-weight: 400;
+  cursor: pointer;
+}
+
+/* It opens a menu, so it takes the hover fill, and keeps it while its menu is up, as every control that opens one does. */
+.panel-folder:is(:hover, .menu-open) {
+  background: var(--surface-hover);
 }
 
 .panel-folder:has(+ .panel-count:not([hidden])) {
@@ -99,11 +105,18 @@
   text-overflow: ellipsis;
 }
 
-.panel-end {
+/* The run's last word, and how long ago what the panel shows came from a run. */
+.panel-end,
+.panel-refreshed {
   font-size: var(--text-meta);
   font-weight: 400;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* The time gives way before the title is cut (`fitHeader`); Refresh's tooltip still gives it. */
+.panel-refreshed.dropped {
+  display: none;
 }
 
 /* A panel's switch between its views, beside its one button: the buttons side by side, 2px apart, so they read as one control and the one on show as part of it. */

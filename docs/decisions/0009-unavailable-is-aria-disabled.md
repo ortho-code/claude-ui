@@ -2,6 +2,7 @@
 
 - **Date:** 2026-09-22
 - **Area:** [A session whose folder is gone](../architecture/claude.md#a-session-whose-folder-is-gone)
+- **Partly replaced** by [0227](0227-a-menu-leaves-out-what-cannot-be-done.md) on 2026-11-16: a menu leaves an unavailable item out, unless `unavailableItems` is `"dim"`.
 
 ## Decision
 

@@ -7,7 +7,7 @@ import { unfold } from './folding';
 
 /**
  * BRINGING SOMETHING IN THE SESSION LIST INTO VIEW: a session's row, a project's heading or a group's, unfolding on the way — the sidebar's answers to the asks (asks.ts), which the tab bar and the panels make, and what a heading's jump menu and a new group do.
- * The sticky headings' height is measured here at each draw (`syncStickyOffset`), since a reveal lands its target clear of them.
+ * The sticky headings' height is measured here after each draw and before each reveal (`syncStickyOffset`), since a reveal lands its target clear of them.
  */
 
 // Reveal a session's row in the sidebar (expanding its project if collapsed), so clicking a tab scrolls to where it lives and shows which project it belongs to.
@@ -32,6 +32,7 @@ export function revealSession(session: SessionSummary): boolean {
   // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole app).
   // Land the row clear of EVERYTHING pinned above it: the project heading always, plus its group's heading when the row sits in a group — that one is sticky too, and a fixed offset for the project heading alone left the row half-hidden behind it.
   const groupHeading = groupId ? groupSections.find(groupId)?.heading : undefined;
+  syncStickyOffset();
   const pinned = stickyOffset + (groupHeading?.getBoundingClientRect().height ?? 0);
   container.scrollTop +=
     row.getBoundingClientRect().top - container.getBoundingClientRect().top - pinned - REVEAL_GAP;
@@ -78,9 +79,21 @@ export function revealProject(repoRoot: string): void {
 
 // The group headings pin below the project heading, so their sticky offset is its height.
 // Measured rather than assumed: it moves with the type scale, and both this and the jump offset read the same element so they cannot drift apart.
-// Skipped when unchanged, so a render doesn't thrash layout.
+// Measured where layout is worked out anyway: in the frame after a draw (`syncStickyOffsetSoon`), and by a reveal before it lands; measuring inside the draw made the browser lay out the whole list there and then.
 let stickyOffset = 0;
-export function syncStickyOffset(): void {
+let syncing = false;
+
+/** Measure the sticky offset in the next frame, once however many draws ask before it. */
+export function syncStickyOffsetSoon(): void {
+  if (syncing) return;
+  syncing = true;
+  requestAnimationFrame(() => {
+    syncing = false;
+    syncStickyOffset();
+  });
+}
+
+function syncStickyOffset(): void {
   const first = projectSections.values().next().value;
   if (!first) return;
   const height = Math.round(first.heading.getBoundingClientRect().height);

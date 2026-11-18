@@ -55,6 +55,8 @@ export interface PanelFolder {
   worktree: boolean;
   path: string;
   picked: boolean;
+  /** The session whose checkout it is, the tab on show's; null where the panel looks in the project chosen, with no session on show. */
+  session: string | null;
 }
 
 /**
@@ -174,6 +176,8 @@ export interface Asks {
   revealGroup(repoRoot: string, groupId: string | null): void;
   /** A session's menu, as the kebab on `from` lists it, with `own`, what that surface offers beyond its buttons, under its header: null for a session the app no longer has. */
   sessionMenu(id: string, from: SessionSurface, own?: readonly MenuItem[]): MenuItem[] | null;
+  /** A session's list of where the panels look, as its Worktrees submenu lists it, to pick a checkout from: null for a session the app no longer has. */
+  checkoutMenu(id: string): MenuItem[] | null;
   /** Open a session's note to edit, as a press on its note mark in the list does; nothing for an id the app has no session for. */
   editNote(id: string): void;
   /** Set sessions aside through Set aside…'s dialog, as the bar of selecting several does: once written, what a toast says of it and an Undo that puts each mark and the one's note back; null when the dialog was cancelled. */
@@ -243,6 +247,12 @@ export interface PanelTabs {
   fold(folded: boolean): void;
 }
 
+/** When what a panel shows came from a run, and when a later run failed while it stayed on show, if one did. */
+export interface Refreshed {
+  at: Date;
+  failedAt: Date | null;
+}
+
 /** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw — the panel's side of the conversation with the layout — and the asks it can make of the app's surfaces. */
 export interface PanelHost extends Asks {
   where(): Where;
@@ -267,6 +277,8 @@ export interface PanelHost extends Asks {
   setBusy(busy: boolean): void;
   /** The header's word on the last run: `exit 3`, `stopped after 30 s`, or '' for a run that ended well. */
   setEnd(label: string): void;
+  /** When what the panel shows came from a run, which its header says beside its button; null while it shows nothing a run made, such as why it cannot run. */
+  setRefreshed(refreshed: Refreshed | null): void;
   /** The dot on the panel's rail icon; for `needs`, `look` is the needs-you type whose look's colour it takes, the needs-you look's where it names none. */
   setStatus(status: PanelStatus, look?: string): void;
   /**

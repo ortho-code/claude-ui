@@ -2,6 +2,7 @@
 
 - **Date:** 2026-11-12
 - **Area:** [UI conventions](../architecture/ui-conventions.md#ui-conventions)
+- **Partly replaced** by [0226](0226-a-menus-header-says-what-only-a-tooltip-said.md) on 2026-11-16: the session's menu header no longer stays as it was; it says a stop claude has not left and gives its moments in full.
 
 ## Decision
 

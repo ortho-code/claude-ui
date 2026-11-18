@@ -11,11 +11,11 @@ import { store, type TabState } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
 import { applyGroupState, moveSessionsToGroup } from '../../../state/groups';
 import { pickCheckout, pickedFor } from '../../../state/picks';
-import { clearSetAside, markSetAside } from '../../../state/set-aside';
-import { clearNeedsYou } from '../../../state/needs-you';
+import { clearSetAside, markSetAside, setAsideAnew } from '../../../state/set-aside';
+import { clearNeedsYou, restoreNeedsYou } from '../../../state/needs-you';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
 import { setAsideDialog } from '../../../dialogs/set-aside-dialog';
-import { isFiltering, leaveTab, projName, projectGroups, sessionById, sessionStarting, tabWith, unopenableReason } from '../../../state/views';
+import { isFiltering, leaveTab, projName, projectGroups, sessionById, sessionStarting, tabWith } from '../../../state/views';
 import { copyText, showToast } from '../../../ui/toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
@@ -48,12 +48,12 @@ function siblingsOf(session: SessionSummary): SessionSummary[] {
 }
 
 // Menu items for a sibling list; siblings often share a title, so each shows title + when.
-// One that cannot be opened, a finished one say, stays in the list, unavailable and saying why (`unopenableReason`).
+// One whose folder is gone stays in the list whatever `unavailableItems` says, dimmed and saying why (`unstartableReason`), since the list says what siblings there are; a finished one is reopened, as any open of one is.
 function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   return siblings.map((sibling) => {
     const label = `${sessionLabel(sibling)} · ${relativeTime(sibling.lastActivity)}`;
-    const refused = unopenableReason(sibling);
-    return refused ? { label, disabled: refused } : { label, onSelect: () => hostOf('sessions').openSession(sibling.id) };
+    const refused = unstartableReason(sibling);
+    return refused ? { label, disabled: refused, listed: true } : { label, onSelect: () => hostOf('sessions').openSession(sibling.id) };
   });
 }
 
@@ -75,17 +75,17 @@ function prMenuItems(session: SessionSummary): MenuItem[] {
 }
 
 // The checkouts a session worked in (`SessionSummary.checkouts`), as a pick-one list of where the panels look for it, under a line saying so, since nothing else in a session's menu moves the panels: "Follow the session" first, ticked while nothing is picked, then each checkout, newest change first, by its folder's name, as a panel's header names it, and when the session last changed a file there; the worktree its mark names says where the session is instead, where it changed nothing.
-// A pick is the session's (`pickCheckout`), so it is made alike from every surface, a tab or none, and holds while the session is on show; a gone checkout has nothing to look at, so it stays in the list, unavailable and saying why.
-// Shared by the worktree mark and the kebab submenu.
-function worktreeItems(session: SessionSummary): MenuItem[] {
+// A pick is the session's (`pickCheckout`), so it is made alike from every surface, a tab or none, and holds while the session is on show; a gone checkout has nothing to look at, so it is unavailable and says why, and stays in the list whatever `unavailableItems` says, since the list says where the session worked, and a pick of it shows by its tick.
+// Shared by the worktree mark, the kebab submenu and a panel's folder mark (`checkoutMenu`).
+export function worktreeItems(session: SessionSummary): MenuItem[] {
   const picked = pickedFor(session);
   const checkouts = session.checkouts.map(({ root, at, gone }): MenuItem => ({
     label: `${folderName(root)} · ${at ? relativeTime(at) : session.worktree ? 'runs here' : 'left'}`,
     checked: root === picked,
-    ...(gone ? { disabled: 'Its folder is gone' } : { onSelect: () => pickCheckout(session.id, root) }),
+    ...(gone ? { disabled: 'Its folder is gone', listed: true } : { onSelect: () => pickCheckout(session.id, root) }),
   }));
   return [
-    // The first line short, since a menu cuts it when too long for it; the line under it wraps.
+    // The first line short, a title, and the line under it saying what a pick does.
     { label: 'Where the panels look', header: ['A pick holds them there until you follow the session again'] },
     { label: 'Follow the session', checked: picked === '', onSelect: () => pickCheckout(session.id, '') },
     { label: '', separator: true },
@@ -179,8 +179,8 @@ export function moveToGroupItems(sessions: readonly SessionSummary[]): MenuItem[
   return items;
 }
 
-// Make one session unfinished, leaving tabs alone: from the finished view's row button and the finished session's menu.
-export async function unfinishFor(key: string): Promise<void> {
+// Make one session unfinished, leaving tabs alone: from the finished session's menu.
+async function unfinishFor(key: string): Promise<void> {
   store.set({ finished: new Map(Object.entries(await window.claudeUi.unfinish([key]))) });
 }
 
@@ -219,7 +219,7 @@ export async function confirmAndDelete(keys: readonly string[]): Promise<void> {
 // Every press on the session's row or a panel's row naming it is here too, and the tab's button, dot and middle-click, and its select while that starts it, so a button is a shortcut to an item; the row and the tab leave out the item that would be themselves.
 // `own` is what the surface itself offers beyond its buttons, such as a panel row's actions: under the header, before the session's items, behind a rule of their own.
 export function sessionMenuItems(session: SessionSummary, from: SessionSurface, own: readonly MenuItem[] = []): MenuItem[] {
-  // Opening can start claude in the session's folder, and forking always does, so both need that folder to be there — but the items stay in the list, dimmed and carrying the reason, rather than vanishing.
+  // Opening can start claude in the session's folder, and forking always does, so both need that folder to be there; without it they are unavailable, carrying the reason, which the menu shows or leaves out as `unavailableItems` says.
   // Everything below is bookkeeping about a session rather than a way to start one, so it stays available: cleaning up after a folder that has gone is exactly when you need it.
   const cannotRun = unstartableReason(session);
   const items: MenuItem[] = [
@@ -228,7 +228,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface, 
     { label: '', separator: true },
     ...(own.length > 0 ? [...own, { label: '', separator: true }] : []),
   ];
-  // A finished session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the finished view reach them, its id, and the finished view's two actions, and on its row Select…; nothing that starts or files it, which that view does not offer.
+  // A finished session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the finished view reach them, its id, Reopen and the finished view's two actions, and on its row Select…; nothing else that starts or files it, which that view does not offer.
   if (store.get().finished.has(entityKey(session))) {
     return [
       ...items,
@@ -236,6 +236,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface, 
       noteItem(session),
       copyIdItem(session),
       { label: '', separator: true },
+      cannotRun ? { label: 'Reopen', disabled: cannotRun } : { label: 'Reopen', onSelect: () => hostOf('sessions').openTab(session.id) },
       { label: 'Unfinished', onSelect: () => void unfinishFor(entityKey(session)) },
       { label: 'Delete session…', onSelect: () => void confirmAndDelete([entityKey(session)]) },
       // Selecting several starts in the list, so only its row offers it (docs/architecture/session-list.md § Selecting several).
@@ -333,7 +334,7 @@ function setAsideItems(session: SessionSummary): MenuItem[] {
 /**
  * Set sessions aside through Set aside…, one act for a session's menu and the bar of selecting several: `what` names them in its title, a session's title or a count.
  * One session's dialog holds its note as where it stands, and the note is written when it changed; several leave their notes as they are (decided 2026-11-05).
- * Resolves, once written, to the moment chosen and an Undo that puts back each mark and the note as they were, or to null when the dialog was cancelled.
+ * Resolves, once written, to the moment chosen and an Undo that puts back each mark, the reminder it settled and the note as they were, or to null when the dialog was cancelled.
  */
 async function askSetAside(keys: readonly string[], what: string): Promise<{ due: number | null; undo: () => void } | null> {
   const { setAside, notes } = store.get();
@@ -343,7 +344,7 @@ async function askSetAside(keys: readonly string[], what: string): Promise<{ due
   const answer = await setAsideDialog({ what, mark: one === undefined ? undefined : setAside.get(one), note });
   if (!answer) return null;
   const before = new Map(keys.map((key) => [key, store.get().setAside.get(key)]));
-  markSetAside(keys, answer.due);
+  const reminders = setAsideAnew(keys, answer.due);
   const noteChanged = one !== undefined && answer.note !== null && answer.note !== note;
   if (noteChanged) await writeNote(one, answer.note!);
   return {
@@ -351,6 +352,7 @@ async function askSetAside(keys: readonly string[], what: string): Promise<{ due
     undo: () => {
       clearSetAside(keys.filter((key) => before.get(key) === undefined));
       for (const [key, mark] of before) if (mark) markSetAside([key], mark.due, mark.at);
+      for (const [key, settled] of reminders) restoreNeedsYou(key, settled);
       if (noteChanged) void writeNote(one, note!);
     },
   };

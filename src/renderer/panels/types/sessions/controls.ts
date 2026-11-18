@@ -32,7 +32,7 @@ interface NewSessionSplit {
 
 /**
  * The ways to start a session in a project, filed in `groupId` when given: one list for the caret's dropdown and the project's and the group's menus, so the three cannot drift; the dropdown opens only while the folder is there, its caret being unavailable otherwise.
- * Each is there whether or not it can be taken, saying why not: the worktree one needs a git repository, and both a folder that is still there (`projectFacts`, as drawn).
+ * Each is listed whether or not it can be taken, unavailable with why not where it cannot, which a menu leaves out or shows dimmed as `unavailableItems` says: the worktree one needs a git repository, and both a folder that is still there (`projectFacts`, as drawn).
  */
 export function newSessionItems(repoRoot: string, groupId?: string): MenuItem[] {
   const facts = projectFacts.get(repoRoot);

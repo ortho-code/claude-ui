@@ -36,10 +36,10 @@ export type NeedsYou =
   | { type: PrNeedsYouType; at: number; pr: string };
 
 /**
- * What settled a reason: your prompt there, Clear needs you, its tab removed by you or your leaving claude, `/clear` or claude's own `/resume` taking the tab on to another session, a finish, its successor coming (the next close of the app, the same PR's next change), its type switched off, or GitHub taking back the state it was marked for.
+ * What settled a reason: your prompt there, Clear needs you, its tab removed by you or your leaving claude, `/clear` or claude's own `/resume` taking the tab on to another session, a finish, its successor coming (the next close of the app, the same PR's next change), its type switched off, GitHub taking back the state it was marked for, or, for a reminder an earlier set-aside mark left, setting the session aside again.
  * A delete settles nothing: the session's history goes with it.
  */
-export type SettledBy = 'prompt' | 'cleared' | 'closed' | 'moved' | 'finished' | 'replaced' | 'off' | 'resolved';
+export type SettledBy = 'prompt' | 'cleared' | 'closed' | 'moved' | 'finished' | 'replaced' | 'off' | 'resolved' | 'set-aside';
 
 /** A reason as it stood, with when it was settled (epoch ms) and by what: one entry of a session's needs-you history. */
 export type SettledNeedsYou = NeedsYou & { settled: number; by: SettledBy };
@@ -123,6 +123,11 @@ export interface SessionSummary {
    */
   webCreates: PendingPr[];
   /**
+   * The ids a review or comment the session posted through GraphQL names, each once, the latest command for it kept; empty when none.
+   * The command names no PR, so the window asks GitHub which PR each id belongs to and links it as the app's own.
+   */
+  postedNodes: PendingNode[];
+  /**
    * First user/assistant uuid after each compaction boundary.
    * A fork of a compacted session adopts one of these as its own conversationId, which is how such a fork is linked into the family.
    * Main-process bookkeeping; the renderer doesn't use it.
@@ -168,12 +173,18 @@ export interface PendingPr {
   at: string;
 }
 
-/** A PR opened in the browser that the window asks main to find, with the session that opened it. */
-export type PrToFind = PendingPr & { id: string };
+/** A review, review thread, review comment or PR that a session posted on through GraphQL, which names it only by its id (`PRR_…`, `PRRT_…`, `PRRC_…`, `PR_…`), and when the command ran (ISO). */
+export interface PendingNode {
+  node: string;
+  at: string;
+}
+
+/** A PR the window asks main to find, with the session it is for: one opened in the browser, or the one a posted id belongs to. */
+export type PrToFind = (PendingPr | PendingNode) & { id: string };
 
 /** What main found of the PRs asked for: each found one, as it was asked for, with the page of the PR now linked to its session, and why the asking failed, null when it did not. */
 export interface PrsFound {
-  found: { create: PrToFind; url: string }[];
+  found: { asked: PrToFind; url: string }[];
   problem: string | null;
 }
 
@@ -439,6 +450,8 @@ export interface Settings {
   needsYou: Record<string, NeedsYouChange>;
   /** How many approvals a PR needs before it counts as approved, by repository as `owner/name`; a repository not named counts as approved when GitHub says so (shared/sessions/prs.ts). */
   approvals: Record<string, number>;
+  /** What a menu does with an item that cannot be taken now: leaves it out, or shows it dimmed with why on its hover. */
+  unavailableItems: UnavailableItems;
 }
 
 /** What the window keeps of the Editor: one per window, whatever the layout places. */
@@ -530,7 +543,7 @@ import type { BaseCandidate, DiffCommit, DiffPicks, DiffQuestion, DiffSummaryRea
 import type { NeedsYouChange, NeedsYouRegistry } from './status/needs-you';
 import type { LogLevel } from './helpers/log';
 import type { Look } from './status/looks';
-import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView, SetAsideNews, SetAsideRunning, UndoRunning } from './config/settings';
+import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView, SetAsideNews, SetAsideRunning, UnavailableItems, UndoRunning } from './config/settings';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
@@ -596,6 +609,8 @@ export interface ClaudeUiApi {
   getSetAside(): Promise<Record<string, SetAside>>;
   /** Set sessions aside in one write, `due` the moment they come back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
   markSetAside(ids: string[], due: number | null, at?: number): void;
+  /** Set sessions aside by your choice, in one write, `due` the moment they come back, or null for whenever: each mark replaced, and each one's standing reminder settled into its history as `set-aside` (`markedSetAsideAnew`). */
+  setAsideAnew(ids: string[], due: number | null): void;
   /** Take sessions' set-aside marks off in one write, whether or not each had one; `by` says a prompt there did, rather than you. */
   clearSetAside(ids: string[], by?: 'prompt'): void;
   /** When each session was last kept out of the review, by session id (epoch ms). */
@@ -717,8 +732,8 @@ export interface ClaudeUiApi {
   onOpenFailed(callback: (url: string, problem: string) => void): void;
   /** What GitHub says of `prs`, asked with `gh` (`src/main/sessions/pr-status.ts`); a merged one is not asked again while the app runs. */
   prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
-  /** Find the PRs sessions opened in the browser to be created, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */
-  findCreatedPrs(creates: PrToFind[]): Promise<PrsFound>;
+  /** Find the PRs sessions opened in the browser to be created, or posted on by an id, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */
+  findPrs(toFind: PrToFind[]): Promise<PrsFound>;
   /** Current status per session id (busy | ready | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
   /**

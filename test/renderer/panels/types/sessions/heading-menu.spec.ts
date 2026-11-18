@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../src/shared/types';
-import { PROJECT, session } from '../../../support/fixture';
+import { DIMMED, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { groupHeading, projectHeading } from '../../../support/window';
 
@@ -16,6 +16,21 @@ const menuLines = (page: Page): Promise<string[]> =>
   page.locator('.kebab-menu:not(.submenu)').locator('.menu-row, .menu-separator').evaluateAll((els) => els.map((el) => (el.classList.contains('menu-separator') ? '─' : el.textContent.trim())));
 const item = (page: Page, label: string, scope = '.kebab-menu:not(.submenu)'): Locator => page.locator(`${scope} button.menu-row`).filter({ hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) });
 
+
+// A heading's name is cut at the sidebar's width, so its menu opens with the name in full and where it is: a project's folder, a group's project.
+const headerLines = (page: Page): Locator => page.locator('.kebab-menu:not(.submenu) .menu-header .menu-header-line');
+
+test("a project's menu opens with its name and its folder's path", async ({ page, app }) => {
+  await app.boot(fixture);
+  await projectHeading(page, 'demo').locator('.project-kebab').click();
+  await expect(headerLines(page)).toHaveText(['demo', PROJECT]);
+});
+
+test("a group's menu opens with its name and its project's", async ({ page, app }) => {
+  await app.boot(fixture);
+  await groupHeading(page, 'Work').locator('.group-kebab').click();
+  await expect(headerLines(page)).toHaveText(['Work', 'demo']);
+});
 
 test("a project's menu holds the ways to start a session there, together, before its own items", async ({ page, app }) => {
   await app.boot(fixture);
@@ -57,7 +72,7 @@ test("a project's New session in group reaches every group it has, one a filter 
 
 test('outside a git repository the caret stays, and the worktree item says why it is unavailable, in the dropdown and the menus alike', async ({ page, app }) => {
   const plain = session({ title: 'Not in a repo', isRepo: false });
-  await app.boot({ ...fixture, sessions: [plain], groupState: { ...groups, groupOf: { [plain.id]: 'g-work' } }, history: { [plain.id]: [] } });
+  await app.boot({ ...fixture, sessions: [plain], groupState: { ...groups, groupOf: { [plain.id]: 'g-work' } }, history: { [plain.id]: [] }, settings: DIMMED });
   for (const opener of [
     projectHeading(page, 'demo').locator('.project-add-caret'),
     projectHeading(page, 'demo').locator('.project-kebab'),
@@ -74,7 +89,7 @@ test('outside a git repository the caret stays, and the worktree item says why i
 
 test("where the project's folder is gone, the ways to start a session are in its menus, unavailable with the reason", async ({ page, app }) => {
   const gone = session({ title: 'Folder gone', cwdExists: false, repoRootExists: false });
-  await app.boot({ ...fixture, sessions: [gone], groupState: { ...groups, groupOf: { [gone.id]: 'g-work' } }, history: { [gone.id]: [] } });
+  await app.boot({ ...fixture, sessions: [gone], groupState: { ...groups, groupOf: { [gone.id]: 'g-work' } }, history: { [gone.id]: [] }, settings: DIMMED });
   const reason = `This project's folder is gone, so nothing in it can run: ${PROJECT}`;
   for (const opener of [projectHeading(page, 'demo').locator('.project-kebab'), groupHeading(page, 'Work').locator('.group-kebab')]) {
     await opener.click();
@@ -111,7 +126,7 @@ test("a project's Jump to group holds what its heading's jump button does, and g
 
 // The button is left out below two places to go, for the room on the heading; the item stays, saying why.
 test("with one place to jump to, a project's Jump to group is unavailable and says why", async ({ page, app }) => {
-  await app.boot({ ...fixture, groupState: { groups: [groups.groups[0]], groupOf: groups.groupOf } });
+  await app.boot({ ...fixture, groupState: { groups: [groups.groups[0]], groupOf: groups.groupOf }, settings: DIMMED });
   await expect(projectHeading(page, 'demo').locator('.project-groups')).toBeHidden();
   await projectHeading(page, 'demo').locator('.project-kebab').click();
   await expect(item(page, 'Jump to group')).toHaveAttribute('data-tooltip', 'Nowhere else to jump to in this project');

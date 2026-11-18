@@ -38,6 +38,8 @@ export interface Store<S extends object> {
   set(patch: Partial<S>, options?: { readAt: Stamp }): void;
   /** Now, for a read about to ask main for what it then writes with `readAt`. */
   stamp(): Stamp;
+  /** Whether two values of `slice` are the same by its equality, the one that decides whether its watchers are told: for a reader that compares with what it read some calls ago, which `before` does not hold. */
+  same<K extends keyof S>(slice: K, a: S[K], b: S[K]): boolean;
   /**
    * Run `fn`, telling watchers once at its end about everything it changed.
    * Batches nest; the outermost one tells.
@@ -141,6 +143,7 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
       tell();
     },
     stamp: () => ++clock,
+    same: equal,
     batch(fn) {
       depth++;
       try {

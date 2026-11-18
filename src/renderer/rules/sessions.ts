@@ -51,6 +51,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   prs: true,
   // Not drawn, but the window asks GitHub for the PR each one becomes, so a new one has to reach the store.
   webCreates: true,
+  // Not drawn either, and asked about the same way: GitHub says which PR each posted id belongs to.
+  postedNodes: true,
   // Both change what the row IS — a session whose folder is gone cannot be opened, and says so — and both can flip while the app is running, with nothing in the transcript moving to announce it.
   cwdExists: true,
   repoRootExists: true,
@@ -64,9 +66,17 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
 
 const SIGNATURE_FIELDS = (Object.keys(AFFECTS_ROW) as (keyof SessionSummary)[]).filter((k) => AFFECTS_ROW[k]);
 
+/** Each session's line, worked out once per summary: a listing hands over new summaries, and the list asks for the line of every row on every draw. */
+const lines = new WeakMap<SessionSummary, string>();
+
 /** One session's line of the signature: every field that affects a row. */
-function rowLine(session: SessionSummary): string {
-  return SIGNATURE_FIELDS.map((k) => fieldText(session[k])).join('\0');
+export function rowLine(session: SessionSummary): string {
+  let line = lines.get(session);
+  if (line === undefined) {
+    line = SIGNATURE_FIELDS.map((k) => fieldText(session[k])).join('\0');
+    lines.set(session, line);
+  }
+  return line;
 }
 
 /** A field as text for the signature: `String` reads a list of objects, such as `prs`, as `[object Object]` whatever they hold, so one swapped for another would not move it. */

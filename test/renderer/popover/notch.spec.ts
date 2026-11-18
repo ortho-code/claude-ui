@@ -52,10 +52,10 @@ test('a switcher entry scrolled up under the notch is drawn over it', async ({ a
   expect(await underNotch(page.locator('#switcher-popover'), first)).toEqual({ reaches: true, onTop: true });
 });
 
-// The project's menu, since a session's opens with its header, which has no fill for the notch to bite.
+// The project's "+" caret's menu, since a session's and a heading's open with a header, which has no fill for the notch to bite.
 test("a menu's hovered first item is drawn over the notch above it", async ({ app, page }) => {
   await app.boot();
-  await page.locator('.project-kebab').first().click();
+  await page.locator('.project-add-caret').first().click();
   const menu = page.locator('.kebab-menu');
   await expect(menu).toHaveClass(/\battach-top\b/);
   const first = menu.locator('.menu-row').first();

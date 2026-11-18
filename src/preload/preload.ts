@@ -34,6 +34,7 @@ const api: ClaudeUiApi = {
   setPrSeen: (seen) => ipcRenderer.send('meta:setPrSeen', seen),
   getSetAside: () => ipcRenderer.invoke('meta:getSetAside'),
   markSetAside: (ids, due, at) => ipcRenderer.send('meta:markSetAside', ids, due, at),
+  setAsideAnew: (ids, due) => ipcRenderer.send('meta:setAsideAnew', ids, due),
   clearSetAside: (ids, by) => ipcRenderer.send('meta:clearSetAside', ids, by),
   setAsideCameDue: (now, remind) => ipcRenderer.send('meta:setAsideCameDue', now, remind),
   getKept: () => ipcRenderer.invoke('meta:getKept'),
@@ -82,7 +83,7 @@ const api: ClaudeUiApi = {
   openExternal: (url) => ipcRenderer.send('shell:openExternal', url),
   onOpenFailed: (callback) => ipcRenderer.on('shell:openFailed', (_event, url: string, problem: string) => callback(url, problem)),
   prStatuses: (prs) => ipcRenderer.invoke('prs:status', prs),
-  findCreatedPrs: (creates) => ipcRenderer.invoke('prs:find', creates),
+  findPrs: (toFind) => ipcRenderer.invoke('prs:find', toFind),
   getAllStatuses: () => ipcRenderer.invoke('status:getAll'),
   onSessionStatus: (callback) =>
     ipcRenderer.on('session:status', (_event, id: string, status: string, tab: string, event: string, background?: string[], prompt?: string, source?: string) => callback(id, status, tab, event, background, prompt, source)),

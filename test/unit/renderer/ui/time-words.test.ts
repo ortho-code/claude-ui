@@ -25,4 +25,16 @@ describe('momentLabel', () => {
     expect(momentLabel(new Date(2025, 9, 1, 16, 20).getTime(), 'en-GB', now)).toBe('Wed, 1 Oct 2025, 16:20');
     expect(momentLabel(new Date(2027, 0, 4, 9, 0).getTime(), 'en-GB', now)).toBe('Mon, 4 Jan 2027, 09:00');
   });
+
+  it('gives each moment the form and language it asks for, whatever was asked before it', () => {
+    const lastYear = new Date(2025, 9, 1, 16, 20).getTime();
+    expect([
+      momentLabel(monday, 'en-GB', now),
+      momentLabel(lastYear, 'en-GB', now),
+      momentLabel(monday, 'en-GB', now),
+      momentLabel(monday, 'en-US', now),
+      momentLabel(lastYear, 'nl-NL', now),
+      momentLabel(monday, 'en-GB', now),
+    ]).toEqual(['Mon 2 Nov, 09:05', 'Wed, 1 Oct 2025, 16:20', 'Mon 2 Nov, 09:05', 'Mon, Nov 2, 9:05 AM', 'wo 1 okt 2025, 16:20', 'Mon 2 Nov, 09:05']);
+  });
 });

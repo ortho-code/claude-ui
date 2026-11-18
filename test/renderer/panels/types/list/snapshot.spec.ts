@@ -1,7 +1,8 @@
 import type { Page } from '@playwright/test';
 import type { SessionsSnapshot } from '../../../../../src/renderer/panels/snapshot';
-import { PROJECT, session } from '../../../support/fixture';
+import { PROJECT, session, settingsFileWith } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
+import { needsYouFile } from '../../../support/needs-you';
 import { row, tabLabel } from '../../../support/window';
 import { runs } from '../../layout/layout';
 import { bootList, print, type PrintedList } from './list';
@@ -53,8 +54,10 @@ test('a run is given every session not finished, by id, with its title, project,
     version: 1,
     sessions: [
       // A status the docs do not name, such as the marker a starting claude sends, is no status.
-      { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, asks: false, running: false, needsYou: [], setAside: SET_ASIDE, prs: [] },
-      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, asks: true, running: false, needsYou: [{ ...REASON, category: 'finish-up' }], setAside: null, prs: [
+      // Its rank is null too: the order holds no such status.
+      { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, asks: false, running: false, rank: null, muted: false, needsYou: [], setAside: SET_ASIDE, prs: [] },
+      // Waiting is first in the default order, over the merge's finish-up.
+      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, asks: true, running: false, rank: 0, muted: false, needsYou: [{ ...REASON, category: 'finish-up' }], setAside: null, prs: [
           { ...asked.prs[0], title: null, author: null, status: { ...MERGED, ...DATED } },
           // When it opened, null since GitHub has not said.
           { ...asked.prs[1], title: 'Scheduler tick per host', author: { login: 'jan', name: null }, status: { ...REVIEWED, openedAt: null } },
@@ -90,6 +93,81 @@ test('a session asks for you as its dot and the switcher count it: waiting, read
     [cases.readWaiting]: false,
     [cases.busy]: false,
   });
+});
+
+/** The snapshot of a Refresh pressed after boot, the second run. */
+async function refreshed(app: App, page: Page): Promise<SessionsSnapshot> {
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect.poll(async () => (await runs(app, 'changes')).length).toBe(2);
+  return snapshotOf(app, 1);
+}
+
+const ranked = (id: (n: number) => string, names: readonly string[]): ReturnType<typeof session>[] => names.map((title, at) => session({ id: id(at + 1), title }));
+const rankId = (n: number): string => `00000000-0000-4000-8000-0000000000c${n}`;
+const [conflicted, merged, ready] = ranked(rankId, ['conflicted', 'merged', 'ready']);
+const rankFixture = {
+  sessions: [conflicted, merged, ready],
+  statuses: { [ready.id]: 'ready' },
+  needsYou: { [conflicted.id]: [{ type: 'pr.conflict' as const, at: 1_000, pr: 'acme/app#3' }], [merged.id]: [{ type: 'pr.merged' as const, at: 1_000, pr: 'acme/app#4' }] },
+  history: { [conflicted.id]: [], [merged.id]: [], [ready.id]: [] },
+};
+const ranks = (snapshot: SessionsSnapshot): Record<string, number | null> => Object.fromEntries(snapshot.sessions.map((each) => [each.title, each.rank]));
+
+// A panel sorts by the app's order rather than keeping a copy of it (decided 2026-11-17).
+test("a session's rank is where its dot's state stands in the strength order, lower first", async ({ app, page }) => {
+  await bootList(app, page, LIST, { more: rankFixture });
+  const rank = ranks(await refreshed(app, page));
+  expect(rank.conflicted).toBeLessThan(rank.merged!);
+  expect(rank.merged).toBeLessThan(rank.ready!);
+});
+
+test("a category's order changed in settings changes the ranks it gives", async ({ app, page }) => {
+  await bootList(app, page, LIST, { more: { ...rankFixture, settings: needsYouFile({ 'finish-up': { order: 5 } }) } });
+  const rank = ranks(await refreshed(app, page));
+  expect(rank.merged).toBeLessThan(rank.conflicted!);
+});
+
+test("a session's reasons come in the order the app ranks them, its strongest category first", async ({ app, page }) => {
+  const both = session({ id: rankId(4), title: 'both' });
+  await bootList(app, page, LIST, { more: { sessions: [both], needsYou: { [both.id]: [{ type: 'pr.merged', at: 2_000, pr: 'acme/app#5' }, { type: 'pr.checks-failed', at: 1_000, pr: 'acme/app#6' }] }, history: { [both.id]: [] } } });
+  expect((await refreshed(app, page)).sessions[0].needsYou.map((reason) => reason.type)).toEqual(['pr.checks-failed', 'pr.merged']);
+});
+
+const mutedId = (n: number): string => `00000000-0000-4000-8000-0000000000d${n}`;
+const [before, news, plain] = ranked(mutedId, ['before', 'news', 'plain']);
+const MARKED = (at: number): { type: 'pr.merged'; at: number; pr: string } => ({ type: 'pr.merged', at, pr: 'acme/app#7' });
+const mutedFixture = {
+  sessions: [before, news, plain],
+  needsYou: { [before.id]: [MARKED(1_000)], [news.id]: [MARKED(3_000)], [plain.id]: [MARKED(1_000)] },
+  setAside: { [before.id]: { due: null, at: 2_000 }, [news.id]: { due: null, at: 2_000 } },
+  history: { [before.id]: [], [news.id]: [], [plain.id]: [] },
+};
+const mutes = (snapshot: SessionsSnapshot): Record<string, boolean> => Object.fromEntries(snapshot.sessions.map((each) => [each.title, each.muted]));
+
+test('a session is muted while its set-aside mark holds back its reasons: those from before it, news after it showing', async ({ app, page }) => {
+  await bootList(app, page, LIST, { more: mutedFixture });
+  expect(mutes(await refreshed(app, page))).toEqual({ before: true, news: false, plain: false });
+});
+
+test('with setAsideNews "wait", news after the set-aside mark is muted too', async ({ app, page }) => {
+  await bootList(app, page, LIST, { more: { ...mutedFixture, settings: settingsFileWith('settings.json', { setAsideNews: 'wait' }) } });
+  expect(mutes(await refreshed(app, page))).toEqual({ before: true, news: true, plain: false });
+});
+
+test("a muted session's rank gives way to claude's status, as its dot does", async ({ app, page }) => {
+  const readyAside = session({ id: mutedId(4), title: 'readyAside' });
+  const readyOnly = session({ id: mutedId(5), title: 'readyOnly' });
+  await bootList(app, page, LIST, {
+    more: {
+      sessions: [readyAside, readyOnly],
+      statuses: { [readyAside.id]: 'ready', [readyOnly.id]: 'ready' },
+      needsYou: { [readyAside.id]: [MARKED(1_000)] },
+      setAside: { [readyAside.id]: { due: null, at: 2_000 } },
+      history: { [readyAside.id]: [], [readyOnly.id]: [] },
+    },
+  });
+  const rank = ranks(await refreshed(app, page));
+  expect(rank.readyAside).toBe(rank.readyOnly);
 });
 
 test('a session runs while a tab holds it with its claude started, and not once that claude has gone or without a tab', async ({ app, page }) => {

@@ -35,7 +35,7 @@ const ROW: Shortcuts = [
   ['worktree-badge', /^Worktrees \(\d+\)$/],
 ];
 const FINISHED_ROW: Shortcuts = [
-  ['unfinish-btn', /^Unfinished$/],
+  ['reopen-btn', /^Reopen$/],
   ['delete-btn', /^Delete session…$/],
   NOTE,
   ['sibling-badge', /^Siblings \(\d+\)$/],

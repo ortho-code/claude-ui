@@ -170,9 +170,31 @@
 }
 
 /* The last run failed while a good list is up: said above that list, in the failed colour, on the note line's face.
-   Its tooltip quotes what the script wrote on stderr. */
+   It unfolds what the script wrote on stderr under it (list.ts); a failure that wrote nothing has no marker and nothing to press. */
 .list-failed {
   border-top: 0;
   border-bottom: 1px solid var(--border);
   color: var(--failed);
+}
+
+.list-failed-summary {
+  cursor: pointer;
+}
+
+.list-failed.bare > .list-failed-summary {
+  list-style: none;
+  cursor: default;
+}
+
+.list-failed.bare > .list-failed-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* What the script wrote, as it wrote it: its lines kept, a long one wrapping, in the terminal's face. */
+.list-failed-output {
+  margin-top: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-family: var(--font-mono);
 }

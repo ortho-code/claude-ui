@@ -68,6 +68,7 @@ class CommandPanel extends RunPanel<PanelContext> {
 
   idle(runnable: boolean): void {
     this.host.setEnd('');
+    this.host.setRefreshed(null);
     this.host.setStatus(null);
     this.held = null;
     this.output.hidden = true;
@@ -120,6 +121,8 @@ class CommandPanel extends RunPanel<PanelContext> {
     // The same element keeps its children's place, so the scroll stays where it was as far as the new output reaches.
     if (this.held) this.output.replaceChildren(this.held);
     this.held = null;
+    // What is on show is this run's output, however it ended.
+    this.host.setRefreshed({ at: new Date(), failedAt: null });
     this.host.setEnd(endLabel(event));
     this.host.setStatus(runFailed(event) ? 'fail' : null);
   }

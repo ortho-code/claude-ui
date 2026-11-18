@@ -24,6 +24,7 @@ export function session(over: Partial<SessionSummary> = {}): SessionSummary {
     siblingIds: [],
     prs: [],
     webCreates: [],
+    postedNodes: [],
     postCompactHeads: [],
     // A session whose folders are both there, which is every case except the ones that say otherwise.
     cwdExists: true,

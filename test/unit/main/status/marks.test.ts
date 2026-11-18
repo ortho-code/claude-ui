@@ -5,7 +5,7 @@ import { auditLines, metaDir, useMetaDir, writeMetaFile } from '../sessions/meta
 
 vi.mock('electron', async () => (await import('../sessions/meta-fixture')).electronStub);
 
-import { clearNeedsYou, clearSetAside, getKept, getNeedsYou, getNeedsYouHistory, getSetAside, keep, markNeedsYou, markSetAside, restoreNeedsYou, setAsideCameDue, unkeep } from '../../../../src/main/status/marks';
+import { clearNeedsYou, clearSetAside, getKept, getNeedsYou, getNeedsYouHistory, getSetAside, keep, markNeedsYou, markSetAside, restoreNeedsYou, setAsideAnew, setAsideCameDue, unkeep } from '../../../../src/main/status/marks';
 import { finish, getRunningSessions, purgeSession, setOpenSessions, togglePin } from '../../../../src/main/sessions/meta';
 
 useMetaDir();
@@ -234,6 +234,17 @@ describe('the later marks', () => {
     await setAsideCameDue(150);
     expect(await getSetAside()).toEqual({ c: { due: 300, at: 10 } });
     expect(await getNeedsYou()).toEqual({ a: [{ type: 'app.was-running', at: 5, how: 'quit' }], b: [{ type: 'app.reminder', at: 100 }] });
+  });
+
+  it('set aside again by your choice, settle the reminder an earlier mark left in the same write, and its history reads back as set-aside', async () => {
+    await markSetAside(['a'], 100, 10);
+    await setAsideCameDue(150);
+    const before = await auditLines();
+    await setAsideAnew(['a'], 900);
+    expect(await getSetAside()).toEqual({ a: { due: 900, at: expect.any(Number) } });
+    expect(await getNeedsYou()).toEqual({});
+    expect(await getNeedsYouHistory()).toEqual({ a: [{ type: 'app.reminder', at: 100, settled: expect.any(Number), by: 'set-aside' }] });
+    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['setAsideAnew']);
   });
 
   it('are none in a file written before they were kept, and an entry without a time or with a day that is not one is dropped', async () => {

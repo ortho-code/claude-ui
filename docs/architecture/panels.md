@@ -119,7 +119,9 @@ The dot is the status dot the rest of the app uses (`.nudge`), with one state of
 Clicking an icon shows that panel and unfolds the group, and clicking the shown panel's own icon folds the group, as VS Code's activity bar does, so a panel is put away from the icon that brought it out.
 The icon and the chevron call the one fold (`toggleFold`), so they cannot fold a group two ways, and the icon's tooltip and its `aria-label`, one string, say it folds ([decided 2026-09-28](../decisions/0024-shown-icon-folds-group.md)).
 In a group that cannot fold the shown icon still does nothing, and has neither a pointer nor a hover to suggest otherwise.
-A panel's own marks — the busy mark, the run's last word, its button — sit in a header over it, unless its type is bare.
+A panel's own marks — the busy mark, the run's last word, how long ago what it shows came from a run, its button — sit in a header over it, unless its type is bare.
+The time is the panel's to say (`PanelHost.setRefreshed`), since only the type knows which run what it shows came from: a list's last good run, with a later failed run's time beside it, and a command's last run, whose output is on show however it ended, and none while it shows why it cannot run or that it has nowhere to ([decided 2026-11-14](../decisions/0224-a-panels-header-says-when-it-last-refreshed.md)).
+The tree draws it on the clock every "x ago" ages on (`moments.ts`), and gives its moment to Refresh's tooltip too, so a header too narrow for it and the whole title drops it (`fitHeader` in `headers.ts`, on a `ResizeObserver`, since CSS cannot tell a title that is cut) and the moment stays one point away.
 A panel can put tabs in that header in place of its title (`PanelHost.setTabs`, § The `terminal` type).
 
 The fold control and the switcher each live in one function, `foldControls` in `split.ts` and `switcher` in `tree.ts`, so trying one of the other variants from the mock — a header button, a tab strip — is a local change there, and none of it is in the file format.
@@ -232,13 +234,14 @@ Only a panel the selection places names one: one with a fixed `cwd` does not, si
 The app says it rather than each type, since where a panel looks is the app's decision ([decided 2026-10-26](../decisions/0111-app-names-panel-folder.md)).
 It names the folder and not the branch, which the window cannot know without asking git.
 The count keeps its place at the end, before the controls, and the mark gives way first when the header is narrow.
+A press on the mark, or Enter on it, opens a menu naming the folder in full with that path, then the session's list of where the panels look, the one its worktree badge opens (`checkoutMenu`), and Copy path, so neither the cut name nor the path is on a hover alone ([decided 2026-11-16](../decisions/0229-a-panels-folder-mark-opens-a-menu.md)).
 
 **A checkout picked from the session's worktree list holds the panels there while the session is on show** (`AppState.picks`, read through `pickedFor` in `state/picks.ts`), whatever the session goes on to change: an entry of the list its worktree badge opens, or of Worktrees in its menu, points them at that checkout, and "Follow the session", first in the same list, lets go.
 The list opens with a line saying so, since nothing else in a session's menu moves the panels.
 The pick is the session's, not its tab's, so the list is the same and does the same on every surface it is on, a tab or none ([decided 2026-10-27](../decisions/0114-checkout-pick-is-the-sessions.md)); kept in memory only.
 So closing a tab leaves its session's pick, and a `/clear` or claude's own `/resume`, which put another session in the tab, leave the panels following that session.
 While the checkout picked is gone or no longer in the session's list, the panels follow the session, and the list ticks "Follow the session", the two read from the one rule.
-The header's folder mark says a pick holds with the star a pinned session wears (`PINNED_BADGE_ICON`), and its tooltip says how to let go ([decided 2026-10-28](../decisions/0129-pick-holds-until-let-go.md)).
+The header's folder mark says a pick holds with the star a pinned session wears (`PINNED_BADGE_ICON`), and its tooltip says how to let go ([decided 2026-10-28](../decisions/0129-pick-holds-until-let-go.md)), as its menu does, whose list ticks the pick and offers "Follow the session".
 The session's badge does not follow a pick, which is where you look and not what the session did, so while one holds the header can name another checkout than the badge's tone says.
 
 A relative `cwd` resolves against the project and never falls back to the config folder ([decided 2026-09-24](../decisions/0019-relative-cwd-no-config-fallback.md)).
@@ -506,6 +509,7 @@ Main writes it to a file made as the control file is, readable by the user alone
 It is data, never the app's words: a reason is its `reason`, `at` and PR changes, since the app's own lines (`needsYouLines`) open with "Needs you —", which is the tooltip's and wrong under a Needs you heading.
 The fields are the ones a type needed, sorted by id so a new order is no change; pins, notes, worktrees and when a session was last active stay out until a type asks, the last above all, since it changes on every message.
 A status is what the session's claude last reported, filtered to the ones the docs name, and null rather than guessed for a session with no report, never having sent one or its report forgotten when its claude went.
+**A session's place in the strength order comes with it** ([decided 2026-11-17](../decisions/0232-the-sessions-file-gives-each-sessions-rank.md)): `rank` is where what its dot shows stands (`rankOf` of `shownState`, the dot's own rule, without a tab's `stopping`), `muted` whether its set-aside mark holds its reasons back (`mutedNeedsYou`), and its reasons come in the order the app ranks them (`rankedReasons`), so a type sorts as the app does instead of keeping a copy of the order and of the mute.
 On this machine's scale, about 550 sessions not finished, a snapshot of that shape measured about 200 KB and under a millisecond to serialise (synthetic sessions, 2026-11-02), so every list run gets it rather than only a type that asks; asking first comes if that stops being small.
 Its shape is the one the `page` kind's API would serve.
 
@@ -517,7 +521,8 @@ Not before the panel has run, nor while a run goes, whose end looks again, nor f
 
 **Never an empty list for a broken run** ([decided 2026-09-30](../decisions/0044-broken-run-keeps-list.md)).
 A run that fails, or prints something that is not a list, says so.
-With a good list already there, the list stays under a line saying when the run failed and why, and that list's count stays beside it; without one the panel says it is unavailable, quoting stderr's last lines.
+With a good list already there, the list stays under a line saying when the run failed and why, and that list's count stays beside it; the line unfolds stderr's last lines, or the list's mistakes, under it, folded at first so the list keeps its place, and a failure that wrote nothing has nothing to unfold ([decided 2026-11-16](../decisions/0230-a-failed-runs-lines-unfold-under-its-line.md)).
+Without a good list the panel says it is unavailable, quoting stderr's last lines.
 Before the first run has ended it says it is waiting, which is neither state.
 
 **What it looks like is the app's.**

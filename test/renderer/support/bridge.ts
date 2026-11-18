@@ -4,7 +4,7 @@ import { NO_NEEDS_YOU_TYPES } from '../../../src/shared/status/needs-you';
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/helpers/path-check';
 import { prKey, withPrLinks } from '../../../src/shared/sessions/prs';
-import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, resolvedNeedsYou, restoredNeedsYou, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/status/session-marks';
+import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, resolvedNeedsYou, restoredNeedsYou, markedSetAsideAnew, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/status/session-marks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/config/settings';
 import { withText } from '../../../src/shared/helpers/text';
 import { soundDiffPicks } from '../../../src/shared/diff/picks';
@@ -169,6 +169,9 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     markSetAside: (ids, due, at) => {
       for (const id of ids) fixture.setAside = markedSetAside(fixture.setAside, id, due, at ?? Date.now());
     },
+    setAsideAnew: (ids, due) => {
+      Object.assign(fixture, markedSetAsideAnew(fixture, ids, due, Date.now()));
+    },
     clearSetAside: (ids) => {
       for (const id of ids) fixture.setAside = clearedSetAside(fixture.setAside, id);
     },
@@ -254,14 +257,14 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
         ),
         problem: fixture.prProblem,
       }),
-    // Main links each PR it finds to its session as the app's own link, and answers what it found (`findCreated`, src/main/sessions/pr-find.ts); while it cannot ask GitHub it finds nothing and says why.
-    findCreatedPrs: (creates) => {
+    // Main links each PR it finds to its session as the app's own link, and answers what it found (`findAndLink`, src/main/sessions/pr-find.ts); while it cannot ask GitHub it finds nothing and says why.
+    findPrs: (toFind) => {
       if (fixture.prProblem !== null) return answer({ found: [], problem: fixture.prProblem });
-      const found = creates.flatMap((create) => {
-        const key = `${create.repository}\n${create.head}`;
-        return Object.hasOwn(fixture.createdPrs, key) ? [{ create, url: fixture.createdPrs[key] }] : [];
+      const found = toFind.flatMap((asked) => {
+        const [prs, key] = 'node' in asked ? [fixture.nodePrs, asked.node] : [fixture.createdPrs, `${asked.repository}\n${asked.head}`];
+        return Object.hasOwn(prs, key) ? [{ asked, url: prs[key] }] : [];
       });
-      for (const { create, url } of found) fixture.prLinks = withPrLink(fixture.prLinks, create.id, url);
+      for (const { asked, url } of found) fixture.prLinks = withPrLink(fixture.prLinks, asked.id, url);
       return answer({ found, problem: null });
     },
     getAllStatuses: () => answer(fixture.statuses),

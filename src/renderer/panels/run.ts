@@ -98,7 +98,7 @@ export interface Prepared {
 export function folderOf(place: Placement, where: Where, context: PanelContext, dir: string): PanelFolder | null {
   if (place.kind === 'fixed') return null;
   const worktree = where.tab?.worktree ?? '';
-  return { name: worktree || folderName(context.projectRoot), worktree: worktree !== '', path: dir, picked: where.tab?.picked ?? false };
+  return { name: worktree || folderName(context.projectRoot), worktree: worktree !== '', path: dir, picked: where.tab?.picked ?? false, session: where.tab?.id ?? null };
 }
 
 /** A watched folder and its git working tree's fingerprint at one moment. */

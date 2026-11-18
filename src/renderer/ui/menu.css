@@ -5,10 +5,22 @@
   min-width: 130px;
 }
 
+/* The list carries the padding, so that it scrolls with the list. */
+.kebab-menu.popover {
+  padding: 0;
+}
+
+/* The rows scroll inside the menu rather than the menu itself, which would clip the notch standing out of its edge: a menu taller than the window has room for stops at the window's edge (menu.ts caps the list), and its rows scroll.
+   Its padding scrolls with it, and its corners follow the menu's inside its border, so a scrollbar sits where the menu's own would. */
+.menu-list {
+  overflow-y: auto;
+  padding: 4px;
+  border-radius: calc(var(--radius-surface) - 1px);
+}
+
 /* Shape and hover come from the menu row (menu-row.css); nothing here is specific enough to need its own. */
 
-/* An action that is there but cannot be taken: no hover, no pointer, and dimmed as base.css's `.unavailable` dims every control that cannot act, muted as an icon button already is.
-   It stays in the list so the menu keeps its shape and the tooltip can say why — see MenuItem.disabled. */
+/* An action that is there but cannot be taken, drawn where `unavailableItems` says "dim": no hover, no pointer, and dimmed as base.css's `.unavailable` dims every control that cannot act, muted as an icon button already is, with why as its tooltip — see MenuItem.disabled. */
 .kebab-menu button.unavailable {
   color: var(--muted);
   /* The menu row sets the pointer, and base.css's `button:hover` the hover fill, each of which `.unavailable` alone would not outrank, so both are undone here: an arrow and no fill are what say "this will not do anything". */
@@ -37,10 +49,10 @@
   color: var(--accent);
 }
 
+/* Every item's label wraps in full, breaking a name that has no break point wherever the line runs out, so a session's name or a PR's title is all there in a menu at most 300px wide. */
 .menu-item-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .menu-item-label.muted {
@@ -52,12 +64,6 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   row-gap: 1px;
-}
-
-/* The label wraps too, as its detail does, so a name too long for a menu at most 300px wide, such as a PR's title, is all there. */
-.menu-row.two-line > .menu-item-label {
-  overflow-wrap: anywhere;
-  white-space: normal;
 }
 
 /* Muted and smaller, as a header's lines under its name are, and wrapping, so what it says is all there in a menu at most 300px wide. */
@@ -76,7 +82,7 @@
 }
 
 /* What a menu is about, at its top (MenuItem.header): text, not a row, so no hover and the arrow pointer, padded as a menu row is so its text lines up with the labels of items that have no tick or dot ahead of them.
-   A long line widens the menu only as far as every menu's cap (popover.css), where its first line is cut and the lines under it wrap. */
+   A long line widens the menu only as far as every menu's cap (popover.css), where it wraps. */
 .menu-header {
   padding: 6px 9px;
   cursor: default;
@@ -100,11 +106,8 @@
   align-self: center;
 }
 
-/* The first line names the thing: an item's size, bolder, and one line, cut when too long, with its whole text as its tooltip (menu.ts), since a session's name read from its transcript runs to 200 characters. */
+/* The first line names the thing: an item's size and bolder, wrapping as the lines under it do, so a session's name read from its transcript, which runs to 200 characters, is all there. */
 .menu-header-line:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--text);
   font-size: var(--text-body);
   font-weight: 600;

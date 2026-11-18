@@ -1,11 +1,11 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { promptText } from '../../../dialogs/dialogs';
-import { entityKey, sessionLabel } from '../../../rules/sessions';
+import { entityKey, sessionLabel, unstartableReason } from '../../../rules/sessions';
 import { newSession } from '../../../dialogs/new-session';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
 import { setProjectOnShow } from '../../../state/project';
-import { projName, sessionById, tabOnShow, tabWith, unopenableReason } from '../../../state/views';
+import { projName, sessionById, tabOnShow, tabWith } from '../../../state/views';
 import { showToast } from '../../../ui/toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
@@ -20,24 +20,27 @@ import { terminalOf, type TabLaunch } from './tab-state';
  */
 
 // Jump to a specific session from outside the list — a panel's row, an attention toast: scope to its project if needed, then open/focus its tab.
-export function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): void {
+// Settles as its open does, once a start it made has ended.
+export function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): Promise<void> {
   const { activeProject } = store.get();
   const host = hostOf('claude');
   if (activeProject !== null && activeProject !== session.repoRoot) host.selectProject(session.repoRoot);
-  void openSession(session, launch);
+  const opened = openSession(session, launch);
   // Scope alone isn't enough to SEE it: the row can sit inside a collapsed group or project.
   // Reveal the same way clicking a tab does — jumping to a sibling filed in another group is exactly the case where scoping to the project still leaves the row hidden.
   host.followSession(session.id);
+  return opened;
 }
 
 /**
  * Open a session's tab, starting it when it is not running.
  * A first prompt is for a session that is NOT running, which starts with it — a resumed one included; one that is running is only brought into view, since typing into a live session is never the app's to do.
+ * Settles once a start it made has ended; a cold tab whose folder is gone is selected, saying why, and not started.
  */
 async function openSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): Promise<void> {
   const existing = tabWith(session.id);
   if (existing) {
-    if (existing.terminalId === null && launch.prompt) {
+    if (existing.terminalId === null && (launch.prompt || unstartableReason(existing.session) === null)) {
       activateTab(existing.token, false);
       await startTab(existing.token, launch);
       return;
@@ -73,22 +76,36 @@ async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<Ta
   await startNew(session, joinGroupId, { name: launch.name || undefined, prompt: launch.prompt || undefined });
 }
 
-/** Go to a session by its id, switching to its project when another is on show; one that cannot be opened, finished or its folder gone, says why instead, and so does an id the app has no session for, which a panel's row may name. */
+/** Go to a session by its id, switching to its project when another is on show, as `openAsked` opens it; an id the app has no session for, which a panel's row may name, says so instead. */
 function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const session = sessionById(id);
   if (!session) {
     showToast('That session is not in the app.');
     return;
   }
-  if (refusedToOpen(session)) return;
-  jumpToSession(session, launch);
+  openAsked(session, () => jumpToSession(session, launch));
 }
 
-/** Whether a session cannot be opened (`unopenableReason`), saying why in a toast when it cannot. */
-function refusedToOpen(session: SessionSummary): boolean {
-  const reason = unopenableReason(session);
+/**
+ * The one rule for every ask that opens a session (`openSession`, `openTab`): one whose folder is gone says why in a toast and opens nothing, a finished one is reopened (`reopen`), and any other is opened by `open`.
+ * `open` settles once a start it made has ended.
+ */
+function openAsked(session: SessionSummary, open: () => Promise<void>): void {
+  const reason = unstartableReason(session);
   if (reason) showToast(reason);
-  return reason !== null;
+  else if (store.get().finished.has(entityKey(session))) void reopen(session, open);
+  else void open();
+}
+
+/**
+ * A finished session made unfinished in one write and then opened, with a toast saying so whose Undo finishes it again.
+ * A finish skips a tab whose claude is still starting, so the Undo waits for a start the open made to end first.
+ */
+async function reopen(session: SessionSummary, open: () => Promise<void>): Promise<void> {
+  const key = entityKey(session);
+  store.set({ finished: new Map(Object.entries(await window.claudeUi.unfinish([key]))) });
+  const started = open();
+  showToast(`Reopened "${sessionLabel(session)}"; it is no longer finished`, false, [{ label: 'Undo', run: () => void started.then(() => finishSessions([key])) }]);
 }
 
 // Start a new session in a fresh git worktree of `repoRoot`: `claude -w [name]`.
@@ -159,7 +176,7 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
-    if (session && !refusedToOpen(session)) void openSession(session);
+    if (session) openAsked(session, () => openSession(session));
   },
   openNewSession: (cwd, groupId, launch, id) => openNewSession(cwd, groupId, launch, id),
   openWorktreeSession: (repoRoot, groupId) => openWorktreeSession(repoRoot, groupId),

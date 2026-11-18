@@ -70,7 +70,7 @@ test("Set aside… from the close's toast opens the dialog with the session's no
   await page.locator('#set-aside-ok').click();
   await expect(dialog(page)).toBeHidden();
   await expect(message(page)).toHaveText(`Set "${one.title}" aside, whenever`);
-  expect((await app.calls('markSetAside')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], null]]);
+  expect((await app.calls('setAsideAnew')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], null]]);
 
   await toastButton(page, 'Undo').click();
   expect(await app.calls('clearSetAside')).toEqual([[[one.id]]]);
@@ -87,7 +87,7 @@ test("cancelling Set aside… brings the close's toast back, its Undo still ther
   await expect(buttons(page)).toHaveText(['Undo', 'Finished', 'Set aside…']);
   await toastButton(page, 'Undo').click();
   await expect(tabLabels(page)).toHaveText([one.title, two.title]);
-  expect(await app.calls('markSetAside')).toEqual([]);
+  expect(await app.calls('setAsideAnew')).toEqual([]);
 });
 
 test("a running tab's close offers the three once claude has gone, not at the press", async ({ app, page }) => {

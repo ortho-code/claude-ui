@@ -382,8 +382,11 @@ export const store = createStore<AppState>(
     backgroundTasks: (a, b) => sameEntries(a, b, sameOrder),
     // Every Stop writes the list again, the same tasks as new objects.
     scheduledTasks: (a, b) => sameEntries(a, b, sameData),
+    acked: sameMembers,
     pinned: sameMembers,
     finished: sameEntries,
+    needsYou: (a, b) => sameEntries(a, b, sameData),
+    setAside: (a, b) => sameEntries(a, b, sameData),
     kept: sameEntries,
     notes: sameEntries,
     pendingDeletes: sameMembers,

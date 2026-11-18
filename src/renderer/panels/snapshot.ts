@@ -3,8 +3,9 @@ import { prKey } from '../../shared/sessions/prs';
 import type { ClosedHow, SetAside, NeedsYou, PrAuthor, PrDates, PrNames, PrRole, PrStatus } from '../../shared/types';
 import { sessionLabel } from '../rules/sessions';
 import { asksForYou } from '../status/rollup';
+import { rankedReasons, rankOf, shownState } from '../status/shown';
 import { store, type AppState, type View } from '../state/app';
-import { sessionNudge, sessionRunning, switcherPool, tabWith } from '../state/views';
+import { mutedNeedsYou, sessionNudge, sessionRunning, strengthNow, switcherPool, tabWith } from '../state/views';
 
 /**
  * THE SESSIONS SNAPSHOT: the sessions the app has, as a list panel's script is given them in a file of its run's own (`CLAUDE_UI_SESSIONS`), so it can choose its rows from them; the live values keep the rows it chose current between runs.
@@ -44,7 +45,15 @@ export interface SnapshotSession {
   asks: boolean;
   /** A tab holds it with its claude running, whatever claude last reported (`sessionRunning`). */
   running: boolean;
-  /** Why it is marked as needing you, every reason; empty when it is not. */
+  /**
+   * Where its claude's status and its reasons put its dot in the strength order (`shownState`, without a tab's `stopping`), lower first, read or not, so a panel sorts as the app does rather than keeping a copy of the order (decided 2026-11-17).
+   * No status ranks as `closed`; a status the order does not name, with no reason over it, is null.
+   * The numbers only order: they move whenever the order does.
+   */
+  rank: number | null;
+  /** Its set-aside mark holds back its needs-you reasons, by the app's rule and `setAsideNews` (`mutedBySetAside`). */
+  muted: boolean;
+  /** Why it is marked as needing you, every reason, strongest first, as the app ranks them (`rankedReasons`); empty when it is not. */
   needsYou: readonly SnapshotReason[];
   /** Until when it is set aside, null for whenever; null when it is not set aside. */
   setAside: SetAside | null;
@@ -62,7 +71,7 @@ export interface SnapshotPr {
 }
 
 /** Every field of a session in the file, each once: a record, so a field added to `SnapshotSession` cannot be left out of the list docs/panel-types.md is held to. */
-const FIELDS: Record<keyof SnapshotSession, true> = { id: true, title: true, project: true, group: true, status: true, read: true, asks: true, running: true, needsYou: true, setAside: true, prs: true };
+const FIELDS: Record<keyof SnapshotSession, true> = { id: true, title: true, project: true, group: true, status: true, read: true, asks: true, running: true, rank: true, muted: true, needsYou: true, setAside: true, prs: true };
 export const SNAPSHOT_FIELDS = Object.keys(FIELDS);
 
 /**
@@ -91,6 +100,8 @@ export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'finished', 'pendingDeletes'
 /** Every session not finished, as the switcher counts them, each once, by id, so the same sessions in a new order are the same snapshot. */
 function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.get()): SessionsSnapshot {
   const groups = new Map(view.groupState.groups.map((group) => [group.id, group]));
+  const strength = strengthNow(view);
+  const muted = mutedNeedsYou(view);
   // Two tabs can hold one session the listing does not have yet, and the pool has it once for each.
   const pool = [...new Map(switcherPool(view).map((session) => [session.id, session])).values()];
   const sessions = pool
@@ -100,6 +111,8 @@ function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.g
       const session = tabWith(id, view)?.session ?? listed;
       const group = groups.get(view.groupState.groupOf[id] ?? '');
       const status = view.statuses.get(id);
+      const reasons = view.needsYou.get(id) ?? [];
+      const rank = rankOf(shownState(status, reasons, strength, muted.has(id)), strength);
       return {
         id,
         title: sessionLabel(session),
@@ -109,7 +122,9 @@ function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.g
         read: view.acked.has(id),
         asks: asksForYou(sessionNudge(id, view)),
         running: sessionRunning(id, view),
-        needsYou: (view.needsYou.get(id) ?? []).map((reason) => ({ ...reason, category: categoryOf(view.needsYouTypes, reason.type) })),
+        rank: Number.isFinite(rank) ? rank : null,
+        muted: muted.has(id),
+        needsYou: rankedReasons(reasons, strength).map((reason) => ({ ...reason, category: categoryOf(view.needsYouTypes, reason.type) })),
         setAside: view.setAside.get(id) ?? null,
         prs: session.prs.map((pr) => {
           const status = view.prStatus.statuses[prKey(pr)];
