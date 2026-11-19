@@ -187,6 +187,10 @@ The offset itself is the project heading's *measured* height, published as `--pr
 The browser skips styling, laying out and painting a session row out of sight (`content-visibility: auto`, `rows.css`), and holds the place of one it never drew at a one-line row's height.
 A row that turns out taller moves everything below it once it is drawn, a few frames after the jump that brought it into sight, so every reveal (a row, a project, a group) scrolls to its target and keeps it there for the next 8 frames (`landOn`, `reveal.ts`); a scroll by hand in those frames is overridden.
 
+**A row out of sight is brought up to date when it comes into sight** ([decided 2026-11-19](../decisions/0238-a-row-out-of-sight-is-updated-when-it-comes-into-sight.md)).
+The browser says when a row goes out of sight and comes back (`contentvisibilityautostatechange`); a draw that would bring a row out of sight up to date owes it the update instead, made in full from the store as it then is once the row comes into sight, and the minute's clock leaves its time as it is until then (`followSight`, `rows.ts`; `showMoment`'s `outOfSight`, `moments.ts`).
+A row the browser has said nothing of yet counts as in sight, so a new row is drawn at once, and a row drawn flat, in Recent or the review, is always brought up to date.
+
 
 **`text-box: trim-both cap alphabetic` ends the box at the baseline**, so descenders paint outside it.
 Combined with the `overflow: hidden` that any ellipsis needs, it silently clips every `g`, `p` and `y` — which is exactly what happened to the session meta line.

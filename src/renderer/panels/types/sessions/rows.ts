@@ -201,6 +201,7 @@ function createSessionRow(key: string): HTMLElement {
   // Its box in bulk mode, before the dot (bulk.ts); drawn only then, and a press anywhere on the row ticks it then.
   item.prepend(tickBox(), dot);
   item.append(pin, reopenBtn, deleteBtn, kebab);
+  followSight(item);
   rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, reopenBtn, deleteBtn, kebab });
   item.addEventListener('click', (event) => {
     // In bulk mode a press ticks the row rather than opening it; the dot, the marks, the pin and the kebab keep their own presses, which stop here.
@@ -253,6 +254,28 @@ interface DrawnFor {
 }
 const drawnFor = new WeakMap<HTMLElement, DrawnFor>();
 
+/**
+ * Rows the browser has said are out of sight, which it then skips drawing (rows.css), and for each the update a draw owed it meanwhile: made in full, from the store as it then is, once the browser says the row is in sight again.
+ * A row the browser has said nothing of yet counts as in sight, so a row drawn for the first time is brought up to date at once.
+ */
+const outOfSight = new WeakSet<HTMLElement>();
+const owed = new WeakMap<HTMLElement, () => void>();
+
+/** Follow `row` coming into and going out of sight, paying what it is owed as it comes in, or at least its time, which the minute's clock left as it was. */
+function followSight(row: HTMLElement): void {
+  row.addEventListener('contentvisibilityautostatechange', (event) => {
+    if ((event as ContentVisibilityAutoStateChangeEvent).skipped) {
+      outOfSight.add(row);
+      return;
+    }
+    outOfSight.delete(row);
+    const pay = owed.get(row);
+    owed.delete(row);
+    if (pay) pay();
+    else redrawMoment(rowEls.get(row)!.metaText);
+  });
+}
+
 /** Show what a row has from the tab running its session: its clock (`clockOf`), and the words for a stop claude has not left (not-left.ts), in place of its time and model while they show. */
 export function showTabMarks(marks: RowTabMarks, id: string, view: View<'scheduledTasks' | 'tabs'>): void {
   const tab = tabWith(id, view);
@@ -275,6 +298,7 @@ export interface FlatLine {
 /**
  * Bring `row` up to date for `session`; `flat` for a row drawn flat (list.ts), which leads its line with where it sits.
  * A row on the page already drawn for the same session at the same count of changes (`rowInputs`) is left as it is, its dot and tab marks only counted in again for this draw; one drawn flat is always brought up to date, since where it sits is not in the count.
+ * One out of sight is owed the update instead, until it comes into sight (`followSight`).
  */
 export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView, flat?: FlatLine): void {
   const els = rowEls.get(row)!;
@@ -287,6 +311,19 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
     rowTabMarks.set(session.id, els);
     return;
   }
+  if (!flat && outOfSight.has(row)) {
+    const key = row.dataset.key ?? session.id;
+    owed.set(row, () => {
+      const latest = currentByKey.get(key);
+      drawnFor.delete(row);
+      if (latest) updateRow(row, latest, store.get());
+    });
+    statusDots.set(session.id, els.dot);
+    rowTabMarks.set(session.id, els);
+    return;
+  }
+  // Brought up to date now, so what an earlier draw left it owing is paid, and must not come back over this draw once the row comes into sight.
+  owed.delete(row);
   drawnFor.set(row, now);
   row.dataset.sid = session.id;
 
@@ -346,7 +383,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
     const tab = tabWith(shown.id, as);
     return { ...own, text, tooltip: rowTooltip(shown, as, (tab && notLeftWords(tab)) ?? text, own) };
   };
-  showMoment(els.metaText, moment(session, view), () => moment(newest(session), store.get()), row);
+  showMoment(els.metaText, moment(session, view), () => moment(newest(session), store.get()), row, () => outOfSight.has(row));
 
   // The finished view is a management view: no pinning, and delete replaces it there.
   const isPinned = view.pinned.has(entityKey(session));

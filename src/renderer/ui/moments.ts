@@ -22,17 +22,18 @@ export interface Moment {
 
 const MINUTE = 60_000;
 
-/** The elements on the clock, each with what it asks for at a tick and the element its tooltip goes on; one that has left the page is dropped at the next, and its surface puts it back on when it draws it again. */
-const shown = new Map<HTMLElement, { later: () => Moment; tipOn: HTMLElement }>();
+/** The elements on the clock, each with what it asks for at a tick, the element its tooltip goes on, and whether it is out of sight; one that has left the page is dropped at the next, and its surface puts it back on when it draws it again. */
+const shown = new Map<HTMLElement, { later: () => Moment; tipOn: HTMLElement; outOfSight: () => boolean }>();
 let clock: number | undefined;
 
 /**
  * Draw `moment` into `el` now, and what `later` says at every tick from here while `el` is in the page; a second call for the same element replaces the first.
  * Its tooltip goes on `tipOn`, `el` itself unless a surface around it carries the tooltip, as a session row does.
+ * A tick leaves it as it is while `outOfSight` says so, and its surface draws it with `redrawMoment` once it comes into sight: nobody reads words out of sight, and a list of a thousand rows would otherwise work out every one's each minute.
  */
-export function showMoment(el: HTMLElement, moment: Moment, later: () => Moment, tipOn: HTMLElement = el): void {
+export function showMoment(el: HTMLElement, moment: Moment, later: () => Moment, tipOn: HTMLElement = el, outOfSight: () => boolean = () => false): void {
   draw(el, moment, tipOn);
-  shown.set(el, { later, tipOn });
+  shown.set(el, { later, tipOn, outOfSight });
   clock ??= window.setInterval(tick, MINUTE);
 }
 
@@ -57,9 +58,9 @@ export function onMinute(follow: () => void): void {
 }
 
 function tick(): void {
-  for (const [el, { later, tipOn }] of shown) {
-    if (el.isConnected) draw(el, later(), tipOn);
-    else shown.delete(el);
+  for (const [el, { later, tipOn, outOfSight }] of shown) {
+    if (!el.isConnected) shown.delete(el);
+    else if (!outOfSight()) draw(el, later(), tipOn);
   }
   for (const follow of followers) follow();
 }
