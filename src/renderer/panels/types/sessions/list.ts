@@ -29,9 +29,16 @@ import './list.css';
  * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, `foldsFollow`, registered by `watchList` in the sidebar's repaints, watch.ts); what it draws is read from main in one change (`fullRead`, read.ts).
  */
 
+/** The rows the last pass marked as having a tab, whose marks the next pass takes off where their tab has gone. */
+let marked = new Set<HTMLElement>();
+
+/** Mark the rows whose session has a tab, open or cold, and the one on show: only those rows and the ones marked before, rather than every row drawn, since few sessions have a tab. */
 function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {
   const shown = tabOnShow(view);
-  for (const row of sessionRows.values()) {
+  const withTab = new Set(view.tabs.flatMap((tab) => sessionRows.find(tab.session.id) ?? []));
+  const touched = new Set([...marked, ...withTab]);
+  marked = withTab;
+  for (const row of touched) {
     const id = row.dataset.sid ?? '';
     const tab = tabWith(id, view);
     row.classList.toggle('open', tab !== undefined);
