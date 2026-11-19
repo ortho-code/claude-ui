@@ -2,7 +2,9 @@ import { DIFF_QUESTIONS, type BaseSource, type DiffQuestion, type DiffSummary } 
 import { element } from '../../../ui/dom';
 import { openMenu, type MenuItem } from '../../../ui/menu';
 import { menuCaret } from '../../../ui/menu-caret';
+import { drawCollapseAll } from '../../../ui/collapse-all';
 import { mutedText } from '../../../ui/muted';
+import { unavailable } from '../../../ui/unavailable';
 import { layersIcon } from '../../../ui/svg';
 import { setTooltip } from '../../../ui/tooltip';
 import './toolbar.css';
@@ -30,6 +32,8 @@ export class Toolbar {
   private readonly label = element('span');
   private readonly caret = menuCaret();
   private readonly base = element('span', 'diff-base');
+  /** Folds every root and folder of the list, or opens them all again, drawn as the session list's collapse-all is. */
+  private readonly foldButton = element('button', 'icon-btn compact explorer-fold-all');
   /** Jumps to one of the roots, as a project heading's button jumps to one of its groups; hidden below two. */
   private readonly jumpButton = element('button', 'icon-btn compact explorer-jump');
 
@@ -38,6 +42,7 @@ export class Toolbar {
     private readonly summary: () => DiffSummary | null,
     private readonly pick: (question: DiffQuestion) => void,
     private readonly jumps: () => MenuItem[],
+    private readonly folds: { all(): boolean; any(): boolean; toggle(): void },
   ) {
     this.button.type = 'button';
     this.button.append(this.label, this.caret);
@@ -49,7 +54,13 @@ export class Toolbar {
     setTooltip(this.jumpButton, JUMP);
     // Listed again as the window's state changes while it is open, and closed once there is nowhere else to jump, as a project heading's jump is; a new read of a checkout alone does not list it again.
     this.jumpButton.addEventListener('click', () => openMenu(this.jumpButton, this.jumps(), () => (this.jumps().length < 2 ? null : this.jumps())));
-    this.el.append(this.button, this.base, this.jumpButton);
+    this.foldButton.type = 'button';
+    this.foldButton.addEventListener('click', () => {
+      if (!unavailable(this.foldButton)) this.folds.toggle();
+    });
+    this.el.append(this.button, this.base, this.foldButton, this.jumpButton);
+    // Labelled from the start, unavailable until the first read gives it a root to fold.
+    this.drawFolds();
   }
 
   draw(): void {
@@ -59,6 +70,12 @@ export class Toolbar {
     this.base.replaceChildren(...this.baseWords(question, summary));
     this.base.title = question === 'since' && summary?.base ? SOURCE_WORDS[summary.base.source] : '';
     this.jumpButton.hidden = this.jumps().length < 2;
+    this.drawFolds();
+  }
+
+  /** The collapse-all as the list's folds now stand: unavailable, with why, while there is nothing to fold. */
+  drawFolds(): void {
+    drawCollapseAll(this.foldButton, this.folds.all(), this.folds.any() ? null : 'Nothing to collapse.');
   }
 
   /** The three questions, the one on show ticked, each with the commits it counts where it counts any, said as commits, so the number is not read as files. */

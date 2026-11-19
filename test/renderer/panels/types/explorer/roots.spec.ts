@@ -148,3 +148,31 @@ test('a repository inside the checkout comes after it, folded while it lists no 
   await expect(rootRows(page).locator('.card-title')).toHaveText(['demo', 'libs/clone']);
   await expect(rootRows(page).nth(1).locator('.list-fold')).toHaveAttribute('aria-expanded', 'false');
 });
+
+test('collapse all folds every root, and expand all, which it then offers, opens them all', async ({ app, page }) => {
+  await bootDiff(app, { since: main }, inWorktrees);
+  const explorer = page.locator('.explorer-panel');
+  await explorer.getByRole('button', { name: 'Collapse all' }).click();
+  for (const at of [0, 1, 2]) await expect(rootRows(page).nth(at).locator('.list-fold')).toHaveAttribute('aria-expanded', 'false');
+  await expect(rows(page)).toHaveCount(0);
+  await explorer.getByRole('button', { name: 'Expand all' }).click();
+  for (const at of [0, 1, 2]) await expect(rootRows(page).nth(at).locator('.list-fold')).toHaveAttribute('aria-expanded', 'true');
+  await expect(rows(page)).toHaveCount(6);
+});
+
+test('in the tree, collapse all folds the folders too, so a root opened after shows its folders folded', async ({ app, page }) => {
+  await bootDiff(app, { since: main }, inWorktrees);
+  await page.locator('.panel-header .panel-view').nth(1).click();
+  await page.locator('.explorer-panel').getByRole('button', { name: 'Collapse all' }).click();
+  await rootRows(page).nth(0).click();
+  await expect(rows(page)).toHaveText(['src1']);
+  await expect(rows(page).first().locator('.list-fold')).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('collapse all is unavailable, saying why, while there is nothing to fold', async ({ app, page }) => {
+  await bootDiff(app, {}, { as: { isRepo: false } });
+  await expect(page.locator('.explorer-note')).toContainText('Git could not read');
+  const fold = page.locator('.explorer-fold-all');
+  await expect(fold).toHaveAttribute('aria-disabled', 'true');
+  await expect(fold).toHaveAttribute('data-tooltip', 'Nothing to collapse.');
+});

@@ -70,11 +70,17 @@ export class FileList {
   /** The files in the order their rows stand, folded ones left out. */
   private shown: Placed[] = [];
 
+  /** Told after every draw, so what speaks of the folds, such as a collapse-all, keeps up with a fold made on a row. */
+  onDraw: (() => void) | null = null;
+
   /** The last press on a file's row, so a second one on it soon after counts as a double click. */
   private lastPress: { key: string; at: number } | null = null;
 
-  /** `pick` is a press on a file's row, `keep` set for a double click. */
-  constructor(private readonly pick: (file: Placed, keep: boolean) => void) {}
+  /** `pick` is a press on a file's row, `keep` set for a double click; `combined` says whether the tree puts a chain of single folders on one row. */
+  constructor(
+    private readonly pick: (file: Placed, keep: boolean) => void,
+    private readonly combined: () => boolean,
+  ) {}
 
   /**
    * A press on a file's row, or the second of a double click on it.
@@ -111,6 +117,7 @@ export class FileList {
     placeChildren(this.el, placed);
     this.rows.sweep();
     this.blocks.sweep();
+    this.onDraw?.();
   }
 
   /** The files in the order their rows stand, what stepping from file to file follows. */
@@ -147,35 +154,51 @@ export class FileList {
     return row.card;
   }
 
-  /** A root's tree: each folder before what it holds, a chain of folders that each hold only the next one on one row, as a file tree compacts them, then the files. */
+  /** A root's tree: each folder before what it holds, then the files; with the folders option `combined`, a chain of folders that each hold only the next one on one row, as a file tree compacts them. */
   private treeRows(rootPath: string, files: readonly DiffFile[]): HTMLElement[] {
-    const root: Folder = { folders: new Map(), files: [] };
-    for (const file of files) {
-      let at = root;
-      for (const part of file.path.split('/').slice(0, -1)) {
-        const next = at.folders.get(part) ?? { folders: new Map(), files: [] };
-        at.folders.set(part, next);
-        at = next;
-      }
-      at.files.push(file);
-    }
     const out: HTMLElement[] = [];
     const walk = (folder: Folder, path: string, depth: number): void => {
-      for (const [name, held] of [...folder.folders].sort(([a], [b]) => a.localeCompare(b))) {
-        let label = name;
-        let inner = held;
-        for (let only = soleFolder(inner); only; only = soleFolder(inner)) {
-          label = `${label}/${only[0]}`;
-          inner = only[1];
-        }
-        const full = path ? `${path}/${label}` : label;
+      for (const { full, label, inner } of foldersIn(folder, path, this.combined())) {
         out.push(this.folderRow(rootPath, full, label, count(inner), depth));
         if (!this.folded.has(foldKey(rootPath, full))) walk(inner, full, depth + 1);
       }
       for (const file of [...folder.files].sort((a, b) => a.path.localeCompare(b.path))) out.push(this.fileRow(rootPath, file, depth, false));
     };
-    walk(root, '', 0);
+    walk(treeOf(files), '', 0);
     return out;
+  }
+
+  /** Whether every root is folded, so a collapse-all offers to open them again. */
+  allFolded(): boolean {
+    const { sections } = this.drawn;
+    return sections.length > 0 && sections.every(({ root }) => this.folded.has(foldKey(root.path, '')));
+  }
+
+  /** Whether there is a root to fold. */
+  hasRoots(): boolean {
+    return this.drawn.sections.length > 0;
+  }
+
+  /**
+   * Fold every root and, in the tree, every folder its read lists now, so a root opened after shows its folders folded; or open every one of them, a root that starts folded included.
+   * As the session list's collapse-all, in All, folds the groups with their projects.
+   */
+  foldAll(fold: boolean): void {
+    if (!fold) this.folded.clear();
+    else {
+      for (const { root, read } of this.drawn.sections) {
+        this.folded.add(foldKey(root.path, ''));
+        if (this.drawn.view !== 'tree') continue;
+        const walk = (folder: Folder, path: string): void => {
+          for (const { full, inner } of foldersIn(folder, path, this.combined())) {
+            this.folded.add(foldKey(root.path, full));
+            walk(inner, full);
+          }
+        };
+        walk(treeOf(read?.kind === 'summary' ? read.summary.files : []), '');
+      }
+    }
+    this.draw(this.drawn.sections, this.drawn.view, this.drawn.picked);
   }
 
   private folderRow(rootPath: string, path: string, label: string, files: number, depth: number): HTMLElement {
@@ -260,6 +283,34 @@ function branchMark(read: ChangesRead | undefined, name: string): HTMLElement | 
   mark.append(span('explorer-branch-name', branch));
   mark.title = branch;
   return mark;
+}
+
+/** The folders and files of `files`, as a tree by their paths. */
+function treeOf(files: readonly DiffFile[]): Folder {
+  const root: Folder = { folders: new Map(), files: [] };
+  for (const file of files) {
+    let at = root;
+    for (const part of file.path.split('/').slice(0, -1)) {
+      const next = at.folders.get(part) ?? { folders: new Map(), files: [] };
+      at.folders.set(part, next);
+      at = next;
+    }
+    at.files.push(file);
+  }
+  return root;
+}
+
+/** The folders directly in `folder`, by name, each as the tree draws its row: its full path from the root, its label, and what it holds; with `merge`, a chain of folders that each hold only the next is one of them. */
+function foldersIn(folder: Folder, path: string, merge: boolean): { full: string; label: string; inner: Folder }[] {
+  return [...folder.folders].sort(([a], [b]) => a.localeCompare(b)).map(([name, held]) => {
+    let label = name;
+    let inner = held;
+    for (let only = merge ? soleFolder(inner) : null; only; only = soleFolder(inner)) {
+      label = `${label}/${only[0]}`;
+      inner = only[1];
+    }
+    return { full: path ? `${path}/${label}` : label, label, inner };
+  });
 }
 
 /** The one folder a folder holds when it holds that and nothing else, which the tree puts on its row. */

@@ -189,6 +189,8 @@ It looks where a `command` panel would run, follows the session into a worktree 
 Each checkout is a row of its own, with its branch where that is not the folder's name and how many files changed there, its files under it along a line, as a group's sessions are in the session list: the one it looks in first, then the other checkouts the session changed files in, then the main checkout when the session changed nothing there, folded, so others' changes there stay out of the way until you open it.
 Repositories inside the folder it looks in, up to three folders down, are rows of their own too, named by their path from it and folded while nothing changed there; a folder that is no repository itself, such as a WordPress install, shows the repositories inside it.
 With more than one checkout, the layers button at the end of the row over the list jumps to one of them.
+The double chevron at the end of that row collapses every checkout and, in the tree, every folder, and expands them all again, as the session list's does.
+In the tree, `"folders": "combined"` puts a chain of folders that each hold only the next on one row, `src/app/http`, where the default, `separate`, gives each folder a row of its own, as a `changes` panel's option does.
 The menu over its list picks what it lists, and is kept for the panel:
 
 - **Since branched**: everything the branch did since it left its base, committed or not.

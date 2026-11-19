@@ -19,14 +19,25 @@ test("a renamed file's tooltip names where it came from", async ({ app, page }) 
   await expect(rows(page).nth(1).locator('.card-title')).toHaveAttribute('title', 'src/old-name.ts → src/app/new-name.ts');
 });
 
-test('the file tree puts each file under its folders, a folder holding only one folder sharing its row, folders first and each level by name', async ({ app, page }) => {
+test('the file tree puts each file under its folders, a row per folder, folders first and each level by name', async ({ app, page }) => {
   await bootDiff(app, { since: changed });
+  await page.locator('.panel-header .panel-view').nth(1).click();
+  await expect(rows(page)).toHaveText(['src2', 'app2', 'Mmain.ts+3 −1', 'Rnew-name.ts+1', 'Mlogo.pngbinary', 'UREADME.mdnew']);
+});
+
+test('with folders combined, a folder holding only one folder shares its row', async ({ app, page }) => {
+  await bootDiff(app, { since: changed }, { explorerOptions: { folders: 'combined' } });
   await page.locator('.panel-header .panel-view').nth(1).click();
   await expect(rows(page)).toHaveText(['src/app2', 'Mmain.ts+3 −1', 'Rnew-name.ts+1', 'Mlogo.pngbinary', 'UREADME.mdnew']);
 });
 
+test('a folders value the Explorer does not have is said, with the ones it has', async ({ app, page }) => {
+  await bootDiff(app, { since: changed }, { explorerOptions: { folders: 'nested' } });
+  await expect(page.locator('.panel-problems')).toContainText('folders "nested" is not one this build has (it has: separate, combined).');
+});
+
 test('a folder whose name starts with a dot shows the dot at its start, though the row is cut from its left', async ({ app, page }) => {
-  await bootDiff(app, { since: summary({ files: [file('.claude/rules/backend/hexagonal.md')] }) });
+  await bootDiff(app, { since: summary({ files: [file('.claude/rules/backend/hexagonal.md')] }) }, { explorerOptions: { folders: 'combined' } });
   await page.locator('.panel-header .panel-view').nth(1).click();
   const title = rows(page).first().locator('.card-title');
   await expect(title).toHaveText('.claude/rules/backend');
@@ -45,7 +56,7 @@ test('a folder whose name starts with a dot shows the dot at its start, though t
 });
 
 test('a folder of the tree folds from its chevron and from a press on it, and unfolds again, its count still showing', async ({ app, page }) => {
-  await bootDiff(app, { since: changed });
+  await bootDiff(app, { since: changed }, { explorerOptions: { folders: 'combined' } });
   await page.locator('.panel-header .panel-view').nth(1).click();
   await rows(page).filter({ hasText: 'src/app' }).locator('.list-fold').click();
   await expect(rows(page)).toHaveText(['src/app2', 'Mlogo.pngbinary', 'UREADME.mdnew']);

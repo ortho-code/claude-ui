@@ -23,8 +23,8 @@ export const summary = (over: Partial<DiffSummary> = {}): DiffSummary => ({
 /** A changed file, one line added unless a check says otherwise. */
 export const file = (path: string, over: Partial<DiffFile> = {}): DiffFile => ({ path, from: null, status: 'M', added: 1, deleted: 0, binary: false, generated: false, ...over });
 
-/** The layout: the sidebar, the terminal area, the Editor at `width` beside it, and an Explorer on the right; the Editor switched off when `editorOff`. */
-const diffLayout = (width: string | null, editorOff: boolean): Partial<BridgeFixture> & { layout: LayoutReport } =>
+/** The layout: the sidebar, the terminal area, the Editor at `width` beside it, and an Explorer on the right with `explorerOptions`; the Editor switched off when `editorOff`. */
+const diffLayout = (width: string | null, editorOff: boolean, explorerOptions: Record<string, string> | undefined): Partial<BridgeFixture> & { layout: LayoutReport } =>
   withLayout({
     version: 2,
     root: {
@@ -34,7 +34,7 @@ const diffLayout = (width: string | null, editorOff: boolean): Partial<BridgeFix
         { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] },
         // With no width, the file leaves the Editor out, and the app adds it as it would to anyone's.
         ...(width === null ? [] : [{ id: 'editor', size: width, panels: [{ id: 'files', type: 'editor', ...(editorOff ? { hidden: true } : {}) }] }]),
-        { id: 'right', size: '360px', panels: [{ id: 'changes', type: 'explorer' }] },
+        { id: 'right', size: '360px', panels: [{ id: 'changes', type: 'explorer', ...(explorerOptions ? { options: explorerOptions } : {}) }] },
       ],
     },
   });
@@ -44,18 +44,18 @@ export const picksData = (picks: Partial<DiffPicks>): PanelData => ({ sessions: 
 
 /**
  * Boot with the project's session on show, the Editor and the Explorer beside it, and main answering each question from `diffs`.
- * `data` is what the Explorer's own file keeps and `editor` what the window keeps of the Editor (docked, how it draws a diff), `tree` the project's working tree's fingerprint, `files` each file's diff by path, `width` the docked Editor's, null to leave it out of the file, `editorOff` the Editor panel switched off, `also` a second session of the project open in a tab of its own, `history` the requests of the session on show, `historyUi` what the window keeps of the history (docked, its width), `as` what the session on show has otherwise than the fixture's, `checkouts` the other checkouts main answers for, each with its questions' answers and its files' diffs, and `nested` the repositories main finds inside a folder, by the folder.
+ * `data` is what the Explorer's own file keeps and `editor` what the window keeps of the Editor (docked, how it draws a diff), `tree` the project's working tree's fingerprint, `files` each file's diff by path, `width` the docked Editor's, null to leave it out of the file, `editorOff` the Editor panel switched off, `also` a second session of the project open in a tab of its own, `history` the requests of the session on show, `historyUi` what the window keeps of the history (docked, its width), `as` what the session on show has otherwise than the fixture's, `checkouts` the other checkouts main answers for, each with its questions' answers and its files' diffs, `nested` the repositories main finds inside a folder, by the folder, and `explorerOptions` the Explorer entry's options.
  */
 export async function bootDiff(
   app: App,
   diffs: Partial<Record<DiffQuestion, DiffSummary>>,
-  options: { data?: PanelData; editor?: Partial<EditorUi>; width?: string | null; editorOff?: boolean; tree?: string; files?: Record<string, FileDiff>; also?: SessionSummary; history?: Exchange[]; historyUi?: Partial<HistoryUi>; as?: Partial<SessionSummary>; checkouts?: Record<string, { diffs: Partial<Record<DiffQuestion, DiffSummary>>; files?: Record<string, FileDiff> }>; nested?: Record<string, string[]> } = {},
+  options: { data?: PanelData; editor?: Partial<EditorUi>; width?: string | null; editorOff?: boolean; tree?: string; files?: Record<string, FileDiff>; also?: SessionSummary; history?: Exchange[]; historyUi?: Partial<HistoryUi>; as?: Partial<SessionSummary>; checkouts?: Record<string, { diffs: Partial<Record<DiffQuestion, DiffSummary>>; files?: Record<string, FileDiff> }>; nested?: Record<string, string[]>; explorerOptions?: Record<string, string> } = {},
 ): Promise<void> {
   const also = options.also ? [options.also] : [];
   const shown = { ...here, ...options.as };
   const checkouts = Object.entries(options.checkouts ?? {});
   await app.boot({
-    ...diffLayout(options.width === undefined ? '480px' : options.width, options.editorOff === true),
+    ...diffLayout(options.width === undefined ? '480px' : options.width, options.editorOff === true, options.explorerOptions),
     sessions: [shown, ...also],
     openSessions: [shown.id, ...also.map((each) => each.id)],
     activeSession: shown.id,

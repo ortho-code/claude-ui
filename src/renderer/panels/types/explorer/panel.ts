@@ -5,7 +5,7 @@ import { sessionById } from '../../../state/views';
 import { editorTabsOnShow, openInEditor, type StepFile } from '../../../state/editor-tabs';
 import type { MountedPanel, PanelHost, PanelView } from '../../contract';
 import type { PanelSlot } from '../../layout';
-import { CWD_OPTION, optionsOf, type OptionsDecl } from '../../options';
+import { CWD_OPTION, optionsOf, type OptionDecl, type OptionsDecl } from '../../options';
 import { checkoutReads, type ChangesRead } from '../../checkout-reads';
 import { NO_CONTEXT, RunGate, prepare, resolveContext, runKey } from '../../run';
 import { Driven, GateDriver } from '../../gate-driver';
@@ -25,7 +25,10 @@ import './panel.css';
  * Each read checks the panel first (`prepare`), so it reads where the header says it looks.
  */
 
-export const EXPLORER_OPTIONS: OptionsDecl = { name: 'explorer', options: [CWD_OPTION], exactlyOne: [] };
+/** How the tree draws a chain of folders that each hold only the next: a row per folder (`separate`, the default), or the chain on one row (`combined`), the name and the values a `changes` panel's option has. */
+const FOLDERS_OPTION: OptionDecl = { name: 'folders', kind: 'choice', values: ['separate', 'combined'] };
+
+export const EXPLORER_OPTIONS: OptionsDecl = { name: 'explorer', options: [CWD_OPTION, FOLDERS_OPTION], exactlyOne: [] };
 
 /** The list's two views, which the panel's header switches between and the app keeps per panel, as a list panel's are. */
 const VIEWS: PanelView[] = [
@@ -46,7 +49,10 @@ const NOTHING: Record<DiffQuestion, (summary: DiffSummary) => string> = {
 export class ExplorerPanel extends Driven implements MountedPanel {
   readonly el = element('div', 'panel-body explorer-panel');
   private readonly note = element('p', 'pane-placeholder explorer-note');
-  private readonly files = new FileList((file, keep) => this.pickFile(file, keep));
+  private readonly files = new FileList(
+    (file, keep) => this.pickFile(file, keep),
+    () => optionsOf(this.slot.entry).folders === 'combined',
+  );
   private readonly toolbar: Toolbar;
   private readonly gate: RunGate;
   private readonly stopWatchingSessions: () => void;
@@ -84,7 +90,13 @@ export class ExplorerPanel extends Driven implements MountedPanel {
       () => this.summary,
       (question) => this.pickQuestion(question),
       () => this.jumps(),
+      {
+        all: () => this.files.allFolded(),
+        any: () => this.files.hasRoots(),
+        toggle: () => this.files.foldAll(!this.files.allFolded()),
+      },
     );
+    this.files.onDraw = () => this.toolbar.drawFolds();
     this.el.append(this.toolbar.el, this.files.el, this.note);
     this.gate = new RunGate(
       () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),

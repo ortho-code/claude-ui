@@ -24,6 +24,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - An `explorer` panel lists the files that changed in the checkout it looks in: since the branch left its base, not pushed yet, or not committed, flat or as a tree.
   Following the session, it shows each checkout of the project the session worked in, each with its branch, and the main checkout folded when the session changed nothing there.
   It also shows the repositories inside the folder it looks in, such as a theme's and a plugin's in a WordPress install that is no repository itself.
+  A button collapses and expands every checkout and, in the tree, every folder, and `"folders": "combined"` puts a chain of single folders on one row in the tree, as a `changes` panel's option does.
   It reads again as files change and when the session beside it finishes a turn.
   A press on a file opens it in the Editor.
 - The Editor shows files in tabs, one set per session tab, as a drawer over the terminal area, or docked beside it from its Dock button.
