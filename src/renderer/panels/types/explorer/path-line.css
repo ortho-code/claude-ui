@@ -1,0 +1,50 @@
+/* THE PATH OVER THE EXPLORER'S LIST (explorer/path-line.ts): one line under the row of controls, muted, each part a plain word to press between the separators a path has. */
+.explorer-path {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 2px 14px 3px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.explorer-path-sep {
+  flex: none;
+}
+
+.explorer-path-part {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.explorer-path-part:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* The root's name is cut at its end wherever it gives way, its path in the tooltip. */
+.explorer-path-root {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* While folders follow it, the root's name takes at most 40% of the line, so the folders, which are what changes as the list scrolls, keep their room. */
+.explorer-path-root.capped {
+  max-width: 40%;
+}
+
+/* Once no folder is left to take out, the root's name gives way further, so the nearest folder stays whole where that frees enough room; a few letters stay to name it. */
+.explorer-path.cut .explorer-path-root {
+  flex: 0 1 auto;
+  min-width: 4em;
+}

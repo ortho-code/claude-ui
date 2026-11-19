@@ -136,6 +136,38 @@ export class FileList {
     flash(row.card);
   }
 
+  /**
+   * Where the topmost row in view sits: its root, and in the tree the folders that hold it, from the root down, since a flat row names its folders itself; null while that row is a root's own, there is none, or the list is not laid out.
+   * What the path over the list says, as the list scrolls.
+   */
+  topPlace(): { root: string; folders: string[] } | null {
+    const top = this.el.getBoundingClientRect().top;
+    for (const card of this.el.querySelectorAll<HTMLElement>('.list-row')) {
+      if (card.getBoundingClientRect().bottom <= top + 1) continue;
+      const { root, within } = card.dataset;
+      if (root === undefined || within === undefined) return null;
+      return { root, folders: within && this.drawn.view === 'tree' ? within.split('/') : [] };
+    }
+    return null;
+  }
+
+  /** Bring the row of `root`, or of the folder `folders` names in it, to the top of the list and flash it; a folder drawn on one row with the ones it holds is that row. */
+  scrollToPlace(root: string, folders: readonly string[]): void {
+    const path = folders.join('/');
+    let card: HTMLElement | undefined;
+    for (const each of this.el.querySelectorAll<HTMLElement>('.list-row')) {
+      if (each.dataset.root !== root) continue;
+      const own = each.dataset.path;
+      if (path === '' ? own === undefined && each.dataset.within === undefined : own === path || own?.startsWith(`${path}/`)) {
+        card = each;
+        break;
+      }
+    }
+    if (!card) return;
+    this.el.scrollTop += card.getBoundingClientRect().top - this.el.getBoundingClientRect().top;
+    flash(card);
+  }
+
   private toggle(key: string): void {
     if (!this.folded.delete(key)) this.folded.add(key);
     this.draw(this.drawn.sections, this.drawn.view, this.drawn.picked);
@@ -145,6 +177,7 @@ export class FileList {
   private rootRow(root: ExplorerRoot, read: ChangesRead | undefined): HTMLElement {
     const { name } = root;
     const row = this.foldingRow('explorer-root', foldKey(root.path, ''), name, 0);
+    row.card.dataset.root = root.path;
     row.card.classList.toggle('shared', root.reason === 'shared');
     row.title.replaceChildren(span('list-text', name));
     row.title.title = root.path;
@@ -203,6 +236,7 @@ export class FileList {
 
   private folderRow(rootPath: string, path: string, label: string, files: number, depth: number): HTMLElement {
     const row = this.foldingRow('explorer-folder', foldKey(rootPath, path), label, depth);
+    placeRow(row.card, rootPath, parentOf(path), path);
     // In the isolated span a file's name sits in too, or the row's right-to-left cut moves a leading dot, `.claude`, to its end.
     row.title.replaceChildren(span('list-text', label));
     row.title.title = path;
@@ -240,6 +274,7 @@ export class FileList {
       return built;
     });
     this.shown.push(placed);
+    placeRow(row.card, rootPath, parentOf(file.path), null);
     const picked = this.drawn.picked?.root === rootPath && this.drawn.picked.path === file.path;
     row.card.classList.toggle('picked', picked);
     row.card.setAttribute('aria-current', String(picked));
@@ -262,6 +297,19 @@ export class FileList {
     fold.type = 'button';
     return { card, line, lead: element('span'), title, trail: element('span', 'list-trail'), fold };
   }
+}
+
+/** The folders that hold `path`, joined, empty at a root's top. */
+function parentOf(path: string): string {
+  return path.slice(0, Math.max(0, path.lastIndexOf('/')));
+}
+
+/** Say on a row which root it is in, the folders that hold it, and, for a folder's row, its own path, for the path over the list to read and to scroll to. */
+function placeRow(card: HTMLElement, root: string, within: string, path: string | null): void {
+  card.dataset.root = root;
+  card.dataset.within = within;
+  if (path === null) delete card.dataset.path;
+  else card.dataset.path = path;
 }
 
 /** A root's or folder's key among the folded ones: the root, then the path in it, empty for the root itself. */

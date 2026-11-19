@@ -12,6 +12,7 @@ import { Driven, GateDriver } from '../../gate-driver';
 import { element } from '../../../ui/dom';
 import type { MenuItem } from '../../../ui/menu';
 import { FileList, type FilesView, type Placed } from './files';
+import { PathLine } from './path-line';
 import { explorerRoots, type ExplorerRoot, type NestedRepository } from './roots';
 import { QUESTION_NAMES, Toolbar } from './toolbar';
 import './panel.css';
@@ -54,6 +55,8 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     () => optionsOf(this.slot.entry).folders === 'combined',
   );
   private readonly toolbar: Toolbar;
+  /** Where the topmost row in view sits, over the list. */
+  private readonly path = new PathLine((root, folders) => this.files.scrollToPlace(root, folders));
   private readonly gate: RunGate;
   private readonly stopWatchingSessions: () => void;
   private readonly stopWatchingEditor: () => void;
@@ -96,8 +99,23 @@ export class ExplorerPanel extends Driven implements MountedPanel {
         toggle: () => this.files.foldAll(!this.files.allFolded()),
       },
     );
-    this.files.onDraw = () => this.toolbar.drawFolds();
-    this.el.append(this.toolbar.el, this.files.el, this.note);
+    this.files.onDraw = () => {
+      this.toolbar.drawFolds();
+      this.placePath();
+    };
+    // Once a frame at most, however fast the list scrolls.
+    let queued = false;
+    this.files.el.addEventListener('scroll', () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        this.placePath();
+      });
+    });
+    // A list drawn while the panel was out of sight measured nothing, and a narrower or wider one fits its path differently.
+    new ResizeObserver(() => this.placePath()).observe(this.files.el);
+    this.el.append(this.toolbar.el, this.path.el, this.files.el, this.note);
     this.gate = new RunGate(
       () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
       (number) => void this.read(number),
@@ -175,6 +193,13 @@ export class ExplorerPanel extends Driven implements MountedPanel {
       muted: root.reason === 'shared',
       onSelect: () => this.files.reveal(root.path),
     }));
+  }
+
+  /** Say over the list where its topmost row in view sits. */
+  private placePath(): void {
+    const top = this.files.topPlace();
+    const root = top ? this.roots.find((each) => each.path === top.root) : undefined;
+    this.path.draw(top && root ? { root: root.path, name: root.name, folders: top.folders } : null);
   }
 
   /** The session whose checkouts are roots: the one on show, unless the panel has a folder of its own. */

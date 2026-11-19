@@ -191,6 +191,8 @@ Repositories inside the folder it looks in, up to three folders down, are rows o
 With more than one checkout, the layers button at the end of the row over the list jumps to one of them.
 The double chevron at the end of that row collapses every checkout and, in the tree, every folder, and expands them all again, as the session list's does.
 In the tree, `"folders": "combined"` puts a chain of folders that each hold only the next on one row, `src/app/http`, where the default, `separate`, gives each folder a row of its own, as a `changes` panel's option does.
+Once you scroll past a checkout's row, a line over the list names the checkout you are in and, in the tree, the folders that hold the top row, `demo › src / app / http`, and a press on a part scrolls back to its row; a press on a `…` lists the folders it stands for.
+In the tree, the checkout's name takes at most 40% of that line; when the line is still too long, the folders nearest the checkout give way to `…`, and then the checkout's name is cut further, so the folder you are in stays whole.
 The menu over its list picks what it lists, and is kept for the panel:
 
 - **Since branched**: everything the branch did since it left its base, committed or not.
