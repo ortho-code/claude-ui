@@ -84,15 +84,6 @@
   z-index: 1;
 }
 
-
-/* The indent says a row is IN the group; the rail draws where the group ends, so several groups stay scannable.
-   Deliberately muted, not accent — a row already uses an inset accent bar for open and for active, and a third accent line here would muddy both. */
-.group-members {
-  margin-left: 3px;
-  padding-left: 14px;
-  border-left: 2px solid var(--group-rail);
-}
-
 /* The dropdown half of the group heading's split button.
    Narrower than a standard control and with a 9px chevron rather than a 14px icon — the same exception the project heading's caret takes, because it modifies the button beside it rather than being a control in its own right.
    Its left border is dropped so the two halves share one edge. */

@@ -77,6 +77,7 @@ const ORDER = [
   'src/renderer/panels/types/editor/view.css',
   'src/renderer/panels/types/editor/panel.css',
   'src/renderer/panels/types/sessions/controls.css',
+  'src/renderer/ui/members-rail.css',
   'src/renderer/panels/types/sessions/headings.css',
   'src/renderer/panels/types/sessions/rows.css',
   'src/renderer/panels/types/sessions/list.css',

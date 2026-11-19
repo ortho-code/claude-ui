@@ -14,6 +14,8 @@ import { newSessionInGroupItem, newSessionItems, newSessionSplit } from './contr
 import { container, jumpTrees, type GroupSectionEls, type ProjectSectionEls, type FlatSectionEls } from './drawn';
 import { toggleFold } from './folding';
 import { revealGroup } from './reveal';
+// The index line down a group's sessions.
+import '../../../ui/members-rail.css';
 import './headings.css';
 
 /**
@@ -191,7 +193,7 @@ export function createGroupSection(id: string): GroupSectionEls {
 
   // The rows live in their own element so the indent and its rail wrap the whole group, which is what shows where a group ends without needing to read the next heading.
   const members = document.createElement('div');
-  members.className = 'group-members';
+  members.className = 'group-members members-rail';
   const empty = document.createElement('div');
   empty.className = 'section-empty'; // its text depends on the project's folder, so reconcileProjectSections writes it
   members.append(empty);

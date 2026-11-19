@@ -1,0 +1,8 @@
+/* THE INDEX LINE down what a heading holds, such as a custom group's sessions in the session list.
+   The indent says a row is IN what is above it; the line draws where that ends, so several such blocks stay scannable.
+   Deliberately muted, not accent: a row already uses an inset accent bar for open and for active, and a third accent line here would muddy both. */
+.members-rail {
+  margin-left: 3px;
+  padding-left: 14px;
+  border-left: 2px solid var(--group-rail);
+}
