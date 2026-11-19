@@ -2,10 +2,10 @@ import { setMarkup } from './keyed';
 import { strokeIcon } from './svg';
 import { setUnavailable } from './unavailable';
 
-// Chevrons stacked in the direction things will move: up to fold everything away, down to open it again.
-// Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
-const COLLAPSE_ALL_ICON = strokeIcon(14, '<path d="M4 7.25L8 3.75L12 7.25" /><path d="M4 12.25L8 8.75L12 12.25" />');
-const EXPAND_ALL_ICON = strokeIcon(14, '<path d="M4 3.75L8 7.25L12 3.75" /><path d="M4 8.75L8 12.25L12 8.75" />');
+// Two chevrons, as a code editor's fold-all draws them: pointing at each other to fold everything together, pointing apart to open it out again (decided 2026-11-19).
+// Each chevron 3 units tall, with 4 clear between them, so the two read as a pair rather than as an X or a diamond; ink centred on 8,8 like the row icons, so the glyph sits square in its button.
+const COLLAPSE_ALL_ICON = strokeIcon(14, '<path d="M4.5 3L8 6L11.5 3" /><path d="M4.5 13L8 10L11.5 13" />');
+const EXPAND_ALL_ICON = strokeIcon(14, '<path d="M4.5 6L8 3L11.5 6" /><path d="M4.5 10L8 13L11.5 10" />');
 
 /**
  * A collapse-all button as it now stands: Expand all once everything it folds is folded, else Collapse all, its icon saying which; unavailable with `reason` when there is nothing to fold.
