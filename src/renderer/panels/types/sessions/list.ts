@@ -12,7 +12,7 @@ import { setUnavailable } from '../../../ui/unavailable';
 import { recentOrder } from '../../../rules/recent';
 import { reviewCount, type ReviewSection } from '../../../rules/review';
 import { endBulk } from '../../../state/bulk';
-import { container, currentByKey, drawnKeys, rowInputs, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
+import { container, currentByKey, rowInputs, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
@@ -191,8 +191,11 @@ function allFinishedLine(count: number): string {
 function catchUp(): void {
   if (container.matches(':hover, :focus-within') || container.querySelector('.menu-open')) return;
   const view = store.get();
-  if (!sameOrder(keysOf(listShape(view)), drawnKeys())) renderList(view);
+  if (!sameOrder(keysOf(listShape(view)), drewOrder)) renderList(view);
 }
+
+/** The keys of the rows the last draw drew, in its order: what `catchUp` compares with, rather than reading every row back from the page each minute. */
+let drewOrder: string[] = [];
 
 /** The slices rows draw from, as the last draw read them. */
 const rowsDrewFrom = new Map<RowSlice, unknown>();
@@ -209,6 +212,7 @@ function rowsFollow(view: ListView): void {
 function renderList(view: ListView): void {
   rowsFollow(view);
   const shape = listShape(view);
+  drewOrder = keysOf(shape);
   if ('review' in shape) {
     // A review left with nothing in it ends, as an empty review has nothing to decide; said by nothing of its own: the act that emptied it raises its toast after this, with the Undo that matters more, and the Review button then says there is nothing to review.
     if (reviewCount(shape.review) === 0) endBulk();
