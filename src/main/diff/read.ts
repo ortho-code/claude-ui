@@ -4,7 +4,7 @@ import { parseNameStatus, parseNumstat, parseUnified } from '../../shared/diff/p
 import type { DiffCommit, DiffFile, DiffQuestion, DiffSummary, FileDiff } from '../../shared/diff/types';
 import { markWords } from '../../shared/diff/words';
 import { git } from '../git';
-import { againstOf, baseOf, countsOf } from './bases';
+import { againstOf, baseOf, branchOf, countsOf } from './bases';
 
 /**
  * A checkout's changes for the Explorer, read from git: the files a question lists, and one file's hunks.
@@ -89,10 +89,10 @@ async function filesOf(root: string, against: string): Promise<{ files: DiffFile
 /** The files `question` lists for the checkout `dir` is in, with the base, the commit it is measured against and the commit counts. */
 export async function diffSummary(dir: string, question: DiffQuestion): Promise<DiffSummary> {
   const root = await rootOf(dir);
-  const { base, missing } = await baseOf(root);
+  const [{ base, missing }, branch] = await Promise.all([baseOf(root), branchOf(root)]);
   const [against, counts] = await Promise.all([againstOf(root, question, base), countsOf(root, base)]);
   const { files, untrackedLeftOut } = against === null ? { files: [], untrackedLeftOut: 0 } : await filesOf(root, against);
-  return { root, against, base, missing, files, untrackedLeftOut, counts };
+  return { root, branch, against, base, missing, files, untrackedLeftOut, counts };
 }
 
 /** An untracked file as added from nothing: `--no-index` exits 1 when the two differ, which here they always do, so its output comes with that exit. */

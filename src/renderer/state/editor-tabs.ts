@@ -14,9 +14,19 @@ export interface FileRef {
   file: DiffFile;
   /** The question its diff answers and the commit the opener read it against. */
   diff: { question: DiffQuestion; against: string };
-  /** The files its previous and next file step through, in the opener's order, this one among them. */
-  files: readonly DiffFile[];
+  /** The files its previous and next file step through, in the opener's order, this one among them, each with its own checkout, so a step can cross from one checkout into the next. */
+  files: readonly StepFile[];
 }
+
+/** A file a tab steps through: the checkout it is in, the commit that checkout was read against, and the file. */
+export interface StepFile {
+  root: string;
+  against: string;
+  file: DiffFile;
+}
+
+/** Whether `step` is the file `ref` shows. */
+export const isShown = (ref: FileRef, step: StepFile): boolean => step.root === ref.root && step.file.path === ref.file.path;
 
 export interface EditorTab {
   key: string;

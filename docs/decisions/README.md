@@ -248,3 +248,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0240](0240-files-open-in-an-editor-beside-the-session.md) | 2026-11-18 | Files open in an Editor beside the session — **Partly replaced** by [0241](0241-the-editor-opens-as-a-drawer-or-docks.md): it opens as a drawer, and docks on request | [The `editor` type](../architecture/panels.md#the-editor-type) |
 | [0241](0241-the-editor-opens-as-a-drawer-or-docks.md) | 2026-11-18 | The Editor opens as a drawer, or docks | [The `editor` type](../architecture/panels.md#the-editor-type) |
 | [0242](0242-the-history-docks-beside-the-terminal.md) | 2026-11-18 | The history docks beside the terminal | [Opening it, and getting out](../architecture/history.md#opening-it-and-getting-out) |
+| [0243](0243-the-explorer-shows-every-checkout-of-the-session.md) | 2026-11-19 | The Explorer shows every checkout of the session | [The `explorer` type](../architecture/panels.md#the-explorer-type) |

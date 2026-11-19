@@ -1,6 +1,6 @@
 import type { DiffFile, DiffView } from '../../../../../shared/diff/types';
 import type { EditorUi } from '../../../../../shared/types';
-import type { FileRef } from '../../../../state/editor-tabs';
+import { isShown, type FileRef, type StepFile } from '../../../../state/editor-tabs';
 import { checkoutReads, type ChangesRead } from '../../../checkout-reads';
 import { FileView } from './file-view';
 
@@ -40,7 +40,7 @@ export class FileDoc {
       pickIgnoreWs: (ignoreWs) => host.pick({ ignoreWs }),
       pickChangesOnly: (changesOnly) => host.pick({ changesOnly }),
       stepFile: (delta) => void this.stepFile(delta),
-      place: () => ({ at: this.ref.files.findIndex((file) => file.path === this.ref.file.path) + 1, of: this.ref.files.length }),
+      place: () => ({ at: this.ref.files.findIndex((step) => isShown(this.ref, step)) + 1, of: this.ref.files.length }),
     });
     this.stopFollowing = this.follow();
     void this.view.show(ref.file);
@@ -50,12 +50,7 @@ export class FileDoc {
   showRef(ref: FileRef): Promise<void> {
     if (ref === this.ref) return Promise.resolve();
     const same = ref.root === this.ref.root && ref.file.path === this.ref.file.path && ref.diff.against === this.ref.diff.against;
-    const followed = ref.root === this.ref.root && ref.diff.question === this.ref.diff.question;
-    this.ref = ref;
-    if (!followed) {
-      this.stopFollowing();
-      this.stopFollowing = this.follow();
-    }
+    this.setRef(ref);
     if (same) {
       this.view.refreshed(ref.file);
       return Promise.resolve();
@@ -75,12 +70,12 @@ export class FileDoc {
   private async stepFile(delta: 1 | -1): Promise<void> {
     const start = this.ref;
     const files = start.files;
-    const from = files.findIndex((file) => file.path === start.file.path);
+    const from = files.findIndex((step) => isShown(start, step));
     for (let hop = 1; hop <= files.length; hop++) {
-      const file = files[(from + delta * hop + files.length * hop) % files.length]!;
-      if (file.path === start.file.path) break;
-      this.ref = { ...start, file };
-      await this.view.show(file, delta > 0 ? 'first' : 'last');
+      const step = files[(from + delta * hop + files.length * hop) % files.length]!;
+      if (isShown(start, step)) break;
+      this.setRef(refAt(start, step));
+      await this.view.show(step.file, delta > 0 ? 'first' : 'last');
       if (this.disposed) return;
       if (this.view.hasChanges()) {
         this.host.step(this.ref);
@@ -92,8 +87,17 @@ export class FileDoc {
       this.view.goRound(delta);
       return;
     }
-    this.ref = start;
+    this.setRef(start);
     await this.view.show(start.file, delta > 0 ? 'first' : 'last');
+  }
+
+  /** Show `ref` from now on, following its checkout's changes for its question once either is another than the last. */
+  private setRef(ref: FileRef): void {
+    const followed = ref.root === this.ref.root && ref.diff.question === this.ref.diff.question;
+    this.ref = ref;
+    if (followed) return;
+    this.stopFollowing();
+    this.stopFollowing = this.follow();
   }
 
   private follow(): () => void {
@@ -104,12 +108,23 @@ export class FileDoc {
   private heard(read: ChangesRead): void {
     if (this.disposed) return;
     if (read.kind === 'summary' && read.summary.against) {
+      const against = read.summary.against;
       const summary = read.summary;
       const file: DiffFile | undefined = summary.files.find((each) => each.path === this.ref.file.path);
-      this.ref = { ...this.ref, diff: { ...this.ref.diff, against: summary.against! }, files: summary.files, file: file ?? this.ref.file };
+      const fresh = summary.files.map((each): StepFile => ({ root: summary.root, against, file: each }));
+      // This checkout's files take the place its old ones had among the other checkouts'.
+      const at = this.ref.files.findIndex((step) => step.root === summary.root);
+      const rest = this.ref.files.filter((step) => step.root !== summary.root);
+      const files = at < 0 ? [...rest, ...fresh] : [...rest.slice(0, at), ...fresh, ...rest.slice(at)];
+      this.ref = { ...this.ref, diff: { ...this.ref.diff, against }, files, file: file ?? this.ref.file };
       this.view.refreshed(this.ref.file);
       // Kept with the tab too, so the next draw of the tab shows this comparison rather than the one it was opened with.
       this.host.refreshed(this.ref);
     }
   }
+}
+
+/** `start` moved to `step`: its file, in its checkout, against what that checkout was read against. */
+function refAt(start: FileRef, step: StepFile): FileRef {
+  return { ...start, root: step.root, file: step.file, diff: { ...start.diff, against: step.against } };
 }

@@ -1,4 +1,4 @@
-/* THE INDEX LINE down what a heading holds, such as a custom group's sessions in the session list.
+/* THE INDEX LINE down what a heading holds: a custom group's sessions in the session list, a root's files in the Explorer.
    The indent says a row is IN what is above it; the line draws where that ends, so several such blocks stay scannable.
    Deliberately muted, not accent: a row already uses an inset accent bar for open and for active, and a third accent line here would muddy both. */
 .members-rail {

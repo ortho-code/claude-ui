@@ -22,6 +22,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A panel type is given each session's place in the order its dot follows, and whether its set-aside mark holds its reasons back, with its reasons strongest first, so it can sort sessions as the app does.
 - A review or comment a session posts through GitHub's GraphQL, such as one added to a review you started by hand, links its PR to that session once GitHub says which PR it is on, looked for up to 30 days after the post.
 - An `explorer` panel lists the files that changed in the checkout it looks in: since the branch left its base, not pushed yet, or not committed, flat or as a tree.
+  Following the session, it shows each checkout of the project the session worked in, each with its branch, and the main checkout folded when the session changed nothing there.
   It reads again as files change and when the session beside it finishes a turn.
   A press on a file opens it in the Editor.
 - The Editor shows files in tabs, one set per session tab, as a drawer over the terminal area, or docked beside it from its Dock button.

@@ -1,6 +1,8 @@
-import { DEFAULT_DIFF_PICKS, type DiffPicks, type DiffQuestion, type DiffSummary } from '../../../../shared/diff/types';
+import { DEFAULT_DIFF_PICKS, type DiffFile, type DiffPicks, type DiffQuestion, type DiffSummary } from '../../../../shared/diff/types';
+import type { SessionSummary } from '../../../../shared/types';
 import { store } from '../../../state/app';
-import { editorTabsOnShow, openInEditor } from '../../../state/editor-tabs';
+import { sessionById } from '../../../state/views';
+import { editorTabsOnShow, openInEditor, type StepFile } from '../../../state/editor-tabs';
 import type { MountedPanel, PanelHost, PanelView } from '../../contract';
 import type { PanelSlot } from '../../layout';
 import { CWD_OPTION, optionsOf, type OptionsDecl } from '../../options';
@@ -8,7 +10,9 @@ import { checkoutReads, type ChangesRead } from '../../checkout-reads';
 import { NO_CONTEXT, RunGate, prepare, resolveContext, runKey } from '../../run';
 import { Driven, GateDriver } from '../../gate-driver';
 import { element } from '../../../ui/dom';
-import { FileList, type FilesView } from './files';
+import type { MenuItem } from '../../../ui/menu';
+import { FileList, type FilesView, type Placed } from './files';
+import { explorerRoots, type ExplorerRoot } from './roots';
 import { QUESTION_NAMES, Toolbar } from './toolbar';
 import './panel.css';
 
@@ -42,23 +46,26 @@ const NOTHING: Record<DiffQuestion, (summary: DiffSummary) => string> = {
 export class ExplorerPanel extends Driven implements MountedPanel {
   readonly el = element('div', 'panel-body explorer-panel');
   private readonly note = element('p', 'pane-placeholder explorer-note');
-  private readonly files = new FileList((path, keep) => this.pickFile(path, keep));
+  private readonly files = new FileList((file, keep) => this.pickFile(file, keep));
   private readonly toolbar: Toolbar;
   private readonly gate: RunGate;
   private readonly stopWatchingSessions: () => void;
   private readonly stopWatchingEditor: () => void;
   private picks: DiffPicks = DEFAULT_DIFF_PICKS;
+  /** The first root's summary, which the toolbar and the note under the list speak of. */
   private summary: DiffSummary | null = null;
+  /** The roots of the latest read, in their order; none before it, and after one git refused. */
+  private roots: ExplorerRoot[] = [];
+  /** Each root's latest read, by its path. */
+  private reads = new Map<string, ChangesRead>();
   /** Why the latest read failed, as git said it; null after one that did not. */
   private failure: string | null = null;
   /** Whether the panel passed its last check; null until the first has answered. */
   private runnable: boolean | null = null;
-  /** Stops following the checkout it last read, for the question it last asked; null before its first read. */
-  private stopFollowing: (() => void) | null = null;
-  /** What it follows now, to follow again only when either changes. */
-  private followed: { root: string; question: DiffQuestion } | null = null;
-  /** The read last drawn, so a read it asked and also heard as a follower draws once. */
-  private shown: ChangesRead | null = null;
+  /** How to stop following each root it follows, by its path. */
+  private readonly following = new Map<string, () => void>();
+  /** The question it follows its roots for; null while it follows none. */
+  private followedQuestion: DiffQuestion | null = null;
   /** The checkout the latest read looked in. */
   private dir: string | null = null;
   protected readonly driver: GateDriver;
@@ -76,6 +83,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
       () => this.picks.question,
       () => this.summary,
       (question) => this.pickQuestion(question),
+      () => this.jumps(),
     );
     this.el.append(this.toolbar.el, this.files.el, this.note);
     this.gate = new RunGate(
@@ -119,26 +127,49 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     this.gate.refresh();
   }
 
-  /** Open the file pressed in the Editor, with the list's order to step through. */
-  private pickFile(path: string, keep: boolean): void {
-    const summary = this.summary;
-    const file = summary?.files.find((each) => each.path === path);
-    if (!summary?.against || !file) return;
-    const byPath = new Map(summary.files.map((each) => [each.path, each]));
-    const files = this.files.order().flatMap((each) => byPath.get(each) ?? []);
-    openInEditor({ root: summary.root, file, diff: { question: this.picks.question, against: summary.against }, files }, keep);
+  /** Open the file pressed in the Editor, with the list's order, across its roots, to step through. */
+  private pickFile(pressed: Placed, keep: boolean): void {
+    const steps = this.files.order().flatMap((placed) => this.stepOf(placed) ?? []);
+    const step = this.stepOf(pressed);
+    if (!step) return;
+    openInEditor({ root: step.root, file: step.file, diff: { question: this.picks.question, against: step.against }, files: steps }, keep);
   }
 
-  /** The file the Editor shows for the tab on show, by its path in this checkout. */
-  private picked(): string | null {
+  /** A file of the list as the Editor steps through it, or null where its root has no comparison to make. */
+  private stepOf(placed: Placed): StepFile | null {
+    const read = this.reads.get(placed.root);
+    if (read?.kind !== 'summary' || !read.summary.against) return null;
+    const file = read.summary.files.find((each) => each.path === placed.path);
+    return file ? { root: placed.root, against: read.summary.against, file } : null;
+  }
+
+  /** The file the Editor shows for the tab on show, by its root and path. */
+  private picked(): Placed | null {
     const set = editorTabsOnShow();
     const shown = set.tabs.find((tab) => tab.key === set.active);
-    return shown && shown.ref.root === this.summary?.root ? shown.ref.file.path : null;
+    return shown ? { root: shown.ref.root, path: shown.ref.file.path } : null;
   }
 
   /** The Editor's tabs changed: mark the row it shows. */
   private editorMoved(): void {
-    if (this.summary) this.drawRows();
+    if (this.roots.length) this.drawRows();
+  }
+
+  /** Where the toolbar's jump goes: each root, with how many files changed there, the main checkout the session changed nothing in muted, as a project heading's ungrouped sessions are. */
+  private jumps(): MenuItem[] {
+    return this.roots.map((root) => ({
+      label: root.path.slice(root.path.lastIndexOf('/') + 1) || root.path,
+      count: filesOf(this.reads.get(root.path)).length,
+      muted: root.reason === 'shared',
+      onSelect: () => this.files.reveal(root.path),
+    }));
+  }
+
+  /** The session whose checkouts are roots: the one on show, unless the panel has a folder of its own. */
+  private rootsSession(): SessionSummary | null {
+    if (optionsOf(this.slot.entry).cwd) return null;
+    const id = this.host.where().tab?.id;
+    return id ? sessionById(id) : null;
   }
 
   /** Check the options against the selection as it is now, and tell the host what is wrong and where the panel looks; null once the panel is gone. */
@@ -151,10 +182,10 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     return { problems, dir: run?.cwd ?? null };
   }
 
-  /** Read the list for read `number`, checking first; only the latest read draws, and it then follows the checkout it read. */
+  /** Read the list for read `number`, checking first: the checkout the panel looks in, then the session's other roots; only the latest read draws, and it then follows each root it read. */
   private async read(number: number): Promise<void> {
-    // Another question's answers stop drawing at once, rather than once its own comes back.
-    if (this.followed && this.followed.question !== this.picks.question) this.unfollow();
+    // Another question's answers stop drawing at once, rather than once its own come back.
+    if (this.followedQuestion !== null && this.followedQuestion !== this.picks.question) this.unfollow();
     const checked = await this.check();
     if (!checked || !this.gate.isLatest(number)) return;
     if (checked.problems.length || checked.dir === null) {
@@ -165,45 +196,60 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     }
     this.host.setBusy(true);
     const question = this.picks.question;
-    const read = await checkoutReads.read(checked.dir, question);
+    const first = await checkoutReads.read(checked.dir, question);
+    // A read git refused names no checkout, so there are no roots to read or follow; the whole checkout otherwise, whatever subfolder the panel looks in.
+    const roots = first.kind === 'summary' ? explorerRoots(first.summary.root, this.rootsSession()) : [];
+    const rest = await Promise.all(roots.slice(1).map((root) => checkoutReads.read(root.path, question)));
     if (this.disposed || !this.gate.isLatest(number)) return;
     this.host.setBusy(false);
-    this.show(read, checked.dir);
-    // The whole checkout is followed, since the diff covers it, whatever subfolder the panel looks in; a read git refused names no checkout to follow.
-    if (read.kind === 'summary') this.follow(read.summary.root, question);
-    else this.unfollow();
+    this.roots = roots;
+    this.reads = new Map(roots.map((root, at) => [root.path, at === 0 ? first : rest[at - 1]!]));
+    this.dir = first.kind === 'summary' ? first.summary.root : checked.dir;
+    this.summary = first.kind === 'summary' ? first.summary : null;
+    this.follow(question);
+    this.draw(first.kind === 'failed' ? first.error : null);
     this.gate.ended(number);
   }
 
-  /** Draw `read`, read in `dir`, unless it is the one drawn last. */
-  private show(read: ChangesRead, dir: string): void {
-    if (read === this.shown) return;
-    this.shown = read;
+  /** Follow every root's changes for `question`, letting go of roots no longer among them, or of all when the question is another. */
+  private follow(question: DiffQuestion): void {
+    if (this.followedQuestion !== question) this.unfollow();
+    this.followedQuestion = question;
+    const paths = new Set(this.roots.map((root) => root.path));
+    for (const [path, stop] of this.following) {
+      if (paths.has(path)) continue;
+      stop();
+      this.following.delete(path);
+    }
+    for (const path of paths) {
+      if (this.following.has(path)) continue;
+      this.following.set(path, checkoutReads.follow(path, question, (read) => this.heard(path, read)));
+    }
+  }
+
+  /** A root's changes were read again by someone: draw them, unless they are what is drawn. */
+  private heard(path: string, read: ChangesRead): void {
+    if (this.disposed || this.reads.get(path) === read) return;
+    this.reads.set(path, read);
+    if (path !== this.roots[0]?.path) {
+      this.drawRows();
+      return;
+    }
     this.summary = read.kind === 'summary' ? read.summary : null;
-    this.dir = this.summary?.root ?? dir;
     this.draw(read.kind === 'failed' ? read.error : null);
   }
 
-  /** Follow `root`'s changes for `question`, letting go of what it followed before. */
-  private follow(root: string, question: DiffQuestion): void {
-    if (this.followed?.root === root && this.followed.question === question) return;
-    this.unfollow();
-    this.followed = { root, question };
-    this.stopFollowing = checkoutReads.follow(root, question, (read) => {
-      if (!this.disposed) this.show(read, root);
-    });
+  private unfollow(): void {
+    for (const stop of this.following.values()) stop();
+    this.following.clear();
+    this.followedQuestion = null;
   }
 
   /** A panel that can run with nowhere to run: it says so, as a command panel does. */
-  private unfollow(): void {
-    this.stopFollowing?.();
-    this.stopFollowing = null;
-    this.followed = null;
-  }
-
   private idle(): void {
     this.unfollow();
-    this.shown = null;
+    this.roots = [];
+    this.reads.clear();
     this.summary = null;
     this.dir = null;
     this.toolbar.draw();
@@ -216,19 +262,24 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     this.failure = failure;
     this.toolbar.draw();
     this.host.setStatus(failure ? 'fail' : null);
-    this.host.setCount(this.summary ? this.summary.files.length : null);
+    this.host.setCount(this.summary ? this.listed() : null);
     this.drawRows();
+  }
+
+  /** How many files the roots list, those of a root that starts folded left out, since they are others' changes. */
+  private listed(): number {
+    return this.roots.filter((root) => !root.folded).reduce((sum, root) => sum + filesOf(this.reads.get(root.path)).length, 0);
   }
 
   /** The rows, the one the Editor shows marked, and what the list says under them. */
   private drawRows(): void {
     const files = this.summary?.files ?? [];
-    this.files.draw(files, this.view(), this.picked());
+    this.files.draw(this.roots.map((root) => ({ root, read: this.reads.get(root.path) })), this.view(), this.picked());
     const failure = this.failure;
     if (failure) this.say(`Git could not read the changes here: ${failure.replace(/\.$/, '')}.`);
     else if (!this.summary) this.say('');
     else if (this.picks.question === 'since' && !this.summary.base) this.say(`No base to measure from: neither upstream nor origin has a default branch, or a develop, main or master branch, here. ${QUESTION_NAMES.unpushed} and ${QUESTION_NAMES.uncommitted} still work.`);
-    else if (!files.length) this.say(NOTHING[this.picks.question](this.summary));
+    else if (!files.length && this.listed() === 0) this.say(NOTHING[this.picks.question](this.summary));
     else this.say(this.summary.untrackedLeftOut ? `And ${this.summary.untrackedLeftOut} more untracked files, not listed.` : '');
   }
 
@@ -254,4 +305,9 @@ export class ExplorerPanel extends Driven implements MountedPanel {
       if (this.runnable === true && this.dir !== null) this.gate.changed();
     }, SETTLE_MS);
   }
+}
+
+/** The files a read lists; none for one git refused, or none yet. */
+function filesOf(read: ChangesRead | undefined): readonly DiffFile[] {
+  return read?.kind === 'summary' ? read.summary.files : [];
 }

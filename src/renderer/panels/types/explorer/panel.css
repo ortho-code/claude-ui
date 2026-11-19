@@ -5,6 +5,14 @@
   min-height: 0;
 }
 
+/* The list takes the height its rows need, scrolling past the panel's, so a note under it, such as one saying there is nothing to list, leaves the roots' rows whole above it. */
+.explorer-panel > .explorer-files {
+  flex: 0 1 auto;
+}
+
+/* What the list leaves, rather than the whole height a pane's placeholder claims (base.css). */
 .explorer-note {
+  flex: 1 1 0;
+  height: auto;
   padding: 8px 14px;
 }

@@ -179,13 +179,15 @@ A panel's options are checked by the panel itself, when it appears and before ea
 
 ## The Explorer
 
-An `explorer` panel lists the files that changed in the checkout it looks in, beside the session that is changing them:
+An `explorer` panel lists the files that changed in the checkout it looks in, and in the session's other checkouts, beside the session that is changing them:
 
 ```json
 { "id": "changes", "type": "explorer" }
 ```
 
 It looks where a `command` panel would run, follows the session into a worktree the same way, and takes a `cwd` the same way.
+Each checkout is a row of its own, with its branch where that is not the folder's name and how many files changed there, its files under it along a line, as a group's sessions are in the session list: the one it looks in first, then the other checkouts the session changed files in, then the main checkout when the session changed nothing there, folded, so others' changes there stay out of the way until you open it.
+With more than one checkout, the layers button at the end of the row over the list jumps to one of them.
 The menu over its list picks what it lists, and is kept for the panel:
 
 - **Since branched**: everything the branch did since it left its base, committed or not.

@@ -34,6 +34,14 @@ describe('the summary', () => {
     ]);
   });
 
+  it('names the branch the checkout has out, and none for a detached HEAD', async () => {
+    const base = branched({ 'a.txt': 'one\n' });
+    git('checkout', '-q', '-b', 'topic');
+    expect((await diffSummary(repo(), 'uncommitted')).branch).toBe('topic');
+    git('checkout', '-q', '--detach', base);
+    expect((await diffSummary(repo(), 'uncommitted')).branch).toBeNull();
+  });
+
   it('lists only what is not committed for Uncommitted', async () => {
     branched({ 'a.txt': 'one\n', 'b.txt': 'two\n' });
     write('a.txt', 'one\nmore\n');

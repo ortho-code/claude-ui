@@ -10,6 +10,56 @@
   color: var(--muted);
 }
 
+/* A root's row heads its section, so it reads as one: the name in the weight a section's heading takes (card.css).
+   The name takes its own width first, and is cut only once it is wider than the row. */
+.explorer-root .card-title {
+  flex: 0 1 auto;
+  font-weight: 650;
+}
+
+/* The count at the row's end, whatever the name and the branch leave. */
+.explorer-root .list-trail {
+  margin-left: auto;
+}
+
+/* The branch after a root's name, muted, its mark first: it has only the room the name leaves, so it gives way before the name does, and never more than about half the row. */
+.explorer-branch {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 45%;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.explorer-branch svg {
+  flex: none;
+}
+
+.explorer-branch-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.explorer-root-failed {
+  color: var(--muted);
+}
+
+/* A root's files, inside the index line (ui/members-rail.css), the line under the root's chevron: a compact row's 8px padding and half the 12px chevron, less half the line's 2px. */
+.explorer-files > .members-rail {
+  margin-left: 13px;
+  padding-left: 0;
+}
+
+/* The repository's main checkout, a root because the session's record lists no change there, holds others' changes, so its row reads quieter than the session's own. */
+.explorer-root.shared .card-title {
+  color: var(--muted);
+}
+
 /* The file whose diff is on show, in the fill the session row on show wears, without its edge, which says a session has a tab. */
 .explorer-files .explorer-file.picked {
   background: var(--active);

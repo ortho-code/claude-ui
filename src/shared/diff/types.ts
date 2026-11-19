@@ -60,6 +60,8 @@ export interface DiffCounts {
 export interface DiffSummary {
   /** The root of the checkout the diff covers, which the paths are relative to. */
   root: string;
+  /** The branch the checkout has out; null for a detached HEAD. */
+  branch: string | null;
   /** The commit the diff is taken against; null when Since branched has no base to measure from. */
   against: string | null;
   /** The base Since branched is measured from, whichever question this is; null when there is none. */

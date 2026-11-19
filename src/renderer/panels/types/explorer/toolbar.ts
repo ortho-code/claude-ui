@@ -3,6 +3,8 @@ import { element } from '../../../ui/dom';
 import { openMenu, type MenuItem } from '../../../ui/menu';
 import { menuCaret } from '../../../ui/menu-caret';
 import { mutedText } from '../../../ui/muted';
+import { layersIcon } from '../../../ui/svg';
+import { setTooltip } from '../../../ui/tooltip';
 import './toolbar.css';
 
 /**
@@ -11,6 +13,9 @@ import './toolbar.css';
 
 /** Each question's name, as the menu and the button say it. */
 export const QUESTION_NAMES: Record<DiffQuestion, string> = { since: 'Since branched', unpushed: 'Unpushed', uncommitted: 'Uncommitted' };
+
+/** The jump button's label and tooltip. */
+const JUMP = 'Jump to a checkout';
 
 /** Where a base came from, as its tooltip says it. */
 const SOURCE_WORDS: Record<BaseSource, string> = {
@@ -25,17 +30,26 @@ export class Toolbar {
   private readonly label = element('span');
   private readonly caret = menuCaret();
   private readonly base = element('span', 'diff-base');
+  /** Jumps to one of the roots, as a project heading's button jumps to one of its groups; hidden below two. */
+  private readonly jumpButton = element('button', 'icon-btn compact explorer-jump');
 
   constructor(
     private readonly current: () => DiffQuestion,
     private readonly summary: () => DiffSummary | null,
     private readonly pick: (question: DiffQuestion) => void,
+    private readonly jumps: () => MenuItem[],
   ) {
     this.button.type = 'button';
     this.button.append(this.label, this.caret);
     this.button.title = 'Pick what the list shows';
     this.button.addEventListener('click', () => openMenu(this.button, this.items()));
-    this.el.append(this.button, this.base);
+    this.jumpButton.type = 'button';
+    this.jumpButton.innerHTML = layersIcon(14);
+    this.jumpButton.setAttribute('aria-label', JUMP);
+    setTooltip(this.jumpButton, JUMP);
+    // Listed again as the window's state changes while it is open, and closed once there is nowhere else to jump, as a project heading's jump is; a new read of a checkout alone does not list it again.
+    this.jumpButton.addEventListener('click', () => openMenu(this.jumpButton, this.jumps(), () => (this.jumps().length < 2 ? null : this.jumps())));
+    this.el.append(this.button, this.base, this.jumpButton);
   }
 
   draw(): void {
@@ -44,6 +58,7 @@ export class Toolbar {
     const summary = this.summary();
     this.base.replaceChildren(...this.baseWords(question, summary));
     this.base.title = question === 'since' && summary?.base ? SOURCE_WORDS[summary.base.source] : '';
+    this.jumpButton.hidden = this.jumps().length < 2;
   }
 
   /** The three questions, the one on show ticked, each with the commits it counts where it counts any, said as commits, so the number is not read as files. */

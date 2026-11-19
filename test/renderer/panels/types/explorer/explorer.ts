@@ -10,6 +10,7 @@ import { here, withLayout } from '../../layout/layout';
 /** A summary as main reads one, with what a check does not name filled in: a base guessed from the remotes and no files. */
 export const summary = (over: Partial<DiffSummary> = {}): DiffSummary => ({
   root: PROJECT,
+  branch: 'feature',
   against: 'aaaaaaa',
   base: { ref: 'upstream/main', source: 'convention' },
   missing: null,
@@ -43,22 +44,24 @@ export const picksData = (picks: Partial<DiffPicks>): PanelData => ({ sessions: 
 
 /**
  * Boot with the project's session on show, the Editor and the Explorer beside it, and main answering each question from `diffs`.
- * `data` is what the Explorer's own file keeps and `editor` what the window keeps of the Editor (docked, how it draws a diff), `tree` the project's working tree's fingerprint, `files` each file's diff by path, `width` the docked Editor's, null to leave it out of the file, `editorOff` the Editor panel switched off, `also` a second session of the project open in a tab of its own, `history` the requests of the session on show, and `historyUi` what the window keeps of the history (docked, its width).
+ * `data` is what the Explorer's own file keeps and `editor` what the window keeps of the Editor (docked, how it draws a diff), `tree` the project's working tree's fingerprint, `files` each file's diff by path, `width` the docked Editor's, null to leave it out of the file, `editorOff` the Editor panel switched off, `also` a second session of the project open in a tab of its own, `history` the requests of the session on show, `historyUi` what the window keeps of the history (docked, its width), `as` what the session on show has otherwise than the fixture's, and `checkouts` the other checkouts main answers for, each with its questions' answers and its files' diffs.
  */
 export async function bootDiff(
   app: App,
   diffs: Partial<Record<DiffQuestion, DiffSummary>>,
-  options: { data?: PanelData; editor?: Partial<EditorUi>; width?: string | null; editorOff?: boolean; tree?: string; files?: Record<string, FileDiff>; also?: SessionSummary; history?: Exchange[]; historyUi?: Partial<HistoryUi> } = {},
+  options: { data?: PanelData; editor?: Partial<EditorUi>; width?: string | null; editorOff?: boolean; tree?: string; files?: Record<string, FileDiff>; also?: SessionSummary; history?: Exchange[]; historyUi?: Partial<HistoryUi>; as?: Partial<SessionSummary>; checkouts?: Record<string, { diffs: Partial<Record<DiffQuestion, DiffSummary>>; files?: Record<string, FileDiff> }> } = {},
 ): Promise<void> {
   const also = options.also ? [options.also] : [];
+  const shown = { ...here, ...options.as };
+  const checkouts = Object.entries(options.checkouts ?? {});
   await app.boot({
     ...diffLayout(options.width === undefined ? '480px' : options.width, options.editorOff === true),
-    sessions: [here, ...also],
-    openSessions: [here.id, ...also.map((each) => each.id)],
-    activeSession: here.id,
-    history: Object.fromEntries([here, ...also].map((each) => [each.id, each === here ? (options.history ?? []) : []])),
-    diffs: { [PROJECT]: diffs },
-    fileDiffs: { [PROJECT]: options.files ?? {} },
+    sessions: [shown, ...also],
+    openSessions: [shown.id, ...also.map((each) => each.id)],
+    activeSession: shown.id,
+    history: Object.fromEntries([shown, ...also].map((each) => [each.id, each === shown ? (options.history ?? []) : []])),
+    diffs: { [PROJECT]: diffs, ...Object.fromEntries(checkouts.map(([root, checkout]) => [root, checkout.diffs])) },
+    fileDiffs: { [PROJECT]: options.files ?? {}, ...Object.fromEntries(checkouts.map(([root, checkout]) => [root, checkout.files ?? {}])) },
     panelData: options.data ? { changes: options.data } : {},
     uiState: { ...defaultUi(), editor: { ...defaultUi().editor, ...options.editor }, history: { ...defaultUi().history, ...options.historyUi } },
     ...(options.tree ? { trees: { [PROJECT]: options.tree } } : {}),
@@ -102,7 +105,10 @@ export const position = (page: Page): Locator => editor(page).locator('.diff-pos
 export const editorTabs = (page: Page): Locator => page.locator('.editor-view .panel-tabs .tab');
 
 export const panel = (page: Page): Locator => page.locator('.explorer-panel');
-export const rows = (page: Page): Locator => panel(page).locator('.list-row');
+/** The rows under the roots: the folders and the files, each root's row left out. */
+export const rows = (page: Page): Locator => panel(page).locator('.list-row:not(.explorer-root)');
+/** Each root's row, heading its section. */
+export const rootRows = (page: Page): Locator => panel(page).locator('.list-row.explorer-root');
 export const note = (page: Page): Locator => panel(page).locator('.explorer-note');
 export const questionButton = (page: Page): Locator => panel(page).locator('.diff-question');
 export const menuRows = (page: Page): Locator => page.locator('.kebab-menu button.menu-row');
