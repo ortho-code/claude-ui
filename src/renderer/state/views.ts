@@ -124,9 +124,13 @@ const visibleFrom = lastAnswer((sessions: SessionSummary[], tabs: readonly TabSt
 });
 
 /** The switcher's project pool: every project's tips minus finished/pending-delete, independent of the search text and active project so you can always navigate to any project. */
-export function switcherPool(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes'>): SessionSummary[] {
-  return viewPool(visibleSessions(view), false, view);
+export function switcherPool(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes'>): readonly SessionSummary[] {
+  return switcherPoolFrom(visibleSessions(view), view.finished, view.pendingDeletes);
 }
+
+const switcherPoolFrom = lastAnswer((visible: readonly SessionSummary[], finished: AppState['finished'], pendingDeletes: AppState['pendingDeletes']): readonly SessionSummary[] =>
+  viewPool(visible, false, { finished, pendingDeletes }),
+);
 
 /**
  * The projects whose sessions on disk are all finished, each with those sessions: such a project stays listed, empty and saying so, until its sessions are deleted.
@@ -156,11 +160,13 @@ export function listedProjects(view: View<'sessions' | 'tabs' | 'finished' | 'pe
 
 /**
  * Every project in the switcher's pool, counted and rolled up in the list's order, with those whose sessions are all finished counted at none, and all of them together: the one roll-up the switcher, the sidebar's rail icon and a panel's session dialog read.
- * Worked out for each reader rather than kept, since it costs well under a millisecond (0.07 ms at 382 sessions, measured).
+ * Answered again while what it is worked out from is the same, since its readers ask in the same frame after every status event, and at a thousand sessions each count walks all of them.
  */
 export function switcherModel(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'projectNames' | 'projectOrder' | 'settings' | 'needsYouTypes'>): SwitcherModel {
-  return projectsForSwitcher(switcherPool(view), view.statuses, view.acked, view.needsYou, view.projectNames, view.projectOrder, finishedOnlyProjects(view), mutedNeedsYou(view), strengthNow(view));
+  return switcherModelFrom(switcherPool(view), view.statuses, view.acked, view.needsYou, view.projectNames, view.projectOrder, finishedOnlyProjects(view), mutedNeedsYou(view), strengthNow(view));
 }
+
+const switcherModelFrom = lastAnswer(projectsForSwitcher);
 
 /** The sessions a view holds before any filter, finished or not (see inView). */
 export function viewPool(all: readonly SessionSummary[], finishedView: boolean, view: View<'finished' | 'pendingDeletes'>): SessionSummary[] {

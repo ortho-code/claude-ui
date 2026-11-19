@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { TabState } from '../../../../src/renderer/state/app';
-import { finishedOnlyProjects, visibleSessions } from '../../../../src/renderer/state/views';
+import { store, type TabState } from '../../../../src/renderer/state/app';
+import { finishedOnlyProjects, switcherModel, visibleSessions } from '../../../../src/renderer/state/views';
 import { session } from '../fixtures';
 
 const listed = session({ id: 'listed', repoRoot: '/p/one' });
@@ -39,5 +39,15 @@ describe('finishedOnlyProjects', () => {
     // Each right after `same`, so each differs from the last call in its one slice only.
     expect([...finishedOnlyProjects({ ...same, pendingDeletes: new Set(['done']) })]).toEqual([]);
     expect([...finishedOnlyProjects({ ...same, finished: new Map([['listed', 1]]) })]).toEqual([['/p/one', [listed]]]);
+  });
+});
+
+describe('switcherModel', () => {
+  it('answers again from the same state, and counts again for a status that moved', () => {
+    const state = { ...store.get(), sessions: [listed, done], statuses: new Map([['listed', 'busy']]) };
+    const first = switcherModel(state);
+    expect(first.all.badge).toBe('busy');
+    expect(switcherModel(state)).toBe(first);
+    expect(switcherModel({ ...state, statuses: new Map([['listed', 'waiting']]) }).all.badge).toBe('waiting');
   });
 });

@@ -33,7 +33,7 @@ function rollUpOf(rollUps: readonly RollUp[], strength: Strength): RollUp {
 // Projects follow the order you set (`projectOrder`, `orderProjects`), as in the session list; a project with no place in it yet goes last.
 // Per project: session count + the rolled-up nudge badge; plus an "All" aggregate over everything passed.
 export function projectsForSwitcher(
-  sessions: SessionSummary[],
+  sessions: readonly SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
   needsYou: ReadonlyMap<string, readonly NeedsYou[]>,

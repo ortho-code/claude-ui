@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { NeedsYou } from '../../../../src/shared/types';
-import { asksForYou, nudgeOf, rollUpWords, sessionPart, strongestNudge } from '../../../../src/renderer/status/rollup';
+import { asksForYou, nudgeOf, rollUp, rollUpWords, sessionPart, strongestNudge } from '../../../../src/renderer/status/rollup';
 import { isNeeds, shownState } from '../../../../src/renderer/status/shown';
-import { APP_ORDER, strengthOf, wasRunning } from '../fixtures';
+import { APP_ORDER, session, strengthOf, wasRunning } from '../fixtures';
 
 describe('nudgeOf', () => {
   it('counts a live status, muted once read, and nothing for a session with none', () => {
@@ -105,5 +105,27 @@ describe('sessionPart', () => {
     expect(sessionPart('waiting', [wasRunning], true, false, APP_ORDER)).toBe('waiting');
     expect(sessionPart('busy', [wasRunning], true, false, APP_ORDER)).toBe('busy');
     expect(sessionPart('ready', [], false, false, APP_ORDER)).toBe('ready');
+  });
+});
+
+describe('rollUp', () => {
+  it('follows each thing a session rolls up from, rolled up again and again', () => {
+    const one = session({ id: 'one' });
+    // The same lists each time, as a store's slice keeps them while nothing in them moves, so only the input that changes can tell.
+    const none: NeedsYou[] = [];
+    const marked: NeedsYou[] = [wasRunning];
+    const badge = (status: string, acked: string[] = [], reasons: NeedsYou[] = none, muted: string[] = []): string | null =>
+      rollUp([one], new Map([['one', status]]), new Set(acked), new Map([['one', reasons]]), new Set(muted), APP_ORDER).badge;
+    expect(badge('busy')).toBe('busy');
+    expect(badge('waiting')).toBe('waiting');
+    expect(badge('waiting', ['one'])).toBeNull();
+    // Each step from here moves one input only.
+    expect(badge('ready', [], marked)).toBe('needs:app.was-running');
+    expect(badge('ready', [], none)).toBe('ready');
+    expect(badge('ready', [], marked)).toBe('needs:app.was-running');
+    expect(badge('ready', [], marked, ['one'])).toBe('ready');
+    expect(badge('ready', [], marked)).toBe('needs:app.was-running');
+    expect(badge('ready', ['one'], marked)).toBeNull();
+    expect(badge('busy', ['one'], marked)).toBe('busy');
   });
 });
