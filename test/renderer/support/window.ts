@@ -23,8 +23,8 @@ export const toastButton = (page: Page, label: string): Locator => page.locator(
 /** Every row of the session list. */
 export const rows =(page: Page): Locator => page.locator('#sessions .session');
 
-/** The session list's row whose text holds `title`. */
-export const row = (page: Page, title: string): Locator => rows(page).filter({ hasText: title });
+/** The session list's row whose title holds `title`: its title alone, since the row's whole text runs the title into its time, and "Beta work 1" then "50 d ago" holds "Beta work 15". */
+export const row = (page: Page, title: string): Locator => rows(page).filter({ has: page.locator('.card-title', { hasText: title }) });
 
 /** The titles of the rows inside `scope`, such as one group, in the list's order. */
 export const titlesIn = (scope: Locator): Locator => scope.locator('.session .card-title');
