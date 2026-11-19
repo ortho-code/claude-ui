@@ -6,7 +6,7 @@
 ## Decision
 
 A store watcher can ask to be told once a frame rather than at once: at the next animation frame, once for every change before it, with what moved since its last call.
-The project switcher, both rail icons and the panels' session marks ask for it; every other watcher is still told at once.
+The project switcher, both rail icons, the panels' session marks and the Review button's count ask for it; every other watcher is still told at once.
 A watcher can wait only where it is the one painter of what it draws.
 
 ## Why

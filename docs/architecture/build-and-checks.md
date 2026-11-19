@@ -89,10 +89,10 @@ The comparison sorts each state's lines, and takes a map of the classes a change
 `npm run test:perf` holds the window to its performance budgets: it builds, then Playwright loads the built `dist/renderer` on the window checks' own harness and stand-in (`test/perf/`), with a list of 1,000 sessions, and times what the list does.
 Each check runs twice, as two Playwright projects: at the machine's own speed, and with Chromium's CPU slowed four times over, which stands in for a slower laptop.
 A key in the query field is timed to the second frame after it (`query-field.spec.ts`); a status change, twenty at once, and a session renamed in the listing are timed by their longest task, the longest the window went without a turn for anything else (`live-updates.spec.ts`), and so is the minute's clock, over a real minute, since faking the page's clock would also fake the time the checks read.
-Every check prints a line per event with its median, its 95th percentile and its budget, so a pass also says by how much, and holds the 95th percentile to the budget.
+Every check prints a line per event with its median, its 95th percentile and its budget, or that it is reported only, so a pass also says by how much, and holds the 95th percentile to the budget where there is one; a listing change and the minute's clock are reported only.
 
 It runs on its own, never in `npm test`, `npm run test:renderer` or CI ([decided 2026-11-18](../decisions/0235-the-performance-checks-run-on-their-own.md)): a timing on a shared runner flakes, and a gate made to pass there with retries or wide margins would hold nothing.
-So it runs one check at a time, and starts by reading the machine's load: above half the cores, every line and every failure says so, since the slowed runs suffer most, and a failure is still a failure rather than skipped, so a real slowdown is never hidden.
+So it runs one check at a time, and reads the machine's load once it has measured: above half the cores, its report ends with a line saying so, and so does the failure of each budget it holds, since the slowed runs suffer most; a failure is still a failure rather than skipped, so a real slowdown is never hidden.
 It does not cover main's answers, which the stand-in gives, or Electron's own window.
 
 ### The budgets
