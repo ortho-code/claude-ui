@@ -1,10 +1,9 @@
 import { setFolded } from '../../../ui/card';
 import { fromMarkup } from '../../../ui/dom';
-import { setMarkup } from '../../../ui/keyed';
 import { store, type View } from '../../../state/app';
 import { foldedGroups, foldedProjects, foldsWith } from '../../../state/folds';
-import { strokeIcon } from '../../../ui/svg';
-import { setUnavailable, unavailable } from '../../../ui/unavailable';
+import { unavailable } from '../../../ui/unavailable';
+import { drawCollapseAll } from '../../../ui/collapse-all';
 import { groupSections, projectSections, renderedSections } from './drawn';
 import './folding.css';
 
@@ -63,11 +62,6 @@ export function foldsFollow(view: View<'folds' | 'filter' | 'activeProject' | 'a
   updateCollapseToggle(view);
 }
 
-// Chevrons stacked in the direction things will move: up to fold everything away, down to open it again.
-// Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
-const COLLAPSE_ALL_ICON = strokeIcon(14, '<path d="M4 7.25L8 3.75L12 7.25" /><path d="M4 12.25L8 8.75L12 12.25" />');
-const EXPAND_ALL_ICON = strokeIcon(14, '<path d="M4 3.75L8 7.25L12 3.75" /><path d="M4 8.75L8 12.25L12 8.75" />');
-
 // What the button folds depends on the view.
 // In All it folds the project sections (keyed on projects alone: with every project shut its groups are out of sight anyway).
 // In a single-project view folding the one project you asked to look at is pointless, so it folds THAT project's groups instead.
@@ -85,16 +79,11 @@ function allSectionsCollapsed(view: View<'activeProject' | 'filter' | 'folds'>):
 }
 
 export function updateCollapseToggle(view: View<'activeProject' | 'filter' | 'folds' | 'arrangement'>): void {
-  const label = allSectionsCollapsed(view) ? 'Expand all' : 'Collapse all';
   // Under a filter it folds the filter's own view, as a heading's click does (`foldsWith`).
   // With nothing on screen to fold it is unavailable rather than hidden, since a control vanishing as you type reads worse than one plainly unavailable; Recent draws no sections at all, and leaves the folds as they are for Grouped.
   const { kind, ids } = collapseScope(view);
   const nothing = view.arrangement === 'recent' ? 'Recent has no sections to fold.' : kind === 'projects' ? 'No projects to collapse.' : 'No groups in this project to collapse.';
-  const reason = ids.length === 0 ? nothing : null;
-  setUnavailable(collapseToggle, reason, label);
-  // Every draw of the list says it again, so only a change of icon replaces it, which a press on the button is mostly on (keyed.ts).
-  setMarkup(collapseToggle, allSectionsCollapsed(view) ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON);
-  collapseToggle.setAttribute('aria-label', label);
+  drawCollapseAll(collapseToggle, allSectionsCollapsed(view), ids.length === 0 ? nothing : null);
 }
 
 // Collapsing takes the groups with it, so expanding a project afterwards shows its group headings rather than dumping every row back at once — two levels of overview instead of one.
