@@ -95,6 +95,22 @@ It runs on its own, never in `npm test`, `npm run test:renderer` or CI ([decided
 So it runs one check at a time, and starts by reading the machine's load: above half the cores, every line and every failure says so, since the slowed runs suffer most, and a failure is still a failure rather than skipped, so a real slowdown is never hidden.
 It does not cover main's answers, which the stand-in gives, or Electron's own window.
 
+### The budgets
+
+Each holds at 1,000 sessions, about one and a half times the list the budgets were set on, so they still hold as the list grows, and at the machine's speed and slowed four times, since the app runs on laptops slower than the one it is built on.
+
+| What | Budget | Held by | Last measured, 95th percentile, at its speed / slowed |
+|---|---|---|---|
+| A key in the query field | its frame within 50 ms, 200 ms slowed | `query-field.spec.ts` | keeping rows 32 / 199 ms; dropping rows 33 / 230; bringing rows back 85 / 379 |
+| A status change, and twenty at once | no task longer than a frame, 16 ms; 8 ms of script is what the design leaves for it | `live-updates.spec.ts` | 5.8 / 103 ms; 3.9 / 29 |
+| A session's listing changing | measured, not held | `live-updates.spec.ts` | 34 / 168 ms |
+| The minute's clock | measured, not held | `live-updates.spec.ts` | 34 / 193 ms, one sample |
+| Evaluating a view's query, sets and sort, without the page | 5 ms | nothing yet: the query language does not exist yet | |
+| A plugin that adds links to sessions | runs at most once a minute, at most two at once, cut off after 60 s with its last links kept | nothing yet: no such plugin exists yet | |
+| The sessions file a panel's run is given | at most 1 MB and 10 ms to build | nothing yet | |
+
+Last measured 2026-11-19, at a load of about 10 on 24 cores; the slowed runs' 95th percentiles vary most from run to run, and quieter runs that day measured bringing rows back at 167 ms and a status change at 24.
+
 ## Which checks a change needs
 
 What a commit runs follows from what it changed, since most of the time goes on the window's checks, and most changes cannot reach them.

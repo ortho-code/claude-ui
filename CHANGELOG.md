@@ -46,6 +46,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A session's Siblings and Worktrees still list every one, a sibling whose folder is gone or a gone checkout dimmed.
 - A list panel's line saying its last run failed unfolds, on a press, what the script wrote about it, where that was on hover only.
 - A finished session reopens in one press, from Reopen on its row or in its menu, a sibling or a panel's link, where it took Unfinished first; a message says so, and its Undo finishes it again.
+- The session list keeps up with a thousand sessions: a key in the search, a status change and the minute's clock redraw only what changed and the rows in sight.
+  Rows a search brings back appear from the top over a few frames.
 
 ### Fixed
 
