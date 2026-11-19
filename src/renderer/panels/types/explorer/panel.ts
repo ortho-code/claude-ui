@@ -12,7 +12,7 @@ import { Driven, GateDriver } from '../../gate-driver';
 import { element } from '../../../ui/dom';
 import type { MenuItem } from '../../../ui/menu';
 import { FileList, type FilesView, type Placed } from './files';
-import { explorerRoots, type ExplorerRoot } from './roots';
+import { explorerRoots, type ExplorerRoot, type NestedRepository } from './roots';
 import { QUESTION_NAMES, Toolbar } from './toolbar';
 import './panel.css';
 
@@ -54,11 +54,11 @@ export class ExplorerPanel extends Driven implements MountedPanel {
   private picks: DiffPicks = DEFAULT_DIFF_PICKS;
   /** The first root's summary, which the toolbar and the note under the list speak of. */
   private summary: DiffSummary | null = null;
-  /** The roots of the latest read, in their order; none before it, and after one git refused. */
+  /** The roots of the latest read, in their order; none before it, and after one git refused in a folder with no repository inside it either. */
   private roots: ExplorerRoot[] = [];
   /** Each root's latest read, by its path. */
   private reads = new Map<string, ChangesRead>();
-  /** Why the latest read failed, as git said it; null after one that did not. */
+  /** Why git refused the folder the panel looks in, as git said it, where nothing inside it is a repository either; null otherwise. */
   private failure: string | null = null;
   /** Whether the panel passed its last check; null until the first has answered. */
   private runnable: boolean | null = null;
@@ -66,7 +66,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
   private readonly following = new Map<string, () => void>();
   /** The question it follows its roots for; null while it follows none. */
   private followedQuestion: DiffQuestion | null = null;
-  /** The checkout the latest read looked in. */
+  /** The checkout the latest read looked in, or the folder, where that is no checkout. */
   private dir: string | null = null;
   protected readonly driver: GateDriver;
   private disposed = false;
@@ -158,7 +158,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
   /** Where the toolbar's jump goes: each root, with how many files changed there, the main checkout the session changed nothing in muted, as a project heading's ungrouped sessions are. */
   private jumps(): MenuItem[] {
     return this.roots.map((root) => ({
-      label: root.path.slice(root.path.lastIndexOf('/') + 1) || root.path,
+      label: root.name,
       count: filesOf(this.reads.get(root.path)).length,
       muted: root.reason === 'shared',
       onSelect: () => this.files.reveal(root.path),
@@ -182,7 +182,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     return { problems, dir: run?.cwd ?? null };
   }
 
-  /** Read the list for read `number`, checking first: the checkout the panel looks in, then the session's other roots; only the latest read draws, and it then follows each root it read. */
+  /** Read the list for read `number`, checking first: the checkout the panel looks in and the repositories inside its folder, then the session's other roots; only the latest read draws, and it then follows each root it read. */
   private async read(number: number): Promise<void> {
     // Another question's answers stop drawing at once, rather than once its own come back.
     if (this.followedQuestion !== null && this.followedQuestion !== this.picks.question) this.unfollow();
@@ -196,18 +196,27 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     }
     this.host.setBusy(true);
     const question = this.picks.question;
-    const first = await checkoutReads.read(checked.dir, question);
-    // A read git refused names no checkout, so there are no roots to read or follow; the whole checkout otherwise, whatever subfolder the panel looks in.
-    const roots = first.kind === 'summary' ? explorerRoots(first.summary.root, this.rootsSession()) : [];
-    const rest = await Promise.all(roots.slice(1).map((root) => checkoutReads.read(root.path, question)));
+    const [first, inside] = await Promise.all([checkoutReads.read(checked.dir, question), window.claudeUi.nestedRepositories(checked.dir)]);
+    const insideReads = await Promise.all(inside.map((path) => checkoutReads.read(path, question)));
+    const reads = new Map(inside.map((path, at) => [path, insideReads[at]!]));
+    const nested = inside.map((path): NestedRepository => ({ path, changed: filesOf(reads.get(path)).length > 0 }));
+    // A read git refused names no checkout: the repositories inside the folder are then its only roots; the whole checkout otherwise, whatever subfolder the panel looks in.
+    const firstRoot = first.kind === 'summary' ? first.summary.root : null;
+    if (firstRoot) reads.set(firstRoot, first);
+    const roots = explorerRoots(firstRoot, checked.dir, this.rootsSession(), nested);
+    const rest = roots.filter((root) => !reads.has(root.path));
+    const restReads = await Promise.all(rest.map((root) => checkoutReads.read(root.path, question)));
     if (this.disposed || !this.gate.isLatest(number)) return;
     this.host.setBusy(false);
+    rest.forEach((root, at) => reads.set(root.path, restReads[at]!));
     this.roots = roots;
-    this.reads = new Map(roots.map((root, at) => [root.path, at === 0 ? first : rest[at - 1]!]));
-    this.dir = first.kind === 'summary' ? first.summary.root : checked.dir;
+    this.reads = reads;
+    this.dir = firstRoot ?? checked.dir;
+    // The toolbar and the note speak of the checkout the panel looks in, and of none where its folder is no checkout.
     this.summary = first.kind === 'summary' ? first.summary : null;
     this.follow(question);
-    this.draw(first.kind === 'failed' ? first.error : null);
+    // Git's refusal is the panel's to say only where nothing inside the folder is a repository either.
+    this.draw(first.kind === 'failed' && !roots.length ? first.error : null);
     this.gate.ended(number);
   }
 
@@ -231,8 +240,8 @@ export class ExplorerPanel extends Driven implements MountedPanel {
   private heard(path: string, read: ChangesRead): void {
     if (this.disposed || this.reads.get(path) === read) return;
     this.reads.set(path, read);
-    if (path !== this.roots[0]?.path) {
-      this.drawRows();
+    if (path !== this.roots[0]?.path || this.roots[0].reason !== 'works') {
+      this.draw(this.failure);
       return;
     }
     this.summary = read.kind === 'summary' ? read.summary : null;
@@ -262,7 +271,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     this.failure = failure;
     this.toolbar.draw();
     this.host.setStatus(failure ? 'fail' : null);
-    this.host.setCount(this.summary ? this.listed() : null);
+    this.host.setCount(this.roots.length ? this.listed() : null);
     this.drawRows();
   }
 

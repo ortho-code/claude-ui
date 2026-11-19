@@ -122,6 +122,7 @@ const api: ClaudeUiApi = {
   linkPanelSession: (entryId, sessionId, link, filed) => ipcRenderer.invoke('panelData:link', entryId, sessionId, link, filed),
   onPanelDataChanged: (callback) => ipcRenderer.on('panelData:changed', (_event, entryId: string, data: PanelData) => callback(entryId, data)),
   diffSummary: (dir, question) => ipcRenderer.invoke('diff:summary', dir, question),
+  nestedRepositories: (dir) => ipcRenderer.invoke('diff:nested', dir),
   diffFile: (dir, against, file, from, context, ignoreWs) => ipcRenderer.invoke('diff:file', dir, against, file, from, context, ignoreWs),
   diffCommits: (dir, against) => ipcRenderer.invoke('diff:commits', dir, against),
   diffBaseCandidates: (dir) => ipcRenderer.invoke('diff:baseCandidates', dir),

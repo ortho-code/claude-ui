@@ -136,7 +136,7 @@ export class FileList {
 
   /** A root's row: its folder's name, then its branch where that is not the folder's own name, and its count at the end; a read git refused says so in place of the count. */
   private rootRow(root: ExplorerRoot, read: ChangesRead | undefined): HTMLElement {
-    const name = root.path.slice(root.path.lastIndexOf('/') + 1) || root.path;
+    const { name } = root;
     const row = this.foldingRow('explorer-root', foldKey(root.path, ''), name, 0);
     row.card.classList.toggle('shared', root.reason === 'shared');
     row.title.replaceChildren(span('list-text', name));

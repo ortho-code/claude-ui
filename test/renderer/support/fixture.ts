@@ -94,6 +94,8 @@ export interface BridgeFixture {
   diffs: Record<string, Partial<Record<DiffQuestion, DiffSummary>>>;
   /** What main reads of one file's diff, by checkout root and then path, whatever it is measured against; a file left out has no changes to show. */
   fileDiffs: Record<string, Record<string, FileDiff>>;
+  /** The repositories main finds inside a folder, by the folder; one left out holds none. */
+  nested: Record<string, string[]>;
 }
 
 /** One call the window made, as it arrived; a callback argument is recorded as the string `<callback>`. */
@@ -211,5 +213,6 @@ export function defaultFixture(): BridgeFixture {
     foreground: {},
     diffs: {},
     fileDiffs: {},
+    nested: {},
   };
 }

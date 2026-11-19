@@ -825,6 +825,8 @@ export interface ClaudeUiApi {
   onPanelDataChanged(callback: (entryId: string, data: PanelData) => void): void;
   /** The files `question` lists for the checkout `dir` is in, with the base and the commit it is measured against (src/main/diff/read.ts). */
   diffSummary(dir: string, question: DiffQuestion): Promise<DiffSummaryRead>;
+  /** The repositories inside `dir`, up to three folders down, a checkout of the repository `dir` is in left out (src/main/diff/nested.ts). */
+  nestedRepositories(dir: string): Promise<string[]>;
   /** One file's hunks against the commit a summary named, with `context` unchanged lines around each change, whitespace-only changes left out with `ignoreWs`. */
   diffFile(dir: string, against: string, file: string, from: string | null, context: number, ignoreWs: boolean): Promise<FileDiff>;
   /** The commits between the commit a summary named and `HEAD`, newest first. */

@@ -5,11 +5,12 @@
 
 ## Decision
 
-The Explorer is one tree over the session's checkouts, each a root with a row of its own: the checkout the panel looks in first, then the other checkouts of the repository the session's record lists, newest change first, then the repository's main checkout when the record lists no change there, folded, its row saying how many files others changed there; a listed checkout with no change, the worktree the session's mark names, starts folded too.
+The Explorer is one tree over the session's checkouts, each a root with a row of its own: the checkout the panel looks in first, then the repositories inside the folder it looks in, up to three folders down, named by their path from there and folded while they list no change, then the other checkouts of the repository the session's record lists, newest change first, then the repository's main checkout when the record lists no change there, folded, its row saying how many files others changed there; a listed checkout with no change, the worktree the session's mark names, starts folded too.
 Each root's row names its folder, then the branch it has out, behind the branch mark a worktree session's tab wears, where it is not the folder's own name, then its count at the end; its files sit under it inside the index line a custom group's sessions have in the session list, as a tree or flat, and the Editor steps from the last file of one open root into the first of the next.
 With two roots or more, a jump at the end of the row over the list opens a menu of the roots with their counts, as a project heading's jump lists its groups; a press brings that root to the top, unfolded.
-The roots come from the session's record in the window, as its worktree mark lists its checkouts, so finding them asks main nothing; a panel with a folder of its own has that one root.
-Folders the session wrote to outside every repository are not roots yet: they need a record of which of its writes succeeded, which the app does not keep; repositories nested inside a root are not roots yet either.
+The session's checkouts come from its record in the window, as its worktree mark lists them, so finding them asks main nothing; the repositories inside the folder are main's to find, skipping installed packages and the repository's own checkouts.
+A folder no repository holds, with repositories inside it, has those as its roots, and git's refusal of the folder itself is not said; a panel with a folder of its own has no checkout of the session's among its roots.
+Folders the session wrote to outside every repository are not roots yet: they need a record of which of its writes succeeded, which the app does not keep.
 
 ## Why
 

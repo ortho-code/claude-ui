@@ -120,3 +120,31 @@ test('with nothing to list, the roots stay whole above the note that says so', a
   expect(await list.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
   expect((await rootRows(page).first().boundingBox())!.height).toBeGreaterThan(18);
 });
+
+test('a folder no repository holds has the repositories inside it as its roots, counted, with no word of git’s refusal nor of one repository’s base', async ({ app, page }) => {
+  const theme = `${PROJECT}/wp-content/themes/theme`;
+  const plugin = `${PROJECT}/wp-content/plugins/plugin`;
+  await bootDiff(app, {}, {
+    as: { isRepo: false },
+    nested: { [PROJECT]: [plugin, theme] },
+    checkouts: {
+      [plugin]: { diffs: { since: summary({ root: plugin, branch: 'main', files: [file('plugin.php')] }) } },
+      [theme]: { diffs: { since: summary({ root: theme, branch: 'main', files: [file('style.css'), file('functions.php')] }) } },
+    },
+  });
+  await expect(rootRows(page).locator('.card-title')).toHaveText(['wp-content/plugins/plugin', 'wp-content/themes/theme']);
+  await expect(rootRows(page).locator('.list-trail')).toHaveText(['1', '2']);
+  await expect(page.locator('.explorer-note')).not.toContainText('Git could not read');
+  await expect(page.locator('.panel-count').first()).toHaveText('3');
+  await expect(page.locator('.diff-base')).toHaveText('');
+});
+
+test('a repository inside the checkout comes after it, folded while it lists no change', async ({ app, page }) => {
+  const clone = `${PROJECT}/libs/clone`;
+  await bootDiff(app, { since: summary({ files: [file('src/a.ts')] }) }, {
+    nested: { [PROJECT]: [clone] },
+    checkouts: { [clone]: { diffs: { since: summary({ root: clone, branch: 'main', files: [] }) } } },
+  });
+  await expect(rootRows(page).locator('.card-title')).toHaveText(['demo', 'libs/clone']);
+  await expect(rootRows(page).nth(1).locator('.list-fold')).toHaveAttribute('aria-expanded', 'false');
+});
