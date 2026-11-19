@@ -1,5 +1,6 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { placeChildren } from '../../../ui/keyed';
+import { inBatches, placeRows } from './placing';
 import { buildProjectTree, groupJumpTargets, type ProjectTree } from '../../../rules/session-list';
 import { entityKey, projectGoneReason, structuralSignature } from '../../../rules/sessions';
 import { markProjectGone } from '../../../status/project-gone';
@@ -209,7 +210,15 @@ function rowsFollow(view: ListView): void {
   for (const slice of ROW_SLICES) rowsDrewFrom.set(slice, view[slice]);
 }
 
+/** Draw the list, its rows going on the page a batch a frame (placing.ts), bulk mode's boxes following each batch. */
 function renderList(view: ListView): void {
+  inBatches(
+    () => drawList(view),
+    () => showBulk(store.get()),
+  );
+}
+
+function drawList(view: ListView): void {
   rowsFollow(view);
   const shape = listShape(view);
   drewOrder = keysOf(shape);
@@ -279,7 +288,7 @@ function renderSections(sections: readonly FlatSection[], view: ListView): void 
       row.classList.remove('after-groups');
       return row;
     });
-    placeChildren(els.rows, rows);
+    placeRows(els.rows, rows);
     return els.section;
   });
   placeChildren(container, drawn);
@@ -366,7 +375,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
         row.classList.remove('after-groups'); // rows are reused: it may have been a loose row before
         return row;
       });
-      placeChildren(groupEls.members, [groupEls.empty, ...members]);
+      placeRows(groupEls.members, [groupEls.empty, ...members]);
       groups.push(groupEls.section);
     }
     // Ungrouped sessions sit directly under the project heading, at full width — there is no "Ungrouped" heading, so the indent alone says whether a row is in a group.
@@ -379,7 +388,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     });
     // Its groups stay with it, so they can be filled again; the line goes above them, under the heading it explains.
     els.allFinishedLine.textContent = allFinishedLine(project.finished);
-    placeChildren(els.section, [els.heading, ...(project.finished > 0 ? [els.allFinishedLine] : []), ...groups, ...loose]);
+    placeRows(els.section, [els.heading, ...(project.finished > 0 ? [els.allFinishedLine] : []), ...groups, ...loose]);
     sections.push(els.section);
   }
   placeChildren(container, sections);

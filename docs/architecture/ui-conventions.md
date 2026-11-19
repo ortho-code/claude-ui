@@ -191,6 +191,11 @@ A row that turns out taller moves everything below it once it is drawn, a few fr
 The browser says when a row goes out of sight and comes back (`contentvisibilityautostatechange`); a draw that would bring a row out of sight up to date owes it the update instead, made in full from the store as it then is once the row comes into sight, and the minute's clock leaves its time as it is until then (`followSight`, `rows.ts`; `showMoment`'s `outOfSight`, `moments.ts`).
 A row the browser has said nothing of yet counts as in sight, so a new row is drawn at once, and a row drawn flat, in Recent or the review, is always brought up to date.
 
+**Rows a draw brings back go on the page a batch a frame, from the top** ([decided 2026-11-19](../decisions/0239-rows-a-draw-brings-back-go-on-the-page-a-batch-a-frame.md)).
+A draw puts at most 60 rows that are not on the page yet into it, in the list's order, and the rest 60 a frame after it; a newer draw drops what an older one left (`placing.ts`).
+The list is at its top after a filter changes, which is when many rows come back, so the rows in sight go in first; what is not a row, a group's section, goes in at once, and bulk mode's boxes are drawn again after each batch.
+Until the last batch, what reads the rows from the page (a heading's box in bulk mode, a reveal, the find in page) sees only those placed so far: about ten frames for 600 rows on a slower machine.
+
 
 **`text-box: trim-both cap alphabetic` ends the box at the baseline**, so descenders paint outside it.
 Combined with the `overflow: hidden` that any ellipsis needs, it silently clips every `g`, `p` and `y` — which is exactly what happened to the session meta line.

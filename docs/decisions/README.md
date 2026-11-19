@@ -244,3 +244,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0236](0236-rows-out-of-sight-are-not-drawn.md) | 2026-11-18 | Session rows out of sight are not drawn | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
 | [0237](0237-repaints-a-status-makes-wait-for-the-frame.md) | 2026-11-18 | The repaints a status makes wait for the frame | [The store](../architecture/processes.md#the-store) |
 | [0238](0238-a-row-out-of-sight-is-updated-when-it-comes-into-sight.md) | 2026-11-19 | A row out of sight is updated when it comes into sight | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
+| [0239](0239-rows-a-draw-brings-back-go-on-the-page-a-batch-a-frame.md) | 2026-11-19 | Rows a draw brings back go on the page a batch a frame | [UI conventions](../architecture/ui-conventions.md#ui-conventions) |
