@@ -18,9 +18,10 @@ export interface FileRef {
   files: readonly StepFile[];
 }
 
-/** A file a tab steps through: the checkout it is in, the commit that checkout was read against, and the file. */
+/** A file a tab steps through: the checkout it is in, the question that checkout was read for and the commit it was read against, and the file. */
 export interface StepFile {
   root: string;
+  question: DiffQuestion;
   against: string;
   file: DiffFile;
 }

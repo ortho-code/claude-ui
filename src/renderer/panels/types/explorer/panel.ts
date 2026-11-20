@@ -170,7 +170,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     const read = this.reads.get(placed.root);
     if (read?.kind !== 'summary' || !read.summary.against) return null;
     const file = read.summary.files.find((each) => each.path === placed.path);
-    return file ? { root: placed.root, against: read.summary.against, file } : null;
+    return file ? { root: placed.root, question: this.picks.question, against: read.summary.against, file } : null;
   }
 
   /** The file the Editor shows for the tab on show, by its root and path. */

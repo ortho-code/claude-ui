@@ -3,7 +3,7 @@ import type { DiffFile } from '../../../../src/shared/diff/types';
 import { closed, keyOf, kept, NO_TABS, opened, picked, reordered, stepped, updated, type EditorTabs, type FileRef } from '../../../../src/renderer/state/editor-tabs';
 
 const file = (path: string): DiffFile => ({ path, from: null, status: 'M', added: 1, deleted: 0, binary: false, generated: false });
-const FILES = ['a.ts', 'b.ts', 'c.ts'].map((path) => ({ root: '/repo', against: 'aaaaaaa', file: file(path) }));
+const FILES = ['a.ts', 'b.ts', 'c.ts'].map((path) => ({ root: '/repo', question: 'since' as const, against: 'aaaaaaa', file: file(path) }));
 const ref = (path: string, against = 'aaaaaaa'): FileRef => ({ root: '/repo', file: file(path), diff: { question: 'since', against }, files: FILES });
 const key = (path: string): string => keyOf(ref(path));
 

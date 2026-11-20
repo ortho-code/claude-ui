@@ -111,7 +111,7 @@ export class FileDoc {
       const against = read.summary.against;
       const summary = read.summary;
       const file: DiffFile | undefined = summary.files.find((each) => each.path === this.ref.file.path);
-      const fresh = summary.files.map((each): StepFile => ({ root: summary.root, against, file: each }));
+      const fresh = summary.files.map((each): StepFile => ({ root: summary.root, question: this.ref.diff.question, against, file: each }));
       // This checkout's files take the place its old ones had among the other checkouts'.
       const at = this.ref.files.findIndex((step) => step.root === summary.root);
       const rest = this.ref.files.filter((step) => step.root !== summary.root);
@@ -124,7 +124,7 @@ export class FileDoc {
   }
 }
 
-/** `start` moved to `step`: its file, in its checkout, against what that checkout was read against. */
+/** `start` moved to `step`: its file, in its checkout, for the question that checkout was read for and against what it was read against. */
 function refAt(start: FileRef, step: StepFile): FileRef {
-  return { ...start, root: step.root, file: step.file, diff: { ...start.diff, against: step.against } };
+  return { ...start, root: step.root, file: step.file, diff: { question: step.question, against: step.against } };
 }
