@@ -45,6 +45,30 @@
   text-overflow: ellipsis;
 }
 
+/* The question a root is set to on its own, before its count: whole, since it says why the count differs from its neighbours', so the branch and then the name give way first. */
+.explorer-question {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+/* The kebab a root's question is picked from, in the row's right padding (list.css), centred on the row: it takes neither height nor width from the line, so a root's row is as tall as a file's and its count ends where theirs do. */
+.explorer-files .explorer-root {
+  position: relative;
+}
+
+.explorer-root-kebab {
+  position: absolute;
+  top: 50%;
+  right: 1px;
+  transform: translateY(-50%);
+}
+
 .explorer-root-failed {
   color: var(--muted);
 }

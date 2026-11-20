@@ -201,6 +201,9 @@ The menu over its list picks what it lists, and is kept for the panel:
 
 Beside the first two, the menu says how many commits each covers.
 Since branched measures from a base branch: the default branch of the remote named `upstream`, or else of `origin`, which the row over the list names, marked as guessed, with how many commits on it the branch does not have yet.
+A checkout can answer a question of its own: the ⋮ at the end of its row names its branch and base, and picks one of the three for that checkout alone, with how many commits each covers there, or **Follow the panel** to follow the menu over the list again.
+A checkout set on its own says its question on its row, and the menu over the list then reads **Mixed**; a pick there sets every checkout again.
+With more than one checkout, the row over the list names no base and its menu counts no commits, since each checkout's ⋮ says both for itself.
 Nothing is fetched for it, so it is measured as your last fetch left the remote branches.
 Each file shows its letter (`M` changed, `A` added, `D` removed, `R` renamed, `U` not tracked yet), its name after its folder, and the lines it adds and removes; a renamed file's tooltip says where it came from.
 The switch in its header shows the files as a flat list or as a tree of their folders, where a press on a folder folds it.

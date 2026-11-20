@@ -3,6 +3,7 @@
 - **Date:** 2026-11-14
 - **Area:** [The `explorer` type](../architecture/panels.md#the-explorer-type)
 - **Partly replaced** by [0244](0244-files-open-in-an-editor-beside-the-session.md) on 2026-11-18: the panel lists the changed files, and a file's diff opens in the Editor beside the session; the panel's own full screen is no longer how a diff gets room.
+- **Partly replaced** by [0248](0248-each-checkout-answers-its-own-question.md) on 2026-11-20: each checkout the panel shows answers the panel's question or one of its own, rather than all one question.
 
 ## Decision
 

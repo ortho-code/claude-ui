@@ -150,6 +150,12 @@ describe('an Explorer’s picks', () => {
     await expect(fs.access(file('bad'))).rejects.toThrow();
   });
 
+  it('forgets the question of a checkout whose folder is gone, and keeps the others', async () => {
+    const gone = path.join(panelDataDir, 'removed-worktree');
+    await keepDiffPicks('roots', { question: 'since', roots: { [panelDataDir]: 'uncommitted', [gone]: 'unpushed' } });
+    expect((await readPanelData('roots')).diff).toEqual({ question: 'since', roots: { [panelDataDir]: 'uncommitted' } });
+  });
+
   it('drops picks in the file that are not sound, saying so', async () => {
     await fs.mkdir(panelDataDir, { recursive: true });
     await fs.writeFile(file('odd'), JSON.stringify({ version: 1, sessions: {}, lastGroup: {}, diff: { question: 'nope' } }));

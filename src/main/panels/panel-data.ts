@@ -33,6 +33,14 @@ function soundLink(value: unknown): value is PanelLink {
   return isObject(value) && typeof value.key === 'string' && typeof value.label === 'string' && (value.href === null || typeof value.href === 'string') && typeof value.startedAt === 'string';
 }
 
+/** `picks` without the question of a checkout whose folder is gone, such as a worktree removed since, so the file does not keep one for every checkout ever opened. */
+async function withoutGoneCheckouts(picks: DiffPicks): Promise<DiffPicks> {
+  const roots = Object.entries(picks.roots ?? {});
+  const here = await Promise.all(roots.map(([root]) => fs.stat(root).then((stat) => stat.isDirectory(), () => false)));
+  const kept = roots.filter((_, at) => here[at]);
+  return kept.length ? { question: picks.question, roots: Object.fromEntries(kept) } : { question: picks.question };
+}
+
 /** A file the app will not overwrite, kept beside itself under a name that says why, so nothing is lost to a bad read. */
 async function keepAside(file: string, text: string, why: string): Promise<void> {
   const kept = `${file}.${why}-${Date.now()}.json`;
@@ -88,7 +96,7 @@ export async function readPanelData(entryId: string): Promise<PanelData> {
   }
   if (json.diff !== undefined) {
     const picks = soundDiffPicks(json.diff);
-    if (picks) data.diff = picks;
+    if (picks) data.diff = await withoutGoneCheckouts(picks);
     else dropped += 1;
   }
   if (dropped > 0) log('warn', 'panel-data', `${file}: dropped ${dropped} ${dropped === 1 ? 'entry' : 'entries'} that ${dropped === 1 ? 'was' : 'were'} not sound`);

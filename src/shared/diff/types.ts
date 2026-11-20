@@ -16,6 +16,8 @@ export const DIFF_VIEWS: readonly DiffView[] = ['fit', 'split', 'unified'];
 /** What an Explorer keeps of what was picked in it, in its own data file; how a file's diff is drawn is the Editor's (`EditorUi`). */
 export interface DiffPicks {
   question: DiffQuestion;
+  /** A question a checkout is set to on its own, by the checkout's root; a checkout not in it answers `question`, and the key is left out while none is set. */
+  roots?: Record<string, DiffQuestion>;
 }
 
 export const DEFAULT_DIFF_PICKS: DiffPicks = { question: 'since' };

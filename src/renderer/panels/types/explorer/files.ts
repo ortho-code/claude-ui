@@ -1,6 +1,8 @@
-import type { DiffFile } from '../../../../shared/diff/types';
+import type { DiffFile, DiffQuestion } from '../../../../shared/diff/types';
 import type { ChangesRead } from '../../checkout-reads';
 import type { ExplorerRoot } from './roots';
+import { QUESTION_NAMES } from './questions';
+import { kebabButton, type MenuItem } from '../../../ui/menu';
 import { listCard, setFolded } from '../../../ui/card';
 import { WORKTREE_ICON } from '../../../ui/svg';
 import { element } from '../../../ui/dom';
@@ -14,7 +16,7 @@ import './files.css';
 
 /**
  * The Explorer's list of changed files, a section per root, flat or as a tree, in the compact row a list panel of changed files draws (list.css), so the two read alike.
- * Each root is a row of its own, its folder's name, then the branch it has out where that is not the folder's own name, and its count, its files under it inside an index line, as a custom group's sessions sit in the session list; a root its roots say starts folded does so the first time it is seen so.
+ * Each root is a row of its own, its folder's name, then the branch it has out where that is not the folder's own name, the question it is set to on its own, where it is, its count, and a kebab to pick that question, its files under it inside an index line, as a custom group's sessions sit in the session list; a root its roots say starts folded does so the first time it is seen so.
  * A row is kept by its root and path, so a press on one survives a read that changes only its counts.
  * A root or a folder of the tree folds as a list panel's row holding rows does: from its chevron, or a press anywhere on it, kept by its path in memory while the panel stays mounted.
  */
@@ -76,10 +78,14 @@ export class FileList {
   /** The last press on a file's row, so a second one on it soon after counts as a double click. */
   private lastPress: { key: string; at: number } | null = null;
 
-  /** `pick` is a press on a file's row, `keep` set for a double click; `combined` says whether the tree puts a chain of single folders on one row. */
+  /** Each root's kebab, by the root's path, built once. */
+  private readonly kebabs = new Map<string, HTMLButtonElement>();
+
+  /** `pick` is a press on a file's row, `keep` set for a double click; `combined` says whether the tree puts a chain of single folders on one row; `questions` says which question a root is set to on its own, null while it follows the panel's, and lists its kebab's menu. */
   constructor(
     private readonly pick: (file: Placed, keep: boolean) => void,
     private readonly combined: () => boolean,
+    private readonly questions: { own(root: string): DiffQuestion | null; items(root: string): MenuItem[] },
   ) {}
 
   /**
@@ -173,7 +179,7 @@ export class FileList {
     this.draw(this.drawn.sections, this.drawn.view, this.drawn.picked);
   }
 
-  /** A root's row: its folder's name, then its branch where that is not the folder's own name, and its count at the end; a read git refused says so in place of the count. */
+  /** A root's row: its folder's name, then its branch where that is not the folder's own name, the question it is set to on its own, its count, and its kebab at the end; a read git refused says so in place of the count. */
   private rootRow(root: ExplorerRoot, read: ChangesRead | undefined): HTMLElement {
     const { name } = root;
     const row = this.foldingRow('explorer-root', foldKey(root.path, ''), name, 0);
@@ -183,8 +189,20 @@ export class FileList {
     row.title.title = root.path;
     row.trail.replaceChildren(...rootTrail(read));
     const mark = branchMark(read, name);
-    placeChildren(row.line, mark ? [row.fold, row.title, mark, row.trail] : [row.fold, row.title, row.trail]);
+    const own = this.questions.own(root.path);
+    const question = own === null ? null : questionMark(own);
+    placeChildren(row.line, [row.fold, row.title, ...(mark ? [mark] : []), ...(question ? [question] : []), row.trail, this.kebabOf(root.path)]);
     return row.card;
+  }
+
+  /** The kebab a root's question is picked from. */
+  private kebabOf(rootPath: string): HTMLButtonElement {
+    let kebab = this.kebabs.get(rootPath);
+    if (!kebab) {
+      kebab = kebabButton('compact explorer-root-kebab', 'Pick what this checkout shows', () => this.questions.items(rootPath));
+      this.kebabs.set(rootPath, kebab);
+    }
+    return kebab;
   }
 
   /** A root's tree: each folder before what it holds, then the files; with the folders option `combined`, a chain of folders that each hold only the next one on one row, as a file tree compacts them. */
@@ -330,6 +348,13 @@ function branchMark(read: ChangesRead | undefined, name: string): HTMLElement | 
   mark.innerHTML = WORKTREE_ICON;
   mark.append(span('explorer-branch-name', branch));
   mark.title = branch;
+  return mark;
+}
+
+/** The question a root is set to on its own, before its count, so a count that differs from its neighbours' says why. */
+function questionMark(question: DiffQuestion): HTMLElement {
+  const mark = span('explorer-question', QUESTION_NAMES[question]);
+  mark.title = `This checkout shows ${QUESTION_NAMES[question]}, set on its own.`;
   return mark;
 }
 

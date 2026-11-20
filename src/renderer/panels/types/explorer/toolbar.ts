@@ -1,4 +1,5 @@
-import { DIFF_QUESTIONS, type BaseSource, type DiffQuestion, type DiffSummary } from '../../../../shared/diff/types';
+import type { BaseSource, DiffQuestion, DiffSummary } from '../../../../shared/diff/types';
+import { basePhrases, QUESTION_NAMES, questionItems } from './questions';
 import { element } from '../../../ui/dom';
 import { openMenu, type MenuItem } from '../../../ui/menu';
 import { menuCaret } from '../../../ui/menu-caret';
@@ -12,9 +13,6 @@ import './toolbar.css';
 /**
  * The Explorer's row over its list: which question the list answers, as a menu of the three, and what it is measured from.
  */
-
-/** Each question's name, as the menu and the button say it. */
-export const QUESTION_NAMES: Record<DiffQuestion, string> = { since: 'Since branched', unpushed: 'Unpushed', uncommitted: 'Uncommitted' };
 
 /** The jump button's label and tooltip. */
 const JUMP = 'Jump to a checkout';
@@ -37,9 +35,13 @@ export class Toolbar {
   /** Jumps to one of the roots, as a project heading's button jumps to one of its groups; hidden below two. */
   private readonly jumpButton = element('button', 'icon-btn compact explorer-jump');
 
+  /**
+   * `current` is the panel's question, or `mixed` while a checkout answers another; `summary` what it is measured from and counts, null where the toolbar says neither; `own` how many checkouts are set to a question of their own.
+   */
   constructor(
-    private readonly current: () => DiffQuestion,
+    private readonly current: () => DiffQuestion | 'mixed',
     private readonly summary: () => DiffSummary | null,
+    private readonly own: () => number,
     private readonly pick: (question: DiffQuestion) => void,
     private readonly jumps: () => MenuItem[],
     private readonly folds: { all(): boolean; any(): boolean; toggle(): void },
@@ -65,9 +67,10 @@ export class Toolbar {
 
   draw(): void {
     const question = this.current();
-    this.label.textContent = QUESTION_NAMES[question];
-    const summary = this.summary();
-    this.base.replaceChildren(...this.baseWords(question, summary));
+    this.label.textContent = question === 'mixed' ? MIXED : QUESTION_NAMES[question];
+    this.button.classList.toggle('mixed', question === 'mixed');
+    const summary = question === 'mixed' ? null : this.summary();
+    this.base.replaceChildren(...(question === 'mixed' ? [] : basePhrases(question, summary).map((phrase) => (phrase.muted ? mutedText(phrase.text) : text(phrase.text)))));
     this.base.title = question === 'since' && summary?.base ? SOURCE_WORDS[summary.base.source] : '';
     this.jumpButton.hidden = this.jumps().length < 2;
     this.drawFolds();
@@ -78,31 +81,17 @@ export class Toolbar {
     drawCollapseAll(this.foldButton, this.folds.all(), this.folds.any() ? null : 'Nothing to collapse.');
   }
 
-  /** The three questions, the one on show ticked, each with the commits it counts where it counts any, said as commits, so the number is not read as files. */
+  /** The three questions, the one on show ticked, none while Mixed, then, while Mixed, how many checkouts are set on their own; each question with the commits it counts where the toolbar counts any. */
   private items(): MenuItem[] {
-    const counts = this.summary()?.counts;
-    const sizes: Record<DiffQuestion, number | null | undefined> = { since: counts?.ahead, unpushed: counts?.unpushed, uncommitted: undefined };
-    return DIFF_QUESTIONS.map((question) => {
-      const size = sizes[question];
-      const commits = typeof size === 'number' ? ` · ${size} commit${size === 1 ? '' : 's'}` : '';
-      return { label: `${QUESTION_NAMES[question]}${commits}`, checked: question === this.current(), onSelect: () => this.pick(question) };
-    });
-  }
-
-  /** What the list is measured from, in words: the base and whether it was guessed, and how far the branch is behind it, for Since branched; what the other two questions mean otherwise. */
-  private baseWords(question: DiffQuestion, summary: DiffSummary | null): Node[] {
-    if (!summary) return [];
-    if (question === 'unpushed') return [text('what the next push sends')];
-    if (question === 'uncommitted') return [text('on top of the last commit')];
-    const words: Node[] = [];
-    if (summary.missing) words.push(mutedText(`${summary.missing} is gone; `));
-    if (!summary.base) return [...words, text('no base to measure from')];
-    words.push(text(`from ${summary.base.ref}`));
-    if (summary.base.source === 'convention') words.push(mutedText(' · guessed'));
-    const behind = summary.counts.behind;
-    if (behind) words.push(mutedText(` · ${behind} behind`));
-    return words;
+    const current = this.current();
+    const own = this.own();
+    const questions = questionItems(this.summary(), (question) => question === current, this.pick);
+    if (current !== 'mixed') return questions;
+    return [{ label: `${own} checkout${own === 1 ? '' : 's'} set on ${own === 1 ? 'its' : 'their'} own`, header: ['A pick here sets every checkout.'] }, ...questions];
   }
 }
+
+/** What the toolbar says while its checkouts answer different questions. */
+const MIXED = 'Mixed';
 
 const text = (words: string): Text => document.createTextNode(words);
