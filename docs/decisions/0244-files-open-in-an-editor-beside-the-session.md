@@ -2,7 +2,7 @@
 
 - **Date:** 2026-11-18
 - **Area:** [The `editor` type](../architecture/panels.md#the-editor-type)
-- **Partly replaced** by [0241](0241-the-editor-opens-as-a-drawer-or-docks.md) on 2026-11-18: the Editor opens as a drawer over the terminal area and docks beside it on request, rather than always beside it; `"hidden": true` means it never docks, and files still open in the drawer.
+- **Partly replaced** by [0245](0245-the-editor-opens-as-a-drawer-or-docks.md) on 2026-11-18: the Editor opens as a drawer over the terminal area and docks beside it on request, rather than always beside it; `"hidden": true` means it never docks, and files still open in the drawer.
 
 ## Decision
 
