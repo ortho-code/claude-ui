@@ -48,7 +48,7 @@ When a variant genuinely differs — a group heading is deliberately lighter tha
 **A surface drawn again while it is used keeps its elements.**
 A click is a press and a release on the same element, so a surface that takes the pressed element away between the two produces no click at all, and one that takes out the focused element drops the focus to the page.
 The surfaces that keep their elements are drawn again on events nobody times — the session list when a transcript is written or a model switched, the project switcher whenever a session's status changes, the tab bar whenever one of its tabs' sessions' does, a list panel on each run that prints a list and its rows' session marks whenever one of their sessions changes — so that press is an everyday one rather than a race.
-So a surface keeps its elements by key and leaves in place what already is, through one helper, `keyed.ts`: `Keyed` holds the elements, built the first time a render draws a key and swept once one no longer does, or kept off the page where the surface says so, as the session list keeps a row while its session is in the listing, so a search that brings it back does not build it again; and `placeChildren` puts them in order, keeping the longest run already in order where it is, so only what really moved is taken out.
+So a surface keeps its elements by key and leaves in place what already is, through one helper, `keyed.ts`: `Keyed` holds the elements, built the first time a render draws a key and swept once one no longer does, or kept off the page where the surface says so, as the session list keeps a row while its session is in the listing or a tab stands in for it, so a search that brings it back does not build it again; and `placeChildren` puts them in order, keeping the longest run already in order where it is, so only what really moved is taken out.
 Keeping them is not enough on its own: in Chromium, `appendChild`, `insertBefore` and `replaceChildren` take out even an element already where it belongs, which is how the session list, which had always kept its rows, still lost both.
 The same goes for an icon inside a kept element: setting its markup again replaces the icon's own element, which sits over the middle of an icon button where a press lands, so an icon a render sets is set through `setMarkup`, which leaves the same markup alone.
 A kept element outlives what it was built for, so its handlers look up what they act on by its key when they run, as a session row's read `currentByKey`, never what was current when it was built.
@@ -183,6 +183,19 @@ The group headings pin below the project heading; while the `h3` still carried i
 The space above a group lives on the `.group` section instead, so the heading has no margin to offset it.
 The offset itself is the project heading's *measured* height, published as `--project-heading-height` — the same number the jump uses, so the two cannot drift apart, and neither goes stale when the type scale moves.
 
+**A row out of sight is not drawn, so a jump lands again as the rows around it are** ([decided 2026-11-18](../decisions/0236-rows-out-of-sight-are-not-drawn.md)).
+The browser skips styling, laying out and painting a session row out of sight (`content-visibility: auto`, `rows.css`), and holds the place of one it never drew at a one-line row's height.
+A row that turns out taller moves everything below it once it is drawn, a few frames after the jump that brought it into sight, so every reveal (a row, a project, a group) scrolls to its target and keeps it there for the next 8 frames (`landOn`, `reveal.ts`); a scroll by hand in those frames is overridden.
+
+**A row out of sight is brought up to date when it comes into sight** ([decided 2026-11-19](../decisions/0238-a-row-out-of-sight-is-updated-when-it-comes-into-sight.md)).
+The browser says when a row goes out of sight and comes back (`contentvisibilityautostatechange`); a draw that would bring a row out of sight up to date owes it the update instead, made in full from the store as it then is once the row comes into sight, and the minute's clock leaves its time as it is until then (`followSight`, `rows.ts`; `showMoment`'s `outOfSight`, `moments.ts`).
+A row the browser has said nothing of yet counts as in sight, so a new row is drawn at once, and a row drawn flat, in Recent or the review, is always brought up to date.
+
+**Rows a draw brings back go on the page a batch a frame, from the top** ([decided 2026-11-19](../decisions/0239-rows-a-draw-brings-back-go-on-the-page-a-batch-a-frame.md)).
+A draw puts at most 60 rows that are not on the page yet into it, in the list's order, and the rest 60 a frame after it; a newer draw drops what an older one left (`placing.ts`).
+The list is at its top after a filter changes, which is when many rows come back, so the rows in sight go in first; what is not a row, a group's section, goes in at once, and bulk mode's boxes are drawn again after each batch.
+Until the last batch, what reads the rows from the page (a heading's box in bulk mode, a reveal, the find in page) sees only those placed so far: about ten frames for 600 rows on a slower machine.
+
 
 **`text-box: trim-both cap alphabetic` ends the box at the baseline**, so descenders paint outside it.
 Combined with the `overflow: hidden` that any ellipsis needs, it silently clips every `g`, `p` and `y` — which is exactly what happened to the session meta line.
@@ -231,7 +244,7 @@ Only two are `false`, each with its reason written beside it — `lastActivity`,
 `lastActivity` had once been marked as drawn by nothing, and every row's time stayed what it was at the list's last redraw.
 The general rule this stands for: **where stale is worse than an extra rebuild, make the exhaustive case the one the compiler enforces**, rather than trusting a list to be complete.
 
-The same line decides, row by row, which rows a redraw brings up to date: a row on the page is left as it is when its session's line and last activity are what it was drawn for, and nothing else it draws from has changed since (`updateRow`, `rows.ts`), so a key in the search costs the rows it changes rather than all of them.
+The same line decides, row by row, which rows a redraw brings up to date: a row on the page is left as it is when its session's line and last activity, and whether the finished view is on, are what it was drawn for, and nothing else it draws from has changed since (`updateRow`, `rows.ts`), so a key in the search costs the rows it changes rather than all of them.
 What else a row draws from is one list, `ROW_SLICES`, and the type of what a row may read is made from it, so a row that reads a slice the list leaves out does not compile; each draw compares those slices with what the last one read, by the store's own equality (`store.same`), and counts a change for every row when one moved (`rowsFollow`, `list.ts`).
 That comparison is with the last draw rather than with `before`, because the statuses and the other slices the list is not told of change between draws.
 A row drawn flat, in Recent or the review, is always brought up to date, since where it sits leads its line and is not in the count.

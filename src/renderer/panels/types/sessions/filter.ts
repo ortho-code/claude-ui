@@ -219,13 +219,20 @@ function updateDateRangeLabel(from?: Date, to?: Date): void {
   dateRangeCaption.textContent = text;
 }
 
-// Bound the picker to real data: min = the oldest session's date (max stays today, set at construction).
-// Runs whenever the session set changes; silent so it doesn't fire onSelect.
+/** The oldest last activity the calendar was last bounded to, null for none, or undefined before it was bounded at all. */
+let boundTo: number | null | undefined;
+
+/**
+ * Bound the calendar to the oldest session's day (its latest day is today, set when it is built), whenever the listing changes, and silently, so no date counts as picked.
+ * Only when that day moved: the calendar draws itself again on every update, and a listing changes far more often than its oldest session.
+ */
 export function applyDatePickerMinDate(view: View<'sessions'>): void {
   const earliest = view.sessions.reduce<number | null>((min, s) => {
     const t = Date.parse(s.lastActivity);
     return min === null || t < min ? t : min;
   }, null);
+  if (earliest === boundTo) return;
+  boundTo = earliest;
   datePicker.update({ minDate: earliest !== null ? new Date(earliest) : false }, { silent: true });
 }
 

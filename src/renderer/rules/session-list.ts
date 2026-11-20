@@ -4,7 +4,7 @@ import { DEFAULT_RANKING, type Strength } from '../status/shown';
 import { entityKey, projectRootExists } from './sessions';
 
 // Group by repo root so a repo's worktrees (and subdirectories) file under one heading.
-export function groupByRepo(sessions: SessionSummary[]): [string, SessionSummary[]][] {
+export function groupByRepo(sessions: readonly SessionSummary[]):[string, SessionSummary[]][] {
   const groups = new Map<string, SessionSummary[]>();
   for (const session of sessions) {
     const list = groups.get(session.repoRoot) ?? [];
@@ -39,7 +39,7 @@ interface ProjectEntry {
  * The projects to draw, in the order you set: one per root among `sessions`, and one, with nothing shown, per root in `finishedOnly` (`finishedOnlyProjects`).
  * The ONE place the switcher and the session list take their projects from, so the two never disagree about which projects there are or where each sits.
  */
-export function projectEntries(sessions: SessionSummary[], finishedOnly: ReadonlyMap<string, SessionSummary[]>, projectOrder: readonly string[]): [string, ProjectEntry][] {
+export function projectEntries(sessions: readonly SessionSummary[], finishedOnly: ReadonlyMap<string, SessionSummary[]>, projectOrder: readonly string[]): [string, ProjectEntry][] {
   const entries: [string, ProjectEntry][] = groupByRepo(sessions).map(([repoRoot, shown]) => [repoRoot, { shown, finished: [] }]);
   for (const [repoRoot, finished] of finishedOnly) entries.push([repoRoot, { shown: [], finished }]);
   return orderProjects(entries, projectOrder);

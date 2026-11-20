@@ -47,7 +47,7 @@ export const claudeWatch = {
     // And a status, the work behind one, or a mark read of one of its tabs' sessions, which its fold's dot follows too, a set-aside mark, which can mute what its dot shows, the needs-you categories, which place a reason in the strength order, and the PRs' titles, which a dot's tooltip names.
     store.watch(STATUS_SLICES, tabBarFollowsStatuses, { reads: ['sessions', 'scheduledTasks', 'finished', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded'] });
     // The terminal area's rail icon waits while a tab on show waits for you, by the strength order.
-    store.watch(['activeProject', 'tabs', 'statuses', 'acked', 'needsYou', 'setAside', 'settings', 'needsYouTypes'], railStatusFollowsTabs);
+    store.watch(['activeProject', 'tabs', 'statuses', 'acked', 'needsYou', 'setAside', 'settings', 'needsYouTypes'], railStatusFollowsTabs, { frame: true });
     // The pane shows the tab on show, or says why there is none, which turns on the listing and the project on show too.
     store.watch(['sessions', 'activeProject', 'tabs', 'activeTab'], paneFollows);
     // The history docks beside the live terminal or opens in the drawer, at the width it was dragged to, as kept for the window.

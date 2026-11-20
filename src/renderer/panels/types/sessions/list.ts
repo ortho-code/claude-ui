@@ -1,5 +1,6 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { placeChildren } from '../../../ui/keyed';
+import { inBatches, placeRows } from './placing';
 import { buildProjectTree, groupJumpTargets, type ProjectTree } from '../../../rules/session-list';
 import { entityKey, projectGoneReason, structuralSignature } from '../../../rules/sessions';
 import { markProjectGone } from '../../../status/project-gone';
@@ -12,7 +13,7 @@ import { setUnavailable } from '../../../ui/unavailable';
 import { recentOrder } from '../../../rules/recent';
 import { reviewCount, type ReviewSection } from '../../../rules/review';
 import { endBulk } from '../../../state/bulk';
-import { container, currentByKey, drawnKeys, rowInputs, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
+import { container, currentByKey, rowInputs, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
@@ -29,9 +30,16 @@ import './list.css';
  * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, `foldsFollow`, registered by `watchList` in the sidebar's repaints, watch.ts); what it draws is read from main in one change (`fullRead`, read.ts).
  */
 
+/** The rows the last pass marked as having a tab, whose marks the next pass takes off where their tab has gone. */
+let marked = new Set<HTMLElement>();
+
+/** Mark the rows whose session has a tab, open or cold, and the one on show: only those rows and the ones marked before, rather than every row drawn, since few sessions have a tab. */
 function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {
   const shown = tabOnShow(view);
-  for (const row of sessionRows.values()) {
+  const withTab = new Set(view.tabs.flatMap((tab) => sessionRows.find(tab.session.id) ?? []));
+  const touched = new Set([...marked, ...withTab]);
+  marked = withTab;
+  for (const row of touched) {
     const id = row.dataset.sid ?? '';
     const tab = tabWith(id, view);
     row.classList.toggle('open', tab !== undefined);
@@ -131,7 +139,7 @@ function listChanged(view: ListView, before: View<'filter' | 'activeProject' | '
  */
 type ListShape =
   | { review: ReviewSection[] }
-  | ({ all: SessionSummary[]; matches: number; total: number } & ({ tree: ProjectTree[] } | { recent: SessionSummary[]; finished: string | null }));
+  | ({ all: readonly SessionSummary[]; matches: number; total: number } & ({ tree: ProjectTree[] } | { recent: SessionSummary[]; finished: string | null }));
 
 function listShape(view: ListView): ListShape {
   // The review in place of the projects (docs/architecture/session-list.md § The review): its sets in the switcher's scope, the filter set aside meanwhile.
@@ -184,8 +192,11 @@ function allFinishedLine(count: number): string {
 function catchUp(): void {
   if (container.matches(':hover, :focus-within') || container.querySelector('.menu-open')) return;
   const view = store.get();
-  if (!sameOrder(keysOf(listShape(view)), drawnKeys())) renderList(view);
+  if (!sameOrder(keysOf(listShape(view)), drewOrder)) renderList(view);
 }
+
+/** The keys of the rows the last draw drew, in its order: what `catchUp` compares with, rather than reading every row back from the page each minute. */
+let drewOrder: string[] = [];
 
 /** The slices rows draw from, as the last draw read them. */
 const rowsDrewFrom = new Map<RowSlice, unknown>();
@@ -199,9 +210,18 @@ function rowsFollow(view: ListView): void {
   for (const slice of ROW_SLICES) rowsDrewFrom.set(slice, view[slice]);
 }
 
+/** Draw the list, its rows going on the page a batch a frame (placing.ts), bulk mode's boxes following each batch. */
 function renderList(view: ListView): void {
+  inBatches(
+    () => drawList(view),
+    () => showBulk(store.get()),
+  );
+}
+
+function drawList(view: ListView): void {
   rowsFollow(view);
   const shape = listShape(view);
+  drewOrder = keysOf(shape);
   if ('review' in shape) {
     // A review left with nothing in it ends, as an empty review has nothing to decide; said by nothing of its own: the act that emptied it raises its toast after this, with the Undo that matters more, and the Review button then says there is nothing to review.
     if (reviewCount(shape.review) === 0) endBulk();
@@ -268,7 +288,7 @@ function renderSections(sections: readonly FlatSection[], view: ListView): void 
       row.classList.remove('after-groups');
       return row;
     });
-    placeChildren(els.rows, rows);
+    placeRows(els.rows, rows);
     return els.section;
   });
   placeChildren(container, drawn);
@@ -355,7 +375,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
         row.classList.remove('after-groups'); // rows are reused: it may have been a loose row before
         return row;
       });
-      placeChildren(groupEls.members, [groupEls.empty, ...members]);
+      placeRows(groupEls.members, [groupEls.empty, ...members]);
       groups.push(groupEls.section);
     }
     // Ungrouped sessions sit directly under the project heading, at full width — there is no "Ungrouped" heading, so the indent alone says whether a row is in a group.
@@ -368,7 +388,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     });
     // Its groups stay with it, so they can be filled again; the line goes above them, under the heading it explains.
     els.allFinishedLine.textContent = allFinishedLine(project.finished);
-    placeChildren(els.section, [els.heading, ...(project.finished > 0 ? [els.allFinishedLine] : []), ...groups, ...loose]);
+    placeRows(els.section, [els.heading, ...(project.finished > 0 ? [els.allFinishedLine] : []), ...groups, ...loose]);
     sections.push(els.section);
   }
   placeChildren(container, sections);

@@ -89,11 +89,27 @@ The comparison sorts each state's lines, and takes a map of the classes a change
 `npm run test:perf` holds the window to its performance budgets: it builds, then Playwright loads the built `dist/renderer` on the window checks' own harness and stand-in (`test/perf/`), with a list of 1,000 sessions, and times what the list does.
 Each check runs twice, as two Playwright projects: at the machine's own speed, and with Chromium's CPU slowed four times over, which stands in for a slower laptop.
 A key in the query field is timed to the second frame after it (`query-field.spec.ts`); a status change, twenty at once, and a session renamed in the listing are timed by their longest task, the longest the window went without a turn for anything else (`live-updates.spec.ts`), and so is the minute's clock, over a real minute, since faking the page's clock would also fake the time the checks read.
-Every check prints a line per event with its median, its 95th percentile and its budget, so a pass also says by how much, and holds the 95th percentile to the budget.
+Every check prints a line per event with its median, its 95th percentile and its budget, or that it is reported only, so a pass also says by how much, and holds the 95th percentile to the budget where there is one; a listing change and the minute's clock are reported only.
 
 It runs on its own, never in `npm test`, `npm run test:renderer` or CI ([decided 2026-11-18](../decisions/0235-the-performance-checks-run-on-their-own.md)): a timing on a shared runner flakes, and a gate made to pass there with retries or wide margins would hold nothing.
-So it runs one check at a time, and starts by reading the machine's load: above half the cores, every line and every failure says so, since the slowed runs suffer most, and a failure is still a failure rather than skipped, so a real slowdown is never hidden.
+So it runs one check at a time, and reads the machine's load once it has measured: above half the cores, its report ends with a line saying so, and so does the failure of each budget it holds, since the slowed runs suffer most; a failure is still a failure rather than skipped, so a real slowdown is never hidden.
 It does not cover main's answers, which the stand-in gives, or Electron's own window.
+
+### The budgets
+
+Each holds at 1,000 sessions, about one and a half times the list the budgets were set on, so they still hold as the list grows, and at the machine's speed and slowed four times, since the app runs on laptops slower than the one it is built on.
+
+| What | Budget | Held by | Last measured, 95th percentile, at its speed / slowed |
+|---|---|---|---|
+| A key in the query field | its frame within 50 ms, 200 ms slowed | `query-field.spec.ts` | keeping rows 32 / 199 ms; dropping rows 33 / 230; bringing rows back 85 / 379 |
+| A status change, and twenty at once | no task longer than a frame, 16 ms; 8 ms of script is what the design leaves for it | `live-updates.spec.ts` | 5.8 / 103 ms; 3.9 / 29 |
+| A session's listing changing | measured, not held | `live-updates.spec.ts` | 34 / 168 ms |
+| The minute's clock | measured, not held | `live-updates.spec.ts` | 34 / 193 ms, one sample |
+| Evaluating a view's query, sets and sort, without the page | 5 ms | nothing yet: the query language does not exist yet | |
+| A plugin that adds links to sessions | runs at most once a minute, at most two at once, cut off after 60 s with its last links kept | nothing yet: no such plugin exists yet | |
+| The sessions file a panel's run is given | at most 1 MB and 10 ms to build | nothing yet | |
+
+Last measured 2026-11-19, at a load of about 10 on 24 cores; the slowed runs' 95th percentiles vary most from run to run, and quieter runs that day measured bringing rows back at 167 ms and a status change at 24.
 
 ## Which checks a change needs
 

@@ -1,3 +1,10 @@
+/* The browser skips styling, laying out and painting a row out of sight, which at a thousand sessions is most of what a draw that brings rows back costs, and most of what a status's dot costs to paint.
+   Until it has drawn a row once, it holds the row's place at a one-line row's height, its content's 32px inside the card's padding; after that, at the height it last drew (`auto`); a jump corrects for a row that turns out taller (`landOn`, reveal.ts). */
+#sessions .session {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 32px;
+}
+
 /* The default cursor says the row is not the way in; the controls inside keep their own pointer, since those still work.
    A tab keeps its pointer: clicking it still selects it, and the pane says why it will not start. */
 .session.unstartable {

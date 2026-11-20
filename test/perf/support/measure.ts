@@ -19,7 +19,7 @@ export type Act =
   | { kind: 'type'; text: string }
   | { kind: 'status'; id: string; busy: boolean }
   | { kind: 'burst'; ids: string[] }
-  | { kind: 'rename'; id: string; title: string };
+  | { kind: 'rename'; title: string };
 
 interface Measurer {
   measure(label: string, act: Act): Promise<Sample>;
@@ -76,14 +76,16 @@ function install(): void {
         what.ids.forEach((id, i) => control.emit('onSessionStatus', id, i % 2 ? 'idle' : 'busy', '', i % 2 ? 'Stop' : 'UserPromptSubmit', undefined, 'go on'));
         return;
       case 'rename': {
+        // The list's first row, which is in sight: a row out of sight is brought up to date only once it comes into sight, so it would never say the new title here.
+        const id = document.querySelector<HTMLElement>('#sessions .session')?.dataset.key ?? '';
         const fixture = window.__claudeUiFixture;
-        fixture.sessions = fixture.sessions.map((s) => (s.id === what.id ? { ...s, title: what.title } : s));
+        fixture.sessions = fixture.sessions.map((s) => (s.id === id ? { ...s, title: what.title } : s));
         control.emit('onSessionsChanged');
         // Main's answer comes behind a promise: the event is drawn once its row says the new title.
         return (async () => {
           const deadline = performance.now() + 10_000;
-          while (!document.querySelector(`#sessions [data-key="${what.id}"]`)?.textContent.includes(what.title)) {
-            if (performance.now() > deadline) throw new Error(`The row of ${what.id} never said "${what.title}".`);
+          while (!document.querySelector(`#sessions [data-key="${id}"]`)?.textContent.includes(what.title)) {
+            if (performance.now() > deadline) throw new Error(`The row of ${id} never said "${what.title}".`);
             await frame();
           }
         })();

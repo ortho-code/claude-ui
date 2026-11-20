@@ -54,15 +54,40 @@ export interface RollUp {
   badge: NudgeStatus;
 }
 
+/** What a session's part was last worked out from, and the part: answered again while nothing it was worked out from has moved. */
+interface KeptPart {
+  status: string | undefined;
+  reasons: readonly NeedsYou[] | undefined;
+  muted: boolean;
+  acked: boolean;
+  strength: Strength;
+  part: NudgeStatus;
+}
+const keptParts = new WeakMap<SessionSummary, KeptPart>();
+
+/**
+ * A session's part (`sessionPart`), kept per summary: a status event changes one session's status, and the switcher rolls up every session on each, so the others are answered from what was kept.
+ * Compared by value where a value can be, and by identity for its reasons and the strength order, which are replaced, never changed in place.
+ */
+function partOf(session: SessionSummary, statuses: ReadonlyMap<string, string>, acked: ReadonlySet<string>, needsYou: ReadonlyMap<string, readonly NeedsYou[]>, muted: ReadonlySet<string>, strength: Strength): NudgeStatus {
+  const key = entityKey(session);
+  const now = { status: statuses.get(session.id), reasons: needsYou.get(key), muted: muted.has(key), acked: acked.has(session.id), strength };
+  const kept = keptParts.get(session);
+  if (kept && kept.status === now.status && kept.reasons === now.reasons && kept.muted === now.muted && kept.acked === now.acked && kept.strength === now.strength) return kept.part;
+  const part = sessionPart(now.status, now.reasons ?? [], now.muted, now.acked, strength);
+  keptParts.set(session, { ...now, part });
+  return part;
+}
+
 export function rollUp(
-  sessions: SessionSummary[],
+  sessions: readonly SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
   needsYou: ReadonlyMap<string, readonly NeedsYou[]>,
   muted: ReadonlySet<string>,
   strength: Strength,
 ): RollUp {
-  const parts = sessions.map((s) => sessionPart(statuses.get(s.id), needsYou.get(entityKey(s)) ?? [], muted.has(entityKey(s)), acked.has(s.id), strength));
+  const parts = sessions.map((s) => partOf(s, statuses, acked, needsYou, muted, strength));
   return { asking: parts.filter(asksForYou).length, working: parts.filter((part) => part === 'busy').length, badge: strongestNudge(parts, strength) };
 }
 

@@ -61,6 +61,45 @@ test('a row a search left out comes back as the same row, its time as it is now,
   await expect(row(page, one.title).locator('.meta-text')).toHaveText(/^5 h ago/);
 });
 
+// The browser skips drawing a row out of sight, and the row is brought up to date once it comes into sight.
+const many = Array.from({ length: 60 }, (_, i) => session({ id: `00000000-0000-4000-8000-${String(100 + i).padStart(12, '0')}`, title: `Row ${String(i).padStart(2, '0')}` }));
+const far = many[50];
+
+test('a row that changed out of sight says so once it is scrolled into sight', async ({ app, page }) => {
+  await app.boot({ sessions: many });
+  await expect(row(page, far.title)).not.toBeInViewport();
+  await expect(row(page, far.title).locator('.pr-badge')).toBeHidden();
+
+  // A PR linked while it is out of sight: its mark is no part of the row's time, which the row redraws on its own.
+  await app.listOnDisk(many.map((s) => (s === far ? { ...s, prs: [{ repository: 'acme/app', number: 7, url: 'https://github.com/acme/app/pull/7' }] } : s)));
+  await row(page, far.title).evaluate((each) => each.scrollIntoView());
+  await expect(row(page, far.title).locator('.pr-badge')).toBeVisible();
+});
+
+test("a row out of sight while the minute's clock ticks says the time as it is now once it is scrolled into sight", async ({ app, page }) => {
+  await page.clock.install({ time: ACTIVE + 3 * 60 * MINUTE });
+  await app.boot({ sessions: many.map((s) => ({ ...s, lastActivity: one.lastActivity })) });
+  await expect(row(page, far.title)).not.toBeInViewport();
+  await expect(row(page, far.title).locator('.meta-text')).toHaveText(/^3 h ago/);
+
+  await page.clock.fastForward('01:00:00');
+  await row(page, far.title).evaluate((each) => each.scrollIntoView());
+  await expect(row(page, far.title).locator('.meta-text')).toHaveText(/^4 h ago/);
+});
+
+test('a row owed an update while out of sight, drawn flat in Recent since, keeps saying where it sits once it comes into sight', async ({ app, page }) => {
+  // In All, where a row drawn flat leads its line with its project.
+  await app.boot({ sessions: many, activeProject: null });
+  await expect(row(page, far.title)).not.toBeInViewport();
+  // A change while it is out of sight, which it is owed until it comes into sight.
+  await app.listOnDisk(many.map((s) => (s === far ? { ...s, prs: [{ repository: 'acme/app', number: 7, url: 'https://github.com/acme/app/pull/7' }] } : s)));
+
+  await page.locator('#list-row .panel-view', { hasText: 'Recent' }).click();
+  await row(page, far.title).evaluate((each) => each.scrollIntoView());
+  await expect(row(page, far.title).locator('.pr-badge')).toBeVisible();
+  await expect(row(page, far.title).locator('.meta-text')).toHaveText(/^demo · /);
+});
+
 test('a pin shows on its row while a search keeps it', async ({ app, page }) => {
   await app.boot({ sessions: [one] });
   await page.locator('#filter-toggle').click();

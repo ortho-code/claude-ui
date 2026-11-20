@@ -68,7 +68,8 @@ const REVIEW_LOOK_EVERY_MS =60 * 60 * 1000;
 /** The button's count, now and as the store and the clock move; registered with the sidebar's repaints (watch.ts). */
 export function watchReviewButton(): void {
   const slices = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'setAside', 'kept', 'prStatus', 'settings', 'activeProject', 'reviewing'] as const;
-  store.watch(slices, showReviewButton);
+  // Once a frame: it counts the review over every session, and draws the whole button from the store as it is, so nothing it skips is lost.
+  store.watch(slices, showReviewButton, { frame: true });
   window.setInterval(() => showReviewButton(store.get()), REVIEW_LOOK_EVERY_MS);
   showReviewButton(store.get());
   let wasReviewing = store.get().reviewing;

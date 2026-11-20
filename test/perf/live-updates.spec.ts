@@ -20,9 +20,9 @@ test('a live update holds no task longer than a frame', async ({ app, page, thro
   // As parallel tool results bring them: twenty sessions' statuses in one task.
   const bursts: Sample[] = [];
   for (let k = 0; k < BURSTS; k++) bursts.push(await measure(page, `burst ${k}`, { kind: 'burst', ids: Array.from({ length: BURST }, (_, i) => sessionId(100 + k * BURST + i)) }));
-  // A listing change that shows: one session's title, as a transcript getting its title brings it.
+  // A listing change that shows: the title of a session in sight, as a transcript getting its title brings it.
   const renames: Sample[] = [];
-  for (let k = 0; k < RENAMES; k++) renames.push(await measure(page, `rename ${k}`, { kind: 'rename', id: sessionId(k * 7 + 1), title: `Renamed ${k}` }));
+  for (let k = 0; k < RENAMES; k++) renames.push(await measure(page, `rename ${k}`, { kind: 'rename', title: `Renamed ${k}` }));
 
   report(`194, the longest task at ${throttle}×, 1,000 sessions`, [
     { event: 'a status change', values: status.map((s) => s.longest), budget: FRAME },
