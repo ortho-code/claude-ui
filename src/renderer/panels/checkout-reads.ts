@@ -63,6 +63,15 @@ export class CheckoutReads {
     return read;
   }
 
+  /**
+   * Read every followed checkout again, for each question followed there, after something outside its working tree changed what a read answers, such as the base kept for it; the tree's watch never sees such a change.
+   * A read already under way may have started before that change, and one asked from a folder inside a checkout answers for the checkout too, so every read under way is waited for, rather than joined, before any is asked again.
+   */
+  async readAgain(): Promise<void> {
+    await Promise.allSettled(this.underWay.values());
+    await Promise.all([...this.checkouts].flatMap(([root, checkout]) => [...followedQuestions(checkout)].map((question) => this.read(root, question))));
+  }
+
   private async ask(dir: string, question: DiffQuestion): Promise<ChangesRead> {
     const asked = this.checkouts.get(dir);
     if (asked) asked.reading++;

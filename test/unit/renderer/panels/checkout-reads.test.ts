@@ -107,6 +107,50 @@ describe('CheckoutReads', () => {
     expect(heard.sort()).toEqual(['since 2', 'uncommitted 2']);
   });
 
+  it('reads every followed checkout again for each question followed when asked, with no change to its tree', async () => {
+    const { reads, state } = bridge();
+    const heard: string[] = [];
+    reads.follow(ROOT, 'since', (read) => heard.push(`since ${read.kind === 'summary' ? read.summary.files.length : 0}`));
+    reads.follow(ROOT, 'uncommitted', (read) => heard.push(`uncommitted ${read.kind === 'summary' ? read.summary.files.length : 0}`));
+    reads.follow('/other', 'since', (read) => heard.push(`other ${read.kind === 'summary' ? read.summary.files.length : 0}`));
+    await settled();
+    state.files = ['a.ts', 'b.ts'];
+    await reads.readAgain();
+    expect(state.reads).toBe(3);
+    expect(heard.sort()).toEqual(['other 2', 'since 2', 'uncommitted 2']);
+  });
+
+  it('reads again after a read already under way when asked to read every checkout again, rather than joining it', async () => {
+    const { reads, state } = bridge();
+    const heard: number[] = [];
+    reads.follow(ROOT, 'since', (read) => heard.push(read.kind === 'summary' ? read.summary.files.length : 0));
+    await settled();
+    const going = reads.read(ROOT, 'since');
+    state.files = ['a.ts', 'b.ts'];
+    await Promise.all([going, reads.readAgain()]);
+    expect(state.reads).toBe(2);
+    expect(heard.at(-1)).toBe(2);
+  });
+
+  it('reads again after a read asked from a folder inside the checkout, which answers for the checkout too, so the stale answer is never the last one told', async () => {
+    let answerSlow: (read: ChangesRead) => void = () => undefined;
+    let files = ['a.ts'];
+    const reads = new CheckoutReads(() => ({
+      diffSummary: (dir) => (dir === ROOT ? Promise.resolve(summary(files)) : new Promise<ChangesRead>((resolve) => (answerSlow = resolve))),
+      panelTree: () => Promise.resolve({ kind: 'tree', fingerprint: 'a' }),
+    }));
+    const heard: number[] = [];
+    reads.follow(ROOT, 'since', (read) => heard.push(read.kind === 'summary' ? read.summary.files.length : 0));
+    await settled();
+    const going = reads.read(`${ROOT}/src`, 'since');
+    files = ['a.ts', 'b.ts'];
+    const again = reads.readAgain();
+    await settled();
+    answerSlow(summary(['a.ts']));
+    await Promise.all([going, again]);
+    expect(heard.at(-1)).toBe(2);
+  });
+
   it('stops watching the checkout once its last follower stops, and not before', async () => {
     const { reads, state } = bridge();
     const stopFirst = reads.follow(ROOT, 'since', () => {});

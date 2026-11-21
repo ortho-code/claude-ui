@@ -36,6 +36,19 @@ export interface DiffBase {
   source: BaseSource;
 }
 
+/** A base kept for a branch or a project, and whether it is gone, a ref that no longer resolves, which the next layer then stands in for. */
+export interface KeptLayer {
+  ref: string;
+  gone: boolean;
+}
+
+/** Each layer a base can come from, whichever wins: the base kept for the branch a checkout has out, none for a detached one, the one kept for its project, and the convention's guess; null where a layer gives none. */
+export interface BaseLayers {
+  branch: KeptLayer | null;
+  project: KeptLayer | null;
+  guess: string | null;
+}
+
 export interface DiffFile {
   path: string;
   /** A rename's old path. */
@@ -113,8 +126,9 @@ export interface DiffCommit {
   subject: string;
 }
 
-/** A remote branch the base can be set to; `isDefault` when its remote names it as its default branch. */
+/** A branch the base can be set to; `isDefault` when its remote names it as its default branch, `local` for a branch of this repository rather than of a remote. */
 export interface BaseCandidate {
   ref: string;
   isDefault: boolean;
+  local: boolean;
 }

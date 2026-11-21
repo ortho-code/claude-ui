@@ -27,6 +27,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A button collapses and expands every checkout and, in the tree, every folder, and `"folders": "combined"` puts a chain of single folders on one row in the tree, as a `changes` panel's option does.
   Scrolled down, a line over the list names the checkout and, in the tree, the folders you are in, cut in the middle when it is too long, and a press on a part goes back to it.
   Each checkout can answer a question of its own, picked from the ⋮ on its row, which names its branch and base; the menu over the list reads Mixed while one is, and a pick there sets every checkout again.
+  Change the base… in that ⋮ picks what Since branched measures from, for the checkout's branch or the whole project, from the repository's local and remote branches, with how many commits each would count.
   It reads again as files change and when the session beside it finishes a turn.
   A press on a file opens it in the Editor.
 - The Editor shows files in tabs, one set per session tab, as a drawer over the terminal area, or docked beside it from its Dock button.

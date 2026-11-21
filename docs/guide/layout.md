@@ -204,6 +204,12 @@ Since branched measures from a base branch: the default branch of the remote nam
 A checkout can answer a question of its own: the ⋮ at the end of its row names its branch and base, and picks one of the three for that checkout alone, with how many commits each covers there, or **Follow the panel** to follow the menu over the list again.
 A checkout set on its own says its question on its row, and the menu over the list then reads **Mixed**; a pick there sets every checkout again.
 With more than one checkout, the row over the list names no base and its menu counts no commits, since each checkout's ⋮ says both for itself.
+**Change the base…** in a checkout's ⋮ while it shows Since branched, or a press on the base the row over the list names, picks what Since branched measures from: any other branch, local or remote, searched by name, each with how many commits it would count.
+A press selects a branch and **Save** keeps it; a double click on a branch does both, and Enter saves what is selected.
+It is kept for the branch the checkout has out; with **Use for the whole project** ticked under the list, it is kept for every checkout of the repository without one of its own, and this branch's own pick is dropped, so this checkout follows it too.
+**Default**, the first row, keeps no base of its own, and says beside it what is then followed: the project's base where one is kept that still exists and the box is unticked, or else the guess.
+The box over the search says what the checkout was last measured from and why, and what Save will change, with **Undo**; a press on a name there shows that branch in the list.
+A checkout measured from a base its branch keeps says `from <branch>` on its row while it shows Since branched.
 Nothing is fetched for it, so it is measured as your last fetch left the remote branches.
 Each file shows its letter (`M` changed, `A` added, `D` removed, `R` renamed, `U` not tracked yet), its name after its folder, and the lines it adds and removes; a renamed file's tooltip says where it came from.
 The switch in its header shows the files as a flat list or as a tree of their folders, where a press on a folder folds it.

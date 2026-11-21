@@ -55,7 +55,7 @@ test('a checkout’s menu names its branch and base, and ticks Follow the panel 
   await bootDiff(app, main, inWorktrees());
   await kebab(page, 1).click();
   await expect(page.locator('.kebab-menu .menu-header')).toHaveText(/^old.*from upstream\/main · guessed · 2 behind$/);
-  await expect(menuRows(page)).toHaveText(['Follow the panel · Since branched', 'Since branched · 4 commits', 'Unpushed · 1 commit', 'Uncommitted']);
+  await expect(menuRows(page)).toHaveText(['Change the base…', 'Follow the panel · Since branched', 'Since branched · 4 commits', 'Unpushed · 1 commit', 'Uncommitted']);
   await expect(ticked(page)).toHaveText(['Follow the panel · Since branched']);
 });
 

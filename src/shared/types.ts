@@ -539,7 +539,7 @@ export interface UiState {
 
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './helpers/folders';
-import type { BaseCandidate, DiffCommit, DiffPicks, DiffQuestion, DiffSummaryRead, DiffView, FileDiff } from './diff/types';
+import type { BaseCandidate, BaseLayers, DiffCommit, DiffPicks, DiffQuestion, DiffSummaryRead, DiffView, FileDiff } from './diff/types';
 import type { NeedsYouChange, NeedsYouRegistry } from './status/needs-you';
 import type { LogLevel } from './helpers/log';
 import type { Look } from './status/looks';
@@ -831,10 +831,12 @@ export interface ClaudeUiApi {
   diffFile(dir: string, against: string, file: string, from: string | null, context: number, ignoreWs: boolean): Promise<FileDiff>;
   /** The commits between the commit a summary named and `HEAD`, newest first. */
   diffCommits(dir: string, against: string): Promise<DiffCommit[]>;
-  /** Every remote branch the base of Since branched can be set to. */
+  /** Every local and remote branch that is no symbolic ref, the one `dir` has out included, which the base of Since branched can be set to. */
   diffBaseCandidates(dir: string): Promise<BaseCandidate[]>;
   /** The commits `ref` would count as the branch's own; null when it shares no history with it. */
   diffBaseCount(dir: string, ref: string): Promise<number | null>;
+  /** What each layer of the base gives for the checkout at `dir`: its branch's kept base, none for a detached one, its project's, each saying whether it is gone, and the convention's guess. */
+  diffBaseLayers(dir: string): Promise<BaseLayers>;
   /** Keep `ref` as the base for the branch `dir` has out, or for its whole project, or clear it with `null`. */
   setDiffBase(dir: string, scope: 'branch' | 'project', ref: string | null): Promise<void>;
   /** Keep an Explorer's picks as they are now, whole, in its data file. */

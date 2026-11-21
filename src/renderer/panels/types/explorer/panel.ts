@@ -17,6 +17,7 @@ import { PathLine } from './path-line';
 import { explorerRoots, type ExplorerRoot, type NestedRepository } from './roots';
 import { QUESTION_NAMES, rootMenu } from './questions';
 import { Toolbar } from './toolbar';
+import { pickBase } from './base-picker';
 import './panel.css';
 
 /**
@@ -59,8 +60,12 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     (file, keep) => this.pickFile(file, keep),
     () => optionsOf(this.slot.entry).folders === 'combined',
     {
+      answers: (root) => questionOf(this.picks, root),
       own: (root) => this.picks.roots?.[root] ?? null,
-      items: (root) => rootMenu(this.picks.question, this.picks.roots?.[root] ?? null, summaryOf(this.reads.get(root)), (question) => this.pickRootQuestion(root, question)),
+      items: (root) => {
+        const summary = summaryOf(this.reads.get(root));
+        return rootMenu(this.picks.question, this.picks.roots?.[root] ?? null, summary, (question) => this.pickRootQuestion(root, question), () => this.changeBase(summary));
+      },
     },
   );
   private readonly toolbar: Toolbar;
@@ -110,6 +115,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
         any: () => this.files.hasRoots(),
         toggle: () => this.files.foldAll(!this.files.allFolded()),
       },
+      () => this.changeBase(this.toolbarSummary()),
     );
     this.files.onDraw = () => {
       this.toolbar.drawFolds();
@@ -178,6 +184,12 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     void window.claudeUi.setDiffPicks(this.slot.key, picks);
     this.toolbar.draw();
     this.gate.refresh();
+  }
+
+  /** Pick the base of the checkout `summary` was read from; once one is kept or cleared, every checkout followed in the window is read again, since a project's base reaches every checkout of its repository and the working trees did not change. */
+  private changeBase(summary: DiffSummary | null): void {
+    if (!summary) return;
+    void pickBase(summary).then((kept) => (kept ? checkoutReads.readAgain() : undefined));
   }
 
   /** The panel's question as the toolbar says it: Mixed while any checkout it shows is set to a question of its own, as its row then says. */

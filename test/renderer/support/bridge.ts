@@ -8,6 +8,8 @@ import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purge
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/config/settings';
 import { withText } from '../../../src/shared/helpers/text';
 import { soundDiffPicks } from '../../../src/shared/diff/picks';
+import { withKeptBase } from '../../../src/shared/diff/kept';
+import type { BaseLayers, KeptLayer } from '../../../src/shared/diff/types';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
 import { posix } from './posix';
@@ -58,6 +60,15 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     };
   // Recorded, and nothing else: what main does with it reaches the window, if at all, as a later event, which a check fires itself.
   const sent = (): void => {};
+  // What each layer of a checkout's base gives, as main tells them: the kept ones from the fixture's repository, gone where the fixture says the ref no longer resolves, and as the guess the base its own Since branched read names when that one is guessed, the fixture's stand-in for main's own guess.
+  const baseLayers = (dir: string): BaseLayers => {
+    const since = Object.hasOwn(fixture.diffs, dir) ? fixture.diffs[dir].since : undefined;
+    const repo = fixture.bases.repoOf[dir] ?? dir;
+    const kept = Object.hasOwn(fixture.bases.kept, repo) ? fixture.bases.kept[repo] : null;
+    const layer = (ref: string | null | undefined): KeptLayer | null => (ref ? { ref, gone: fixture.bases.gone.includes(ref) } : null);
+    const branch = since?.branch && kept && Object.hasOwn(kept.branches, since.branch) ? layer(kept.branches[since.branch]) : null;
+    return { branch, project: layer(kept?.project), guess: since?.base?.source === 'convention' ? since.base.ref : null };
+  };
   /**
    * What is at `path`, as main would find it: the fixture's disk (`BridgeFixture.paths`), read when asked, so a check can change it mid-run.
    * One look for every call that asks, as main has one disk.
@@ -322,18 +333,35 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       return answer(typeof tree === 'string' ? { kind: 'tree' as const, fingerprint: tree } : { kind: 'failed' as const, error: tree.error });
     },
     // Main's reads of a checkout are the fixture's table in their place, read when asked, so a check can change one mid-run; a folder left out is in no working tree, which main answers with git's refusal.
+    // Main measures Since branched from the first kept base: the branch's, then the project's, then its guess, which is the fixture's own.
     diffSummary: (dir, question) => {
       const summary = Object.hasOwn(fixture.diffs, dir) ? fixture.diffs[dir][question] : undefined;
-      return answer(summary ? { kind: 'summary' as const, summary } : { kind: 'failed' as const, error: 'fatal: not a git repository (or any of the parent directories): .git' });
+      if (!summary) return answer({ kind: 'failed' as const, error: 'fatal: not a git repository (or any of the parent directories): .git' });
+      const { branch, project } = baseLayers(summary.root);
+      const missing = [branch, project].find((kept) => kept?.gone)?.ref ?? summary.missing;
+      const base = branch && !branch.gone ? { ref: branch.ref, source: 'branch' as const } : project && !project.gone ? { ref: project.ref, source: 'project' as const } : summary.base;
+      return answer({ kind: 'summary' as const, summary: { ...summary, base, missing } });
     },
     // The repositories inside a folder are the fixture's, by the folder; one left out holds none, as a folder holds in most checkouts.
     nestedRepositories: (dir) => answer(fixture.nested[dir] ?? []),
     // A file's diff is the fixture's, by root and path; one left out has no changes, as git says of a file that matches its base.
     diffFile: (root, _against, path) => answer(Object.hasOwn(fixture.fileDiffs, root) && Object.hasOwn(fixture.fileDiffs[root], path) ? fixture.fileDiffs[root][path] : { path, hunks: [], binary: false, lines: null }),
     diffCommits: unmodelled('diffCommits'),
-    diffBaseCandidates: unmodelled('diffBaseCandidates'),
-    diffBaseCount: unmodelled('diffBaseCount'),
-    setDiffBase: unmodelled('setDiffBase'),
+    // The branches main lists for a checkout, and what each would count, are the fixture's; a branch left out of the counts is one whose ask failed, as when git does not answer.
+    diffBaseCandidates: (dir) => answer(fixture.bases.candidates[dir] ?? []),
+    diffBaseLayers: (dir) => answer(baseLayers(dir)),
+    diffBaseCount: (dir, ref) => {
+      const counts = fixture.bases.counts[dir] ?? {};
+      return Object.hasOwn(counts, ref) ? answer(counts[ref]) : Promise.reject(new Error('git did not answer'));
+    },
+    // Main keeps a base for the repository the checkout is in, for the branch it has out or for the whole project, and refuses a branch's for a detached checkout; while the fixture is holding, the keep waits, unwritten, until a check lets it through.
+    setDiffBase: async (dir, scope, ref) => {
+      const repo = fixture.bases.repoOf[dir] ?? dir;
+      const branch = Object.values(fixture.diffs[dir] ?? {})[0]?.branch ?? null;
+      if (scope === 'branch' && branch === null) throw new Error('This checkout has no branch out, so a base cannot be kept for it.');
+      while (fixture.bases.holding) await new Promise((resolve) => setTimeout(resolve, 20));
+      fixture.bases.kept = withKeptBase(fixture.bases.kept, repo, scope === 'branch' ? branch : null, ref);
+    },
     // Main keeps the picks when they are sound (`soundDiffPicks`), in the panel's data, writing nothing for a key that is not an entry's id, and answers nothing.
     setDiffPicks: (entryId, picks) => {
       const data = fixture.panelData[entryId] ?? { sessions: {}, lastGroup: {} };

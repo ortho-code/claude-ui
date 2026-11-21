@@ -23,6 +23,15 @@
   text-overflow: ellipsis;
 }
 
+/* The base as a word to press (ui/word-button.css), cut at its end as the words it replaces are. */
+.diff-base-words {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
 /* The collapse-all and the jump to a checkout, together at the row's end. */
 .explorer-fold-all {
   flex: none;

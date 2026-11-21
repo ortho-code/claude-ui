@@ -45,9 +45,8 @@
   text-overflow: ellipsis;
 }
 
-/* The question a root is set to on its own, before its count: whole, since it says why the count differs from its neighbours', so the branch and then the name give way first. */
-.explorer-question {
-  flex: none;
+/* A mark on a root's row saying why its count differs from its neighbours': the question it is set to on its own, or the base its own branch keeps. */
+.explorer-mark {
   padding: 0 6px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -55,6 +54,19 @@
   font-size: var(--text-small);
   line-height: 15px;
   white-space: nowrap;
+}
+
+/* The base: its own width up to 11em, never more than 45% of the row, and it does not shrink, so the checkout's name gives way instead and a long name leaves the base readable; a longer base is cut at its end, its whole name in the tooltip. */
+.explorer-base {
+  flex: none;
+  max-width: min(11em, 45%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The question: whole, so the branch, the base and then the name give way first. */
+.explorer-question {
+  flex: none;
 }
 
 /* The kebab a root's question is picked from, in the row's right padding (list.css), centred on the row: it takes neither height nor width from the line, so a root's row is as tall as a file's and its count ends where theirs do. */

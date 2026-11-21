@@ -254,3 +254,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0246](0246-the-history-docks-beside-the-terminal.md) | 2026-11-18 | The history docks beside the terminal | [Opening it, and getting out](../architecture/history.md#opening-it-and-getting-out) |
 | [0247](0247-the-explorer-shows-every-checkout-of-the-session.md) | 2026-11-19 | The Explorer shows every checkout of the session | [The `explorer` type](../architecture/panels.md#the-explorer-type) |
 | [0248](0248-each-checkout-answers-its-own-question.md) | 2026-11-20 | Each checkout answers its own question | [The `explorer` type](../architecture/panels.md#the-explorer-type) |
+| [0249](0249-a-checkouts-base-is-picked-in-a-dialog.md) | 2026-11-20 | A checkout's base is picked in a dialog | [The `explorer` type](../architecture/panels.md#the-explorer-type) |

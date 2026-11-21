@@ -1,4 +1,4 @@
-import type { BaseCandidate, DiffBase, DiffCounts, DiffQuestion } from '../../shared/diff/types';
+import type { BaseCandidate, BaseLayers, DiffBase, DiffCounts, DiffQuestion, KeptLayer } from '../../shared/diff/types';
 import { git } from '../git';
 import { resolveRepo } from '../sessions/repo';
 import { keptBases } from '../sessions/diff-bases';
@@ -42,23 +42,26 @@ async function maybe(dir: string, args: string[]): Promise<string | null> {
 /** The branch the checkout has out, or null for a detached one. */
 export const branchOf = (dir: string): Promise<string | null> => maybe(dir, ['symbolic-ref', '--short', '-q', 'HEAD']).then((out) => out || null);
 
-/** Every remote branch, by its short name, and which ones a remote's `HEAD` names as its default. */
+/**
+ * Every local and remote branch that is no symbolic ref, by git's short name, local ones first as git lists them, which ones a remote's `HEAD` names as its default, and which are local, a branch stacked on another being measured from a local one.
+ * Only a remote's own `HEAD` names a default: any other symbolic ref, such as an alias among the local branches, says nothing about which branch is the mainline.
+ */
 export async function candidates(dir: string): Promise<BaseCandidate[]> {
-  const out = await text(dir, ['for-each-ref', '--format=%(refname:short)%00%(symref:short)', 'refs/remotes']);
-  const refs: string[] = [];
+  const out = await text(dir, ['for-each-ref', '--format=%(refname)%00%(refname:short)%00%(symref:short)', 'refs/heads', 'refs/remotes']);
+  const refs: { ref: string; local: boolean }[] = [];
   const defaults = new Set<string>();
   for (const line of out.split('\n')) {
-    const [ref, target] = line.split('\0');
-    if (!ref) continue;
-    if (target) defaults.add(target);
-    else refs.push(ref);
+    const [full, ref, target] = line.split('\0');
+    if (!full || !ref) continue;
+    if (!target) refs.push({ ref, local: full.startsWith('refs/heads/') });
+    else if (full.startsWith('refs/remotes/') && full.endsWith('/HEAD')) defaults.add(target);
   }
-  return refs.map((ref) => ({ ref, isDefault: defaults.has(ref) }));
+  return refs.map(({ ref, local }) => ({ ref, isDefault: defaults.has(ref), local }));
 }
 
 /** The convention's base: the default branch of the first of `CONVENTION_REMOTES` the repository has, its `HEAD` where git knows it, else the first of `MAINLINE_NAMES` on it; null when there is none. */
 export async function conventionBase(dir: string): Promise<string | null> {
-  const listed = await candidates(dir);
+  const listed = (await candidates(dir)).filter((candidate) => !candidate.local);
   for (const remote of CONVENTION_REMOTES) {
     const own = listed.filter((candidate) => candidate.ref.startsWith(`${remote}/`));
     const named = own.find((candidate) => candidate.isDefault) ?? MAINLINE_NAMES.map((name) => own.find((candidate) => candidate.ref === `${remote}/${name}`)).find(Boolean);
@@ -75,16 +78,31 @@ const resolves = async (dir: string, ref: string): Promise<boolean> => (await ma
  * `missing` names a kept base that no longer resolves and gave way, which the header says.
  */
 export async function baseOf(dir: string): Promise<{ base: DiffBase | null; missing: string | null }> {
-  const [{ repoRoot }, branch] = await Promise.all([resolveRepo(dir), branchOf(dir)]);
-  const kept = await keptBases(repoRoot);
+  const kept = await keptRefs(dir);
   let missing: string | null = null;
-  for (const [ref, source] of [[branch ? kept.branches[branch] : undefined, 'branch'], [kept.project, 'project']] as const) {
+  for (const [ref, source] of [[kept.branch, 'branch'], [kept.project, 'project']] as const) {
     if (!ref) continue;
     if (await resolves(dir, ref)) return { base: { ref, source }, missing };
     missing ??= ref;
   }
   const guessed = await conventionBase(dir);
   return { base: guessed ? { ref: guessed, source: 'convention' } : null, missing };
+}
+
+/** Each layer as it stands, whichever wins: what the checkout's branch keeps and what its project keeps, each saying whether it is gone, and the convention's guess; the base picker says from these what following the default means. */
+export async function baseLayers(dir: string): Promise<BaseLayers> {
+  const [kept, guess] = await Promise.all([keptRefs(dir), conventionBase(dir)]);
+  const layer = async (ref: string | null): Promise<KeptLayer | null> => (ref ? { ref, gone: !(await resolves(dir, ref)) } : null);
+  const [branch, project] = await Promise.all([layer(kept.branch), layer(kept.project)]);
+  return { branch, project, guess };
+}
+
+/** The bases kept for the branch `dir` has out, none for a detached one, and for its project, whether or not they still resolve. */
+async function keptRefs(dir: string): Promise<{ branch: string | null; project: string | null }> {
+  const [{ repoRoot }, branch] = await Promise.all([resolveRepo(dir), branchOf(dir)]);
+  const kept = await keptBases(repoRoot);
+  // Its own entries only: a branch named as a property every object has, such as `constructor`, would otherwise read that property.
+  return { branch: branch && Object.hasOwn(kept.branches, branch) ? (kept.branches[branch] ?? null) : null, project: kept.project };
 }
 
 /** `HEAD`'s commit, or null on a branch with no commit yet. */

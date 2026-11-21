@@ -4,7 +4,7 @@ import { commit, git, remoteBranch, remoteDefault, repo, useRepo } from './repo-
 
 vi.mock('electron', async () => (await import('../sessions/meta-fixture')).electronStub);
 
-const { againstOf, baseCount, baseOf, candidates, conventionBase, countsOf } = await import('../../../../src/main/diff/bases');
+const { againstOf, baseCount, baseLayers, baseOf, candidates, conventionBase, countsOf } = await import('../../../../src/main/diff/bases');
 
 /** The empty tree as git names it in the test's repository. */
 const emptyTree = (): string => git('hash-object', '-t', 'tree', '/dev/null');
@@ -44,15 +44,33 @@ describe('the convention base', () => {
     commit('one');
     expect(await conventionBase(repo())).toBeNull();
   });
+
+  it('takes no local branch, even one named as a remote branch would be', async () => {
+    commit('one');
+    git('branch', 'origin/main');
+    expect(await conventionBase(repo())).toBeNull();
+  });
 });
 
 describe('the candidates', () => {
-  it('lists every remote branch once, the remote HEAD itself left out, marking the defaults', async () => {
+  it('lists every local and remote branch once, the remote HEAD itself left out, marking the defaults and the local ones', async () => {
     fork();
+    git('branch', 'stacked');
     expect(await candidates(repo())).toEqual([
-      { ref: 'origin/develop', isDefault: true },
-      { ref: 'upstream/develop', isDefault: false },
+      { ref: 'feature', isDefault: false, local: true },
+      { ref: 'main', isDefault: false, local: true },
+      { ref: 'stacked', isDefault: false, local: true },
+      { ref: 'origin/develop', isDefault: true, local: false },
+      { ref: 'upstream/develop', isDefault: false, local: false },
     ]);
+  });
+
+  it('takes a default only from a remote’s HEAD, never from a symbolic local branch, which is left out as the HEAD is', async () => {
+    fork();
+    git('symbolic-ref', 'refs/heads/alias', 'refs/heads/feature');
+    const listed = await candidates(repo());
+    expect(listed.find((candidate) => candidate.ref === 'feature')).toEqual({ ref: 'feature', isDefault: false, local: true });
+    expect(listed.map((candidate) => candidate.ref)).not.toContain('alias');
   });
 });
 
@@ -73,6 +91,28 @@ describe('the base, layer by layer', () => {
   it("does not take another branch's pick", async () => {
     fork();
     await keepBase(repo(), 'other', 'origin/develop');
+    expect((await baseOf(repo())).base?.source).toBe('convention');
+  });
+
+  it("tells each layer apart: the branch's, the project's and the guess, each whether or not another wins", async () => {
+    fork();
+    expect(await baseLayers(repo())).toEqual({ branch: null, project: null, guess: 'upstream/develop' });
+    await keepBase(repo(), null, 'origin/develop');
+    await keepBase(repo(), 'feature', 'upstream/develop');
+    await keepBase(repo(), 'other', 'origin/develop');
+    expect(await baseLayers(repo())).toEqual({ branch: { ref: 'upstream/develop', gone: false }, project: { ref: 'origin/develop', gone: false }, guess: 'upstream/develop' });
+  });
+
+  it('says of a kept base that no longer resolves that it is gone', async () => {
+    fork();
+    await keepBase(repo(), null, 'upstream/gone');
+    expect((await baseLayers(repo())).project).toEqual({ ref: 'upstream/gone', gone: true });
+  });
+
+  it('takes nothing for a branch named as a property every object has', async () => {
+    fork();
+    git('checkout', '-q', '-b', 'constructor');
+    expect((await baseLayers(repo())).branch).toBeNull();
     expect((await baseOf(repo())).base?.source).toBe('convention');
   });
 

@@ -1,4 +1,4 @@
-import { DIFF_QUESTIONS, type DiffQuestion, type DiffSummary } from '../../../../shared/diff/types';
+import { DIFF_QUESTIONS, type BaseSource, type DiffQuestion, type DiffSummary } from '../../../../shared/diff/types';
 import type { MenuItem } from '../../../ui/menu';
 
 /**
@@ -8,12 +8,25 @@ import type { MenuItem } from '../../../ui/menu';
 /** Each question's name, as the menus, the button and a checkout's row say it. */
 export const QUESTION_NAMES: Record<DiffQuestion, string> = { since: 'Since branched', unpushed: 'Unpushed', uncommitted: 'Uncommitted' };
 
+/** Where a base came from, as the base's tooltip and the base picker say it. */
+export const BASE_SOURCE_WORDS: Record<BaseSource, string> = {
+  branch: 'Kept for this branch.',
+  project: 'Kept for this project.',
+  convention: 'Guessed: the default branch of the remote named upstream, or else of origin.',
+};
+
 /**
- * The menu a checkout's own question is picked from: its branch and what it is measured from, once git has read it, Follow the panel, ticked while it follows the panel's question, and the three questions with the commits each counts there, the one it is set to ticked.
- * `own` is the question it is set to on its own, null while it follows the panel; `pick` sets it, null following the panel again.
+ * The menu a checkout's own question is picked from: its branch and what it is measured from, once git has read it, then Change the base… while it answers Since branched, the one question a base changes, Follow the panel, ticked while it follows the panel's question, and the three questions with the commits each counts there, the one it is set to ticked.
+ * `own` is the question it is set to on its own, null while it follows the panel; `pick` sets it, null following the panel again; `changeBase` opens the base picker for the checkout.
  */
-export function rootMenu(panel: DiffQuestion, own: DiffQuestion | null, summary: DiffSummary | null, pick: (question: DiffQuestion | null) => void): MenuItem[] {
-  const head: MenuItem[] = summary ? [{ label: summary.branch ?? 'No branch', header: [basePhrases(own ?? panel, summary).map((phrase) => phrase.text).join('')] }] : [];
+export function rootMenu(panel: DiffQuestion, own: DiffQuestion | null, summary: DiffSummary | null, pick: (question: DiffQuestion | null) => void, changeBase: () => void): MenuItem[] {
+  const answers = own ?? panel;
+  const head: MenuItem[] = summary
+    ? [
+        { label: summary.branch ?? 'No branch', header: [basePhrases(answers, summary).map((phrase) => phrase.text).join('')] },
+        ...(answers === 'since' ? [{ label: 'Change the base…', onSelect: changeBase }, { label: '', separator: true }] : []),
+      ]
+    : [];
   return [
     ...head,
     { label: `Follow the panel · ${QUESTION_NAMES[panel]}`, checked: own === null, onSelect: () => pick(null) },

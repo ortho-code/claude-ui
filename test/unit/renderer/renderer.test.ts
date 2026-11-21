@@ -72,6 +72,7 @@ const ORDER = [
   'src/renderer/ui/menu-caret.css',
   'src/renderer/ui/muted.css',
   'src/renderer/panels/types/explorer/toolbar.css',
+  'src/renderer/panels/types/explorer/base-picker.css',
   'src/renderer/panels/types/explorer/panel.css',
   'src/renderer/ui/syntax.css',
   'src/renderer/panels/types/editor/file/hunks.css',

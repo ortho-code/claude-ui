@@ -1,6 +1,7 @@
-import type { BaseSource, DiffQuestion, DiffSummary } from '../../../../shared/diff/types';
-import { basePhrases, QUESTION_NAMES, questionItems } from './questions';
+import type { DiffQuestion, DiffSummary } from '../../../../shared/diff/types';
+import { BASE_SOURCE_WORDS, basePhrases, QUESTION_NAMES, questionItems } from './questions';
 import { element } from '../../../ui/dom';
+import { wordButton } from '../../../ui/word-button';
 import { openMenu, type MenuItem } from '../../../ui/menu';
 import { menuCaret } from '../../../ui/menu-caret';
 import { drawCollapseAll } from '../../../ui/collapse-all';
@@ -17,19 +18,14 @@ import './toolbar.css';
 /** The jump button's label and tooltip. */
 const JUMP = 'Jump to a checkout';
 
-/** Where a base came from, as its tooltip says it. */
-const SOURCE_WORDS: Record<BaseSource, string> = {
-  branch: 'Kept for this branch.',
-  project: 'Kept for this project.',
-  convention: 'Guessed: the default branch of the remote named upstream, or else of origin.',
-};
-
 export class Toolbar {
   readonly el = element('div', 'diff-toolbar');
   private readonly button = element('button', 'diff-question');
   private readonly label = element('span');
   private readonly caret = menuCaret();
+  /** What the list is measured from, in `baseWords` while they name Since branched's base, which opens the base picker, and as words only otherwise. */
   private readonly base = element('span', 'diff-base');
+  private readonly baseWords = wordButton('diff-base-words');
   /** Folds every root and folder of the list, or opens them all again, drawn as the session list's collapse-all is. */
   private readonly foldButton = element('button', 'icon-btn compact explorer-fold-all');
   /** Jumps to one of the roots, as a project heading's button jumps to one of its groups; hidden below two. */
@@ -45,7 +41,9 @@ export class Toolbar {
     private readonly pick: (question: DiffQuestion) => void,
     private readonly jumps: () => MenuItem[],
     private readonly folds: { all(): boolean; any(): boolean; toggle(): void },
+    changeBase: () => void,
   ) {
+    this.baseWords.addEventListener('click', changeBase);
     this.button.type = 'button';
     this.button.append(this.label, this.caret);
     this.button.title = 'Pick what the list shows';
@@ -70,8 +68,12 @@ export class Toolbar {
     this.label.textContent = question === 'mixed' ? MIXED : QUESTION_NAMES[question];
     this.button.classList.toggle('mixed', question === 'mixed');
     const summary = question === 'mixed' ? null : this.summary();
-    this.base.replaceChildren(...(question === 'mixed' ? [] : basePhrases(question, summary).map((phrase) => (phrase.muted ? mutedText(phrase.text) : text(phrase.text)))));
-    this.base.title = question === 'since' && summary?.base ? SOURCE_WORDS[summary.base.source] : '';
+    const words = question === 'mixed' ? [] : basePhrases(question, summary).map((phrase) => (phrase.muted ? mutedText(phrase.text) : text(phrase.text)));
+    if (question === 'since' && summary !== null) {
+      this.baseWords.replaceChildren(...words);
+      this.baseWords.title = `${summary.base ? `${BASE_SOURCE_WORDS[summary.base.source]} ` : ''}Press to change the base.`;
+      this.base.replaceChildren(this.baseWords);
+    } else this.base.replaceChildren(...words);
     this.jumpButton.hidden = this.jumps().length < 2;
     this.drawFolds();
   }

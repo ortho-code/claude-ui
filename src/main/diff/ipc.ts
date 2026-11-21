@@ -3,7 +3,7 @@ import type { DiffQuestion, DiffSummaryRead } from '../../shared/diff/types';
 import { failure } from '../git';
 import { resolveRepo } from '../sessions/repo';
 import { keepBase } from '../sessions/diff-bases';
-import { baseCount, branchOf, candidates } from './bases';
+import { baseCount, baseLayers, branchOf, candidates } from './bases';
 import { nestedRepositories } from './nested';
 import { diffCommits, diffSummary, fileDiff } from './read';
 
@@ -30,5 +30,6 @@ export function registerDiffIpc(): void {
   ipcMain.handle('diff:commits', (_event, dir: string, against: string) => diffCommits(dir, against));
   ipcMain.handle('diff:baseCandidates', (_event, dir: string) => candidates(dir));
   ipcMain.handle('diff:baseCount', (_event, dir: string, ref: string) => baseCount(dir, ref));
+  ipcMain.handle('diff:baseLayers', (_event, dir: string) => baseLayers(dir));
   ipcMain.handle('meta:setDiffBase', (_event, dir: string, scope: 'branch' | 'project', ref: string | null) => setDiffBase(dir, scope, ref));
 }

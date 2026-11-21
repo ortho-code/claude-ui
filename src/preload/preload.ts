@@ -127,6 +127,7 @@ const api: ClaudeUiApi = {
   diffCommits: (dir, against) => ipcRenderer.invoke('diff:commits', dir, against),
   diffBaseCandidates: (dir) => ipcRenderer.invoke('diff:baseCandidates', dir),
   diffBaseCount: (dir, ref) => ipcRenderer.invoke('diff:baseCount', dir, ref),
+  diffBaseLayers: (dir) => ipcRenderer.invoke('diff:baseLayers', dir),
   setDiffBase: (dir, scope, ref) => ipcRenderer.invoke('meta:setDiffBase', dir, scope, ref),
   setDiffPicks: (entryId, picks) => ipcRenderer.invoke('panelData:setDiffPicks', entryId, picks),
   getFolders: () => ipcRenderer.invoke('folders:get'),
