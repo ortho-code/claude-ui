@@ -6,6 +6,7 @@ import { type BridgeFixture, CONFIG_ROOT, HOME, PROJECT, session, settingsFileWi
 import { type App, expect, test } from '../support/harness';
 import { row, rows, tabLabel } from '../support/window';
 import { snapshot } from './capture';
+import { bootDiff, file, summary } from '../panels/types/explorer/explorer';
 
 // NOT A CHECK: a tool, for moving CSS without changing what anything looks like (docs/architecture/build-and-checks.md § The window's checks).
 // Skipped unless STYLE_SNAPSHOT names a folder; then each test below puts the window in one state and writes its computed styles there, one file per state.
@@ -326,4 +327,17 @@ test("the session dialog a list row opens, offering to continue the row's sessio
   await expect(page.locator('#session-overlay')).toBeVisible();
   await expect(page.locator('#session-mode')).toBeVisible();
   await snapshot(page, DIR!, 'session-dialog');
+});
+
+test("the Explorer as a tree, scrolled so the path over its list shows, with the base its row over the list measures from", async ({ app, page }) => {
+  const files = Array.from({ length: 40 }, (_, n) => file(`src/app/http/Controller${String(n).padStart(2, '0')}.php`));
+  await bootDiff(app, { since: summary({ files, counts: { ahead: 3, behind: 5, unpushed: 1 } }) });
+  await page.locator('.explorer-panel').waitFor();
+  await page.locator('.panel-header .panel-view').nth(1).click();
+  await page.locator('.explorer-files .list-row', { hasText: 'Controller20.php' }).evaluate((row) => {
+    const list = row.closest<HTMLElement>('.explorer-files')!;
+    list.scrollTop += row.getBoundingClientRect().top - list.getBoundingClientRect().top + 2;
+  });
+  await expect(page.locator('.explorer-path')).toHaveText('demo›src/app/http');
+  await snapshot(page, DIR!, 'explorer');
 });
