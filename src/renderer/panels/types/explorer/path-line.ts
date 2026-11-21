@@ -1,4 +1,5 @@
 import { element } from '../../../ui/dom';
+import { wordButton } from '../../../ui/word-button';
 import { openMenu } from '../../../ui/menu';
 import './path-line.css';
 
@@ -61,8 +62,7 @@ export class PathLine {
 
   /** The `…` the first `out` folders are folded into: a press lists them, from the root down, each a press away from its row. */
   private folded(place: Place, out: number): HTMLElement {
-    const more = element('button', 'explorer-path-part explorer-path-more');
-    more.type = 'button';
+    const more = wordButton('explorer-path-part explorer-path-more');
     more.textContent = '…';
     const hidden = place.folders.slice(0, out);
     more.title = hidden.join('/');
@@ -76,8 +76,7 @@ export class PathLine {
   }
 
   private part(label: string, root: string, folders: readonly string[]): HTMLElement {
-    const part = element('button', 'explorer-path-part');
-    part.type = 'button';
+    const part = wordButton('explorer-path-part');
     part.textContent = label;
     part.title = folders.length ? folders.join('/') : root;
     part.addEventListener('click', () => this.go(root, folders));

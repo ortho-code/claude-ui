@@ -17,19 +17,9 @@
   flex: none;
 }
 
+/* Each part a word to press (ui/word-button.css), kept whole while the line folds its folders away. */
 .explorer-path-part {
   flex: none;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.explorer-path-part:hover {
-  color: var(--text);
-  text-decoration: underline;
 }
 
 /* The root's name is cut at its end wherever it gives way, its path in the tooltip. */

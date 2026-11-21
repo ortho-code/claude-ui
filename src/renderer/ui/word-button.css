@@ -1,0 +1,14 @@
+/* A button that reads as words of the line it sits in (ui/word-button.ts): the line's own colour and type, and the text's colour, underlined, under the pointer. */
+.word-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.word-button:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
