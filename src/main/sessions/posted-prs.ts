@@ -14,22 +14,23 @@ export function postedPrs(command: string): SessionPr[] {
   });
 }
 
-/** A PR a command opened in the browser to be created there: the repository it is for and the branch it is from, `owner:branch` for a fork's. */
+/** A PR a command creates: the repository it is for and the branch it is from, `owner:branch` for a fork's. */
 export interface PrCreate {
   repository: string;
   head: string;
 }
 
 /**
- * The PRs a shell command opens in the browser to create, `gh pr create --web` naming both the repository with `--repo` and the branch with `--head`, which `gh` prints no PR for, since the PR is made in the browser afterwards.
- * Read as `postedPrs` reads its commands; one that leaves either to the folder's checkout names nothing sure, and is left out.
+ * The PRs a shell command creates, `gh pr create` naming both the repository with `--repo` and the branch with `--head`, with or without `--web`.
+ * The command's output cannot be relied on to name the PR: `--web` prints none, since the PR is made in the browser afterwards, and an output piped through a filter may have lost the line that does.
+ * Read as `postedPrs` reads its commands; one that leaves either to the folder's checkout names nothing sure, and is left out, as is a `--dry-run`, which creates no PR.
  */
 export function prCreates(command: string): PrCreate[] {
   return ghCalls(command).flatMap((args) => {
     if (args[0] !== 'pr' || args[1] !== 'create') return [];
     const { options } = parsed(args.slice(2), CREATE_VALUE_FLAGS);
     const last = (...flags: string[]): string | null | undefined => options.filter((option) => flags.includes(option.flag)).at(-1)?.value;
-    if (!options.some((option) => option.flag === '--web' || option.flag === '-w')) return [];
+    if (options.some((option) => option.flag === '--dry-run')) return [];
     const repository = REPOSITORY.exec(last('--repo', '-R') ?? '')?.[1];
     const head = last('--head', '-H');
     return repository && head ? [{ repository, head }] : [];

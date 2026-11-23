@@ -5,8 +5,8 @@ import { addPrLink } from './meta';
 import { failureOf, runGh, type RunGh } from './pr-status';
 
 /**
- * Finding the PR a session opened in the browser to be created (`SessionSummary.prCreates`), or posted on by an id (`SessionSummary.postedNodes`), and linking it to that session as the app's own link (`addPrLink`), as a panel row's PR is linked.
- * For one opened in the browser, GitHub is asked for the PRs made from the branch in the repository the command named, newest first, and the one taken is the newest made after the command ran, from the fork the branch names where it names one, so an older PR from a reused branch is never linked.
+ * Finding the PR a session created (`SessionSummary.prCreates`), or posted on by an id (`SessionSummary.postedNodes`), and linking it to that session as the app's own link (`addPrLink`), as a panel row's PR is linked.
+ * For a created one, GitHub is asked for the PRs made from the branch in the repository the command named, newest first, and the one taken is the newest made after the command ran, from the fork the branch names where it names one, so an older PR from a reused branch is never linked.
  * For a posted id, GitHub is asked which PR the review, review thread, review comment or PR it names belongs to.
  */
 
@@ -82,7 +82,7 @@ export function foundUrl(create: Create, repository: unknown): string | null {
 type Link = (id: string, url: string) => Promise<void>;
 
 /**
- * Find the PR each of `toFind` is, those opened in the browser and those posted on by an id each in requests of their own, `PER_REQUEST` at a time, linking each found one to its session.
+ * Find the PR each of `toFind` is, those created and those posted on by an id each in requests of their own, `PER_REQUEST` at a time, linking each found one to its session.
  * GitHub answers an id it does not know with null beside the others, and `gh` then exits with an error, so an answer is read whatever the exit; the first request with no answer at all stops the rest, and says why.
  */
 export async function findAndLink(toFind: readonly PrToFind[], gh: RunGh = (args) => runGh(args), link: Link = addPrLink): Promise<PrsFound> {
@@ -107,7 +107,7 @@ async function findIn<T extends PrToFind>(asked: readonly T[], queryArgs: (run: 
     }
     if (!isObject(data)) {
       const problem = failureOf(result);
-      log('warn', 'prs', `no PR found for a browser create or a posted id: ${problem}`);
+      log('warn', 'prs', `no PR found for a create or a posted id: ${problem}`);
       return problem;
     }
     for (const [at, each] of run.entries()) {

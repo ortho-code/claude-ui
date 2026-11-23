@@ -12,7 +12,7 @@ import { RunGate } from '../../run';
  * The window regaining focus asks at once, unless the last answer is under a minute old.
  * Each answer, once what was last seen is read, first takes off the sessions' reasons GitHub took back (`takenBack`), so that a reason is settled only by an answer that is also kept as what was last seen, and then marks the sessions whose PRs changed in a way that needs you, against what was last seen of them (`settleChanges`).
  * What each PR is called comes into the store's `prNames` from what was last seen, as soon as that is read, and then from each answer.
- * Each ask first looks for the PRs sessions opened in the browser, and those their reviews or comments named only by an id, every five minutes until each is found or 30 days have passed (`findWaiting`).
+ * Each ask first looks for the PRs sessions created, and those their reviews or comments named only by an id, every five minutes until each is found or 30 days have passed (`findWaiting`).
  * An ask overtaken by a later one before main answered is dropped, so an older answer never lands over a newer one.
  * Only while the setting allows it (`Settings.prStatus`), which is not known before the settings are read: until then, and while it is off, an ask asks nothing and leaves no status, so a launch with it off never runs `gh`; turning it on asks at once.
  */
@@ -78,7 +78,7 @@ function sooner(a: number | 'off', b: number | 'off'): number | 'off' {
 }
 
 /**
- * Ask main to find the PRs sessions opened in the browser or posted on by an id (src/main/sessions/pr-find.ts), which it links to their sessions as the app's own links; the listing is read again once any is found, so the session shows it and its status is asked from then on.
+ * Ask main to find the PRs sessions created or posted on by an id (src/main/sessions/pr-find.ts), which it links to their sessions as the app's own links; the listing is read again once any is found, so the session shows it and its status is asked from then on.
  * Whether any of `toFind` is still not found, so the asking goes on; a failed ask finds nothing, and so leaves them all to look for.
  */
 async function findWaiting(toFind: readonly PrToFind[]): Promise<boolean> {

@@ -113,14 +113,25 @@ describe('prCreates', () => {
     expect(prCreates('gh pr create --repo=https://github.com/acme/app --head=fix --web')).toEqual([{ repository: 'acme/app', head: 'fix' }]);
   });
 
-  it('reads nothing without --web, or with the repository or the branch left to the checkout', () => {
-    expect(prCreates('gh pr create --repo acme/app --head fix --title x')).toEqual([]);
+  // The command session 7fc40938 ran on 2026-11-23, its title shortened: its piped output kept only gh's notice after the PR's address.
+  it('reads a PR created without --web, whatever its output is cut to', () => {
+    const command = 'cd /tmp && gh pr create --draft --repo ScientaNL/Scienta --base develop --head alleknalle:renovate-holds-back --title "Renovate holds back" 2>&1 | tail -2';
+    expect(prCreates(command)).toEqual([{ repository: 'ScientaNL/Scienta', head: 'alleknalle:renovate-holds-back' }]);
+  });
+
+  it('reads nothing with the repository or the branch left to the checkout', () => {
+    expect(prCreates('gh pr create --head fix --title x')).toEqual([]);
     expect(prCreates('gh pr create --web --head fix')).toEqual([]);
-    expect(prCreates('gh pr create --web --repo acme/app')).toEqual([]);
+    expect(prCreates('gh pr create --repo acme/app')).toEqual([]);
+  });
+
+  it('reads nothing from a dry run, which creates no PR', () => {
+    expect(prCreates('gh pr create --dry-run --repo acme/app --head fix')).toEqual([]);
   });
 
   it('never takes a value such as a title for the flag it spells', () => {
-    expect(prCreates('gh pr create --title --web --repo acme/app --head fix')).toEqual([]);
+    expect(prCreates('gh pr create --repo acme/app --title --head fix')).toEqual([]);
+    expect(prCreates('gh pr create --repo acme/app --head fix --title --dry-run')).toEqual([{ repository: 'acme/app', head: 'fix' }]);
   });
 });
 

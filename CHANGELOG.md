@@ -12,7 +12,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 
 - A linked PR shows its title beside its number, in its list and on a needs-you line, and search finds a session by words of it.
   A PR that is not yours says who opened it.
-- A PR a session opened in the browser with `gh pr create --web`, naming the repository and the branch, is linked to that session once you submit it there.
+- A PR a session creates with `gh pr create`, naming the repository and the branch, is linked to that session within 30 days even when the command's output was cut short, and with `--web` once you submit it in the browser.
 - A panel's row that names a session shows that session's note mark while it has a note, with the note on hover, and a press on it opens the note to edit.
 - `setAsideNews` in Settings can keep news on a set-aside session, such as a change on its PR, dimmed and uncounted while the session stays set aside (`"wait"`), instead of showing it at once (`"show"`, as before).
 - A session's list of PRs says when each merged or closed, or since when it is open, and a panel type is given those dates too.

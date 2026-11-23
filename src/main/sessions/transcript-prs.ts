@@ -20,7 +20,7 @@ export class TranscriptPrs {
 
   /**
    * An assistant record: a review or comment claude posted links its PR, since Claude Code links none for a review, nor for a comment posted through `gh api`.
-   * A PR it opened in the browser to be created is kept apart, with when, since there is no PR yet to link, and so is an id a review or comment posted through GraphQL names, since only GitHub can say which PR that is.
+   * A PR it created is kept apart, with when, since the command's output cannot be relied on to name it, and so is an id a review or comment posted through GraphQL names, since only GitHub can say which PR that is.
    */
   posted(event: Record<string, unknown>): void {
     for (const command of shellCommands(event)) {
@@ -45,7 +45,7 @@ export class TranscriptPrs {
     return [...this.byKey.values()];
   }
 
-  /** The PRs opened in the browser to be created, each repository and branch once, oldest first. */
+  /** The PRs created, each repository and branch once, oldest first. */
   get prCreates(): PendingPr[] {
     return [...this.creates.values()];
   }

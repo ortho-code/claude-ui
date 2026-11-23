@@ -118,8 +118,8 @@ export interface SessionSummary {
    */
   prs: SessionPr[];
   /**
-   * The PRs the session opened in the browser to be created there, by a `gh pr create --web` naming the repository and the branch, each once, the latest command for it kept; empty when none.
-   * No PR exists when the command runs, so the window asks GitHub for the one made from that branch afterwards and links it as the app's own.
+   * The PRs the session created, by a `gh pr create` naming the repository and the branch, with or without `--web`, each once, the latest command for it kept; empty when none.
+   * The command's output cannot be relied on to name the PR, so the window asks GitHub for the one made from that branch after it ran and links it as the app's own.
    */
   prCreates: PendingPr[];
   /**
@@ -166,7 +166,7 @@ export interface SessionPr {
   url: string;
 }
 
-/** A PR a session opened in the browser to be created: the repository it is for, the branch it is from, `owner:branch` for a fork's, and when the command ran (ISO), which the PR is made after. */
+/** A PR a session created, the PR itself still to find: the repository it is for, the branch it is from, `owner:branch` for a fork's, and when the command ran (ISO), which the PR is made after. */
 export interface PendingPr {
   repository: string;
   head: string;
@@ -179,7 +179,7 @@ export interface PendingNode {
   at: string;
 }
 
-/** A PR the window asks main to find, with the session it is for: one opened in the browser, or the one a posted id belongs to. */
+/** A PR the window asks main to find, with the session it is for: one it created, or the one a posted id belongs to. */
 export type PrToFind = (PendingPr | PendingNode) & { id: string };
 
 /** What main found of the PRs asked for: each found one, as it was asked for, with the page of the PR now linked to its session, and why the asking failed, null when it did not. */
@@ -732,7 +732,7 @@ export interface ClaudeUiApi {
   onOpenFailed(callback: (url: string, problem: string) => void): void;
   /** What GitHub says of `prs`, asked with `gh` (`src/main/sessions/pr-status.ts`); a merged one is not asked again while the app runs. */
   prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
-  /** Find the PRs sessions opened in the browser to be created, or posted on by an id, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */
+  /** Find the PRs sessions created, or posted on by an id, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */
   findPrs(toFind: PrToFind[]): Promise<PrsFound>;
   /** Current status per session id (busy | ready | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;

@@ -98,7 +98,7 @@ describe('findAndLink', () => {
     expect(link.mock.calls).toEqual([['s1', url], ['s2', url]]);
   });
 
-  it('asks for browser creates and posted ids in requests of their own', async () => {
+  it('asks for creates and posted ids in requests of their own', async () => {
     const gh = vi.fn((args: readonly string[]) => Promise.resolve(answering(args.some((arg) => arg.includes('node(id:')) ? { n0: { pullRequest: { url: 'https://github.com/acme/app/pull/2' } } } : { r0: ANSWERED })));
     const result = await findAndLink([FORK, { id: 's2', node: 'PRR_kwDOAAAAAAAAAAAAone', at: FORK.at }], gh);
     expect(result.found.map((each) => each.url)).toEqual(['https://github.com/ScientaNL/scienta/pull/36788', 'https://github.com/acme/app/pull/2']);
