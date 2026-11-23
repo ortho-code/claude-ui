@@ -16,11 +16,20 @@ export interface FileDocHost {
   refreshed(ref: FileRef): void;
 }
 
+/** A tab of the Editor, whatever kind of file it shows: what the Editor's view holds of it. */
+export interface Doc {
+  readonly view: FileView;
+  /** Show `ref`, the tab's file as its opener or a step now names it. */
+  showRef(ref: FileRef): Promise<void>;
+  /** The tab is closed: stop whatever it follows. */
+  release(): void;
+}
+
 /**
  * One file's tab in the Editor: its diff against what its opener asked, drawn by the file view, and read again whenever a read of its checkout for its question tells it something new (`checkoutReads`): a change of the checkout's working tree, which is watched while any tab or Explorer follows it, or another reader's read of a newer tree, so it needs no panel beside it.
  * Its sequence steps from file to file as the list it was opened from orders them.
  */
-export class FileDoc {
+export class FileDoc implements Doc {
   readonly view: FileView;
   /** Stops following its checkout's changes for its question. */
   private stopFollowing: () => void;
@@ -31,7 +40,7 @@ export class FileDoc {
     private readonly host: FileDocHost,
   ) {
     this.view = new FileView({
-      source: () => ({ root: this.ref.root, against: this.ref.diff.against }),
+      read: (file, context, ignoreWs) => window.claudeUi.diffFile(this.ref.root, this.ref.diff.against, file.path, file.status === 'R' ? file.from : null, context, ignoreWs),
       view: () => host.picks().view,
       split: () => host.picks().view === 'split' || (host.picks().view === 'fit' && host.wide()),
       ignoreWs: () => host.picks().ignoreWs,

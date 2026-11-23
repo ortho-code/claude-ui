@@ -11,8 +11,8 @@ import { drawMap, markCursor } from './steps';
 import './file-view.css';
 
 /**
- * The diff of the file picked in the list: a header naming it, with the view, the whitespace switch and the stepper, then its hunks with the change map beside them.
- * It reads the file against the commit the list was measured from, so the two describe the same diff.
+ * The diff of one file: a header naming it, with the view, the whitespace switch and the stepper, then its hunks with the change map beside them.
+ * What the file is compared with is its host's to say: the view asks its host to read the file, and draws what comes back.
  */
 
 /** Unchanged lines around each change, as git gives them, before a fold is opened. */
@@ -21,10 +21,10 @@ const CONTEXT = 3;
 /** How each view is named in the menu and on its button. */
 const VIEW_NAMES: Record<DiffView, string> = { fit: 'Fit', split: 'Split', unified: 'Unified' };
 
-/** What the file view asks of its panel. */
+/** What the file view asks of the tab it is in. */
 export interface FileViewHost {
-  /** The checkout and the commit the list was measured from; null before a list has been read. */
-  source(): { root: string; against: string } | null;
+  /** `file`'s hunks, with `context` unchanged lines around each change and whitespace-only changes left out with `ignoreWs`, and the file as it is now. */
+  read(file: DiffFile, context: number, ignoreWs: boolean): Promise<FileDiff>;
   view(): DiffView;
   /** Whether the view on show is split, the panel's width deciding for Fit. */
   split(): boolean;
@@ -141,10 +141,9 @@ export class FileView {
 
   private async load(): Promise<void> {
     const file = this.file;
-    const source = this.host.source();
-    if (!file || !source) return;
+    if (!file) return;
     const load = ++this.loads;
-    const diff = await window.claudeUi.diffFile(source.root, source.against, file.path, file.status === 'R' ? file.from : null, this.context, this.host.ignoreWs());
+    const diff = await this.host.read(file, this.context, this.host.ignoreWs());
     if (load !== this.loads) return;
     this.diff = diff;
     this.draw();

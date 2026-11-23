@@ -9,7 +9,7 @@ import { setTooltip } from '../../../ui/tooltip';
 import type { PanelTab, PanelTabs } from '../../contract';
 import { drawDockButton, tabsHeader } from '../../headers';
 import { HeaderTabs } from '../../tabs';
-import { FileDoc } from './file/doc';
+import { FileDoc, type Doc } from './file/doc';
 import './view.css';
 
 /** The Editor's width from which Fit draws a diff split. */
@@ -20,7 +20,7 @@ const CLOSE_ALL = 'Close all files';
 /**
  * THE EDITOR'S VIEW, one for the window: the files open for the tab on show as tabs in its own head, the one on show below them.
  * Built apart from the layout, so it can be shown in the drawer over the terminal area or docked in the Editor panel (controller.ts places it); its head is its own in both, drawn with the tabs a panel's header draws (`HeaderTabs`), so it reads the same wherever it is.
- * What is open lives in the store, one set per session, so a switch of session tabs, a move between drawer and dock, or a layout change draws it again from there; each open file is a `FileDoc`, kept while its tab stays in the set on show.
+ * What is open lives in the store, one set per session, so a switch of session tabs, a move between drawer and dock, or a layout change draws it again from there; each open file is a `Doc`, kept while its tab stays in the set on show.
  * How a diff is drawn (the view, whitespace, Changes only) is the window's `editorUi`, kept for the next launch.
  */
 export class EditorView {
@@ -35,7 +35,7 @@ export class EditorView {
   private readonly head = tabsHeader(this.tabs, [this.dockButton, this.closeButton]);
   /** The docked Editor panel's full-screen button, placed in the head before Close all files while it is docked; null otherwise. */
   private fullScreen: HTMLButtonElement | null = null;
-  private readonly docs = new Map<string, FileDoc>();
+  private readonly docs = new Map<string, Doc>();
   private wide = false;
   /** The set last drawn, so a store change that leaves it alone draws nothing. */
   private drawn: { key: string; set: EditorTabs } | null = null;
@@ -128,7 +128,7 @@ export class EditorView {
     if (this.body.firstChild !== doc.view.el) this.body.replaceChildren(doc.view.el);
   }
 
-  private docOf(key: string, ref: FileRef): FileDoc {
+  private docOf(key: string, ref: FileRef): Doc {
     const found = this.docs.get(key);
     if (found) {
       void found.showRef(ref);
@@ -156,7 +156,7 @@ export class EditorView {
     return doc;
   }
 
-  private keyOfDoc(doc: FileDoc): string | undefined {
+  private keyOfDoc(doc: Doc): string | undefined {
     return [...this.docs].find(([, each]) => each === doc)?.[0];
   }
 
