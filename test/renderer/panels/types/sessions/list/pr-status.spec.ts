@@ -423,7 +423,7 @@ test("typing words of a linked PR's title finds its session", async ({ app, page
 
 // A PR opened in the browser with `gh pr create --web` exists only once it is submitted there, so the window looks for it until it does, and links it to the session that opened it.
 const COMMAND_AT = '2026-11-09T09:21:32.000Z';
-const opener = session({ id: '00000000-0000-4000-8000-0000000000fb', title: 'Opened a PR in the browser', webCreates: [{ repository: 'ScientaNL/demo', head: 'me:fix', at: COMMAND_AT }] });
+const opener = session({ id: '00000000-0000-4000-8000-0000000000fb', title: 'Opened a PR in the browser', prCreates: [{ repository: 'ScientaNL/demo', head: 'me:fix', at: COMMAND_AT }] });
 const createdUrl = 'https://github.com/ScientaNL/demo/pull/40';
 
 test('a PR opened in the browser is looked for every five minutes, linked to its session once it exists, and then asked about as any other', async ({ app, page }) => {

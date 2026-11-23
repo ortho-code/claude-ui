@@ -144,7 +144,7 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
     isSibling: false,
     siblingIds: [],
     prs: [],
-    webCreates: [],
+    prCreates: [],
     postedNodes: [],
     postCompactHeads: [],
     cwdExists: true,

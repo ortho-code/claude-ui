@@ -330,11 +330,11 @@ describe('listSessions', () => {
 
   it('reads the PRs opened in the browser to be created, each branch once at its latest try, and none in a record with no time', async () => {
     const sessions = await listSessions();
-    expect(sessions.find((s) => s.id === 'posted')?.webCreates).toEqual([
+    expect(sessions.find((s) => s.id === 'posted')?.prCreates).toEqual([
       { repository: 'ScientaNL/demo', head: 'other', at: '2026-01-03T09:05:00.000Z' },
       { repository: 'ScientaNL/demo', head: 'me:fix', at: '2026-01-03T09:10:00.000Z' },
     ]);
-    expect(sessions.find((s) => s.id === 'pr')?.webCreates).toEqual([]);
+    expect(sessions.find((s) => s.id === 'pr')?.prCreates).toEqual([]);
   });
 
   it('reads the ids a review or comment posted through GraphQL names, each once at its latest post, and none in a record with no time', async () => {

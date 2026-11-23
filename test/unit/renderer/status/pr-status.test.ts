@@ -398,7 +398,7 @@ describe('prDetails', () => {
 
 describe('stillToFind', () => {
   const at = '2026-11-09T09:00:00.000Z';
-  const sessions = [{ id: 's1', webCreates: [{ repository: 'acme/app', head: 'fix', at }], postedNodes: [] }, { id: 's2', webCreates: [], postedNodes: [] }];
+  const sessions = [{ id: 's1', prCreates: [{ repository: 'acme/app', head: 'fix', at }], postedNodes: [] }, { id: 's2', prCreates: [], postedNodes: [] }];
 
   it('looks for a PR opened in the browser until 30 days after the command, with the session that opened it', () => {
     const now = Date.parse(at);
@@ -412,7 +412,7 @@ describe('stillToFind', () => {
   });
 
   it('looks for the PR a review posted by its id belongs to, as long and until found, beside the ones opened in the browser', () => {
-    const posted = [{ id: 's3', webCreates: [], postedNodes: [{ node: 'PRR_kwDOAAAAAAAAAAAAone', at }] }];
+    const posted = [{ id: 's3', prCreates: [], postedNodes: [{ node: 'PRR_kwDOAAAAAAAAAAAAone', at }] }];
     const now = Date.parse(at);
     expect(stillToFind(posted, new Set(), now + FIND_FOR_MS - 1)).toEqual([{ id: 's3', node: 'PRR_kwDOAAAAAAAAAAAAone', at }]);
     expect(stillToFind(posted, new Set(), now + FIND_FOR_MS)).toEqual([]);

@@ -5,7 +5,7 @@ import { addPrLink } from './meta';
 import { failureOf, runGh, type RunGh } from './pr-status';
 
 /**
- * Finding the PR a session opened in the browser to be created (`SessionSummary.webCreates`), or posted on by an id (`SessionSummary.postedNodes`), and linking it to that session as the app's own link (`addPrLink`), as a panel row's PR is linked.
+ * Finding the PR a session opened in the browser to be created (`SessionSummary.prCreates`), or posted on by an id (`SessionSummary.postedNodes`), and linking it to that session as the app's own link (`addPrLink`), as a panel row's PR is linked.
  * For one opened in the browser, GitHub is asked for the PRs made from the branch in the repository the command named, newest first, and the one taken is the newest made after the command ran, from the fork the branch names where it names one, so an older PR from a reused branch is never linked.
  * For a posted id, GitHub is asked which PR the review, review thread, review comment or PR it names belongs to.
  */

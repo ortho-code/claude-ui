@@ -15,7 +15,7 @@ export function postedPrs(command: string): SessionPr[] {
 }
 
 /** A PR a command opened in the browser to be created there: the repository it is for and the branch it is from, `owner:branch` for a fork's. */
-export interface WebCreate {
+export interface PrCreate {
   repository: string;
   head: string;
 }
@@ -24,7 +24,7 @@ export interface WebCreate {
  * The PRs a shell command opens in the browser to create, `gh pr create --web` naming both the repository with `--repo` and the branch with `--head`, which `gh` prints no PR for, since the PR is made in the browser afterwards.
  * Read as `postedPrs` reads its commands; one that leaves either to the folder's checkout names nothing sure, and is left out.
  */
-export function webCreates(command: string): WebCreate[] {
+export function prCreates(command: string): PrCreate[] {
   return ghCalls(command).flatMap((args) => {
     if (args[0] !== 'pr' || args[1] !== 'create') return [];
     const { options } = parsed(args.slice(2), CREATE_VALUE_FLAGS);

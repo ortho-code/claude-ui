@@ -30,8 +30,8 @@ export const FIND_FOR_MS = 30 * 24 * 60 * MINUTE;
 export const findKey = (toFind: PrToFind): string => ['node' in toFind ? [toFind.node] : [toFind.repository.toLowerCase(), toFind.head], toFind.id, toFind.at].flat().join('\n');
 
 /** The PRs sessions opened in the browser, and those their posts named by id, that are still looked for at `now`: within `FIND_FOR_MS` of the command, and not found yet (`found`, by `findKey`). */
-export function stillToFind(sessions: readonly Pick<SessionSummary, 'id' | 'webCreates' | 'postedNodes'>[], found: ReadonlySet<string>, now: number): PrToFind[] {
-  const all = sessions.flatMap(({ id, webCreates, postedNodes }): PrToFind[] => [...webCreates.map((create) => ({ ...create, id })), ...postedNodes.map((posted) => ({ ...posted, id }))]);
+export function stillToFind(sessions: readonly Pick<SessionSummary, 'id' | 'prCreates' | 'postedNodes'>[], found: ReadonlySet<string>, now: number): PrToFind[] {
+  const all = sessions.flatMap(({ id, prCreates, postedNodes }): PrToFind[] => [...prCreates.map((create) => ({ ...create, id })), ...postedNodes.map((posted) => ({ ...posted, id }))]);
   return all.filter((toFind) => now - Date.parse(toFind.at) < FIND_FOR_MS && !found.has(findKey(toFind)));
 }
 

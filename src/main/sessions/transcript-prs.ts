@@ -1,6 +1,6 @@
 import { prKey } from '../../shared/sessions/prs';
 import type { PendingNode, PendingPr, SessionPr } from '../../shared/types';
-import { postedNodes, postedPrs, webCreates } from './posted-prs';
+import { postedNodes, postedPrs, prCreates } from './posted-prs';
 import { shellCommands } from './tool-calls';
 
 /**
@@ -26,7 +26,7 @@ export class TranscriptPrs {
     for (const command of shellCommands(event)) {
       for (const pr of postedPrs(command)) this.keep(pr);
       if (typeof event.timestamp !== 'string') continue;
-      for (const create of webCreates(command)) {
+      for (const create of prCreates(command)) {
         const key = `${create.repository.toLowerCase()}\n${create.head}`;
         // Moved to the end with its newer time: a second try on the same branch is the one its PR follows.
         this.creates.delete(key);
@@ -46,7 +46,7 @@ export class TranscriptPrs {
   }
 
   /** The PRs opened in the browser to be created, each repository and branch once, oldest first. */
-  get webCreates(): PendingPr[] {
+  get prCreates(): PendingPr[] {
     return [...this.creates.values()];
   }
 

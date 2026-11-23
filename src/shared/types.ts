@@ -121,7 +121,7 @@ export interface SessionSummary {
    * The PRs the session opened in the browser to be created there, by a `gh pr create --web` naming the repository and the branch, each once, the latest command for it kept; empty when none.
    * No PR exists when the command runs, so the window asks GitHub for the one made from that branch afterwards and links it as the app's own.
    */
-  webCreates: PendingPr[];
+  prCreates: PendingPr[];
   /**
    * The ids a review or comment the session posted through GraphQL names, each once, the latest command for it kept; empty when none.
    * The command names no PR, so the window asks GitHub which PR each id belongs to and links it as the app's own.

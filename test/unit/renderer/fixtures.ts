@@ -23,7 +23,7 @@ export function session(over: Partial<SessionSummary> = {}): SessionSummary {
     isSibling: false,
     siblingIds: [],
     prs: [],
-    webCreates: [],
+    prCreates: [],
     postedNodes: [],
     postCompactHeads: [],
     // A session whose folders are both there, which is every case except the ones that say otherwise.
