@@ -398,7 +398,7 @@ describe('prDetails', () => {
 
 describe('stillToFind', () => {
   const at = '2026-11-09T09:00:00.000Z';
-  const sessions = [{ id: 's1', prCreates: [{ repository: 'acme/app', head: 'fix', at }], postedNodes: [] }, { id: 's2', prCreates: [], postedNodes: [] }];
+  const sessions = [{ id: 's1', prCreates: [{ repository: 'acme/app', head: 'fix', at }], postedNodes: [], postedNumbers: [] }, { id: 's2', prCreates: [], postedNodes: [], postedNumbers: [] }];
 
   it('looks for a PR opened in the browser until 30 days after the command, with the session that opened it', () => {
     const now = Date.parse(at);
@@ -412,11 +412,23 @@ describe('stillToFind', () => {
   });
 
   it('looks for the PR a review posted by its id belongs to, as long and until found, beside the ones opened in the browser', () => {
-    const posted = [{ id: 's3', prCreates: [], postedNodes: [{ node: 'PRR_kwDOAAAAAAAAAAAAone', at }] }];
+    const posted = [{ id: 's3', prCreates: [], postedNodes: [{ node: 'PRR_kwDOAAAAAAAAAAAAone', at }], postedNumbers: [] }];
     const now = Date.parse(at);
     expect(stillToFind(posted, new Set(), now + FIND_FOR_MS - 1)).toEqual([{ id: 's3', node: 'PRR_kwDOAAAAAAAAAAAAone', at }]);
     expect(stillToFind(posted, new Set(), now + FIND_FOR_MS)).toEqual([]);
     expect(stillToFind(posted, new Set([findKey({ id: 's3', node: 'PRR_kwDOAAAAAAAAAAAAone', at })]), now)).toEqual([]);
+  });
+
+  it('looks for the PR a comment posted by number may be, as long and until settled, whatever the repository’s capitals', () => {
+    const posted = [{ id: 's4', prCreates: [], postedNodes: [], postedNumbers: [{ repository: 'acme/app', number: 7, at }] }];
+    const now = Date.parse(at);
+    expect(stillToFind(posted, new Set(), now + FIND_FOR_MS - 1)).toEqual([{ id: 's4', repository: 'acme/app', number: 7, at }]);
+    expect(stillToFind(posted, new Set(), now + FIND_FOR_MS)).toEqual([]);
+    expect(stillToFind(posted, new Set([findKey({ id: 's4', repository: 'Acme/App', number: 7, at })]), now)).toEqual([]);
+  });
+
+  it('tells a number from a create on the same repository', () => {
+    expect(findKey({ id: 's1', repository: 'acme/app', number: 7, at })).not.toBe(findKey({ id: 's1', repository: 'acme/app', head: '7', at }));
   });
 });
 

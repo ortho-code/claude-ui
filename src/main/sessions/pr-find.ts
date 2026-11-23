@@ -1,19 +1,29 @@
 import { ipcMain } from 'electron';
-import type { PendingNode, PendingPr, PrToFind, PrsFound } from '../../shared/types';
+import type { PendingNode, PendingNumber, PendingPr, PrToFind, PrsFound } from '../../shared/types';
 import { log } from '../logs/log';
 import { addPrLink } from './meta';
 import { failureOf, runGh, type RunGh } from './pr-status';
 
 /**
- * Finding the PR a session created (`SessionSummary.prCreates`), or posted on by an id (`SessionSummary.postedNodes`), and linking it to that session as the app's own link (`addPrLink`), as a panel row's PR is linked.
+ * Finding the PR a session created (`SessionSummary.prCreates`), posted on by an id (`SessionSummary.postedNodes`), or posted a comment on by number (`SessionSummary.postedNumbers`), and linking it to that session as the app's own link (`addPrLink`), as a panel row's PR is linked.
  * For a created one, GitHub is asked for the PRs made from the branch in the repository the command named, newest first, and the one taken is the newest made after the command ran, from the fork the branch names where it names one, so an older PR from a reused branch is never linked.
  * For a posted id, GitHub is asked which PR the review, review thread, review comment or PR it names belongs to.
+ * For a posted number, GitHub is asked whether it is an issue or a PR in the repository the command named; an issue links nothing, and is said to be no PR, so it is not asked about again.
  */
 
 type Create = PendingPr & { id: string };
 type Posted = PendingNode & { id: string };
+type Numbered = PendingNumber & { id: string };
 
+const isCreate = (toFind: PrToFind): toFind is Create => 'head' in toFind;
 const isPosted = (toFind: PrToFind): toFind is Posted => 'node' in toFind;
+const isNumbered = (toFind: PrToFind): toFind is Numbered => 'number' in toFind;
+
+/** GitHub's answer that what was asked is no PR, as an issue's number is, which becomes one only if someone converts the issue. */
+const NOT_A_PR: unique symbol = Symbol('not a PR');
+
+/** What GitHub's answer says of one asked: the page of its PR, that it is no PR (`NOT_A_PR`), or null for nothing sure yet. */
+type Answer = string | typeof NOT_A_PR | null;
 
 /** How long before the command's time a PR may say it was made and still be the command's, for a clock on this machine that runs ahead of GitHub's. */
 const CLOCK_SLACK_MS = 60_000;
@@ -40,6 +50,25 @@ export function nodeQueryArgs(posted: readonly Posted[]): string[] {
   const declared = posted.map((_, at) => `$n${at}:ID!`).join(',');
   const fields = posted.map((_, at) => `n${at}:node(id:$n${at}){...on PullRequestReview{pullRequest{url}} ...on PullRequestReviewThread{pullRequest{url}} ...on PullRequestReviewComment{pullRequest{url}} ...on PullRequest{url}}`);
   return ['-f', `query=query(${declared}){${fields.join(' ')}}`, ...posted.flatMap((each, at) => ['-f', `n${at}=${each.node}`])];
+}
+
+/** The `gh api graphql` arguments asking whether each of `numbered` is an issue or a PR, aliased `m0`, `m1`…, the owner, name and number each a variable. */
+export function numberQueryArgs(numbered: readonly Numbered[]): string[] {
+  const declared = numbered.map((_, at) => `$o${at}:String!,$n${at}:String!,$i${at}:Int!`).join(',');
+  const fields = numbered.map((_, at) => `m${at}:repository(owner:$o${at},name:$n${at}){issueOrPullRequest(number:$i${at}){__typename ...on PullRequest{url}}}`);
+  const variables = numbered.flatMap((each, at) => {
+    const [owner, name] = each.repository.split('/');
+    return ['-f', `o${at}=${owner}`, '-f', `n${at}=${name}`, '-F', `i${at}=${each.number}`];
+  });
+  return ['-f', `query=query(${declared}){${fields.join(' ')}}`, ...variables];
+}
+
+/** What GitHub's answer for a number says: the page of the PR it is, `NOT_A_PR` for an issue, or null for a number it does not know. */
+function numberAnswer(repository: unknown): Answer {
+  const found = isObject(repository) ? repository.issueOrPullRequest : null;
+  if (!isObject(found)) return null;
+  if (found.__typename === 'Issue') return NOT_A_PR;
+  return found.__typename === 'PullRequest' && typeof found.url === 'string' ? found.url : null;
 }
 
 /** The page of the PR GitHub's answer for an id names: the PR a review, thread or comment is on, or the PR itself; null for an id it does not know. */
@@ -81,21 +110,29 @@ export function foundUrl(create: Create, repository: unknown): string | null {
 
 type Link = (id: string, url: string) => Promise<void>;
 
+/** A repository as GitHub names it, `owner/name`, which is all a query can ask for. */
+const REPOSITORY = /^[^/\s]+\/[^/\s]+$/;
+
 /**
- * Find the PR each of `toFind` is, those created and those posted on by an id each in requests of their own, `PER_REQUEST` at a time, linking each found one to its session.
- * GitHub answers an id it does not know with null beside the others, and `gh` then exits with an error, so an answer is read whatever the exit; the first request with no answer at all stops the rest, and says why.
+ * Find the PR each of `toFind` is, those created, those posted on by an id and those posted on by number each in requests of their own, `PER_REQUEST` at a time, linking each found one to its session.
+ * GitHub answers an id or a number it does not know with null beside the others, and `gh` then exits with an error, so an answer is read whatever the exit; the first request with no answer at all stops the rest, and says why.
  */
 export async function findAndLink(toFind: readonly PrToFind[], gh: RunGh = (args) => runGh(args), link: Link = addPrLink): Promise<PrsFound> {
-  const creates = toFind.filter((each): each is Create => !isPosted(each) && /^[^/\s]+\/[^/\s]+$/.test(each.repository) && branchOf(each.head) !== '');
-  const found: PrsFound['found'] = [];
+  const creates = toFind.filter(isCreate).filter((each) => REPOSITORY.test(each.repository) && branchOf(each.head) !== '');
+  const numbered = toFind.filter(isNumbered).filter((each) => REPOSITORY.test(each.repository));
+  const outcome: Outcome = { found: [], notPrs: [] };
   const problem =
-    (await findIn(creates, findQueryArgs, (create, data, at) => foundUrl(create, data[`r${at}`]), { gh, link, found })) ??
-    (await findIn(toFind.filter(isPosted), nodeQueryArgs, (_, data, at) => nodeUrl(data[`n${at}`]), { gh, link, found }));
-  return { found, problem };
+    (await findIn(creates, findQueryArgs, (create, data, at) => foundUrl(create, data[`r${at}`]), { gh, link, outcome })) ??
+    (await findIn(toFind.filter(isPosted), nodeQueryArgs, (_, data, at) => nodeUrl(data[`n${at}`]), { gh, link, outcome })) ??
+    (await findIn(numbered, numberQueryArgs, (_, data, at) => numberAnswer(data[`m${at}`]), { gh, link, outcome }));
+  return { ...outcome, problem };
 }
 
-/** Ask for `asked` a request per `PER_REQUEST`, by `queryArgs`, read each one's PR from the answer by `urlOf`, link it and add it to `found`; why the first request with no answer failed, or null. */
-async function findIn<T extends PrToFind>(asked: readonly T[], queryArgs: (run: readonly T[]) => string[], urlOf: (each: T, data: Record<string, unknown>, at: number) => string | null, { gh, link, found }: { gh: RunGh; link: Link; found: PrsFound['found'] }): Promise<string | null> {
+/** What the asking found so far: the PRs found and those GitHub said are no PR. */
+type Outcome = Pick<PrsFound, 'found' | 'notPrs'>;
+
+/** Ask for `asked` a request per `PER_REQUEST`, by `queryArgs`, read what the answer says of each by `answerOf`, link each PR and add it to `found`, and add each that is no PR to `notPrs`; why the first request with no answer failed, or null. */
+async function findIn<T extends PrToFind>(asked: readonly T[], queryArgs: (run: readonly T[]) => string[], answerOf: (each: T, data: Record<string, unknown>, at: number) => Answer, { gh, link, outcome }: { gh: RunGh; link: Link; outcome: Outcome }): Promise<string | null> {
   for (let start = 0; start < asked.length; start += PER_REQUEST) {
     const run = asked.slice(start, start + PER_REQUEST);
     const result = await gh(queryArgs(run));
@@ -107,14 +144,18 @@ async function findIn<T extends PrToFind>(asked: readonly T[], queryArgs: (run: 
     }
     if (!isObject(data)) {
       const problem = failureOf(result);
-      log('warn', 'prs', `no PR found for a create or a posted id: ${problem}`);
+      log('warn', 'prs', `no PR found for a create or a post: ${problem}`);
       return problem;
     }
     for (const [at, each] of run.entries()) {
-      const url = urlOf(each, data, at);
-      if (url === null) continue;
-      await link(each.id, url);
-      found.push({ asked: each, url });
+      const answer = answerOf(each, data, at);
+      if (answer === null) continue;
+      if (answer === NOT_A_PR) {
+        outcome.notPrs.push(each);
+        continue;
+      }
+      await link(each.id, answer);
+      outcome.found.push({ asked: each, url: answer });
     }
   }
   return null;
@@ -124,7 +165,8 @@ async function findIn<T extends PrToFind>(asked: readonly T[], queryArgs: (run: 
 function prsToFind(value: unknown): PrToFind[] {
   if (!Array.isArray(value)) return [];
   const has = (each: Record<string, unknown>, fields: readonly string[]): boolean => fields.every((field) => typeof each[field] === 'string');
-  return value.filter((each): each is PrToFind => isObject(each) && (has(each, ['id', 'repository', 'head', 'at']) || has(each, ['id', 'node', 'at'])));
+  const numbered = (each: Record<string, unknown>): boolean => has(each, ['id', 'repository', 'at']) && Number.isInteger(each.number) && (each.number as number) > 0;
+  return value.filter((each): each is PrToFind => isObject(each) && (has(each, ['id', 'repository', 'head', 'at']) || has(each, ['id', 'node', 'at']) || numbered(each)));
 }
 
 export function registerPrFind(): void {

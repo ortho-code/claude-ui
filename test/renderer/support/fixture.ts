@@ -63,6 +63,8 @@ export interface BridgeFixture {
   createdPrs: Record<string, string>;
   /** The page of the PR each posted review or comment id belongs to, by its id, as main would find it; one left out is an id GitHub does not know. */
   nodePrs: Record<string, string>;
+  /** What each number a comment was posted on is, by `<repository>#<number>`, as main would find it: the page of the PR it is, or null for an issue; one left out is a number GitHub does not know. */
+  numberPrs: Record<string, string | null>;
   historyPins: Record<string, HistoryPin>;
   /** Session id -> its transcript's exchanges, as main reads them; a listed session left out has no history the stand-in can answer for, and one the listing does not have has no transcript yet. */
   history: Record<string, Exchange[]>;
@@ -146,6 +148,7 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
     prs: [],
     prCreates: [],
     postedNodes: [],
+    postedNumbers: [],
     postCompactHeads: [],
     cwdExists: true,
     repoRootExists: true,
@@ -213,6 +216,7 @@ export function defaultFixture(): BridgeFixture {
     prProblem: null,
     createdPrs: {},
     nodePrs: {},
+    numberPrs: {},
     historyPins: {},
     history: {},
     layout: { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, status: 'missing', error: null, json: null, types: [], local: noLocalLayout() },

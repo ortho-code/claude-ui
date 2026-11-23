@@ -26,13 +26,16 @@ const MINUTE = 60_000;
 /** How long after the command a created PR is looked for: long enough for one opened in the browser and submitted whenever you get to it, and bounded, so a create left unsubmitted, or one that failed, is not asked about for ever. */
 export const FIND_FOR_MS = 30 * 24 * 60 * MINUTE;
 
-/** What tells one PR to find from another: its session, and the repository and branch of one created or the id a post named, and when the command ran. */
-export const findKey = (toFind: PrToFind): string => ['node' in toFind ? [toFind.node] : [toFind.repository.toLowerCase(), toFind.head], toFind.id, toFind.at].flat().join('\n');
+/** What tells one PR to find from another: its session, what it is (the repository and branch of one created, the id a post named, or the repository and number a comment was posted on), and when the command ran. */
+export function findKey(toFind: PrToFind): string {
+  const what = 'node' in toFind ? ['node', toFind.node] : 'head' in toFind ? ['branch', toFind.repository.toLowerCase(), toFind.head] : ['number', toFind.repository.toLowerCase(), String(toFind.number)];
+  return [...what, toFind.id, toFind.at].join('\n');
+}
 
-/** The PRs sessions created, and those their posts named by id, that are still looked for at `now`: within `FIND_FOR_MS` of the command, and not found yet (`found`, by `findKey`). */
-export function stillToFind(sessions: readonly Pick<SessionSummary, 'id' | 'prCreates' | 'postedNodes'>[], found: ReadonlySet<string>, now: number): PrToFind[] {
-  const all = sessions.flatMap(({ id, prCreates, postedNodes }): PrToFind[] => [...prCreates.map((create) => ({ ...create, id })), ...postedNodes.map((posted) => ({ ...posted, id }))]);
-  return all.filter((toFind) => now - Date.parse(toFind.at) < FIND_FOR_MS && !found.has(findKey(toFind)));
+/** The PRs sessions created, those their posts named by id, and those their comments posted by number may be, that are still looked for at `now`: within `FIND_FOR_MS` of the command, and not settled yet (`settled`, by `findKey`). */
+export function stillToFind(sessions: readonly Pick<SessionSummary, 'id' | 'prCreates' | 'postedNodes' | 'postedNumbers'>[], settled: ReadonlySet<string>, now: number): PrToFind[] {
+  const all = sessions.flatMap(({ id, prCreates, postedNodes, postedNumbers }): PrToFind[] => [...prCreates, ...postedNodes, ...postedNumbers].map((each) => ({ ...each, id })));
+  return all.filter((toFind) => now - Date.parse(toFind.at) < FIND_FOR_MS && !settled.has(findKey(toFind)));
 }
 
 /**

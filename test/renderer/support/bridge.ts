@@ -268,15 +268,16 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
         ),
         problem: fixture.prProblem,
       }),
-    // Main links each PR it finds to its session as the app's own link, and answers what it found (`findAndLink`, src/main/sessions/pr-find.ts); while it cannot ask GitHub it finds nothing and says why.
+    // Main links each PR it finds to its session as the app's own link, and answers what it found and what GitHub said is no PR (`findAndLink`, src/main/sessions/pr-find.ts); while it cannot ask GitHub it finds nothing and says why.
     findPrs: (toFind) => {
-      if (fixture.prProblem !== null) return answer({ found: [], problem: fixture.prProblem });
-      const found = toFind.flatMap((asked) => {
-        const [prs, key] = 'node' in asked ? [fixture.nodePrs, asked.node] : [fixture.createdPrs, `${asked.repository}\n${asked.head}`];
-        return Object.hasOwn(prs, key) ? [{ asked, url: prs[key] }] : [];
+      if (fixture.prProblem !== null) return answer({ found: [], notPrs: [], problem: fixture.prProblem });
+      const answers = toFind.map((asked) => {
+        const [prs, key]: [Record<string, string | null>, string] = 'node' in asked ? [fixture.nodePrs, asked.node] : 'head' in asked ? [fixture.createdPrs, `${asked.repository}\n${asked.head}`] : [fixture.numberPrs, `${asked.repository}#${asked.number}`];
+        return { asked, url: Object.hasOwn(prs, key) ? prs[key] : undefined };
       });
+      const found = answers.flatMap(({ asked, url }) => (typeof url === 'string' ? [{ asked, url }] : []));
       for (const { asked, url } of found) fixture.prLinks = withPrLink(fixture.prLinks, asked.id, url);
-      return answer({ found, problem: null });
+      return answer({ found, notPrs: answers.flatMap(({ asked, url }) => (url === null ? [asked] : [])), problem: null });
     },
     getAllStatuses: () => answer(fixture.statuses),
     onSessionStatus: on('onSessionStatus'),

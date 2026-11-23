@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { postedNodes, postedPrs, prCreates } from '../../../../src/main/sessions/posted-prs';
+import { postedNodes, postedNumbers, postedPrs, prCreates } from '../../../../src/main/sessions/posted-prs';
 
 const pr = (repository: string, number: number) => ({ repository, number, url: `https://github.com/${repository}/pull/${number}` });
 
@@ -175,5 +175,41 @@ describe('postedNodes', () => {
 
   it('keeps nothing from a gh call that is not GraphQL', () => {
     expect(postedNodes(`gh api repos/acme/app/pulls/1/reviews -f event=COMMENT -f body=${REVIEW}`)).toEqual([]);
+  });
+});
+
+describe('postedNumbers', () => {
+  // Session bec6ee95 commented on a PR's conversation on 2026-10-30, its body file's path shortened.
+  it('keeps a comment a gh api request posts under an issue’s number, which may be a PR’s', () => {
+    expect(postedNumbers('gh api -X POST repos/ScientaNL/scienta/issues/36555/comments --input /tmp/comment.json')).toEqual([{ repository: 'ScientaNL/scienta', number: 36555 }]);
+  });
+
+  // Session 5afda3b3 commented on an issue on 2026-11-23, its body file's path shortened.
+  it('reads a request a body makes a post', () => {
+    expect(postedNumbers('gh api repos/zircote/swagger-php/issues/2017/comments -F body=@/tmp/comment.md')).toEqual([{ repository: 'zircote/swagger-php', number: 2017 }]);
+  });
+
+  it('keeps a comment gh issue comment posts, by the repository or the issue’s page', () => {
+    expect(postedNumbers('gh issue comment 12 --repo acme/app --body hi')).toEqual([{ repository: 'acme/app', number: 12 }]);
+    expect(postedNumbers('gh issue comment https://github.com/acme/app/issues/9 -b hi')).toEqual([{ repository: 'acme/app', number: 9 }]);
+  });
+
+  it('keeps nothing for a read of the comments, or an issue named by a bare number or under a placeholder', () => {
+    expect(postedNumbers("gh api --paginate repos/acme/app/issues/3/comments --jq '.[]|.body'")).toEqual([]);
+    expect(postedNumbers('gh api -X GET repos/acme/app/issues/3/comments -f per_page=100')).toEqual([]);
+    expect(postedNumbers('gh issue comment 12 --body hi')).toEqual([]);
+    expect(postedNumbers('gh api repos/{owner}/{repo}/issues/3/comments -f body=x')).toEqual([]);
+  });
+
+  it('keeps nothing for a post that is not a comment, or a gh issue command that posts none', () => {
+    expect(postedNumbers('gh api repos/acme/app/issues/3/labels -f labels[]=bug')).toEqual([]);
+    expect(postedNumbers('gh issue view 12 --repo acme/app')).toEqual([]);
+  });
+
+  it('keeps each number once, in its order', () => {
+    expect(postedNumbers('gh issue comment 2 --repo acme/app -b a && gh api repos/acme/app/issues/2/comments -f body=b && gh issue comment 1 --repo acme/app -b c')).toEqual([
+      { repository: 'acme/app', number: 2 },
+      { repository: 'acme/app', number: 1 },
+    ]);
   });
 });

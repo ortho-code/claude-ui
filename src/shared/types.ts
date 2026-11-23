@@ -128,6 +128,11 @@ export interface SessionSummary {
    */
   postedNodes: PendingNode[];
   /**
+   * The issues or PRs the session posted a comment on by number, each once, the latest command for it kept; empty when none.
+   * GitHub numbers issues and PRs from one count, so the window asks it whether each is a PR, and links one that is as the app's own.
+   */
+  postedNumbers: PendingNumber[];
+  /**
    * First user/assistant uuid after each compaction boundary.
    * A fork of a compacted session adopts one of these as its own conversationId, which is how such a fork is linked into the family.
    * Main-process bookkeeping; the renderer doesn't use it.
@@ -179,12 +184,22 @@ export interface PendingNode {
   at: string;
 }
 
-/** A PR the window asks main to find, with the session it is for: one it created, or the one a posted id belongs to. */
-export type PrToFind = (PendingPr | PendingNode) & { id: string };
+/** An issue or PR a session posted a comment on by number, which does not say which of the two it is, and when the command ran (ISO). */
+export interface PendingNumber {
+  repository: string;
+  number: number;
+  at: string;
+}
 
-/** What main found of the PRs asked for: each found one, as it was asked for, with the page of the PR now linked to its session, and why the asking failed, null when it did not. */
+/** A PR the window asks main to find, with the session it is for: one it created, the one a posted id belongs to, or one a comment posted by number may be. */
+export type PrToFind = (PendingPr | PendingNode | PendingNumber) & { id: string };
+
+/**
+ * What main found of the PRs asked for: each found one, as it was asked for, with the page of the PR now linked to its session; each GitHub said is no PR, a number that is an issue, as it was asked for; and why the asking failed, null when it did not.
+ */
 export interface PrsFound {
   found: { asked: PrToFind; url: string }[];
+  notPrs: PrToFind[];
   problem: string | null;
 }
 

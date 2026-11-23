@@ -13,6 +13,7 @@ function session(id: string, days: number, prs: number[] = []): SessionSummary {
     prs: prs.map((number) => ({ repository: 'acme/app', number, url: `https://github.com/acme/app/pull/${number}` })),
     prCreates: [],
     postedNodes: [],
+    postedNumbers: [],
   };
 }
 

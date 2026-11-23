@@ -28,6 +28,7 @@ export function newSession(id: string, over: Partial<SessionSummary> & Pick<Sess
     prs: [],
     prCreates: [],
     postedNodes: [],
+    postedNumbers: [],
     postCompactHeads: [],
     // A session the app is about to start in a folder it just resolved: both are there, or the start would not have been offered.
     cwdExists: true,

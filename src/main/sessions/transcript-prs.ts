@@ -1,6 +1,6 @@
 import { prKey } from '../../shared/sessions/prs';
-import type { PendingNode, PendingPr, SessionPr } from '../../shared/types';
-import { postedNodes, postedPrs, prCreates } from './posted-prs';
+import type { PendingNode, PendingNumber, PendingPr, SessionPr } from '../../shared/types';
+import { postedNodes, postedNumbers, postedPrs, prCreates } from './posted-prs';
 import { shellCommands } from './tool-calls';
 
 /**
@@ -11,6 +11,7 @@ export class TranscriptPrs {
   private readonly byKey = new Map<string, SessionPr>();
   private readonly creates = new Map<string, PendingPr>();
   private readonly nodes = new Map<string, PendingNode>();
+  private readonly numbers = new Map<string, PendingNumber>();
 
   /** A `pr-link` record, as Claude Code writes one when a session opens or links a PR. */
   linked(event: Record<string, unknown>): void {
@@ -20,7 +21,7 @@ export class TranscriptPrs {
 
   /**
    * An assistant record: a review or comment claude posted links its PR, since Claude Code links none for a review, nor for a comment posted through `gh api`.
-   * A PR it created is kept apart, with when, since the command's output cannot be relied on to name it, and so is an id a review or comment posted through GraphQL names, since only GitHub can say which PR that is.
+   * A PR it created is kept apart, with when, since the command's output cannot be relied on to name it, and so are an id a review or comment posted through GraphQL names and a number a comment was posted on, since only GitHub can say which PR, if any, each is.
    */
   posted(event: Record<string, unknown>): void {
     for (const command of shellCommands(event)) {
@@ -36,6 +37,11 @@ export class TranscriptPrs {
         // Moved to the end with its newer time, so it is looked for as long after its latest post.
         this.nodes.delete(node);
         this.nodes.set(node, { node, at: event.timestamp });
+      }
+      for (const posted of postedNumbers(command)) {
+        // Moved to the end with its newer time, as a posted id is.
+        this.numbers.delete(prKey(posted));
+        this.numbers.set(prKey(posted), { ...posted, at: event.timestamp });
       }
     }
   }
@@ -53,6 +59,11 @@ export class TranscriptPrs {
   /** The ids reviews and comments posted through GraphQL name, each once, oldest first. */
   get postedNodes(): PendingNode[] {
     return [...this.nodes.values()];
+  }
+
+  /** The issues or PRs comments were posted on by number, each repository and number once, oldest first. */
+  get postedNumbers(): PendingNumber[] {
+    return [...this.numbers.values()];
   }
 
   private keep(pr: SessionPr): void {

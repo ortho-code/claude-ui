@@ -53,6 +53,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   prCreates: true,
   // Not drawn either, and asked about the same way: GitHub says which PR each posted id belongs to.
   postedNodes: true,
+  // Not drawn either: GitHub says whether each number a comment was posted on is a PR.
+  postedNumbers: true,
   // Both change what the row IS — a session whose folder is gone cannot be opened, and says so — and both can flip while the app is running, with nothing in the transcript moving to announce it.
   cwdExists: true,
   repoRootExists: true,
