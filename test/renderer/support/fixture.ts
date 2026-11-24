@@ -5,7 +5,7 @@ import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../
 import type { Found } from '../../../src/shared/helpers/path-check';
 import type { BaseCandidate, DiffBases, DiffQuestion, DiffSummary, FileDiff } from '../../../src/shared/diff/types';
 import type { SettingsFileRead } from '../../../src/shared/config/settings';
-import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, SettledNeedsYou, PrSeen, PrStatus, ScheduledTask, SessionPr, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
+import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, SettledNeedsYou, PrSeen, PrStatus, RunningElsewhere, ScheduledTask, SessionPr, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -89,6 +89,11 @@ export interface BridgeFixture {
    * A check sets one while the window runs to start a command in it.
    */
   foreground: Record<number, string>;
+  /**
+   * The claude that runs a session somewhere else, by session id, as main reads it from Claude Code's record of running sessions; a session left out runs nowhere else.
+   * A check removes one while the window runs to let that claude end.
+   */
+  elsewhere: Record<string, RunningElsewhere>;
   /**
    * What main's diff reads answer for each folder, by question; a folder left out is in no working tree, which main answers with git's refusal.
    * A check changes one while the window runs to make a change in that checkout.
@@ -226,6 +231,7 @@ export function defaultFixture(): BridgeFixture {
     pickFolder: null,
     trees: {},
     foreground: {},
+    elsewhere: {},
     diffs: {},
     fileDiffs: {},
     nested: {},

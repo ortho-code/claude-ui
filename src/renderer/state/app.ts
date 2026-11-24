@@ -2,7 +2,7 @@ import { defaultUi } from '../../shared/config/defaults';
 import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/config/settings';
-import type { EditorUi, GroupState, HistoryUi, SetAside, NeedsYou, PrNames, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
+import type { EditorUi, GroupState, HistoryUi, SetAside, NeedsYou, PrNames, PrStatusRead, RunningElsewhere, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../rules/sessions';
 import { NO_PR_STATUS } from '../status/pr-status';
 import type { EditorTabs } from './editor-tabs';
@@ -235,6 +235,11 @@ export interface TabState {
    * A refusal is not an exit: the tab never had a process, so nothing arrives on the terminal to explain itself.
    */
   failure: string | null;
+  /**
+   * The claude that runs this tab's session elsewhere, when that is why the last start was refused; `failure` says it in words.
+   * Its pane then offers a copy of the session, or the start regardless.
+   */
+  elsewhere: RunningElsewhere | null;
   /**
    * Its last start failed: claude exited within moments of starting, so the tab is cold, and what claude printed before it went stays on show in place of the pane, since those lines are the explanation.
    * Cleared by the next start.

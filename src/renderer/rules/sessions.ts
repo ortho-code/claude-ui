@@ -1,4 +1,4 @@
-import type { SessionSummary } from '../../shared/types';
+import type { RunningElsewhere, SessionSummary } from '../../shared/types';
 
 // The stable key for a displayed session entity: the session's own id, always.
 // It is immutable, so pins/finished marks/tabs can never go stale — a conversation-derived key stopped matching its session the moment the session gained a sibling.
@@ -116,6 +116,21 @@ export function unstartableReason(session: SessionSummary): string | null {
     return `The worktree “${session.worktree}” is gone, so this session cannot run. Recreate it at ${session.cwd} to use this session again.`;
   }
   return `This session's folder is gone, so it cannot run: ${session.cwd}`;
+}
+
+const ELSEWHERE_WORDS: Record<RunningElsewhere['where'], string> = {
+  'claude-ui': 'another claude-ui tab',
+  desktop: 'the Claude desktop app',
+  script: 'a script',
+  terminal: 'a terminal',
+};
+
+/**
+ * Why a session was not resumed while another claude runs it, in the words the pane and the toast both say.
+ * `started` is when that claude started, as the window's language writes it, which may be before it took this session.
+ */
+export function elsewhereReason(session: SessionSummary, found: RunningElsewhere, started: string): string {
+  return `“${sessionLabel(session)}” is already running in ${ELSEWHERE_WORDS[found.where]} in ${found.cwd}, which started ${started}. Starting it here too would split its transcript in two.`;
 }
 
 /** What a session's worktree mark says, when it has one. */

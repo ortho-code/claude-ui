@@ -38,6 +38,8 @@ export interface TabLaunch {
   worktree?: string;
   /** The session's first prompt, which claude runs as it starts. */
   prompt?: string;
+  /** Resume even while another claude runs the session, which then splits its transcript in two. */
+  despiteElsewhere?: boolean;
 }
 
 /** Every open tab's terminal, by token; the store's `tabs` says which are open and in what order. */

@@ -65,6 +65,11 @@ vi.mock('node-pty', () => ({
   },
 }));
 
+// What Claude Code's record of running sessions says, set per test; the real one would read this machine's.
+const { elsewhere } = vi.hoisted(() => ({ elsewhere: { found: null as RunningElsewhere | null } }));
+vi.mock('../../../../src/main/pty/running-elsewhere', () => ({ runningElsewhere: () => Promise.resolve(elsewhere.found) }));
+
+import type { RunningElsewhere } from '../../../../src/shared/types';
 import { spawn as spawnChild } from 'node:child_process';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -227,6 +232,33 @@ describe('stopping a session', () => {
     const sender = { isDestroyed: () => false, send: vi.fn() };
     await expect(handlers.get('terminal:start')!({ sender }, process.cwd(), {})).resolves.toEqual(expect.any(Number));
     expect(spawned).toHaveLength(1);
+  });
+
+  describe('a session another claude runs already', () => {
+    const FOUND: RunningElsewhere = { where: 'terminal', cwd: '/work/scienta', since: 1795440946000 };
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+    const startWith = (launch: object): Promise<unknown> => handlers.get('terminal:start')!({ sender }, process.cwd(), launch) as Promise<unknown>;
+    beforeEach(() => {
+      elsewhere.found = FOUND;
+    });
+    afterEach(() => {
+      elsewhere.found = null;
+    });
+
+    it('is refused a resume, with where it runs', async () => {
+      await expect(startWith({ resumeSessionId: 'old-1' })).rejects.toThrow(`RUNS_ELSEWHERE:${JSON.stringify(FOUND)}`);
+      expect(spawned).toHaveLength(0);
+    });
+
+    it('is resumed when asked to start despite it', async () => {
+      await expect(startWith({ resumeSessionId: 'old-1', despiteElsewhere: true })).resolves.toEqual(expect.any(Number));
+      expect(spawned).toHaveLength(1);
+    });
+
+    it('is forked, since a fork only reads it', async () => {
+      await expect(startWith({ sessionId: 'new-1', resumeSessionId: 'old-1', fork: true })).resolves.toEqual(expect.any(Number));
+      expect(spawned).toHaveLength(1);
+    });
   });
 
   it('signals the process GROUP, not just the process it spawned', async () => {
@@ -526,6 +558,10 @@ describe('describeLaunch', () => {
     expect(describeLaunch({ sessionId: 'new-2', resumeSessionId: 'old-1', fork: true }, [])).toBe('fork new-2 of old-1');
   });
 
+  it('says a resume went ahead though another claude runs the session', () => {
+    expect(describeLaunch({ resumeSessionId: 'old-1', despiteElsewhere: true }, [])).toBe('resume old-1, though another claude runs it');
+  });
+
   it('says a worktree is new but never its name, nor the session name', () => {
     const line = describeLaunch({ sessionId: 'new-1', name: 'Payroll rewrite', worktree: 'payroll' }, []);
     expect(line).toBe('new session new-1, in a new worktree');
@@ -590,5 +626,12 @@ describe('what a terminal logs', () => {
   it('a start refused because its folder is not there', async () => {
     await expect(handlers.get('terminal:start')!({ sender }, '/definitely/not/here', {})).rejects.toThrow(/MISSING_CWD/);
     expect(logged).toEqual(['warn terminal refused to start: /definitely/not/here is not there']);
+  });
+
+  it('a resume refused because another claude runs the session', async () => {
+    elsewhere.found = { where: 'desktop', cwd: '/work', since: 0 };
+    await expect(handlers.get('terminal:start')!({ sender }, process.cwd(), { resumeSessionId: 'old-1' })).rejects.toThrow(/RUNS_ELSEWHERE/);
+    elsewhere.found = null;
+    expect(logged).toEqual(['info terminal resume old-1 not started: it runs in desktop already']);
   });
 });

@@ -37,6 +37,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The × at the end of its head, or Close all in a tab's menu, closes all its files at once.
 - With both the history and files open in the drawer over the terminal area, a rail on its left edge switches between them, and the history comes back where it was when the files took its place.
 - Dock in the history's head puts it in a column beside claude, so you can read back while you type, at a width you drag; the window remembers it.
+- On Linux, a session that already runs somewhere else, in a terminal, the Claude desktop app, another tab or another copy of the app, is not resumed in a tab, since the two would split its transcript in two.
+  The tab says where it runs, and offers Start a copy, a new session that goes on from it, or Start anyway.
 
 ### Changed
 

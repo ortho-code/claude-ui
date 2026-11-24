@@ -286,7 +286,11 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     onSessionScheduled: on('onSessionScheduled'),
     clearStatus: sent,
     // A claude that has started and printed nothing yet: its tab boots until a check fires `onTerminalData` for it.
-    startTerminal: (cwd) => start(cwd),
+    // Main's refusal of a plain resume of a session another claude runs (`refuseElsewhere`, src/main/pty/terminal.ts), made before anything is spawned, after the folder's.
+    startTerminal: (cwd, launch) => {
+      const found = launch.resumeSessionId && !launch.fork && !launch.despiteElsewhere ? fixture.elsewhere[launch.resumeSessionId] : undefined;
+      return found && onDisk(cwd) !== 'missing' ? Promise.reject(new Error(`RUNS_ELSEWHERE:${JSON.stringify(found)}`)) : start(cwd);
+    },
     // A shell that has started and printed nothing yet, in the same id space as a claude, as main's are.
     startShell: (cwd) => start(cwd),
     // What main reads off the pty is the fixture's table, by terminal id, read when asked, so a check can start a command mid-run; nothing but the shell where it names none.

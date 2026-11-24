@@ -345,3 +345,19 @@ A tab is kept, cold, rather than closed: the click meant "look at this", and the
 
 `claude -w` also `git worktree lock`s the tree it cuts.
 Answering Keep on the way out releases the lock, but a session ended by `SIGTERM`, or one that leaves without answering, leaves it behind, and a later `git worktree remove` refuses until that lock of a dead pid is cleared.
+
+### A session another claude runs
+
+**On Linux, a plain resume of a session that a claude already runs elsewhere is refused**, by the launcher, before anything is spawned ([decided 2026-11-24](../decisions/0252-a-session-another-claude-runs-is-not-resumed.md)).
+Two claudes on one session each write their own copy of its transcript, and once one of them enters or leaves a worktree the copies sit in two folders and grow apart.
+The check reads `/proc`, so on macOS it finds nothing and every resume goes ahead.
+
+Claude Code keeps a record of the claudes it runs, interactive, `-p` and in the background alike, one `<pid>.json` in `~/.claude/sessions` with the session it runs now, its folder, when it started, what started it and the start time of its process (`src/main/pty/running-elsewhere.ts` reads it).
+A claude that did not exit cleanly leaves its file behind, and its pid is used again, so a file counts only while the process under that pid started at the moment the file says, and, where the file names a pid namespace, in this one.
+The file is not documented: one that cannot be read, or does not hold what is expected, counts as no claude, so the start goes ahead as it would without the check.
+What started the claude is read from the process and the file: `CLAUDE_UI=1` in its environment is a claude a claude-ui tab started, of this window or another copy of the app, or anything started under one; otherwise the file's `entrypoint` says the Claude desktop app (`claude-desktop`) or a script (`sdk-cli`), and anything else, the VS Code extension and the Agent SDK included, is called a terminal.
+A tab of this window counts like any other, since two tabs on one session split it just the same.
+
+A fork only reads the session it starts from, and a new session has no claude yet, so neither is checked.
+The refusal reaches the window as `RUNS_ELSEWHERE:` with what was found; the tab stays cold, its pane says where the session runs and when that claude started, which may be before it took this session, as a toast does, and offers Start a copy, the fork every session's menu offers, Start anyway, which resumes it regardless (`despiteElsewhere`, logged as such), and Show history; the history opened from it offers Start a copy alone, as it offers Resume alone for any other cold tab.
+A click on the tab later checks again, so once the other claude has ended the tab simply resumes.

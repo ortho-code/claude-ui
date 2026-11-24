@@ -25,6 +25,8 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 
 - Each open session has a tab with an embedded terminal running the real `claude` CLI: a click resumes it (`claude --resume`), and new sessions start there too, named when you fork one or create a worktree.
 - Several sessions are open at once; drag a tab to reorder, and open tabs cluster by group in the tab bar, where a group's name takes you to the group in the list.
+- On Linux, a session that already runs somewhere else, in a terminal, the Claude desktop app, another tab or another copy of the app, is not resumed in its tab, since two claudes on one session each write their own copy of it, and the copies drift apart.
+  The tab says where it runs and when that claude started, and offers Start a copy, a new session that goes on from it, or Start anyway.
 - The tabs are restored on the next launch, where the sessions that were running come back marked as needing you, started again too if you choose, and the rest wait.
 - A tab's own button stops the session before a second press removes the tab, or marks the session finished if you choose that in Settings.
   A session that asks something on its way out, such as whether to keep its worktree, is answered in its tab, which stays until claude has gone, its dot pulsing meanwhile; one that has not gone a second later can be forced.

@@ -257,3 +257,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0249](0249-a-checkouts-base-is-picked-in-a-dialog.md) | 2026-11-20 | A checkout's base is picked in a dialog | [The `explorer` type](../architecture/panels.md#the-explorer-type) |
 | [0250](0250-every-created-pr-is-looked-for-by-its-branch.md) | 2026-11-23 | Every created PR is looked for by its branch | [Reading sessions](../architecture/sessions.md#reading-sessions) |
 | [0251](0251-a-comment-posted-by-number-links-the-pr-it-is-on.md) | 2026-11-23 | A comment posted by number links the PR it is on | [Reading sessions](../architecture/sessions.md#reading-sessions) |
+| [0252](0252-a-session-another-claude-runs-is-not-resumed.md) | 2026-11-24 | A session another claude runs is not resumed | [Claude tabs](../architecture/claude.md#a-session-another-claude-runs) |

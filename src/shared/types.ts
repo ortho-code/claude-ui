@@ -364,6 +364,21 @@ export interface TerminalLaunch {
    * `sessionId` settles which session a terminal starts with; this is what keeps the answer right afterwards, since `/clear` replaces the session with one the app did not name.
    */
   tabToken?: string;
+  /**
+   * Not a claude flag: resume even while another claude runs the session, which then splits its transcript in two.
+   * Without it a resume of a session running elsewhere is refused with `RUNS_ELSEWHERE:` and a `RunningElsewhere`.
+   */
+  despiteElsewhere?: boolean;
+}
+
+/** A claude that runs a session already, as Claude Code's own record of running sessions names it. */
+export interface RunningElsewhere {
+  /** What started it: claude-ui (another window, or a preview of the app), the Claude desktop app, a script (`claude -p`), or a terminal. */
+  where: 'claude-ui' | 'desktop' | 'script' | 'terminal';
+  /** The folder it runs in. */
+  cwd: string;
+  /** When that claude started, in ms since the epoch, which may be before it took this session. */
+  since: number;
 }
 
 /**

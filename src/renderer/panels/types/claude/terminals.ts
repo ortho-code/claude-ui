@@ -1,6 +1,7 @@
-import type { ScheduledTask, SessionSummary } from '../../../../shared/types';
+import type { RunningElsewhere, ScheduledTask, SessionSummary } from '../../../../shared/types';
 import { hasVisibleOutput } from '../../../ui/ansi';
-import { entityKey, unstartableReason } from '../../../rules/sessions';
+import { momentInLanguage } from '../../../ui/locale';
+import { elsewhereReason, entityKey, unstartableReason } from '../../../rules/sessions';
 import { store, type TabState, type View } from '../../../state/app';
 import { clearNeedsYou } from '../../../state/needs-you';
 import { clearNudge } from '../../../state/statuses';
@@ -79,7 +80,7 @@ export function buildTab(session: SessionSummary, scheduledWhenStopped: readonly
   });
 
   store.set({
-    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, onExit: 'cool', forceable: false, forced: false, notLeft: false, scheduledWhenStopped, failure: null, startFailed: false }],
+    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, onExit: 'cool', forceable: false, forced: false, notLeft: false, scheduledWhenStopped, failure: null, elsewhere: null, startFailed: false }],
   });
   return token;
 }
@@ -103,7 +104,7 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
     terminal.term.reset();
     terminal.el.classList.remove('active');
   }
-  setTab(token, { starting: true, booting: true, failure: null, startFailed: false });
+  setTab(token, { starting: true, booting: true, failure: null, elsewhere: null, startFailed: false });
   try {
     // Which of the two id flags a start uses is one question: does this session have a transcript?
     // No — the tab's id is one this app minted, so claude is told to CREATE the session under it (claude refuses an id that is already in use, which is exactly the same question).
@@ -119,6 +120,7 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
       worktree: launch.worktree,
       prompt: launch.prompt,
       tabToken: token,
+      despiteElsewhere: launch.despiteElsewhere,
     });
     // Gone while it was still starting: the tab has been removed but the pty has not, so end it straight away rather than leaving a claude running with nothing pointing at it.
     // The button is disabled throughout the wait, so this is not that route — it is deleting the session, which closes its tab wherever that tab had got to.
@@ -149,13 +151,31 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
     // It goes on the PLACEHOLDER rather than into the tab's terminal: the tab stays cold, and a cold tab's pane is covered by the placeholder, so anything written to the terminal would be hidden behind it.
     // The tab is kept rather than closed — put the folder back and the same tab starts.
     // The same wording the row's tooltip and the toast use, so the three cannot drift — this is the backstop for a folder that disappeared while the app was running, which no amount of gating can pre-empt.
-    const refused = (error instanceof Error ? error.message : '').includes('MISSING_CWD:');
-    const failure = refused ? (unstartableReason({ ...tab.session, cwdExists: false }) ?? '') : 'This session could not be started.';
-    setTab(token, { terminalId: null, booting: false, failure });
+    // A session another claude runs is refused too, with where it runs, so the pane can offer a copy or the start regardless.
+    const message = error instanceof Error ? error.message : '';
+    const elsewhere = runningElsewhereIn(message);
+    const failure = elsewhere
+      ? elsewhereReason(tab.session, elsewhere, momentInLanguage(elsewhere.since))
+      : message.includes('MISSING_CWD:')
+        ? (unstartableReason({ ...tab.session, cwdExists: false }) ?? '')
+        : 'This session could not be started.';
+    setTab(token, { terminalId: null, booting: false, failure, elsewhere });
     showToast(failure);
   } finally {
     // However the start ended, the button is handed back: it drew the flag, and a repaint by hand made a moment too early once left every freshly started session with a dead one.
     setTab(token, { starting: false });
+  }
+}
+
+/** The claude a refused start names as running the session already, from the refusal's message, which reaches the window with Electron's own words in front of it; null for any other refusal. */
+function runningElsewhereIn(message: string): RunningElsewhere | null {
+  const marker = 'RUNS_ELSEWHERE:';
+  const at = message.indexOf(marker);
+  if (at < 0) return null;
+  try {
+    return JSON.parse(message.slice(at + marker.length)) as RunningElsewhere;
+  } catch {
+    return null;
   }
 }
 
