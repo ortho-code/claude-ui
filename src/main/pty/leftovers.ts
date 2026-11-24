@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { log } from '../logs/log';
+import { statFields } from './proc-stat';
 
 /** The variable every process the app starts carries. */
 export const RUN_VARIABLE = 'CLAUDE_UI_RUN';
@@ -44,9 +45,9 @@ export interface Leftover {
   ownSession: boolean;
 }
 
-/** The session id in `/proc/<pid>/stat`, the fourth field after the command, which is in parentheses and may itself hold spaces and parentheses. */
+/** The session id in `/proc/<pid>/stat`, its sixth field. */
 function sessionOf(stat: string): number {
-  return Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[3]);
+  return Number(statFields(stat)[3]);
 }
 
 /**
