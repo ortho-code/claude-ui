@@ -10,6 +10,7 @@ import { notLeftWords } from '../../../rules/claude';
 import { notLeftMark, showNotLeft } from '../../../status/not-left';
 import { inkClasses, PR_INKS, prMark, prRulesIn } from '../../../status/pr-status';
 import { setAsideMark, showSetAside } from '../../../status/set-aside-mark';
+import { showSuperseded, supersededMark } from '../../../status/superseded-mark';
 import { scheduledMark, showScheduled } from '../../../status/scheduled-mark';
 import { store, type View } from '../../../state/app';
 import { tabWith } from '../../../state/views';
@@ -49,6 +50,7 @@ interface RowEls {
   worktreeCount: HTMLElement;
   clock: HTMLElement;
   setAside: HTMLElement;
+  superseded: HTMLElement;
   notLeft: HTMLElement;
   siblingsBadge: HTMLElement;
   siblingCount: HTMLElement;
@@ -193,7 +195,9 @@ function createSessionRow(key: string): HTMLElement {
   const clock = scheduledMark('scheduled-badge', true);
   // Set aside, as its tab shows it (set-aside-mark.ts); shown in updateRow.
   const setAside = setAsideMark('set-aside-badge', true);
-  subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge);
+  // An older copy of its transcript that another copy replaced (superseded-mark.ts); shown in updateRow.
+  const superseded = supersededMark('superseded-badge', true);
+  subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge, superseded);
   content.append(subline);
 
   const { pin, reopenBtn, deleteBtn, kebab } = rowButtons(key);
@@ -202,7 +206,7 @@ function createSessionRow(key: string): HTMLElement {
   item.prepend(tickBox(), dot);
   item.append(pin, reopenBtn, deleteBtn, kebab);
   followSight(item);
-  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, reopenBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, superseded, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, reopenBtn, deleteBtn, kebab });
   item.addEventListener('click', (event) => {
     // In bulk mode a press ticks the row rather than opening it; the dot, the marks, the pin and the kebab keep their own presses, which stop here.
     if (store.get().bulk) {
@@ -350,6 +354,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   showTabMarks(els, session.id, view);
   rowTabMarks.set(session.id, els);
   showSetAside(els.setAside, view.setAside.get(entityKey(session)));
+  showSuperseded(els.superseded, session.supersededCopies);
 
   els.noteSep.hidden = !showNote(els.noteBadge, view.notes.get(entityKey(session)));
 

@@ -6,6 +6,7 @@ import type { SessionSummary } from '../../shared/types';
 import { errorText, fsFailure, log, logOnce } from '../logs/log';
 import { listedCheckouts, workOf, type ListingPass, type Worked } from './checkouts';
 import { isDirectory, resolveRepo } from './repo';
+import { copyOf, forgetCopiesBut, supersededCopies } from './superseded-copies';
 import { summarizeFile, type SummaryRead } from './summary';
 
 const projectsDir = path.join(os.homedir(), '.claude', 'projects');
@@ -75,17 +76,23 @@ async function projectDirs(): Promise<string[]> {
 /** Read every session transcript under ~/.claude/projects and summarize each. */
 export async function listSessions(): Promise<SessionSummary[]> {
   const files: string[] = [];
+  // The stamps of the superseded copies beside each transcript, by the transcript's path.
+  const copies = new Map<string, string[]>();
   for (const dir of await projectDirs()) {
     const entries = await fs.readdir(dir);
     for (const name of entries) {
       if (name.endsWith('.jsonl')) files.push(path.join(dir, name));
+      const copy = copyOf(name);
+      if (copy) {
+        const current = path.join(dir, `${copy.id}.jsonl`);
+        copies.set(current, [...(copies.get(current) ?? []), copy.stamp]);
+      }
     }
   }
 
   const pass: ListingPass = new Map();
-  const listed = (await Promise.all(files.map((file) => summarizeCached(file, pass)))).filter(
-    (s): s is Summarized => s !== null,
-  );
+  const read = await Promise.all(files.map((file) => summarizeCached(file, pass)));
+  const listed = read.filter((s): s is Summarized => s !== null);
   const summaries = listed.map((s) => s.summary);
 
   // DOES THE FOLDER STILL EXIST, asked fresh on every listing rather than cached beside the summary: a folder can be removed or put back without the transcript changing, and a stale yes is what let a session start somewhere nobody chose.
@@ -101,6 +108,16 @@ export async function listSessions(): Promise<SessionSummary[]> {
     s.workCwd = work && exists.get(work) ? work : '';
     s.checkouts = listedCheckouts(worked, exists);
   }
+
+  // A summary is cached while its transcript is unchanged, and a copy can appear or be deleted beside it meanwhile, so the copies are asked on every listing; nearly every session has none.
+  await Promise.all(
+    read.map(async (summarized, i) => {
+      const file = files[i]!;
+      const stamps = copies.get(file);
+      if (summarized) summarized.summary.supersededCopies = stamps ? await supersededCopies(file, stamps) : [];
+    }),
+  );
+  forgetCopiesBut(new Set(copies.keys()));
 
   // Sibling grouping: sessions sharing a conversationId are one family.
   // No direction is derived — fork direction is not reliably recoverable from transcript data (see the plan) — so a multi-file family is marked as SIBLINGS.

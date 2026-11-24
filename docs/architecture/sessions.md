@@ -109,6 +109,17 @@ Approved is GitHub's review decision and, where `approvals` in the settings name
 The repository's own number is not asked of GitHub.
 An open PR with no review decision stays the accent even with its checks passed, since GitHub's schema describes the decision only as "the current status of this pull request with respect to code review", and says nothing of what a missing one means.
 
+### Superseded copies
+
+**A session whose transcript replaced an older copy of it says so on its row** ([decided 2026-11-24](../decisions/0253-a-superseded-copy-is-marked-on-its-row.md)).
+Claude Code moves a session's transcript to the project of the folder the session goes to, as when it enters or leaves a worktree; when a transcript of that session is there already, as it is after two claudes ran the session at once, it renames that one to `<id>.jsonl.superseded-<ms>`, the moment it was replaced, and keeps the moved one.
+Whatever was said only in the older copy is then in no history, and Claude Code's cleanup deletes the copy later, as it does old transcripts.
+
+The listing reads each project folder for those names (`src/main/sessions/superseded-copies.ts`) and gives each session the copies beside its current transcript, oldest first, with how many requests each holds that the current transcript lacks, by the history's own rule for a request and its record's id (`supersededCopies`).
+A copy in a folder the session has since moved away from is not shown.
+It asks on every listing, since a copy can appear or be deleted beside a transcript that has not changed, and reads on from where it left off in each transcript involved while that file is only appended to, so only a session with a copy pays; a file another one replaced under the same name, which Claude Code does by a rename, is read again from its start.
+The row's mark, two pages in the waiting ink (`superseded-mark.ts`), says when each copy was replaced and what it holds that the current one lacks, as the row's tooltip does; it goes with the copy.
+
 ## App-side metadata and session groups
 
 Everything the app knows that Claude Code doesn't — pins, finished sessions, open tabs, per-project display names, custom groups, the window's geometry, the sidebar's view state and where the layout was left — lives in a `meta.json` under the app's own user-data directory.

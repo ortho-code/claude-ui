@@ -9,7 +9,7 @@ const ago = (days: number): string => new Date(NOW - days * DAY).toISOString();
 function session(id: string, days: number, prs: number[] = []): SessionSummary {
   return {
     id, conversationId: id, cwd: '/p', repoRoot: '/p', isRepo: true, worktree: '', leftWorktree: '', movedOutOfWorktree: false, workCwd: '', checkouts: [],
-    title: id, firstMessage: '', model: '', lastActivity: ago(days), isSibling: false, siblingIds: [], postCompactHeads: [], cwdExists: true, repoRootExists: true,
+    title: id, firstMessage: '', model: '', lastActivity: ago(days), isSibling: false, siblingIds: [], supersededCopies: [], postCompactHeads: [], cwdExists: true, repoRootExists: true,
     prs: prs.map((number) => ({ repository: 'acme/app', number, url: `https://github.com/acme/app/pull/${number}` })),
     prCreates: [],
     postedNodes: [],

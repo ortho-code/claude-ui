@@ -112,6 +112,8 @@ export interface SessionSummary {
   isSibling: boolean;
   /** The other members of this session's family (empty when not a sibling). */
   siblingIds: string[];
+  /** The copies of its transcript another copy of it replaced, which Claude Code keeps for a while, oldest first; empty when none. */
+  supersededCopies: SupersededCopy[];
   /**
    * The PRs the session's transcript links, from Claude Code's `pr-link` records and the reviews and comments claude posted with a `gh` command naming the PR's repository, each once whatever its repository's capitals, in the order first linked; empty when none.
    * A link says the session worked on the PR, not who opened it.
@@ -369,6 +371,19 @@ export interface TerminalLaunch {
    * Without it a resume of a session running elsewhere is refused with `RUNS_ELSEWHERE:` and a `RunningElsewhere`.
    */
   despiteElsewhere?: boolean;
+}
+
+/**
+ * A copy of a session's transcript that another copy replaced, when that one was moved into its folder: Claude Code renames it rather than deleting it.
+ * Claude Code's cleanup deletes it once its cleanup period has passed since `at`.
+ */
+export interface SupersededCopy {
+  /** What names the copy: the digits after `.superseded-` in its file name. */
+  stamp: string;
+  /** When it was replaced, in ms since the epoch. */
+  at: number;
+  /** How many of its requests the current transcript lacks. */
+  missing: number;
 }
 
 /** A claude that runs a session already, as Claude Code's own record of running sessions names it. */

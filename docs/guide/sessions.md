@@ -49,6 +49,8 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
 - Sessions sharing a conversation show as siblings, with a fork badge and a jump list.
+- A session whose transcript replaced an older copy of it, as when two claudes ran it at once in different folders, has a two-pages mark saying when the copy was replaced and how many requests it holds that the session's history lacks, while the copy sits beside the session's transcript.
+  Claude Code keeps that copy for a while and then deletes it, and the mark goes with it.
 - Worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life, and a session that has since left its worktree keeps the badge, muted unless claude's newest change is in a worktree.
 - A session that changed files in other checkouts than the worktree its badge names, such as a worktree it reached by path or with a `cd`, has the badge count and list them, with the worktree it names, and picking one there points the panels at it while that session is on show.
 

@@ -47,6 +47,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   // Both shown as the sibling mark, and both can change MID-session when a fork lands.
   isSibling: true,
   siblingIds: true,
+  // Drawn as the superseded copy mark, which comes and goes with the copy's file and its count changes as the session runs on.
+  supersededCopies: true,
   // Drawn as the PR mark, and a running session can link one.
   prs: true,
   // Not drawn, but the window asks GitHub for the PR each one becomes, so a new one has to reach the store.

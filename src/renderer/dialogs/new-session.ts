@@ -25,6 +25,7 @@ export function newSession(id: string, over: Partial<SessionSummary> & Pick<Sess
     lastActivity: new Date().toISOString(),
     isSibling: false,
     siblingIds: [],
+    supersededCopies: [],
     prs: [],
     prCreates: [],
     postedNodes: [],

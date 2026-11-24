@@ -168,6 +168,7 @@ function summaryFrom(facts: TranscriptFacts): SessionSummary {
     // Sibling grouping is derived across the whole session list in listSessions; default to "alone".
     isSibling: false,
     siblingIds: [],
+    supersededCopies: [],
     prs: facts.prs,
     prCreates: facts.prCreates,
     postedNodes: facts.postedNodes,

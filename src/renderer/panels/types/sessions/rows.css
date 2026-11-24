@@ -69,3 +69,8 @@
 .pr-badge {
   --badge-ink: var(--pr-ink);
 }
+
+/* An older copy of the transcript holds what the session's history lacks, so its mark is in the waiting ink rather than the accent the other marks share. */
+.superseded-badge {
+  --badge-ink: var(--waiting);
+}
