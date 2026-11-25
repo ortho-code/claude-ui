@@ -101,6 +101,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A request in the history has the whole width for its words, its number, time and any mark on a line of their own under it, where in a narrow history a long mark such as "sent while claude was working" squeezed the words to one a line.
 - A panel's buttons beside its tabs stay on the tabs' first line when the tabs wrap onto more lines, as the terminal's tab bar keeps its own, where they sank to the middle of the header.
 - A comment a session posts on a PR's conversation by its number, as for an issue, with `gh issue comment` naming the repository or the issue's page, or `gh api` to the issue's comments, now links that PR to the session once GitHub says it is a PR, within 30 days; a comment on an issue still links nothing.
+- A panel's notes show under it only while it is the panel on show in its group, where a panel behind the rail put its notes under the one on show.
+  Many notes scroll within part of the group, where they pushed the panel's list up under its header.
 
 ## 0.4.0 — 2026-11-09
 

@@ -154,6 +154,13 @@
   color: var(--muted);
 }
 
+/* Under a group's content, many notes scroll within at most 40% of it, so they never push the panel's own content under its header. */
+.panel-content > .panel-note {
+  flex: none;
+  max-height: 40%;
+  overflow-y: auto;
+}
+
 /* A count a panel reports, beside its header's title: the section heading's count pill, on the header's --bg, so it takes the bar's --surface to stand out. */
 .panel-count {
   background: var(--surface);

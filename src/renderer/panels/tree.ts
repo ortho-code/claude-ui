@@ -349,7 +349,9 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   }
   // Shown even while it says it cannot run, so a check that passes later runs it where it stands.
   if (!place.folded && shown.problems.length === 0) onShow.add(shown.key);
-  const notes = [...group.notes, ...stateNotesOf(group.id), ...slots.flatMap((slot) => [...slot.notes, ...(mounted.get(slot.key)?.notes ?? []), ...(mounted.get(slot.key)?.viewNotes ?? [])])];
+  // What the tree finds in the layout file and the app's own file stands for the whole group; what a panel reports through `setNotes` (its folder's, its list's, its control file's, a built-in's option problems) and its view's note show only while it is the one on show, which is the panel they are about.
+  const own = mounted.get(shown.key);
+  const notes = [...group.notes, ...stateNotesOf(group.id), ...slots.flatMap((slot) => slot.notes), ...(own?.notes ?? []), ...(own?.viewNotes ?? [])];
   if (notes.length > 0) content.append(notesLine(notes));
 
   const rail = filling ? null : switcher(group, slots, shown, place);

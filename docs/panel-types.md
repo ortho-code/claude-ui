@@ -121,7 +121,7 @@ if [ -n "$(git status --porcelain)" ]; then echo "next=1m"; else echo "next=1h";
 ```
 
 A run that writes nothing leaves the next run to the `interval`.
-A `next` under `10s` runs at `10s` and one over `24h` at `24h`, each with a note (`0s`, as in an `interval`, is not a duration); a line that is not `name=value`, a name the app does not read and a last `next` it cannot read are each a note on the group's note line, and none of them is acted on.
+A `next` under `10s` runs at `10s` and one over `24h` at `24h`, each with a note (`0s`, as in an `interval`, is not a duration); a line that is not `name=value`, a name the app does not read and a last `next` it cannot read are each a note on the group's note line while the panel is on show, and none of them is acted on.
 Only the last `next` counts, and only the file's first 4 KB is read: an earlier `next` and anything past that are not.
 
 ### The sessions
@@ -209,7 +209,7 @@ One JSON object:
 | `separator` | What goes between the parts of each line of a row's `detail`: ` · ` without one; an empty one sets them side by side. |
 | `buttons` | How many of a row's `actions` show as buttons, a whole number, 0 or more: `1` without one, so a row shows its first action as a button and the rest in a menu behind a ⋮ after it; `0` puts every action in the menu. |
 | `sections` | Required: the sections, in order. |
-| `notes` | Sentences for the line under the panel. |
+| `notes` | Sentences for the line under the panel, shown while the panel is the one on show in its group. |
 
 ### A view
 
@@ -221,7 +221,7 @@ One JSON object:
 
 The first view is the one shown until another is picked.
 A pick is kept for the panel on this machine, as a group's picked panel is, and its layout entry's `view` says which one it shows without one, an edit of it showing from the panel's next run.
-An entry naming a view the list does not offer is a note on the group's note line, and the list's first view shows until another is picked.
+An entry naming a view the list does not offer is a note on the group's note line while the panel is on show, and the list's first view shows until another is picked.
 
 ### A section
 
