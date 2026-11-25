@@ -44,6 +44,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A press on the file a Read, Edit or Write names in the history opens it in the Editor.
   A file outside every repository, such as a scratchpad file or a plan, shows what changed since the session first changed it.
 - A file path claude prints in a session's terminal opens the file in the Editor on a press, at the line a `:42` after it names.
+- A query can ask for the sessions that ask for you now, `is:asking`, and for the project on show, `project:current`.
 
 ### Changed
 

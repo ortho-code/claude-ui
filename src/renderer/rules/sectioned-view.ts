@@ -56,7 +56,7 @@ export function sectioned(view: SectionedView, offered: readonly SessionSummary[
   const shown = new Set<string>();
   return view.sections.map((section) => {
     const query = viewQuery(view, section.query, fields);
-    const rows = offered.filter((session) => !shown.has(entityKey(session)) && matches(session, query, fields, facts)).sort(SORTS[section.sort]);
+    const rows = offered.filter((session) => !shown.has(entityKey(session)) && matches(session, query, fields, facts)).sort((a, b) => SORTS[section.sort](a, b, facts));
     for (const session of rows) shown.add(entityKey(session));
     return { id: section.id, name: section.name, rows };
   });

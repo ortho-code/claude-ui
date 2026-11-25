@@ -19,6 +19,7 @@ export const only =
 export function facts(over: Partial<QueryFacts> = {}): QueryFacts {
   return {
     now: NOW,
+    current: null,
     pinned: () => false,
     tabbed: () => false,
     running: () => false,
@@ -30,8 +31,11 @@ export function facts(over: Partial<QueryFacts> = {}): QueryFacts {
     note: () => undefined,
     groupName: () => undefined,
     projectName: (session) => session.repoRoot.split('/').pop() ?? '',
+    label: (session) => session.title,
     reasons: () => [],
     claudeAsks: () => null,
+    asking: () => false,
+    rank: () => null,
     worktree: () => false,
     gone: () => false,
     prRole: () => null,

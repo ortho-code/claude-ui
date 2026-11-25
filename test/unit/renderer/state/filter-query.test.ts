@@ -33,5 +33,6 @@ describe('queryReads', () => {
     expect(reads('is:unfinished OR is:running')).toEqual({ tabs: true, running: true, statuses: false });
     expect(reads('needs:any')).toEqual({ tabs: false, running: false, statuses: true });
     expect(reads('-status:busy')).toEqual({ tabs: false, running: false, statuses: true });
+    expect(reads('is:asking')).toEqual({ tabs: false, running: false, statuses: true });
   });
 });

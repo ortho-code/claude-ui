@@ -12,6 +12,8 @@ export type ClaudeAsk = 'claude.asks' | 'claude.ready';
  */
 export interface QueryFacts {
   now: number;
+  /** The project `project:current` names, by its folder: the one on show where the query is asked, or null for every project. */
+  current: string | null;
   pinned(session: SessionSummary): boolean;
   tabbed(session: SessionSummary): boolean;
   /** A claude runs in its tab. */
@@ -26,10 +28,16 @@ export interface QueryFacts {
   note(session: SessionSummary): string | undefined;
   groupName(session: SessionSummary): string | undefined;
   projectName(session: SessionSummary): string;
+  /** What its row is called: its title, else its first prompt, else a stand-in. */
+  label(session: SessionSummary): string;
   /** Every stored reason, those read or muted by a set-aside mark included. */
   reasons(session: SessionSummary): readonly NeedsYou[];
   /** Claude waiting for you, or ready and not marked read; null otherwise. */
   claudeAsks(session: SessionSummary): ClaudeAsk | null;
+  /** It asks for you now, by the rule its dot and the switcher's count follow: not read, not muted by its set-aside mark, not outranked by what its claude is doing. */
+  asking(session: SessionSummary): boolean;
+  /** Where what its dot shows stands in the strength order, lower first; null for a state the order does not name. */
+  rank(session: SessionSummary): number | null;
   /** It shows the worktree mark. */
   worktree(session: SessionSummary): boolean;
   /** It cannot run because its folder is gone. */

@@ -68,5 +68,5 @@ export interface QueryReads {
 export function queryReads(view: View<'filter' | 'needsYouTypes'>): QueryReads {
   const terms = filterQuery(view).inForce?.parts.flat() ?? [];
   const isOne = (...values: string[]): boolean => terms.some((term) => term.field === 'is' && term.values.some((value) => values.includes(value.toLowerCase())));
-  return { tabs: isOne('working', 'unfinished'), running: isOne('running'), statuses: terms.some((term) => term.field === 'status' || term.field === 'needs') };
+  return { tabs: isOne('working', 'unfinished'), running: isOne('running'), statuses: isOne('asking') || terms.some((term) => term.field === 'status' || term.field === 'needs') };
 }

@@ -83,9 +83,9 @@ function valueButton(term: string, value: string, add: (term: string) => void): 
 
 /** What a field takes: its values or day forms as buttons, or in words what else it reads. */
 function values(field: Field, add: (term: string) => void): Node[] {
-  if (field.kind === 'text') return [muted('text, as part of it')];
   const listed = field.kind === 'moment' ? DAY_EXAMPLES : (field.values ?? []).map((value) => value.value);
   const buttons = listed.map((value) => valueButton(`${field.name}:${value}`, value, add));
+  if (field.kind === 'text') return buttons.length > 0 ? [...buttons, muted('or text, as part of it')] : [muted('text, as part of it')];
   if (field.kind === 'moment') return [...buttons, muted('or a date, 2026-11-01')];
   return field.accepts ? [...buttons, muted('or a number, owner/repo#12')] : buttons;
 }
