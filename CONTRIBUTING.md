@@ -6,8 +6,8 @@ What the app holds to, and what a change is checked against, is in [docs/princip
 ## Run from source
 
 - Linux or macOS, or Windows through WSL 2 with WSLg, where the app and `claude` both run inside the Linux distribution.
-- Node, managed by [mise](https://mise.jdx.dev).
-  Run `mise install` once.
+- Node and [pre-commit](https://pre-commit.com), managed by [mise](https://mise.jdx.dev).
+  Run `mise install` once; installing pre-commit also installs the git hook that runs the fast checks on every commit, and where pre-commit was installed already, `pre-commit install --allow-missing-config` does.
 - A C toolchain for the native terminal module: `sudo apt-get install build-essential` on Debian or Ubuntu, `xcode-select --install` on macOS.
 
 ```bash
@@ -21,7 +21,7 @@ npm start
 It runs with `--no-sandbox`, which WSL requires.
 
 `npm test` runs the unit tests, and `npm run test:renderer` checks the window itself in a headless browser, which `npx playwright install --only-shell chromium` fetches the first time.
-Which of them a change needs is in [the architecture notes](docs/architecture/build-and-checks.md#which-checks-a-change-needs).
+The commit hook runs the unit tests and the other fast checks itself; which window checks a change needs beyond them is in [the architecture notes](docs/architecture/build-and-checks.md#which-checks-a-change-needs).
 
 To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a Mac.
 Artifacts land in `release/`.

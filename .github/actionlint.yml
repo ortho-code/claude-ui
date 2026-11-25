@@ -1,0 +1,5 @@
+self-hosted-runner:
+  # GitHub-hosted images newer than actionlint's own list of runner labels, which it otherwise reports as unknown.
+  # Drop one once actionlint knows it.
+  labels:
+    - ubuntu-26.04

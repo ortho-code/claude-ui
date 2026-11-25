@@ -1,2 +1,5 @@
 [tools]
 node = "lts"
+# Installing the hook again whenever mise installs a version keeps the interpreter path it records current after pre-commit is upgraded.
+# The hook is shared by every worktree of the clone, and one on a branch from before this file had it would otherwise refuse every commit.
+pre-commit = { version = "latest", postinstall = 'cd "$MISE_PROJECT_ROOT" && pre-commit install --allow-missing-config' }

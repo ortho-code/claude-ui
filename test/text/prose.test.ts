@@ -114,7 +114,7 @@ function paragraphsOf(file: string, text: string): Line[][] {
   if (ext === '.ts' || ext === '.mjs') return scriptComments(text);
   if (ext === '.css') return styleComments(text);
   if (ext === '.md') return markdownParagraphs(text);
-  if (ext === '.yml' || ext === '.sh' || ext === '.toml') return hashComments(text);
+  if (ext === '.yml' || ext === '.yaml' || ext === '.sh' || ext === '.toml') return hashComments(text);
   return [];
 }
 
@@ -163,7 +163,7 @@ function crowdedIn(file: string, text: string): string[] {
 }
 
 /** Every file `tracked` lists whose kind paragraphsOf reads, with its text. */
-const trackedProse = (): { file: string; text: string }[] => tracked(/\.(ts|mjs|css|md|yml|sh|toml)$/);
+const trackedProse = (): { file: string; text: string }[] => tracked(/\.(ts|mjs|css|md|ya?ml|sh|toml)$/);
 
 /** Each test reading every tracked file takes about 3 s alone and more than vitest's 5 s default while the whole suite runs beside it. */
 const WHOLE_REPO_MS = 20_000;

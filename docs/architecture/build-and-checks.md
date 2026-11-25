@@ -113,28 +113,28 @@ Last measured 2026-11-19, at a load of about 10 on 24 cores; the slowed runs' 95
 
 ## Which checks a change needs
 
-What a commit runs follows from what it changed, since most of the time goes on the window's checks, and most changes cannot reach them.
-The table is the widest each folder can need; a small change runs only the checks that can reach it, such as the window checks that find the label or class name it touches, and the whole of a suite only when its reach cannot be listed that way ([decided 2026-10-29](../decisions/0136-a-commit-runs-only-the-checks-that-can-reach-it.md)).
+Every commit runs the fast checks itself, through a [pre-commit](https://pre-commit.com) hook that `mise install` installs along with pre-commit, shared by every worktree of the clone and skipped in one whose branch has no config yet: `.pre-commit-config.yaml` lists them, each with the files that start it ([decided 2026-11-25](../decisions/0273-every-commit-runs-the-fast-checks.md)).
+On the staged files it checks YAML, TOML and JSON, merge conflict markers, large files, final newlines and line endings, and the workflows with actionlint; it runs ESLint on the staged scripts, and on every file when the linter's config, a tsconfig or `package.json` changes; and it runs the build, the tests' type-check and fallow on a change to the code, a tsconfig or `package.json`, and every unit test and text rule on any change to text.
+That takes about forty seconds, and `pre-commit run` runs it on what is staged without committing.
+All the unit tests run rather than a choice of them, since some read a doc rather than import a module, and a choice by imports would miss those.
 
-| What changed | The widest it needs |
+Beyond that, a change needs only the checks below, and the window's checks only as far as a change can reach them ([decided 2026-10-29](../decisions/0136-a-commit-runs-only-the-checks-that-can-reach-it.md)):
+
+| What changed | Beyond the hook |
 |---|---|
-| Only `.md` files | `npm test` |
-| Only comments in scripts, which `npm run comments:prove` passes | `npm run comments:prove`, then `npm run build`, `npm test`, `npm run lint` |
-| `src/main`, `src/preload`, `test/unit`, `test/text`, `test/tools`, `scripts/` | `npm run build`, `npm test`, `npm run lint`, `npm run fallow` |
-| `src/renderer`, `src/shared`, `test/renderer`, `assets/` | all five: `npm run build`, `npm test`, `npm run lint`, `npm run fallow`, `npm run test:renderer` |
-| `package.json`, `package-lock.json`, a `tsconfig*.json`, a tool's config, `mise.toml` | all five |
+| `src/main` other than `config/jsonc.ts`, `src/preload`, `test/unit`, `test/text`, `test/tools`, `scripts/`, docs | nothing |
+| Only comments in scripts, which `npm run comments:prove` passes | nothing |
+| `src/renderer`, `test/renderer`, `assets/`, `bundled/`, `src/main/config/jsonc.ts` | the window checks that find the labels, ids, class names and selectors it touches, with `npm run build` first |
+| `src/shared`, the store, the layout tree, a renderer module or stylesheet many others draw on, `test/renderer/support/`, `package.json`, `package-lock.json`, a `tsconfig*.json`, a tool's config, `mise.toml` | the whole of `npm run test:renderer` |
+| `test/perf`, or how the session list draws, or when the store tells its readers | `npm run test:perf` (§ The performance checks) |
 
-| `test/perf` | `npm run build`, `npm run lint`, `npm run fallow`, `npm run test:perf` |
+A change across rows runs what each of its rows lists, once, when the change is complete; the whole of `npm run test:renderer` takes about two and a half minutes.
 
-A change across rows runs what each of its rows lists.
-A change to how the session list draws, or to when the store tells its readers, also runs `npm run test:perf` (§ The performance checks).
-The first takes about ten seconds, the next two about half a minute, and the last two up to two minutes, most of it the window's checks.
-
-A doc needs more than the text rules where a unit test holds it to the code: the variables `docs/panel-types.md` names, the icon names in `docs/guide/layout.md`; those tests name the doc they read, so a search of `test/unit` for its file name finds them, and `npm test` covers every one at once.
 A comment still reaches the linter (one that fills an empty block, a `// falls through`, a `@deprecated` tag), the compiler (what a `@ts-expect-error` covers) and the text rules (a wrapped line), but not the window: once the proof passes, the bundled code is the same, its directives included, and only the source map beside it differs.
 A comment change the proof fails, a directive's among them, is a change to code, and goes by the row of its folder.
 So does a stylesheet's comment: the proof takes every `/* … */` out as a space, which is wrong between two selectors, where a comment leaves them joined, and inside a string, where it is no comment at all.
-Main and the preload reach the window's checks only through the build, which their row runs already: the checks load the built renderer, with a stand-in for the bridge, and import nothing but `src/shared` and `src/renderer`, neither of which imports `src/main` or `src/preload`.
+Main and the preload reach the window's checks through the build, which the hook runs, and in one place directly: the stand-in reads the needs-you rules the app ships, in `bundled/needs-you/`, with main's own `src/main/config/jsonc.ts`.
+Otherwise the checks load the built renderer, with a stand-in for the bridge, and import nothing but `src/shared` and `src/renderer`, neither of which imports `src/main` or `src/preload`.
 `src/shared` is built into main and into the window alike, so it runs everything.
 A workflow, `electron-builder.yml` and the shell script in `build/` are read here only by the text rules, for their comments, and the macOS entitlements file by nothing; CI's next run, or a release, is where they are tried.
 

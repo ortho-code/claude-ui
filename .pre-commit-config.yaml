@@ -1,0 +1,61 @@
+# Only checks that finish in seconds belong here; the window's checks and the performance budgets are run by hand and by CI.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+        # Off so the verdict is the same on every machine, whether shellcheck is installed there or not.
+        args: ['-shellcheck', '']
+  - repo: local
+    hooks:
+      - id: eslint
+        name: ESLint on the staged files
+        entry: mise exec -- npx eslint --fix --no-warn-ignored
+        language: system
+        types_or: [ts, javascript]
+        # pre-commit otherwise splits more than four files over several ESLint runs side by side, each loading the whole type-aware program.
+        require_serial: true
+      # A config change can change the verdict for every file, so lint them all.
+      - id: eslint-all
+        name: ESLint on every file
+        entry: mise exec -- npm run lint
+        language: system
+        files: ^(eslint\.config\.mjs|tsconfig[^/]*\.json|package(-lock)?\.json)$
+        pass_filenames: false
+      - id: build
+        name: Build
+        entry: mise exec -- npm run build
+        language: system
+        files: ^(src/|tsconfig(\.(main|renderer))?\.json$|package(-lock)?\.json$)
+        pass_filenames: false
+      - id: tsc-test
+        name: Type-check the tests
+        entry: mise exec -- npx tsc --noEmit -p tsconfig.test.json
+        language: system
+        files: ^(src/|test/|tsconfig[^/]*\.json$|package(-lock)?\.json$)
+        types_or: [ts, json]
+        pass_filenames: false
+      - id: fallow
+        name: Fallow
+        entry: mise exec -- npm run fallow
+        language: system
+        files: ^(src/|test/|scripts/|\.fallowrc\.jsonc$|package\.json$)
+        pass_filenames: false # fallow reads the whole import graph, not single files
+      # The unit tests and the rules every comment and doc keeps: some tests read a doc rather than import a module, so any text change runs them all.
+      - id: vitest
+        name: Unit tests and text rules
+        entry: mise exec -- npx vitest run
+        language: system
+        types: [text]
+        pass_filenames: false

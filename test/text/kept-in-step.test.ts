@@ -34,7 +34,7 @@ function tiesIn(file: string, text: string): string[] {
 describe('kept in step', () => {
   it('no code says it is kept in step with another place', () => {
     // This file holds the phrases it looks for.
-    const code = tracked(/\.(ts|mjs|css|yml|sh|toml)$/).filter(({ file }) => file !== 'test/text/kept-in-step.test.ts');
+    const code = tracked(/\.(ts|mjs|css|ya?ml|sh|toml)$/).filter(({ file }) => file !== 'test/text/kept-in-step.test.ts');
     expect(code.flatMap(({ file, text }) => tiesIn(file, text))).toEqual([]);
   });
 

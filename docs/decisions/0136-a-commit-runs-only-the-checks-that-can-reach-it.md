@@ -2,6 +2,7 @@
 
 - **Date:** 2026-10-29
 - **Area:** [Which checks a change needs](../architecture/build-and-checks.md#which-checks-a-change-needs)
+- **Partly replaced** by [0273](0273-every-commit-runs-the-fast-checks.md) on 2026-11-25: the fast checks run in full on every commit, through a pre-commit hook, and the choice is left to the window's checks.
 
 ## Decision
 
