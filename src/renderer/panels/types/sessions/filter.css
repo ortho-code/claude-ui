@@ -25,6 +25,13 @@
   border-radius: var(--radius-surface);
 }
 
+/* The field, with the help button at its right. */
+#query-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 #search {
   width: 100%;
   padding: 6px 10px;

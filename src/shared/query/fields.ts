@@ -49,8 +49,9 @@ function needsField(registry: NeedsYouRegistry): Field {
     holds(session, value, _comparison, facts) {
       const ask = facts.claudeAsks(session);
       const types: string[] = [...facts.reasons(session).map((reason) => reason.type), ...(ask === null ? [] : [ask])];
-      if (value === 'any') return types.length > 0;
-      return types.some((type) => type === value || categoryOf(registry, type) === value);
+      const wanted = value.toLowerCase();
+      if (wanted === 'any') return types.length > 0;
+      return types.some((type) => type === wanted || categoryOf(registry, type) === wanted);
     },
   };
 }

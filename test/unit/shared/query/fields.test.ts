@@ -66,6 +66,8 @@ describe('has:, status: and needs:', () => {
     expect(found('needs:pr.merged', merged)).toEqual(['a']);
     expect(found('needs:finish-up', merged)).toEqual(['a']);
     expect(found('needs:your-turn', merged)).toEqual([]);
+    expect(found('needs:ANY', merged)).toEqual(['a']);
+    expect(found('needs:Finish-Up', merged)).toEqual(['a']);
     const asks = { claudeAsks: (s: SessionSummary) => (s.id === 'b' ? ('claude.asks' as const) : null) };
     expect(found('needs:any', asks)).toEqual(['b']);
     expect(found('needs:your-turn', asks)).toEqual(['b']);

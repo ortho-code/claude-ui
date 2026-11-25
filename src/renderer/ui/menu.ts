@@ -236,7 +236,7 @@ const NOTCH_HALF = 4.5;
 /**
  * Where a popover's notch goes along an edge to point at `centre`: measured from the edge's start, as the notch is placed, inside the popover's border, and less half its box; clamped clear of the rounded corners at either end of the edge's `length`.
  */
-function notchAt(centre: number, start: number, border: number, length: number): number {
+export function notchAt(centre: number, start: number, border: number, length: number): number {
   return Math.max(10, Math.min(centre - start - border - NOTCH_HALF, length - NOTCH_CLEAR_END));
 }
 

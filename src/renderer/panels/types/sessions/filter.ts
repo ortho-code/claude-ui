@@ -8,6 +8,7 @@ import { noFilter, store, type FilterState, type View } from '../../../state/app
 import { filterQuery } from '../../../state/filter-query';
 import { queryFields } from '../../../state/query-facts';
 import { followFieldScroll, queryMirror, queryProblemList, showQueryProblems } from './query-problems';
+import { queryHelpButton, toggleQueryHelp } from './query-help';
 import { isFiltering } from '../../../state/views';
 import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, svgImage, WORKTREE_ICON } from '../../../ui/svg';
 import { setTooltip } from '../../../ui/tooltip';
@@ -27,7 +28,7 @@ import './filter.css';
 export const filterToggle = fromMarkup(`<button id="filter-toggle" class="icon-btn large" data-tooltip="Filter sessions" aria-label="Filter sessions" aria-expanded="false"></button>`, HTMLButtonElement);
 export const filterPanel = fromMarkup(`
   <div id="filter-panel" hidden>
-    <div id="query-wrap"><input id="search" type="search" placeholder="Search, or is:pinned OR is:running…" aria-label="Search or filter sessions" spellcheck="false" /></div>
+    <div id="query-wrap"><div id="query-field"><input id="search" type="search" placeholder="Search, or is:pinned OR is:running…" aria-label="Search or filter sessions" spellcheck="false" /></div></div>
     <div id="filters">
       <button id="pinned-filter" data-tooltip="Show only pinned sessions" aria-label="Show only pinned sessions" aria-pressed="false"></button>
       <button id="open-filter" type="button" data-tooltip="Show only sessions with a tab open" aria-label="Show only sessions with a tab open" aria-pressed="false"></button>
@@ -90,8 +91,13 @@ const datePicker = calendar(byId(filterPanel, 'date-range'), {
 });
 const searchInput = byId(filterPanel, 'search', HTMLInputElement);
 const queryWrap = byId(filterPanel, 'query-wrap');
-queryWrap.append(queryMirror);
+byId(filterPanel, 'query-field').append(queryMirror);
+queryWrap.append(queryHelpButton);
 queryWrap.after(queryProblemList);
+// Beside the panel the list is in, wherever the layout puts it; a value pressed in it is ANDed with the query, as a pill's term is.
+queryHelpButton.addEventListener('click', () =>
+  toggleQueryHelp(filterPanel.closest<HTMLElement>('.panel-group') ?? filterPanel, (term) => setQuery(withTerms(store.get().filter.query, [term], vocabulary()))),
+);
 searchInput.addEventListener('scroll', () => followFieldScroll(searchInput));
 const SEARCH_CLEAR_SIZE = 12;
 searchInput.style.setProperty('--search-clear', svgImage(closeIcon(SEARCH_CLEAR_SIZE)));

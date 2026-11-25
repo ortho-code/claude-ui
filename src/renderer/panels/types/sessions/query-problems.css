@@ -1,6 +1,8 @@
 /* The field and its mirror share a box, the mirror laid over the field; both read their font and padding from here, so the copy's letters fall exactly on the field's. */
-#query-wrap {
+#query-field {
   position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 #query-mirror {

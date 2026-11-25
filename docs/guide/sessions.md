@@ -16,6 +16,7 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
   A word with a colon or a parenthesis in it, such as `TODO:`, reads as a term, and one starting with `-` as not, so put it in quotes to search for it: `"TODO:"`, `"-text"`.
   The filter pills, pinned, open, live, set aside, worktree, siblings, linked PR, noted and folder gone, and the date presets write their terms into the field and show on while their term is in every part of the query; finished is a switch beside it.
   A term that does not read is underlined, with why under the field, and the list is dimmed while it keeps what the last query that did showed; a query left that did not read shows nothing at the next launch until it does.
+  [Queries](queries.md) has every field and value, and the help button beside the field a short card of them.
   A filter left on with its panel shut stays on screen as a row of chips above the count: one per term, or one of the whole query when it has an `OR`, and one for finished.
   Clear empties the filter; Clear and close, under the open panel, also shuts it.
 - Hovering a session's row shows what it says in full, whatever the sidebar's width cuts off: its name, its line, its state, when it was last active, its PRs with their dates where GitHub gave them, and its whole note.
