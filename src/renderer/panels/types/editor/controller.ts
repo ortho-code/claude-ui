@@ -1,5 +1,5 @@
 import { store } from '../../../state/app';
-import { editorDocked, editorTabsOnShow } from '../../../state/editor-tabs';
+import { allTabs, editorDocked, editorTabsOnShow } from '../../../state/editor-tabs';
 import type { Asks, DrawerEntry } from '../../contract';
 import { EditorView } from './view';
 
@@ -21,7 +21,7 @@ let inDrawer = false;
 const entry: DrawerEntry = {
   icon: 'file',
   label: 'Files',
-  count: () => editorTabsOnShow().tabs.length,
+  count: () => allTabs(editorTabsOnShow()).length,
   open: () => store.set({ editorDrawer: true }),
   close: () => store.set({ editorDrawer: false }),
 };
@@ -44,7 +44,7 @@ export function dockIn(lent: { body: HTMLElement; fullScreen: HTMLButtonElement 
 
 function place(): void {
   if (!view || !drawer) return;
-  const open = editorTabsOnShow().tabs.length > 0;
+  const open = editorTabsOnShow().groups.length > 0;
   const docked = editorDocked() ? dock : null;
   // Off the drawer's rail while docked, or with nothing to show.
   if (docked !== null || !open) {

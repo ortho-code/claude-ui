@@ -1,5 +1,5 @@
 import type { EditorUi } from '../../../../shared/types';
-import { changeEditorTabs, closed, closedOthers, editorSetKey, editorTabsOnShow, keyOf, kept, NO_TABS, pathOf, picked, reordered, stepped, updated, type EditorTabs, type FileRef } from '../../../state/editor-tabs';
+import { allTabs, changeEditorGroup, changeEditorTabs, closed, closedOthers, editorSetKey, editorTabsOnShow, keyOf, kept, NO_GROUP, NO_TABS, pathOf, picked, reordered, shownTab, steppedIn, updated, type EditorGroup, type EditorTabs, type FileRef } from '../../../state/editor-tabs';
 import { store } from '../../../state/app';
 import { element } from '../../../ui/dom';
 import type { MenuItem } from '../../../ui/menu';
@@ -93,8 +93,8 @@ export class EditorView {
 
   /** Give the keys to the file on show, so `j` and `k` step through it at once. */
   focus(): void {
-    const set = editorTabsOnShow();
-    if (set.active) this.docs.get(set.active)?.view.focus();
+    const shown = shownTab(editorTabsOnShow());
+    if (shown) this.docs.get(shown.key)?.view.focus();
   }
 
   private drawHead(): void {
@@ -118,12 +118,13 @@ export class EditorView {
     if (this.drawn?.key === key && this.drawn.set === set) return;
     this.drawn = { key, set };
     for (const [docKey, doc] of this.docs) {
-      if (set.tabs.some((tab) => tab.key === docKey)) continue;
+      if (allTabs(set).some((tab) => tab.key === docKey)) continue;
       doc.release();
       this.docs.delete(docKey);
     }
-    this.tabs.draw(this.tabsOf(set));
-    const active = set.tabs.find((tab) => tab.key === set.active);
+    const group = set.groups[0] ?? NO_GROUP;
+    this.tabs.draw(this.tabsOf(group));
+    const active = group.tabs.find((tab) => tab.key === group.active);
     if (!active) {
       this.body.replaceChildren();
       return;
@@ -136,8 +137,7 @@ export class EditorView {
   private reveal(): void {
     const asked = store.get().editorReveal;
     if (!asked) return;
-    const set = editorTabsOnShow();
-    if (set.active === asked.key) this.docs.get(asked.key)?.view.revealLine(asked.line);
+    if (shownTab(editorTabsOnShow())?.key === asked.key) this.docs.get(asked.key)?.view.revealLine(asked.line);
     store.set({ editorReveal: null });
   }
 
@@ -168,11 +168,11 @@ export class EditorView {
         // A file with a tab of its own already is put on show in that tab, and this one goes (`stepped`); else this doc moves to the new file's key, so the draw that follows finds it there, showing that file already.
         if (this.docs.has(keyOf(next))) doc().release();
         else this.docs.set(keyOf(next), doc());
-        changeEditorTabs((set) => stepped(set, now, next));
+        changeEditorTabs((set) => steppedIn(set, now, next));
       },
       refreshed: (next) => {
         const now = this.keyOfDoc(doc());
-        if (now !== undefined) changeEditorTabs((set) => updated(set, now, next));
+        if (now !== undefined) changeEditorGroup(now, (group) => updated(group, now, next));
       },
     };
   }
@@ -181,14 +181,14 @@ export class EditorView {
     return [...this.docs].find(([, each]) => each === doc)?.[0];
   }
 
-  private tabsOf(set: EditorTabs): PanelTabs {
+  private tabsOf(group: EditorGroup): PanelTabs {
     return {
-      tabs: set.tabs.map(
+      tabs: group.tabs.map(
         (tab): PanelTab => ({
           id: tab.key,
           text: pathOf(tab.ref).slice(pathOf(tab.ref).lastIndexOf('/') + 1),
           tooltip: `${pathOf(tab.ref)}${tab.preview ? '\nA preview: the next file opened takes its place. Pin it, or double-click it, to keep it.' : ''}`,
-          shown: tab.key === set.active,
+          shown: tab.key === group.active,
           cold: false,
           preview: tab.preview,
           button: { mark: 'close', tooltip: 'Close' },
@@ -197,29 +197,29 @@ export class EditorView {
       ),
       add: null,
       kebabLabel: 'File options',
-      select: (id) => changeEditorTabs((each) => picked(each, id)),
-      press: (id) => changeEditorTabs((each) => closed(each, id)),
-      menu: (id) => this.menu(set, id),
+      select: (id) => changeEditorGroup(id, (each) => picked(each, id)),
+      press: (id) => changeEditorGroup(id, (each) => closed(each, id)),
+      menu: (id) => this.menu(group, id),
       // A double-click on a tab keeps it, as on a preview in an editor.
-      rename: (id) => changeEditorTabs((each) => kept(each, id)),
-      reorder: (ids) => changeEditorTabs((each) => reordered(each, ids)),
+      rename: (id) => changeEditorGroup(id, (each) => kept(each, id)),
+      reorder: (ids) => changeEditorGroup(ids[0] ?? '', (each) => reordered(each, ids)),
       showCluster: () => {},
       folded: false,
       fold: () => {},
     };
   }
 
-  /** A tab's menu: Pin while it is a preview, Copy path, Close other tabs while there are others, Close, and Close all while there are others. */
-  private menu(set: EditorTabs, id: string): MenuItem[] | null {
-    const tab = set.tabs.find((each) => each.key === id);
+  /** A tab's menu: Pin while it is a preview, Copy path, Close other tabs while its group has others, Close, and Close all, which closes its group, while there are others. */
+  private menu(group: EditorGroup, id: string): MenuItem[] | null {
+    const tab = group.tabs.find((each) => each.key === id);
     if (!tab) return null;
     const path = pathOf(tab.ref);
     return [
-      ...(tab.preview ? [{ label: 'Pin', onSelect: () => changeEditorTabs((each) => kept(each, id)) }] : []),
+      ...(tab.preview ? [{ label: 'Pin', onSelect: () => changeEditorGroup(id, (each) => kept(each, id)) }] : []),
       { label: 'Copy path', onSelect: () => void copyText(path, 'Path copied.') },
-      ...(set.tabs.length > 1 ? [{ label: 'Close other tabs', onSelect: () => changeEditorTabs((each) => closedOthers(each, id)) }] : []),
-      { label: 'Close', onSelect: () => changeEditorTabs((each) => closed(each, id)) },
-      ...(set.tabs.length > 1 ? [{ label: 'Close all', onSelect: () => changeEditorTabs(() => NO_TABS) }] : []),
+      ...(group.tabs.length > 1 ? [{ label: 'Close other tabs', onSelect: () => changeEditorGroup(id, (each) => closedOthers(each, id)) }] : []),
+      { label: 'Close', onSelect: () => changeEditorGroup(id, (each) => closed(each, id)) },
+      ...(group.tabs.length > 1 ? [{ label: 'Close all', onSelect: () => changeEditorGroup(id, () => NO_GROUP) }] : []),
     ];
   }
 }

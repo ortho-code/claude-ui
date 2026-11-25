@@ -33,6 +33,6 @@ export class EditorPanel implements MountedPanel {
   }
 
   private drawVacant(): void {
-    this.host.setVacant(!editorDocked() || editorTabsOnShow().tabs.length === 0);
+    this.host.setVacant(!editorDocked() || editorTabsOnShow().groups.length === 0);
   }
 }

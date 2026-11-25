@@ -3,7 +3,7 @@ import { questionOf, setOnTheirOwn, withRootQuestion } from '../../../../shared/
 import type { SessionSummary } from '../../../../shared/types';
 import { store } from '../../../state/app';
 import { sessionById } from '../../../state/views';
-import { editorTabsOnShow, openInEditor, type StepFile } from '../../../state/editor-tabs';
+import { editorTabsOnShow, openInEditor, shownTab, type StepFile } from '../../../state/editor-tabs';
 import type { MountedPanel, PanelHost, PanelView } from '../../contract';
 import type { PanelSlot } from '../../layout';
 import { CWD_OPTION, optionsOf, type OptionDecl, type OptionsDecl } from '../../options';
@@ -226,8 +226,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
 
   /** The file of a checkout the Editor shows for the tab on show, by its root and path. */
   private picked(): Placed | null {
-    const set = editorTabsOnShow();
-    const shown = set.tabs.find((tab) => tab.key === set.active)?.ref;
+    const shown = shownTab(editorTabsOnShow())?.ref;
     return shown?.kind === 'checkout' ? { root: shown.root, path: shown.file.path } : null;
   }
 
