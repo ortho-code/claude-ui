@@ -1,4 +1,4 @@
-/* THE EDITOR'S VIEW (types/editor/view.ts): its head, the header a panel with tabs has (tabs.css), then the file on show, filling the drawer or the docked panel it is placed in. */
+/* THE EDITOR'S VIEW (types/editor/view.ts): its group of tabs (group.css), filling the drawer or the docked panel it is placed in. */
 .editor-view {
   display: flex;
   flex-direction: column;
@@ -7,16 +7,4 @@
   height: 100%;
   background: var(--bg);
   font-size: var(--text-body);
-}
-
-.editor-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-.editor-body > .diff-file-view {
-  flex: 1;
-  min-height: 0;
 }

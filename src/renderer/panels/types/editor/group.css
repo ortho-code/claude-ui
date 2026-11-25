@@ -1,0 +1,25 @@
+/* ONE GROUP OF THE EDITOR'S TABS (types/editor/group.ts): its head, the header a panel with tabs has (tabs.css), then the file on show. */
+.editor-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The Editor's own buttons in the head that holds them, each laid out as one of the head's controls. */
+.editor-controls {
+  display: contents;
+}
+
+.editor-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-body > .diff-file-view {
+  flex: 1;
+  min-height: 0;
+}
