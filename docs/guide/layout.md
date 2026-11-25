@@ -225,6 +225,7 @@ Files open in the Editor, as a drawer over the terminal area, the one the histor
 Over a tab with no claude, one you have not resumed, the Editor takes the whole pane, as the history does there.
 **Dock** in its head puts it beside the terminal instead, so you can read while the session goes on working, and **Undock** puts it back; the app remembers which.
 Docked, it takes no room while nothing is open in it, and comes back at the size you last gave it when a file opens; in the default layout it first takes two-thirds of what it shares with the terminal.
+Opening a file puts the Editor in sight, docked or in the drawer over the terminal: the Editor, or the terminal, comes in front of the other panels of its group, its group unfolds, and the layout comes back if another panel fills the window.
 The **×** at the end of its head closes all its files at once, docked or not, on both sides while it is split.
 The Editor and the history take turns in the drawer; with the Editor docked, the history opens over the terminal and the file stays in view.
 With the history docked beside claude, a file's drawer slides in over both, from the right.

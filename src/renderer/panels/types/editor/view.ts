@@ -48,7 +48,8 @@ export class EditorView {
   /** The set last drawn, so a store change that leaves it alone draws nothing. */
   private drawn: { key: string; set: EditorTabs } | null = null;
 
-  constructor() {
+  /** `putInSight` brings the Editor into view where it stands, docked or in the drawer, for a file just opened in it. */
+  constructor(private readonly putInSight: () => void) {
     this.dockButton.type = 'button';
     this.dockButton.addEventListener('click', () => this.toggleDock());
     this.closeButton.type = 'button';
@@ -62,7 +63,7 @@ export class EditorView {
       event.preventDefault();
       store.set({ editorDrawer: false });
     });
-    store.watch(['editorTabs', 'tabs', 'activeTab', 'editorReveal'], () => {
+    store.watch(['editorTabs', 'tabs', 'activeTab', 'editorAsked'], () => {
       this.draw();
       this.reveal();
     });
@@ -176,14 +177,14 @@ export class EditorView {
     this.groups.at(-1)!.holdControls(this.controls());
   }
 
-  /** Hand a line asked to be brought into sight to the tab on show, when it is the tab it was asked for, and clear the ask, so it is taken once. */
+  /** Put a file just opened in sight, hand a line asked to be brought into sight to the tab on show when it is the tab it was asked for, and clear the ask, so it is taken once. */
   private reveal(): void {
-    const asked = store.get().editorReveal;
+    const asked = store.get().editorAsked;
     if (!asked) return;
-    if (shownTab(editorTabsOnShow())?.key === asked.key) this.docs.get(asked.key)?.view.revealLine(asked.line);
-    store.set({ editorReveal: null });
+    store.set({ editorAsked: null });
+    this.putInSight();
+    if (asked.line !== null && shownTab(editorTabsOnShow())?.key === asked.key) this.docs.get(asked.key)?.view.revealLine(asked.line);
   }
-
   /** The doc of the tab `key`, made for `ref`'s kind: the one it has, showing `ref`, unless the same file is opened again as the other kind, as after git started or stopped ignoring it, or after its checkout could not be read. */
   private docOf(key: string, ref: FileRef): Doc {
     const found = this.docs.get(key);

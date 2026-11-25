@@ -16,7 +16,7 @@ export class EditorPanel implements MountedPanel {
 
   constructor(private readonly host: PanelHost) {
     store.set({ editorDock: true });
-    dockIn({ body: this.el, fullScreen: host.fullScreenButton });
+    dockIn({ body: this.el, fullScreen: host.fullScreenButton, bringIntoView: () => host.bringIntoView() });
     this.stopWatching = store.watch(['editorTabs', 'tabs', 'activeTab', 'editorUi', 'editorDock'], () => this.drawVacant());
     this.drawVacant();
   }

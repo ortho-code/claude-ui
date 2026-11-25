@@ -1,6 +1,7 @@
 import { store } from '../../../state/app';
 import { allTabs, editorDocked, editorTabsOnShow } from '../../../state/editor-tabs';
 import type { Asks, DrawerEntry } from '../../contract';
+import { hostOf } from '../builtin';
 import { EditorView } from './view';
 
 /**
@@ -11,8 +12,14 @@ import { EditorView } from './view';
 type DrawerAsks = Pick<Asks, 'holdInDrawer' | 'showInDrawer' | 'hideFromDrawer' | 'releaseFromDrawer'>;
 
 let view: EditorView | null = null;
-/** The Editor panel's body, while one is mounted to dock in. */
-let dock: { body: HTMLElement; fullScreen: HTMLButtonElement } | null = null;
+/** What the Editor panel lends while one is mounted to dock in: its body, its full-screen button, and its way to bring itself into view. */
+interface Dock {
+  body: HTMLElement;
+  fullScreen: HTMLButtonElement;
+  bringIntoView(): void;
+}
+
+let dock: Dock | null = null;
 let drawer: DrawerAsks | null = null;
 /** Whether the drawer shows the view, as `place` last put it. */
 let inDrawer = false;
@@ -29,7 +36,11 @@ const entry: DrawerEntry = {
 /** Build the view and keep it where the store says, asking the terminal area for its drawer. */
 export function startEditor(asks: DrawerAsks): void {
   drawer = asks;
-  view = new EditorView();
+  // Docked, the Editor panel is brought into view; in the drawer, opening a file opens the drawer itself (`editorDrawer`), and the terminal area it stands in is brought into view.
+  view = new EditorView(() => {
+    if (editorDocked()) dock?.bringIntoView();
+    else hostOf('claude').bringIntoView();
+  });
   store.watch(['editorDrawer', 'editorUi', 'editorDock', 'editorTabs', 'tabs', 'activeTab'], place);
   // Any change of the tab on show, a switch, a close, a new one, closes the drawer, so it never opens on its own on a tab whose files were left closed.
   store.watch(['activeTab'], () => store.set({ editorDrawer: false }));
@@ -37,11 +48,10 @@ export function startEditor(asks: DrawerAsks): void {
 }
 
 /** The Editor panel lends its body to dock in, with its full-screen button for the view's head; null when it unmounts. */
-export function dockIn(lent: { body: HTMLElement; fullScreen: HTMLButtonElement } | null): void {
+export function dockIn(lent: Dock | null): void {
   dock = lent;
   place();
 }
-
 function place(): void {
   if (!view || !drawer) return;
   const open = editorTabsOnShow().groups.length > 0;
