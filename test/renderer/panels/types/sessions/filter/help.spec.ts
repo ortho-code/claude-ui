@@ -1,5 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
+import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // The help beside the query field lists the syntax and every field with its values, from the fields the field reads, beside the session list; a value adds its term, and a link leads to the guide's page.
 const card = '#query-help-card';
@@ -83,6 +85,37 @@ test('the help button shuts the card it opened', async ({ app, page }) => {
   await openHelp(page);
   await page.locator('#query-help').click();
   await expect(page.locator(card)).toBeHidden();
+});
+
+test('with the list filling the window, the card opens over the list at a width to read, since neither side has room', async ({ app, page }) => {
+  await app.boot();
+  await page.locator('#sidebar').getByRole('button', { name: 'Full screen' }).click();
+  await openHelp(page);
+  const list = await page.locator('#sidebar').evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    return { left: box.left, right: box.right };
+  });
+  const box = await page.locator(card).evaluate((el) => {
+    const at = el.getBoundingClientRect();
+    return { left: at.left, right: at.right, width: at.width };
+  });
+  expect(box.width).toBeGreaterThanOrEqual(280);
+  expect(box.left).toBeGreaterThanOrEqual(list.left);
+  expect(box.right).toBeLessThanOrEqual(list.right);
+});
+
+test('Esc with the card open shuts the card and leaves selecting several as it was', async ({ app, page }) => {
+  const one = session({ id: '00000000-0000-4000-8000-0000000000b1', title: 'One' });
+  await app.boot({ sessions: [one], history: { [one.id]: [] } });
+  await row(page, one.title).locator('.kebab').click();
+  await page.locator('.kebab-menu button.menu-row', { hasText: /^Select…$/ }).click();
+  await expect(page.locator('#bulk-line')).toBeVisible();
+  await openHelp(page);
+  // Focus on the help button, not in the field, so only the card stands between Esc and the list.
+  await expect(page.locator('#query-help')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator(card)).toBeHidden();
+  await expect(page.locator('#bulk-line')).toBeVisible();
 });
 
 test('a change of the window size keeps the card open, beside the list', async ({ app, page }) => {

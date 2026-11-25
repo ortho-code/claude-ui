@@ -15,23 +15,40 @@ export interface SidePopover {
   close(): void;
 }
 
-/** The widest it opens, and how far it keeps from the panel beside it and from the window's edges. */
+/** The widest it opens, the narrowest it opens beside a panel, and how far it keeps from the panel beside it and from the window's edges. */
 const WIDTH = 500;
+const MIN_WIDTH = 280;
 const GAP = 8;
 const MARGIN = 8;
 
-/** Place the popover beside `beside`, on the side with more room, its top at the anchor's, its notch pointing at the anchor. */
-function place(el: HTMLElement, anchor: HTMLElement, beside: HTMLElement): void {
-  const panel = beside.getBoundingClientRect();
-  const at = anchor.getBoundingClientRect();
+/** Where it stands across: its left edge and width, and the side of the panel it is attached to, or null over the panel itself. */
+interface Across {
+  left: number;
+  width: number;
+  side: 'right' | 'left' | null;
+}
+
+/** Beside the panel on the side with more room; over the panel itself, against its right edge, when neither side has `MIN_WIDTH`, as when the panel fills the window. */
+function across(panel: DOMRect): Across {
   const roomRight = window.innerWidth - panel.right - GAP - MARGIN;
   const roomLeft = panel.left - GAP - MARGIN;
-  const right = roomRight >= roomLeft;
-  const width = Math.max(0, Math.min(WIDTH, right ? roomRight : roomLeft));
-  el.classList.toggle('attach-right', right);
-  el.classList.toggle('attach-left', !right);
+  const room = Math.max(roomRight, roomLeft);
+  if (room < MIN_WIDTH) {
+    const width = Math.max(0, Math.min(WIDTH, panel.width - 2 * MARGIN));
+    return { left: panel.right - MARGIN - width, width, side: null };
+  }
+  const width = Math.min(WIDTH, room);
+  return roomRight >= roomLeft ? { left: panel.right + GAP, width, side: 'right' } : { left: panel.left - GAP - width, width, side: 'left' };
+}
+
+/** Place the popover beside `beside`, its top at the anchor's, its notch pointing at the anchor when it stands beside the panel. */
+function place(el: HTMLElement, anchor: HTMLElement, beside: HTMLElement): void {
+  const at = anchor.getBoundingClientRect();
+  const { left, width, side } = across(beside.getBoundingClientRect());
+  el.classList.toggle('attach-right', side === 'right');
+  el.classList.toggle('attach-left', side === 'left');
   el.style.width = `${width}px`;
-  el.style.left = `${right ? panel.right + GAP : panel.left - GAP - width}px`;
+  el.style.left = `${left}px`;
   const top = Math.max(MARGIN, Math.min(at.top, window.innerHeight - MARGIN - 120));
   el.style.top = `${top}px`;
   el.style.maxHeight = `${window.innerHeight - top - MARGIN}px`;
@@ -70,7 +87,8 @@ export function sidePopover(id: string, label: string): SidePopover {
   };
 
   shut.addEventListener('click', close);
-  document.addEventListener('keydown', (event) => {
+  // On the window, which the key reaches after every listener on the document, so one that steps aside for an open popover, such as bulk mode's Esc, still finds it open.
+  window.addEventListener('keydown', (event) => {
     if (owner && event.key === 'Escape') close();
   });
   window.addEventListener('resize', () => {

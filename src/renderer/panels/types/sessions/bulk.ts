@@ -202,13 +202,13 @@ async function unfinishSessions(keys: readonly string[]): Promise<void> {
 
 byId(bulkLine, 'bulk-done', HTMLButtonElement).addEventListener('click', endBulk);
 
-// Esc ends bulk mode, but never a key meant for something else: one typed where text goes, a terminal's included, since claude reads Esc there, or one while a menu, a dialog or the filter's calendar is up, which close on it themselves.
+// Esc ends bulk mode, but never a key meant for something else: one typed where text goes, a terminal's included, since claude reads Esc there, or one while a menu, a dialog, a side popover or the filter's calendar is up, which close on it themselves.
 // Those listen on the document too and take no default, so what is open is asked; this listener is registered first, so a dialog is still up when it is asked.
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape' || event.defaultPrevented || store.get().bulk === null) return;
   const target = event.target as HTMLElement | null;
   if (target?.closest('input, textarea, select, [contenteditable], .xterm')) return;
-  if (document.querySelector('.kebab-menu, .overlay:not([hidden]), #date-custom:not([hidden])')) return;
+  if (document.querySelector('.kebab-menu, .overlay:not([hidden]), .side-popover:not([hidden]), #date-custom:not([hidden])')) return;
   endBulk();
 });
 
