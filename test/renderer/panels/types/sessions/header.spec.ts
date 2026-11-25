@@ -15,10 +15,10 @@ test('every header button, and the filter and collapse-all under them, hovers to
   }
 });
 
-test('the row under the header holds its switch, Review, the filter and collapse-all inside a 320px sidebar', async ({ app, page }) => {
+test('the row under the header holds its switch, Review and collapse-all inside a 320px sidebar', async ({ app, page }) => {
   await app.boot();
   const row = page.locator('#list-row');
-  await expect(row.locator('#filter-toggle')).toBeVisible();
+  await expect(row.locator('#review-button')).toBeVisible();
   await expect(row.locator('#collapse-toggle')).toBeVisible();
   const fit = await row.evaluate((box) => {
     const edge = box.getBoundingClientRect().right - parseFloat(getComputedStyle(box).paddingRight);
@@ -27,6 +27,23 @@ test('the row under the header holds its switch, Review, the filter and collapse
   expect(fit.sidebar).toBe(320);
   expect(fit.overflow).toBe(0);
   expect(fit.last).toBeLessThanOrEqual(fit.edge + 0.5);
+});
+
+test('the query row holds the field, the help and the filter button inside a 320px sidebar, the field taking the rest of the room', async ({ app, page }) => {
+  await app.boot();
+  const row = page.locator('#query-row');
+  const fit = await row.evaluate((box) => {
+    const edge = box.getBoundingClientRect().right - parseFloat(getComputedStyle(box).paddingRight);
+    return {
+      overflow: box.scrollWidth - box.clientWidth,
+      last: [...box.querySelectorAll('button')].map((b) => b.getBoundingClientRect().right).reduce((a, b) => Math.max(a, b), 0),
+      edge,
+      field: document.getElementById('search')!.getBoundingClientRect().width,
+    };
+  });
+  expect(fit.overflow).toBe(0);
+  expect(fit.last).toBeLessThanOrEqual(fit.edge + 0.5);
+  expect(fit.field).toBeGreaterThanOrEqual(200);
 });
 
 test('the settings button shows its dialog open in `--active`, and lets it go once the dialog shuts', async ({ app, page }) => {

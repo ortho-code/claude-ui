@@ -87,7 +87,8 @@ test('a busy window: groups, marks, tabs in every state and both toasts', async 
 });
 
 test('the filter panel open, with a search, a pill and the calendar', async ({ app, page }) => {
-  await app.boot({ ...busy, openSessions: [], ...ui({ query: 'a is:pinned active:>=2026-09-01 active:<=2026-09-30', filterPanelOpen: true }) });
+  await app.boot({ ...busy, openSessions: [], ...ui({ query: 'a is:pinned active:>=2026-09-01 active:<=2026-09-30' }) });
+  await page.locator('#filter-toggle').click();
   await page.locator('#date-range-label').click();
   await expect(page.locator('#date-custom')).toBeVisible();
   // Off the button the click left it resting on, whose rounded corner otherwise came out a shade different from one capture to the next.
@@ -95,9 +96,9 @@ test('the filter panel open, with a search, a pill and the calendar', async ({ a
   await snapshot(page, DIR!, 'filter-open');
 });
 
-test('the filter panel shut over a filter, as chips', async ({ app, page }) => {
-  await app.boot({ ...busy, openSessions: [], ...ui({ query: 'a is:pinned active:>=today-7d', filterPanelOpen: false }) });
-  await expect(page.locator('#filter-chips .filter-chip')).toHaveCount(3);
+test('the filter panel shut over a filter, the query in its field', async ({ app, page }) => {
+  await app.boot({ ...busy, openSessions: [], ...ui({ query: 'a is:pinned active:>=today-7d' }) });
+  await expect(page.locator('#filter-count')).toBeVisible();
   await snapshot(page, DIR!, 'filter-shut');
 });
 

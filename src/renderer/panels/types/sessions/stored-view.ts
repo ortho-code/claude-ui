@@ -6,7 +6,7 @@ import { restoreFilter } from './filter';
 import { container } from './drawn';
 
 /**
- * The sidebar's part of the view kept for the next launch — the filter, the folds, the panel and the list's scroll — in the shape `UiState` stores it, and putting it back.
+ * The sidebar's part of the view kept for the next launch — the filter, the folds and the list's scroll — in the shape `UiState` stores it, and putting it back.
  * The window's saving (view-saving.ts) composes it with the layout tree's part, so `meta.json` keeps the one shape it has.
  */
 
@@ -16,7 +16,6 @@ export function sidebarSnapshot(view: StoredView = store.get()): Omit<UiState, '
   return {
     // The search as typed, not the trimmed and lowercased text it matches: what is restored has to be what was typed.
     ...view.filter,
-    filterPanelOpen: view.filterPanelOpen,
     collapsedProjects: [...folds.projects],
     collapsedGroups: [...folds.groups],
     filterCollapsedProjects: [...folds.filterProjects],
@@ -43,9 +42,6 @@ export async function restoreSidebar(state: UiState): Promise<{ scrollTop: numbe
       filterProjects: new Set(underFilter ? state.filterCollapsedProjects : []),
       filterGroups: new Set(underFilter ? state.filterCollapsedGroups : []),
     },
-    // Exactly as it was left, an active filter included.
-    // Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
-    filterPanelOpen: state.filterPanelOpen,
   };
   return { scrollTop: state.scrollTop, view };
 }

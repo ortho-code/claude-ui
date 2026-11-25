@@ -169,8 +169,9 @@ test('a filter opens every fold, a fold made under it goes with the filter, and 
   await app.boot({ ...fixture, ...withUi({ collapsedGroups: ['g-alpha'] }) });
   await expect(group(page, 'Alpha')).toHaveClass(/\bcollapsed\b/);
 
-  await page.locator('#filter-toggle').click();
   await page.locator('#search').fill('alpha');
+  // Saved, so emptying the field below is a change to save rather than a return to what was stored.
+  await expect.poll(async () => (await app.saved())?.query).toBe('alpha');
   // Open, so the match inside it is not hidden from you.
   await expect(group(page, 'Alpha')).not.toHaveClass(/\bcollapsed\b/);
   await expect(row(page, inAlpha.title)).toBeVisible();

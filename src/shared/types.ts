@@ -526,11 +526,6 @@ export interface UiState {
   /** The finished sessions in place of the rest, a switch beside the query until views say it as a term. */
   finished: boolean;
   /**
-   * Whether the filter panel is open, restored exactly as stored — an active filter included.
-   * Closing it over a filter left deliberately on is a choice to keep the results and take the space back, so a shut panel folds down to a row of chips naming what is on, above the count, and the filter icon carries its accent.
-   */
-  filterPanelOpen: boolean;
-  /**
    * Whether the tab bar shows every row of tabs, or only one, the row of the tab on show where there is one.
    * Open by default, every tab in sight; the terminal area's part of the stored view, where the rest is the sidebar's.
    */

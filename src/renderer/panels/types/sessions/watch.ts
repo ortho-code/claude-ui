@@ -29,8 +29,8 @@ export const sessionsWatch = {
     watchReviewButton();
     // The switch between Grouped and Recent follows the arrangement, unavailable while the review is open (arrangement.ts).
     watchArrangement();
-    // The filter panel opened or shut: it follows, with the chips that stand in for it while it is shut.
-    store.watch(['filterPanelOpen'], filterPanelFollows, { reads: ['filter'] });
+    // The filter panel opened or shut: it follows, with Clear and close.
+    store.watch(['filterPanelOpen'], filterPanelFollows);
     // The switcher counts every project's sessions, rolls up their statuses and names the project on show.
     // A session with no transcript yet is in its project only through its tab, so the tabs are among what it counts.
     // The strength order, and the categories that place a reason in it, decide which state each roll-up shows.

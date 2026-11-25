@@ -1,6 +1,6 @@
 # Queries
 
-The field at the top of the session list's filter panel searches and filters in one.
+The field at the top of the session list, under Grouped and Recent, searches and filters in one.
 Type words to find sessions by what they say, and terms such as `is:pinned` to narrow the list by what they are.
 The help button beside the field, a question mark in a circle, opens a card of the same beside the session list, where pressing a value adds its term to the field.
 

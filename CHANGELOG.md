@@ -87,6 +87,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A term that does not read is underlined with why under the field, and the list is dimmed until it reads.
   A help button beside the field opens, beside the list, the syntax and every field with its values, a press on a value adding it to the field, and the guide has a page on queries.
 - A session's dot, its menu, its tab and the strength order in Settings say "Working" where they said "Busy", and "At its prompt" where they said "Ready".
+- The query field is always on screen, on a row of its own under Grouped and Recent, with the help and the funnel at its end; the funnel opens only the pills and the date presets.
+  A filter left on no longer shows as a row of chips, since the field shows it, and the pills start shut at every launch.
 
 ### Fixed
 

@@ -60,7 +60,7 @@ test('in All, Recent leads each row with its project too, and the choice holds a
 });
 
 test('the filter narrows Recent, and its count says so', async ({ app, page }) => {
-  await boot(app, page, { uiState: { ...defaultUi(), query: 'loose', filterPanelOpen: true } });
+  await boot(app, page, { uiState: { ...defaultUi(), query: 'loose' } });
   await switchButton(page, 'Recent').click();
   await expect.poll(() => order(page)).toEqual([loose.title]);
   await expect(page.locator('#filter-status')).toContainText('1 of 3');

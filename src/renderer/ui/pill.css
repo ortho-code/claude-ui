@@ -1,4 +1,4 @@
-/* The filter pill, which the sidebar's filter wears and any other button wears as `.pill`, and the look of a filter that is on, which the date presets and the chips under a shut filter panel wear too.
+/* The filter pill, which the sidebar's filter wears and any other button wears as `.pill`, and the look of a filter that is on, which the date presets wear too.
    The date presets' own rules sit here as well, because the "on" look has to come after their hover rule to beat it at equal specificity. */
 
 /* Filter toggles: dimmed when off, accent-filled when on. */
@@ -55,13 +55,12 @@
   border-color: var(--accent);
 }
 
-/* A filter that is on looks the same wherever it shows: a pill, a date preset, a chip under a shut panel.
+/* A filter that is on looks the same wherever it shows: a pill, a date preset.
    After both hover rules, which it has to beat at equal specificity so an on pill keeps its fill under the pointer. */
 #filters > button.active,
 #date-presets button.active,
 #set-aside-choices button.active,
-.pill.active,
-.filter-chip {
+.pill.active {
   border-color: var(--accent);
   color: var(--text);
   background: var(--active);

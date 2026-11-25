@@ -65,7 +65,6 @@ export function normalizeUi(raw: unknown): UiState {
     query: typeof ui.query === 'string' ? ui.query : queryFromStoredFilter(ui),
     // Stored as `filters.finished` before the query field, and as `filters.archived` before the act was called Finished.
     finished: bool(ui.finished, bool(filters.finished, bool(filters.archived, base.finished))),
-    filterPanelOpen: bool(ui.filterPanelOpen, base.filterPanelOpen),
     tabBarExpanded: bool(ui.tabBarExpanded, base.tabBarExpanded),
     editor: normalizeEditor(ui.editor, bool),
     history: normalizeHistory(ui.history, bool, px),

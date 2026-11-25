@@ -57,13 +57,14 @@ test('opening it shows the two sets, each row reading as it does anywhere in the
   await expect(row(page, ready.title)).toHaveAttribute('data-tooltip', [ready.title, '3 d ago · Opus 5.5', 'Last active: zo 1 nov, 12:00', '#1 · Ship the scheduler — acme/app · merged di 3 nov, 12:00'].join('\n'));
   await expect(line(page, old.title)).toHaveText('41 d ago · Opus 5.5');
   await expect(row(page, old.title)).toHaveAttribute('data-tooltip', [old.title, '41 d ago · Opus 5.5', 'Last active: do 24 sep, 13:00', 'Note: blocked on design'].join('\n'));
-  await expect(page.locator('#filter-toggle')).toBeHidden();
+  await expect(page.locator('#query-row')).toBeHidden();
+  await expect(page.locator('#filter-panel')).toBeHidden();
   await expect(page.locator('#bulk-line')).toContainText('Review');
   await expect(page.locator('#bulk-line .bulk-count')).toHaveText('demo · 2 to decide · 0 ticked');
 
   await page.locator('#bulk-done').click();
   await expect(page.locator('#sessions .flat-section')).toHaveCount(0);
-  await expect(page.locator('#filter-toggle')).toBeVisible();
+  await expect(page.locator('#query-row')).toBeVisible();
   await expect(page.locator('#search')).toHaveValue('Fresh');
   await expect(row(page, fresh.title)).toHaveCount(1);
   await expect(row(page, old.title)).toHaveCount(0);

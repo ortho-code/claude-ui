@@ -1,4 +1,4 @@
-/* Filter panel toggle in the header.
+/* Filter panel toggle at the end of the query's row.
    A corner badge dot (not an accent border, which would look like the focus ring) marks that a filter is active. */
 #filter-toggle {
   position: relative; /* anchors the active-filter badge dot below */
@@ -16,20 +16,21 @@
   border: 1.5px solid var(--bg);
 }
 
-/* A bordered panel groups the filter controls into one unit that belongs to the 🔍 toggle. */
+/* A bordered panel groups the filter controls into one unit that belongs to the funnel toggle. */
 #filter-panel {
   position: relative; /* anchor for the floating custom-date popover */
-  margin: 8px 16px 10px;
+  margin: 0 16px 10px;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-surface);
 }
 
-/* The field, with the help button at its right. */
-#query-wrap {
+/* The query's row, under the list's and inset as it is (arrangement.css): the field taking the room, the help and the filter's toggle at its right. */
+#query-row {
   display: flex;
   align-items: center;
   gap: 4px;
+  padding: 0 16px 8px;
 }
 
 #search {
@@ -77,7 +78,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin: 8px 0 0;
 }
 
 #date-presets {
@@ -149,66 +149,6 @@
   margin: 0 16px 8px;
   font-size: var(--text-meta);
   color: var(--muted);
-}
-
-/* With the panel shut, the whole row stands in for it and opens it again. */
-#filter-status.collapsed {
-  cursor: pointer;
-}
-
-/* A line of its own above the count, so a long search or several pills wrap among themselves instead of pushing the count and Clear about. */
-#filter-chips {
-  display: flex;
-  flex: 1 0 100%;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-width: 0;
-}
-
-.filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  padding: 2px 4px 2px 7px;
-  /* Width and style only: the colour is the on look's, from the rule shared with the pills. */
-  border-width: 1px;
-  border-style: solid;
-  border-radius: var(--radius-pill);
-}
-
-/* Pill marks at the size the pills show them. */
-.filter-chip > svg {
-  flex: 0 0 auto;
-  width: 13px;
-  height: 13px;
-}
-
-/* A query that does not read wears the field's own mark for it, so a shut panel says so too. */
-.filter-chip.has-problems {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.filter-chip-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.filter-chip-remove {
-  display: inline-flex;
-  flex: 0 0 auto;
-  padding: 1px;
-  background: none;
-  border: none;
-  border-radius: 50%;
-  color: var(--muted);
-}
-
-.filter-chip-remove:hover {
-  background: var(--surface-hover);
-  color: var(--text);
 }
 
 .filter-actions {

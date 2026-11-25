@@ -28,7 +28,6 @@ async function boot(app: App, page: Page): Promise<void> {
 }
 
 async function typed(page: Page, query: string): Promise<void> {
-  if (await page.locator('#filter-panel').isHidden()) await page.locator('#filter-toggle').click();
   await page.locator('#search').fill(query);
 }
 
@@ -53,6 +52,7 @@ test('terms side by side bind tighter than OR', async ({ app, page }) => {
 test('a pill on a query with an OR adds its term to every part, shows on, and a second press takes it out of every part', async ({ app, page }) => {
   await boot(app, page);
   await typed(page, 'is:running OR is:set-aside');
+  await page.locator('#filter-toggle').click();
   await page.locator('#pinned-filter').click();
   await expect(page.locator('#search')).toHaveValue('is:running is:pinned OR is:set-aside is:pinned');
   await expect(page.locator('#pinned-filter')).toHaveAttribute('aria-pressed', 'true');
@@ -88,22 +88,17 @@ test('a term that does not read is underlined and named under the field, and the
   await expect(page.locator('#sessions')).not.toHaveClass(/\bstale\b/);
 });
 
-test('shut over a query that does not read, the list stays dimmed and the chip says why', async ({ app, page }) => {
+test('with the pills shut over a query that does not read, the list stays dimmed and the field says why', async ({ app, page }) => {
   await boot(app, page);
   await typed(page, 'is:pin');
-  await page.locator('#filter-toggle').click();
+  await expect(page.locator('#filter-panel')).toBeHidden();
   await expect(page.locator('#sessions')).toHaveClass(/\bstale\b/);
-  await expect(page.locator('#filter-chips .filter-chip-text')).toHaveText(['is:pin']);
-  await expect(page.locator('#filter-chips .filter-chip')).toHaveClass(/\bhas-problems\b/);
-  await expect(page.locator('#filter-chips .filter-chip-remove')).toHaveAttribute('aria-label', 'Remove: Does not read: pin is not a value of is:.');
-  await page.locator('#filter-toggle').click();
-  await page.locator('#search').fill('is:pinned');
-  await page.locator('#filter-toggle').click();
-  await expect(page.locator('#filter-chips .filter-chip')).not.toHaveClass(/\bhas-problems\b/);
+  await expect(page.locator('#query-problems')).toBeVisible();
+  await expect(page.locator('#search')).toHaveClass(/\bhas-problems\b/);
 });
 
 test('a stored query that does not read shows nothing until it does', async ({ app, page }) => {
-  await app.boot({ ...fixture, uiState: { ...defaultUi(), query: 'is:set-aside OR is:pin', filterPanelOpen: true } });
+  await app.boot({ ...fixture, uiState: { ...defaultUi(), query: 'is:set-aside OR is:pin' } });
   await expect.poll(() => sortedTitles(page)).toEqual([]);
   await page.locator('#search').fill('is:set-aside OR is:pinned');
   await expect.poll(() => sortedTitles(page)).toEqual(sorted(pinnedRunning, aside));
@@ -115,13 +110,4 @@ test("a query that asks what claude is doing follows claude's status as it chang
   await expect.poll(() => sortedTitles(page)).toEqual([]);
   expect(await app.emit('onSessionStatus', running.id, 'waiting', '', 'Notification')).toBe(1);
   await expect.poll(() => sortedTitles(page)).toEqual(sorted(running));
-});
-
-test('shut over a query with an OR, the panel folds to one chip of the whole query, whose × empties it', async ({ app, page }) => {
-  await boot(app, page);
-  await typed(page, 'is:pinned OR is:set-aside');
-  await page.locator('#filter-toggle').click();
-  await expect(page.locator('#filter-chips .filter-chip-text')).toHaveText(['is:pinned OR is:set-aside']);
-  await page.locator('#filter-chips .filter-chip-remove').click();
-  await expect.poll(() => sortedTitles(page)).toEqual(sorted(...everyone));
 });

@@ -7,7 +7,8 @@ import type { NudgeStatus } from '../../../status/rollup';
 import { builtinType, hostOf, tellRail } from '../builtin';
 import './index.css';
 import { switcherEl } from './switcher';
-import { filterPanel, filterStatus, filterToggle } from './filter';
+import { filterPanel, filterStatus, queryRow } from './filter';
+import { queryProblemList } from './query-problems';
 import { collapseToggle } from './folding';
 import { container } from './drawn';
 import { loadingEl } from './read';
@@ -28,11 +29,12 @@ const actions = element('div', 'header-actions');
 actions.append(settingsToggle, newButton);
 const header = element('header');
 header.append(switcherEl, actions);
-// The filter and collapse-all are the list's, so they sit on the list's row after Review, the filter over the panel it opens; the header keeps its room for the switcher, and the full-screen button its corner, as on every panel.
-listRowEnd.append(filterToggle, collapseToggle);
+// Collapse-all is the list's, so it sits on the list's row after Review; the header keeps its room for the switcher, and the full-screen button its corner, as on every panel.
+listRowEnd.append(collapseToggle);
 const sidebar = element('aside');
 sidebar.id = 'sidebar';
-sidebar.append(header, listRow, bulkLine, filterPanel, filterStatus, loadingEl, container, bulkBar);
+// The query on a row of its own under the list's, always on screen, with what does not read in it under it, and the filter panel its toggle opens under that.
+sidebar.append(header, listRow, queryRow, queryProblemList, bulkLine, filterPanel, filterStatus, loadingEl, container, bulkBar);
 document.getElementById('parked')!.append(sidebar);
 
 export const sessionsType = builtinType('sessions', sidebar, 'Sessions', 'sessions', { fullScreenSlot: actions, buttonSize: 'large' }, () => railStatus(store.get()), arrangementMounted);

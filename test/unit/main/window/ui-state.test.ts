@@ -79,7 +79,6 @@ describe('ui state', () => {
   const view = {
     query: 'psalm is:pinned active:>=2026-11-01',
     finished: false,
-    filterPanelOpen: true,
     tabBarExpanded: false,
     editor: { docked: true, view: 'split' as const, ignoreWs: true, changesOnly: true },
     history: { docked: true, width: 520 },
@@ -100,7 +99,6 @@ describe('ui state', () => {
     expect(await getUiState()).toEqual({
       query: '',
       finished: false,
-      filterPanelOpen: false,
       tabBarExpanded: true,
       editor: { docked: false, view: 'fit', ignoreWs: false, changesOnly: false },
       history: { docked: false, width: null },
@@ -119,9 +117,10 @@ describe('ui state', () => {
     expect(await getUiState()).toEqual(view);
   });
 
-  it('fills in what an older meta.json never stored', async () => {
+  it('fills in what an older meta.json never stored, and drops whether the filter panel was open, which is no longer kept', async () => {
     await writeMetaFile({ ui: { filterPanelOpen: true }, version: 3 });
     const ui = await getUiState();
+    expect(ui).not.toHaveProperty('filterPanelOpen');
     expect(ui.query).toBe('');
     expect(ui.finished).toBe(false);
     expect(ui.collapsedProjects).toEqual([]);

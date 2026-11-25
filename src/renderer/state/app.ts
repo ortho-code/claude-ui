@@ -102,11 +102,11 @@ export interface AppState {
    * Read the first time a panel asks, and kept current by main's pushes after every write, a forgotten session's included (panels/links.ts).
    */
   panelData: ReadonlyMap<string, PanelData>;
-  /** The sidebar's filter as it is set: the list, its count and chips, and the folds in play all follow it, and it is kept for the next launch. */
+  /** The sidebar's filter as it is set: the list, its count, and the folds in play all follow it, and it is kept for the next launch. */
   filter: FilterState;
   /** The list's folded sections, kept for the next launch; the list folds what it has drawn in place as they change, without drawing it again. */
   folds: Folds;
-  /** Whether the filter panel is open, kept for the next launch: shut over a filter, it leaves a row of chips naming what is on. */
+  /** Whether the filter panel is open; not kept, so every launch starts with it shut, the query on show in its field. */
   filterPanelOpen: boolean;
   /** Whether the tab bar shows every row of tabs or only one, the row of the tab on show where there is one, kept for the next launch. */
   tabBarExpanded: boolean;
@@ -183,7 +183,7 @@ export function noFilter(): FilterState {
 }
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
-export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'tabBarExpanded' | 'editorUi' | 'historyUi'>;
+export type StoredView = Pick<AppState, 'filter' | 'folds' | 'tabBarExpanded' | 'editorUi' | 'historyUi'>;
 
 /** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
 export interface TabState {
@@ -369,7 +369,7 @@ export const store = createStore<AppState>(
     panelData: new Map(),
     filter: noFilter(),
     folds: { projects: new Set(), groups: new Set(), filterProjects: new Set(), filterGroups: new Set() },
-    filterPanelOpen: defaultUi().filterPanelOpen,
+    filterPanelOpen: false,
     tabBarExpanded: defaultUi().tabBarExpanded,
     bulk: null,
     prStatus: NO_PR_STATUS,

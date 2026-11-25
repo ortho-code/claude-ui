@@ -7,28 +7,29 @@ import { byId, fromMarkup } from '../../../ui/dom';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
 import { filterQuery } from '../../../state/filter-query';
 import { queryFields } from '../../../state/query-facts';
-import { followFieldScroll, queryMirror, queryProblemList, showQueryProblems } from './query-problems';
+import { followFieldScroll, queryMirror, showQueryProblems } from './query-problems';
 import { queryHelpButton, toggleQueryHelp } from './query-help';
 import { isFiltering } from '../../../state/views';
 import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, svgImage, WORKTREE_ICON } from '../../../ui/svg';
-import { setTooltip } from '../../../ui/tooltip';
-import { iconSvg } from '../../icons';
 // The filter pill its pills and presets wear, shared with the history's All · Pinned.
 import '../../../ui/pill.css';
 import '../../../ui/popover.css';
 import './filter.css';
 
 /**
- * The sidebar's filter: the header's toggle, the panel under it — the query field, the pills and the date presets with their calendar — and, under the panel, the count with Clear and the chips that stand in for a shut panel.
+ * The sidebar's filter: the query field on a row of its own, always on screen, with the help and the toggle at its end; the panel the toggle opens under it — the pills and the date presets with their calendar; and, under the panel, the count with Clear.
  * The query field is the filter: a pill or a preset writes its term into it and shows on while its term is there (the session-model design's decision 17), and only the finished switch stands beside it.
  * It sets the filter and the panel in the store; the list follows, and hands back the count it drew (`updateFilterStatus`), since only the list knows what matched.
  */
 
-/** The filter's three parts, built here and placed by the sidebar (index.ts): the header's toggle, the panel under the header, and the status line under the panel. */
-export const filterToggle = fromMarkup(`<button id="filter-toggle" class="icon-btn large" data-tooltip="Filter sessions" aria-label="Filter sessions" aria-expanded="false"></button>`, HTMLButtonElement);
+/** The filter's three parts, built here and placed by the sidebar (index.ts): the query's row, the panel under it, and the status line under the panel. */
+const filterToggle = fromMarkup(`<button id="filter-toggle" class="icon-btn large" data-tooltip="Filter sessions" aria-label="Filter sessions" aria-expanded="false"></button>`, HTMLButtonElement);
+export const queryRow = fromMarkup(`
+  <div id="query-row">
+    <div id="query-field"><input id="search" type="search" placeholder="Search, or is:pinned OR is:running…" aria-label="Search or filter sessions" spellcheck="false" /></div>
+  </div>`);
 export const filterPanel = fromMarkup(`
   <div id="filter-panel" hidden>
-    <div id="query-wrap"><div id="query-field"><input id="search" type="search" placeholder="Search, or is:pinned OR is:running…" aria-label="Search or filter sessions" spellcheck="false" /></div></div>
     <div id="filters">
       <button id="pinned-filter" data-tooltip="Show only pinned sessions" aria-label="Show only pinned sessions" aria-pressed="false"></button>
       <button id="open-filter" type="button" data-tooltip="Show only sessions with a tab open" aria-label="Show only sessions with a tab open" aria-pressed="false"></button>
@@ -56,7 +57,6 @@ export const filterPanel = fromMarkup(`
   </div>`);
 export const filterStatus = fromMarkup(`
   <div id="filter-status" hidden>
-    <div id="filter-chips" hidden></div>
     <span id="filter-count"></span>
     <span class="filter-actions">
       <button id="filter-clear" type="button">Clear</button>
@@ -89,21 +89,18 @@ const datePicker = calendar(byId(filterPanel, 'date-range'), {
     if (!suppressPickerSelect) onCustomDateChange();
   },
 });
-const searchInput = byId(filterPanel, 'search', HTMLInputElement);
-const queryWrap = byId(filterPanel, 'query-wrap');
-byId(filterPanel, 'query-field').append(queryMirror);
-queryWrap.append(queryHelpButton);
-queryWrap.after(queryProblemList);
+const searchInput = byId(queryRow, 'search', HTMLInputElement);
+byId(queryRow, 'query-field').append(queryMirror);
+queryRow.append(queryHelpButton, filterToggle);
 // Beside the panel the list is in, wherever the layout puts it; a value pressed in it is ANDed with the query, as a pill's term is.
 queryHelpButton.addEventListener('click', () =>
-  toggleQueryHelp(filterPanel.closest<HTMLElement>('.panel-group') ?? filterPanel, (term) => setQuery(withTerms(store.get().filter.query, [term], vocabulary()))),
+  toggleQueryHelp(queryRow.closest<HTMLElement>('.panel-group') ?? queryRow, (term) => setQuery(withTerms(store.get().filter.query, [term], vocabulary()))),
 );
 searchInput.addEventListener('scroll', () => followFieldScroll(searchInput));
 const SEARCH_CLEAR_SIZE = 12;
 searchInput.style.setProperty('--search-clear', svgImage(closeIcon(SEARCH_CLEAR_SIZE)));
 searchInput.style.setProperty('--search-clear-size', `${SEARCH_CLEAR_SIZE}px`);
 const filterCount = byId(filterStatus, 'filter-count');
-const filterChips = byId(filterStatus, 'filter-chips');
 const filterClear = byId(filterStatus, 'filter-clear', HTMLButtonElement);
 const filterClearClose = byId(filterStatus, 'filter-clear-close', HTMLButtonElement);
 
@@ -135,9 +132,9 @@ function setDatePopover(open: boolean): void {
 }
 
 /**
- * Set the filter: the list, its count and its chips follow the store.
+ * Set the filter: the list and its count follow the store.
  * Any change of the filter takes the folds made under it (`Folds`), in the same change: new results can sit in a section folded for the old ones, and a filter that ends has no use for them at all.
- * Every change you make to the filter comes here — a character typed or deleted, a pill, a preset, the calendar, a chip's ×, Clear, Clear and close; the launch restores the filter directly, with the folds stored beside it.
+ * Every change you make to the filter comes here — a character typed or deleted, a pill, a preset, the calendar, Clear, Clear and close; the launch restores the filter directly, with the folds stored beside it.
  */
 function putFilter(next: FilterState): void {
   const { folds } = store.get();
@@ -257,11 +254,16 @@ export function updateFilterStatus(matches: number, total: number, view: View<'f
   }
   const preset = presetOf(query);
   if (preset !== undefined) drawDatePreset(preset);
-  // The toggle carries the accent when any filter is on, beside the status line under the panel, so an active filter is visible even with the panel closed.
+  // The toggle carries the accent when any filter is on, the finished switch included, which the field does not show.
   filterToggle.classList.toggle('active', filtering);
   // The finished view counts against the finished set, and says so, since that total is not the number the switcher shows.
   if (filtering) filterCount.textContent = `Showing ${matches} of ${total}${finished ? ' finished' : ''}`;
-  updateFilterChips(view);
+  drawClearClose(view.filterPanelOpen);
+}
+
+/** Clear and close shows only while the panel is open: shut, there is nothing to close, and Clear does it all. */
+function drawClearClose(open: boolean): void {
+  filterClearClose.hidden = !open;
 }
 
 /** Empty the calendar without its own change applying it: whoever clears it says what the filter is now. */
@@ -279,106 +281,17 @@ function clearFilter(): void {
   putFilter(noFilter());
 }
 
-// --- What is on, while the panel is shut ---
-// Closing the panel over a filter keeps the filter, so the panel folds down to a row of what is on rather than disappearing: each term of the query, the finished switch, each with its own ×.
-// A filter that is on is never out of sight, which is the whole point; the count and Clear on the line below stay as they are with the panel open.
-
-// What the chips were last built from, so the row is rebuilt only when that changes: renders happen constantly, and rebuilding each time would drop the hover and focus from under the pointer.
-let lastChipsSignature = '';
-let lastChipsVocabulary: Vocabulary | null = null;
-
-function filterChip(icon: string, text: string, label: string, remove: () => void): HTMLElement {
-  const chip = document.createElement('span');
-  chip.className = 'filter-chip';
-  chip.innerHTML = icon;
-  if (text) {
-    const words = document.createElement('span');
-    words.className = 'filter-chip-text';
-    words.textContent = text;
-    chip.append(words);
-  }
-  setTooltip(chip, label);
-  const x = document.createElement('button');
-  x.type = 'button';
-  x.className = 'filter-chip-remove';
-  x.innerHTML = closeIcon(10);
-  x.setAttribute('aria-label', `Remove: ${label}`);
-  // The list, its count and the chips follow the filter's change.
-  x.addEventListener('click', remove);
-  chip.append(x);
-  return chip;
-}
-
 /**
- * A chip per term of a query of one part: a pill's term with the pill's mark, a date with the clock, any other as its words; × takes that term out.
- * A query of several parts, or one that does not read, is one chip of its whole text, since a term of one part is not a filter on its own; × empties it.
- */
-function queryChips(query: string): HTMLElement[] {
-  const parsed = parseQuery(query, vocabulary());
-  const text = query.trim();
-  if (text === '') return [];
-  const [part] = parsed.parts;
-  if (parsed.problems.length > 0) {
-    const chip = filterChip(iconSvg('search', 13), text, `Does not read: ${parsed.problems.map((problem) => problem.message).join(' ')}`, () => setQuery(''));
-    chip.classList.add('has-problems');
-    return [chip];
-  }
-  if (parsed.parts.length !== 1 || part === undefined) return [filterChip(iconSvg('search', 13), text, `Query: ${text}`, () => setQuery(''))];
-  return part.map((term) => {
-    const said = query.slice(term.from, term.to);
-    const remove = (): void => setQuery(withoutTerms(store.get().filter.query, (each) => each.from === term.from, vocabulary()));
-    const pill = FILTER_PILLS.find((each) => each.key !== 'finished' && hasTerm(said, PILL_TERMS[each.key], vocabulary()));
-    if (pill) return filterChip(pill.icon, '', pill.button.getAttribute('aria-label') ?? said, remove);
-    if (isDateTerm(term)) {
-      // A preset's term says what the preset's button says, so the chip reads the same words as the control that set it.
-      const preset = (Object.keys(PRESET_TERMS) as (keyof typeof PRESET_TERMS)[]).find((key) => PRESET_TERMS[key] === said.toLowerCase());
-      const words = preset === undefined ? said : (datePresets.querySelector(`[data-range="${preset}"]`)?.textContent ?? said);
-      return filterChip(iconSvg('clock', 13), words, `Last active: ${words}`, remove);
-    }
-    return filterChip(iconSvg('search', 13), said, `Search: ${said}`, remove);
-  });
-}
-
-function updateFilterChips(view: View<'filter' | 'filterPanelOpen'>): void {
-  const show = isFiltering(view) && !view.filterPanelOpen;
-  // A shut panel leaves nothing to close, so Clear does it all there.
-  filterClearClose.hidden = !view.filterPanelOpen;
-  filterChips.hidden = !show;
-  filterStatus.classList.toggle('collapsed', show);
-  if (!show) {
-    lastChipsSignature = '';
-    return;
-  }
-  const { query, finished } = view.filter;
-  const signature = JSON.stringify([query, finished]);
-  // The fields too, since a query can start or stop reading when the needs-you types change.
-  if (signature === lastChipsSignature && vocabulary() === lastChipsVocabulary) return;
-  lastChipsSignature = signature;
-  lastChipsVocabulary = vocabulary();
-  const chips = queryChips(query);
-  if (finished) chips.push(filterChip(FINISH_ICON, '', finishedFilter.getAttribute('aria-label') ?? '', () => setFilter({ finished: false })));
-  filterChips.replaceChildren(...chips);
-}
-
-/**
- * Show or hide the filter panel.
- * Split out because the restore draws it from what was stored, before the view is in the store, and must not touch focus: at startup the terminal wants it.
- */
-function drawFilterPanel(open: boolean): void {
-  filterPanel.hidden = !open;
-  filterToggle.setAttribute('aria-expanded', String(open));
-}
-
-/**
- * The panel opened or shut: it follows, with the chips that stand in for it while it is shut.
+ * The panel opened or shut: it follows, with Clear and close beside it.
  * A watcher the sidebar registers (watch.ts), as it does `applyDatePickerMinDate`.
  */
-export function filterPanelFollows(view: View<'filterPanelOpen' | 'filter'>): void {
-  drawFilterPanel(view.filterPanelOpen);
-  updateFilterChips(view);
+export function filterPanelFollows(view: View<'filterPanelOpen'>): void {
+  filterPanel.hidden = !view.filterPanelOpen;
+  filterToggle.setAttribute('aria-expanded', String(view.filterPanelOpen));
+  drawClearClose(view.filterPanelOpen);
 }
 
-/** Open or shut the panel from a click: the toggle, or the row of chips that stands in for it. */
+/** Open or shut the panel from a press on its toggle. */
 function toggleFilterPanel(open: boolean): void {
   store.set({ filterPanelOpen: open });
   // Opening hands focus to the search box; closing drops focus so the ring doesn't linger.
@@ -392,8 +305,8 @@ function datesOf(query: string): Date[] {
 }
 
 /**
- * Put the filter's controls back as they were left — the query field, the calendar's range from the query's days, the panel — and hand back the filter they make, which the start-up read sets in the store with the listing.
- * Before the view is in the store, so the panel is drawn from what was stored (`drawFilterPanel`) rather than followed.
+ * Put the filter's controls back as they were left — the query field and the calendar's range from the query's days — and hand back the filter they make, which the start-up read sets in the store with the listing.
+ * The panel starts shut: it is not kept, since the field shows the query without it.
  */
 export async function restoreFilter(state: UiState): Promise<FilterState> {
   searchInput.value = state.query;
@@ -405,7 +318,6 @@ export async function restoreFilter(state: UiState): Promise<FilterState> {
     suppressPickerSelect = false;
     updateDateRangeLabel(...(picked.slice().sort((a, b) => a.getTime() - b.getTime()) as [Date?, Date?]));
   }
-  drawFilterPanel(state.filterPanelOpen);
   return { query: state.query, finished: state.finished };
 }
 
@@ -422,7 +334,7 @@ filterClearClose.addEventListener('click', () => {
 
 /**
  * The filter pills, once, in the order they sit in the panel: each one's button, its mark and the term it writes, or the finished switch.
- * Everything that asks about the pills as a set reads this — how they are drawn and wired, which chips stand in for a shut panel — so the chips cannot fall out of step with the panel.
+ * Everything that asks about the pills as a set reads this: how they are drawn and wired, and which are on.
  */
 interface FilterPill {
   button: HTMLButtonElement;
@@ -457,10 +369,6 @@ for (const pill of FILTER_PILLS) {
 // The header's toggle draws its mark through the same helper as the rest, rather than inline in the sidebar's markup.
 filterToggle.innerHTML = filterIcon(14);
 filterToggle.addEventListener('click', () => toggleFilterPanel(!store.get().filterPanelOpen));
-// The row of chips stands in for the shut panel, so a press anywhere on it but a × or Clear opens the panel again.
-filterStatus.addEventListener('click', (event) => {
-  if (!store.get().filterPanelOpen && !(event.target as HTMLElement).closest('button')) toggleFilterPanel(true);
-});
 datePresets.addEventListener('click', (event) => {
   const preset = (event.target as HTMLElement).dataset.range;
   if (preset) applyDatePreset(preset);

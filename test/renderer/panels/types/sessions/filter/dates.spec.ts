@@ -34,11 +34,6 @@ test('a preset narrows the list to what was active in it, and Any gives it all b
   await expect.poll(() => sortedTitles(page)).toEqual(sorted(today, days3, days20));
   await expect(page.locator('#filter-count')).toHaveText('Showing 3 of 4');
 
-  // Shut over it, the chip says what the preset's button says.
-  await page.locator('#filter-toggle').click();
-  await expect(page.locator('#filter-chips .filter-chip-text')).toHaveText(['30d']);
-  await page.locator('#filter-toggle').click();
-
   await preset(page, 'any').click();
   await expect.poll(() => sortedTitles(page)).toEqual(sorted(...everyone));
   await expect(page.locator('#filter-status')).toBeHidden();
