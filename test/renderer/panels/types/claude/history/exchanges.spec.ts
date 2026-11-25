@@ -37,7 +37,7 @@ test("a press on a request's star or a message's star pins it, fills the star an
   const requestStar = page.locator('.exchange-request .exchange-pin');
   const message = page.locator('.exchange-text[data-id="message-1"]');
   const messageStar = message.locator(':scope > .exchange-pin');
-  const pinned = page.locator('.history-filter', { hasText: /Pinned/ });
+  const pinned = page.locator('.pill', { hasText: /Pinned/ });
   await expect(pinned).toHaveText('Pinned 0');
   await expect(requestStar).toHaveAttribute('aria-label', 'Pin this request');
 

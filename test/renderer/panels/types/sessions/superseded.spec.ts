@@ -34,7 +34,7 @@ test("a press on the mark reads the copy in the session's history, without start
   await row(page, split.title).locator('.superseded-mark').click();
   await expect(tab(page, split.title)).toHaveClass(/\bactive\b/);
   await expect(page.locator('.history .exchange-request-text')).toHaveText(['Request then']);
-  await expect(page.locator('.history-copies .history-filter[aria-pressed="true"]')).toHaveText(/^Older copy/);
+  await expect(page.locator('.history-copies .pill[aria-pressed="true"]')).toHaveText(/^Older copy/);
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 

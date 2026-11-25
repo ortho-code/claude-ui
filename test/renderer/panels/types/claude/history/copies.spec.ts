@@ -17,7 +17,7 @@ const fixture = {
   copies: { [`${one.id}:${COPY.stamp}`]: { exchanges: ['before-1', 'shared', 'before-2'].map(exchange), notInCurrent: ['before-1', 'before-2'] } },
 };
 
-const choice = (page: Page, label: RegExp): Locator => page.locator('.history-copies .history-filter', { hasText: label });
+const choice = (page: Page, label: RegExp): Locator => page.locator('.history-copies .pill', { hasText: label });
 const requests = (page: Page): Locator => page.locator('.exchange .exchange-request-text');
 /** How each request's pin star is laid out: none where pinning is off, whatever a hover would show. */
 const pinDisplays = (page: Page): Promise<string[]> => page.locator('.exchange-request .exchange-pin').evaluateAll((pins) => pins.map((pin) => getComputedStyle(pin).display));

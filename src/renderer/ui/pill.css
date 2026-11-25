@@ -1,13 +1,12 @@
-/* The filter pill, which the sidebar's filter and the history's All · Pinned both wear, and the look of a filter that is on, which the date presets and the chips under a shut filter panel wear too.
+/* The filter pill, which the sidebar's filter wears and any other button wears as `.pill`, and the look of a filter that is on, which the date presets and the chips under a shut filter panel wear too.
    The date presets' own rules sit here as well, because the "on" look has to come after their hover rule to beat it at equal specificity. */
 
 /* Filter toggles: dimmed when off, accent-filled when on. */
 /* The filter pills are every direct-child button of #filters (date-preset buttons are nested a level deeper, so they're excluded).
-   Styling by pattern means a new pill needs no CSS change.
-   The history's "Pinned only" is a filter too, and wears the same pill. */
+   Styling by pattern means a new pill needs no CSS change. */
 /* Off = --muted, the same "inactive" cue the rest of the app uses, rather than opacity: a dimmed button fades its border and background too, so an off pill read as disabled instead of unselected. */
 #filters > button,
-.history-filter {
+.pill {
   flex: 0 0 auto;
   padding: 5px 8px;
   font-size: var(--text-meta);
@@ -18,7 +17,7 @@
    Words cost the panel a whole extra line at a 320px sidebar, and each pill keeps its tooltip and aria-label, so the meaning is still one hover away.
    Icons are 13px, matching the pills' 12px text so they don't make the row taller. */
 #filters > button,
-.history-filter {
+.pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -26,14 +25,14 @@
 }
 
 #filters > button svg,
-.history-filter svg {
+.pill svg {
   width: 13px;
   height: 13px;
 }
 
 /* The accent hover outline and fill come from the base button rule; the pill only brightens. */
 #filters > button:hover,
-.history-filter:hover {
+.pill:hover {
   color: var(--text);
 }
 
@@ -61,7 +60,7 @@
 #filters > button.active,
 #date-presets button.active,
 #set-aside-choices button.active,
-.history-filter.active,
+.pill.active,
 .filter-chip {
   border-color: var(--accent);
   color: var(--text);

@@ -46,7 +46,7 @@ export class HistoryHead {
       [this.pinnedButton, true, 'Show only the pinned requests'],
     ] as const) {
       button.type = 'button';
-      button.className = 'history-filter';
+      button.className = 'pill';
       setTooltip(button, tooltip);
       button.addEventListener('click', () => {
         this.onlyPinned = pinnedOnly;
@@ -83,7 +83,7 @@ export class HistoryHead {
       ...choices.map(({ stamp, label, tooltip }) => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'history-filter';
+        button.className = 'pill';
         button.textContent = label;
         setTooltip(button, tooltip);
         button.classList.toggle('active', stamp === shown);

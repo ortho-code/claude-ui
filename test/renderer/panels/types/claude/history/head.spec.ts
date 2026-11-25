@@ -28,8 +28,8 @@ test('Previous and Next request step between the requests, and a step back and f
 test('Pinned shows only the requests holding a pin and says it is on, and All shows every one again', async ({ app, page }) => {
   await app.boot({ openSessions: [one.id], activeSession: one.id, history: { [one.id]: ['1', '2', '3'].map(exchange) }, historyPins: { '2': pin('Request 2') } });
   await page.getByRole('button', { name: 'Show history' }).click();
-  const all = page.locator('.history-filter', { hasText: /^All/ });
-  const pinned = page.locator('.history-filter', { hasText: /Pinned/ });
+  const all = page.locator('.pill', { hasText: /^All/ });
+  const pinned = page.locator('.pill', { hasText: /Pinned/ });
   await expect(all).toHaveText('All 3');
   await expect(all).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.exchange:visible')).toHaveCount(3);

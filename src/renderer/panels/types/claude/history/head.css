@@ -21,7 +21,7 @@
   margin-left: 10px;
 }
 
-.history-show .history-filter {
+.history-show .pill {
   padding: 2px 8px;
   white-space: nowrap;
 }
@@ -31,7 +31,7 @@
   min-width: 0;
 }
 
-.history-copies .history-filter {
+.history-copies .pill {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
