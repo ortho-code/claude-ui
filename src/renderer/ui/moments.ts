@@ -51,10 +51,17 @@ export function redrawMoment(el: HTMLElement): void {
 /** What else follows the clock, told after the moments are drawn at each tick (`onMinute`). */
 const followers: (() => void)[] = [];
 
-/** Call `follow` at every tick from here on, the one a change of the language forces included, after the moments on screen are drawn: for what goes out of date with the clock as a moment does, such as the session list's order (list.ts), so the two move together rather than on two timers. */
-export function onMinute(follow: () => void): void {
+/**
+ * Call `follow` at every tick from here on, the one a change of the language forces included, after the moments on screen are drawn: for what goes out of date with the clock as a moment does, such as the session list's order (list.ts), so the two move together rather than on two timers.
+ * Returns what stops it, for a surface that can leave the window.
+ */
+export function onMinute(follow: () => void): () => void {
   followers.push(follow);
   clock ??= window.setInterval(tick, MINUTE);
+  return () => {
+    const at = followers.indexOf(follow);
+    if (at >= 0) followers.splice(at, 1);
+  };
 }
 
 function tick(): void {

@@ -39,10 +39,15 @@ export class DrawnRows {
   readonly inputs = { generation: 0 };
   /** The flat sections by id, kept across renders as the rows are. */
   readonly flat = new Keyed<FlatSectionEls>((els) => els.section);
+  /** The rows the last pass marked as having a tab, whose marks the next pass takes off where their tab has gone (`markTabs`). */
+  markedTabs = new Set<HTMLElement>();
+
+  /** `sidebar`: the rows are the sidebar's list, so they follow its bulk mode and its finished view; another list's rows open their session on a press whatever the sidebar is in. */
+  constructor(readonly sidebar: boolean) {}
 }
 
 /** The sidebar's list. */
-export const sidebarRows = new DrawnRows();
+export const sidebarRows = new DrawnRows(true);
 
 // Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen rather than on everything that has ever existed.
 // Each render replaces its two lists rather than the object, since a module cannot assign to a binding another module exports.

@@ -79,6 +79,8 @@ A panel that cannot run wears `alert` whatever it names, so a broken one stands 
 - `terminal` holds plain shells, the same login shell your sessions run in, as tabs in its header.
   `cwd` picks the folder they start in, and `scope` whether its tabs are the selected project's (`project`) or the same in every project (`global`).
 - `explorer` shows what changed in the checkout it looks in, which it finds as a `command` panel finds its folder, and takes a `cwd` the same way; see [The Explorer](#the-explorer) below.
+- `session-view` shows a view of your sessions as the session list's own rows, named by `show`; `"show": "now"` is Now, see [Now](sessions.md#now).
+  Place as many as you like: `{ "id": "now", "type": "session-view", "options": { "show": "now" } }`.
 - A folder under `panel-types/` in the config folder is a type of your own, named after the folder; see [Panel types of your own](#panel-types-of-your-own) below.
 
 This one puts a shell in a drawer under the terminal area and two commands behind icons on the right, and lets the sidebar, the drawer and the right side fold:

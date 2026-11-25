@@ -16,6 +16,12 @@ describe('rowStateLines', () => {
     expect(lines).toEqual([{ text: 'Waiting for you (read)', read: true }]);
   });
 
+  it("names a PR by its number alone, its title being in the row's tooltip", () => {
+    const merged = { type: 'pr.merged', at: 1, pr: 'acme/app#7' } as const;
+    const lines = rowStateLines('a', view({ needsYou: new Map([['a', [merged]]]), prNames: new Map([['acme/app#7', { title: 'Build the mail templates' }]]) }));
+    expect(lines.map((line) => line.text)).toEqual(['PR #7 merged']);
+  });
+
   it('lists nothing for a session with nothing to report', () => {
     expect(rowStateLines('a', view({}))).toEqual([]);
   });

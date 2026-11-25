@@ -6,7 +6,7 @@ import { entityKey, projectGoneReason, structuralSignature } from '../../../rule
 import { markProjectGone } from '../../../status/project-gone';
 import { onMinute } from '../../../ui/moments';
 import { sameOrder, store, type TabState, type View } from '../../../state/app';
-import { finishedOnlyProjects, isFiltering, mutedNeedsYou, projName, STATUS_SLICES, statusChanges, strengthNow, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions, type StatusView } from '../../../state/views';
+import { finishedOnlyProjects, isFiltering, mutedNeedsYou, projName, STATUS_SLICES, statusChanges, strengthNow, tabDotChanges, viewPool, visibleSessions, type StatusView } from '../../../state/views';
 import { applyStatus } from '../../../status/status-dot';
 import { folderIcon } from '../../../ui/svg';
 import { setUnavailable } from '../../../ui/unavailable';
@@ -14,7 +14,7 @@ import { recentOrder } from '../../../rules/recent';
 import { reviewCount, type ReviewSection } from '../../../rules/review';
 import { endBulk } from '../../../state/bulk';
 import { container, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, sidebarRows, type FlatSection } from './drawn';
-import { drawFlat } from './flat';
+import { drawFlat, sidebarLead } from './flat';
 import { updateFilterStatus } from './filter';
 import { passesFilter, queryReads } from '../../../state/filter-query';
 import { bulkFollows, showBulk } from './bulk';
@@ -22,7 +22,7 @@ import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
 import { createGroupSection, createProjectSection } from './headings';
 import { reviewFlat, reviewInScope } from './review';
 import { syncStickyOffsetSoon } from './reveal';
-import { drawRow, ROW_SLICES, showTabMarks, updateRow, type RowView } from './rows';
+import { drawRow, markTabs, ROW_SLICES, showTabMarks, updateRow, type RowView } from './rows';
 import './list.css';
 
 /**
@@ -31,23 +31,9 @@ import './list.css';
  * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, `foldsFollow`, registered by `watchList` in the sidebar's repaints, watch.ts); what it draws is read from main in one change (`fullRead`, read.ts).
  */
 
-/** The rows the last pass marked as having a tab, whose marks the next pass takes off where their tab has gone. */
-let marked = new Set<HTMLElement>();
-
-/** Mark the rows whose session has a tab, open or cold, and the one on show: only those rows and the ones marked before, rather than every row drawn, since few sessions have a tab. */
+/** Mark the sidebar's rows whose session has a tab (`markTabs`). */
 function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {
-  const shown = tabOnShow(view);
-  const withTab = new Set(view.tabs.flatMap((tab) => sidebarRows.rows.find(tab.session.id) ?? []));
-  const touched = new Set([...marked, ...withTab]);
-  marked = withTab;
-  for (const row of touched) {
-    const id = row.dataset.sid ?? '';
-    const tab = tabWith(id, view);
-    row.classList.toggle('open', tab !== undefined);
-    // "Has a tab" and "is running" stopped being the same thing once tabs restore cold, so the row says which: an accent bar for a live session, a muted one for a tab waiting to be resumed.
-    row.classList.toggle('cold', tab?.terminalId === null);
-    row.classList.toggle('active-session', shown?.session.id === id);
-  }
+  markTabs(sidebarRows, view);
 }
 
 /**
@@ -271,7 +257,7 @@ function drawList(view: ListView): void {
  * The folds have nothing to fold here.
  */
 function renderSections(sections: readonly FlatSection[], view: ListView): void {
-  drawFlat(sidebarRows, container, sections, view);
+  drawFlat(sidebarRows, container, sections, view, sidebarLead);
   renderedSections.projects = [];
   renderedSections.groups = [];
   projectSections.sweep();

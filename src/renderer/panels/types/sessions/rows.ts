@@ -13,7 +13,7 @@ import { setAsideMark, showSetAside } from '../../../status/set-aside-mark';
 import { showSuperseded, supersededMark } from '../../../status/superseded-mark';
 import { scheduledMark, showScheduled } from '../../../status/scheduled-mark';
 import { store, type View } from '../../../state/app';
-import { tabWith } from '../../../state/views';
+import { tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, rowStateLines } from '../../../status/status-dot';
 import type { RowLines } from '../../../rules/sectioned-view';
 import { noteMark, showNote } from '../../../status/note-mark';
@@ -33,6 +33,27 @@ import './rows.css';
 /**
  * THE SESSION LIST'S ROWS: a session's card, built once per session with its marks and controls and kept across renders, and brought up to date for the session it shows on every render (list.ts).
  */
+
+/**
+ * Mark `drawn`'s rows whose session has a tab, open or cold, and the one on show: only those rows and the ones marked before, rather than every row drawn, since few sessions have a tab.
+ * "Has a tab" and "is running" stopped being the same thing once tabs restore cold, so the row says which: an accent bar for a live session, a muted one for a tab waiting to be resumed.
+ */
+export function markTabs(drawn: DrawnRows, view: View<'tabs' | 'activeTab'>): void {
+  const shown = tabOnShow(view);
+  const withTab = new Set(view.tabs.flatMap((tab) => drawn.rows.find(tab.session.id) ?? []));
+  const touched = new Set([...drawn.markedTabs, ...withTab]);
+  drawn.markedTabs = withTab;
+  for (const row of touched) {
+    const id = row.dataset.sid ?? '';
+    const tab = tabWith(id, view);
+    row.classList.toggle('open', tab !== undefined);
+    row.classList.toggle('cold', tab?.terminalId === null);
+    row.classList.toggle('active-session', shown?.session.id === id);
+  }
+}
+
+/** Whether `drawn`'s rows show the finished sessions: the sidebar's, while its finished view is on. */
+const inFinishedView = (drawn: DrawnRows, view: View<'filter'> = store.get()): boolean => drawn.sidebar && view.filter.finished;
 
 /** The row for a session this render of `drawn`'s list draws, built the first time and the same element after that. */
 export function drawRow(drawn: DrawnRows, key: string): HTMLElement {
@@ -204,7 +225,7 @@ function createSessionRow(drawn: DrawnRows, key: string): HTMLElement {
   // Not in the finished view, where a press on the row opens nothing either, so a stray press cannot open a finished session.
   superseded.addEventListener('click', (event) => {
     event.stopPropagation();
-    if (store.get().filter.finished) return;
+    if (inFinishedView(drawn)) return;
     const session = drawn.current.get(key);
     const newest = session?.supersededCopies.at(-1);
     if (session && newest) hostOf('sessions').openOlderCopy(session.id, newest.stamp);
@@ -223,13 +244,13 @@ function createSessionRow(drawn: DrawnRows, key: string): HTMLElement {
   followSight(item);
   rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, superseded, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, stateLines, pin, reopenBtn, deleteBtn, kebab });
   item.addEventListener('click', (event) => {
-    // In bulk mode a press ticks the row rather than opening it; the dot, the marks, the pin and the kebab keep their own presses, which stop here.
-    if (store.get().bulk) {
+    // In the sidebar's bulk mode a press ticks the row rather than opening it; the dot, the marks, the pin and the kebab keep their own presses, which stop here.
+    if (drawn.sidebar && store.get().bulk) {
       pressRowInBulk(key, event.shiftKey);
       return;
     }
     // A press on a finished row does nothing, so a stray press cannot reopen it: its Reopen button and its menu's Reopen do.
-    if (store.get().filter.finished) return;
+    if (inFinishedView(drawn)) return;
     const session = drawn.current.get(key);
     if (!session) return;
     // A session whose folder is gone cannot run anywhere.
@@ -315,21 +336,38 @@ export interface FlatLine {
   lines: RowLines;
 }
 
-/** Draw a row's line per state where its section says `state`, and take them away where it says anything else. */
-function showStateLines(el: HTMLElement, id: string, view: RowView, lines: RowLines): void {
-  el.hidden = lines !== 'state';
-  if (el.hidden) {
-    el.replaceChildren();
-    return;
-  }
+/**
+ * Show a row's PR mark: the PRs its session links, linked rather than opened, since a record says the PR is linked to the session, not who opened it.
+ * Coloured by its PRs' roll-up tone, and its tooltip says what set it; the classes are toggled rather than set, since an open menu has marked the badge too.
+ */
+function showPrMark(els: RowEls, session: SessionSummary, view: RowView): void {
+  const prCount = session.prs.length;
+  els.prBadge.hidden = prCount === 0;
+  if (prCount === 0) return;
+  const mark = prMark(session.prs, view.prStatus, prRulesIn(view));
+  // Every ink and look class off first, then the mark's on: a look's class names the type that inked it, which changes with the PRs.
+  els.prBadge.classList.remove(...PR_INKS.map((ink) => `tone-${ink}`), ...[...els.prBadge.classList].filter((name) => name.startsWith('look-')));
+  els.prBadge.classList.add(...inkClasses(mark));
+  els.prCount.textContent = String(prCount);
+  setTooltip(els.prBadge, `${prCount === 1 ? '1 PR' : `${prCount} PRs`} linked to this session${mark.says ? ` — ${mark.says}` : ''} — click to list them`);
+}
+
+/**
+ * Draw a row's states where its section says `state`, and take them away where it says anything else.
+ * The first goes on the line under the title, beside the marks, where a row's time goes elsewhere, so it is handed back for that line; the rest go under it, a line each.
+ */
+function showStateLines(el: HTMLElement, id: string, view: RowView, lines: RowLines): { text: string; read: boolean } | null {
+  const [first = null, ...rest] = lines === 'state' ? rowStateLines(id, view) : [];
+  el.hidden = rest.length === 0;
   el.replaceChildren(
-    ...rowStateLines(id, view).map(({ text, read }) => {
+    ...rest.map(({ text, read }) => {
       const line = document.createElement('span');
       line.className = read ? 'session-state-line read' : 'session-state-line';
       line.textContent = text;
       return line;
     }),
   );
+  return first;
 }
 
 /**
@@ -340,7 +378,7 @@ function showStateLines(el: HTMLElement, id: string, view: RowView, lines: RowLi
 export function updateRow(drawn: DrawnRows, row: HTMLElement, session: SessionSummary, view: RowView, flat?: FlatLine): void {
   const els = rowEls.get(row)!;
   // The review sets the filter aside, the finished view with it.
-  const finishedView = view.filter.finished && !view.reviewing;
+  const finishedView = inFinishedView(drawn, view) && !view.reviewing;
   const now: DrawnFor = { session: `${rowLine(session)}\0${session.lastActivity}`, generation: drawn.inputs.generation, finishedView };
   const was = drawnFor.get(row);
   if (!flat && row.isConnected && was?.session === now.session && was.generation === now.generation && was.finishedView === now.finishedView) {
@@ -387,7 +425,7 @@ export function updateRow(drawn: DrawnRows, row: HTMLElement, session: SessionSu
   showTabMarks(els, session.id, view);
   drawn.tabMarks.set(session.id, els);
   showSetAside(els.setAside, view.setAside.get(entityKey(session)));
-  showSuperseded(els.superseded, session.supersededCopies, !view.filter.finished);
+  showSuperseded(els.superseded, session.supersededCopies, !inFinishedView(drawn, view));
 
   els.noteSep.hidden = !showNote(els.noteBadge, view.notes.get(entityKey(session)));
 
@@ -399,32 +437,26 @@ export function updateRow(drawn: DrawnRows, row: HTMLElement, session: SessionSu
     setTooltip(els.siblingsBadge, `${label} in this session's family — click to list them`);
   }
 
-  // Linked, not opened: a record says the PR is linked to the session, not who opened it.
-  // Coloured by its PRs' roll-up tone, and its tooltip says what set it; the classes are toggled rather than set, since an open menu has marked the badge too.
-  const prCount = session.prs.length;
-  els.prBadge.hidden = prCount === 0;
-  if (prCount > 0) {
-    const mark = prMark(session.prs, view.prStatus, prRulesIn(view));
-    // Every ink and look class off first, then the mark's on: a look's class names the type that inked it, which changes with the PRs.
-    els.prBadge.classList.remove(...PR_INKS.map((ink) => `tone-${ink}`), ...[...els.prBadge.classList].filter((name) => name.startsWith('look-')));
-    els.prBadge.classList.add(...inkClasses(mark));
-    els.prCount.textContent = String(prCount);
-    setTooltip(els.prBadge, `${prCount === 1 ? '1 PR' : `${prCount} PRs`} linked to this session${mark.says ? ` — ${mark.says}` : ''} — click to list them`);
-  }
+  showPrMark(els, session, view);
 
-  showStateLines(els.stateLines, session.id, view, flat?.lines ?? 'time');
+  const firstState = showStateLines(els.stateLines, session.id, view, flat?.lines ?? 'time');
+  els.metaText.classList.toggle('read', firstState?.read === true);
   // When it was finished in the finished view, where every session is; when it was active everywhere else.
   // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, rules/sessions.ts), and so is the row's tooltip, which says everything the row shows (`rowTooltip`) wherever on the row you hover; a button or mark with a tooltip of its own keeps it, the nearest tooltip being the one shown.
-  // Where its section lists its states or keeps it compact, the line under its title says only where it sits, and the time and model only its tooltip.
+  // Where its section lists its states or keeps it compact, the line under its title says where it sits and its first state, and the time and model only its tooltip.
   const timeShown = (flat?.lines ?? 'time') === 'time';
   const moment = (shown: SessionSummary, as: RowView): Moment => {
     const own = (finishedView ? finishedMoment(shown, as) : null) ?? activityMoment(shown, as);
     const lead = flat?.lead(shown) ?? null;
     const full = lead ? `${lead} · ${own.text}` : own.text;
     const tab = tabWith(shown.id, as);
-    return { ...own, text: timeShown ? full : (lead ?? ''), tooltip: rowTooltip(shown, as, (tab && notLeftWords(tab)) ?? full, own) };
+    const text = timeShown ? full : [lead, firstState?.text].filter((part) => part).join(' · ');
+    return { ...own, text, tooltip: rowTooltip(shown, as, (tab && notLeftWords(tab)) ?? full, own) };
   };
-  showMoment(els.metaText, moment(session, view), () => moment(newest(session), store.get()), row, () => outOfSight.has(row));
+  const shownNow = moment(session, view);
+  // A separator before the note mark only after words, so a line of marks alone does not start with one.
+  els.noteSep.hidden ||= shownNow.text === '';
+  showMoment(els.metaText, shownNow, () => moment(newest(session), store.get()), row, () => outOfSight.has(row));
 
   // The finished view is a management view: no pinning, and delete replaces it there.
   const isPinned = view.pinned.has(entityKey(session));

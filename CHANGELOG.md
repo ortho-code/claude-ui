@@ -45,6 +45,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A file outside every repository, such as a scratchpad file or a plan, shows what changed since the session first changed it.
 - A file path claude prints in a session's terminal opens the file in the Editor on a press, at the line a `:42` after it names.
 - A query can ask for the sessions that ask for you now, `is:asking`, and for the project on show, `project:current`.
+- A `session-view` panel showing Now holds what asks for you, what runs, what is set aside or has reasons you have read, and, while it shows one project, what asks or runs in the others; each row is the session list's own, most with a line per state it is in.
+  Place it with `{ "type": "session-view", "options": { "show": "now" } }` in your layout.
 
 ### Changed
 

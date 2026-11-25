@@ -269,3 +269,8 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0261](0261-the-diff-header-is-two-rows.md) | 2026-11-25 | The diff header is two rows | [The `editor` type](../architecture/panels.md#the-editor-type) |
 | [0262](0262-the-editor-over-a-cold-tab-takes-the-whole-pane.md) | 2026-11-25 | The Editor over a cold tab takes the whole pane | [The `editor` type](../architecture/panels.md#the-editor-type) |
 | [0263](0263-one-wording-of-a-state-on-every-surface.md) | 2026-11-25 | One wording of a state on every surface | [Status cues](../architecture/status-cues.md#status-cues) |
+| [0264](0264-a-session-view-is-a-panel-type-of-its-own.md) | 2026-11-25 | A session view is a panel type of its own | [The `session-view` type](../architecture/panels.md#the-session-view-type) |
+| [0265](0265-nows-sections-say-whose-turn-it-is.md) | 2026-11-25 | Now's sections say whose turn it is | [Now](../architecture/session-list.md#now) |
+| [0266](0266-a-views-sections-are-the-reviews-sets-generalised.md) | 2026-11-25 | A view's sections are the review's sets, generalised | [Views with sections](../architecture/session-list.md#views-with-sections) |
+| [0267](0267-the-project-on-show-is-a-query-term.md) | 2026-11-25 | The project on show is a query term | [Now](../architecture/session-list.md#now) |
+| [0268](0268-a-rows-state-colour-is-its-dots-alone.md) | 2026-11-25 | A row's state colour is its dot's alone | [Views with sections](../architecture/session-list.md#views-with-sections) |

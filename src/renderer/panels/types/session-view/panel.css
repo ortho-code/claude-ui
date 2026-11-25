@@ -1,0 +1,6 @@
+/* A session view's rows scroll in its body, with the session list's padding, so its rows sit as the sidebar's do. */
+.session-view-list {
+  height: 100%;
+  overflow-y: auto;
+  padding: 0 10px 10px;
+}

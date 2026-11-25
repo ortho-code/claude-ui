@@ -18,6 +18,7 @@ import { commandType } from './types/command';
 import { terminalType } from './types/terminal';
 import { explorerType } from './types/explorer';
 import { editorType } from './types/editor';
+import { sessionViewType } from './types/session-view';
 import { drawFullScreenButton, drawRefreshed, header, notesLine, problemList, tabsHeader, watchHeaderFit } from './headers';
 import { foldedNow, initTreeState, keep, stateFileNotesNow, stateNotesOf, stateOf, takeState } from './tree-state';
 
@@ -33,7 +34,7 @@ import { foldedNow, initTreeState, keep, stateFileNotesNow, stateNotesOf, stateO
  * Two choices tried in the playground and open to change sit in one function each, so swapping to another variant is a local change: `foldControls` (the chevron on the divider, P7/P12, split.ts) and `switcher` (the rail of icons, P9).
  */
 
-const BUILTIN_TYPES: Record<string, PanelType> = { sessions: sessionsType, claude: claudeType, command: commandType, terminal: terminalType, explorer: explorerType, editor: editorType };
+const BUILTIN_TYPES: Record<string, PanelType> = { sessions: sessionsType, claude: claudeType, command: commandType, terminal: terminalType, explorer: explorerType, editor: editorType, 'session-view': sessionViewType };
 
 /** Every type the layout can place: the built-ins, and the config folder's as of its last read (types/folder.ts). */
 let types = BUILTIN_TYPES;
