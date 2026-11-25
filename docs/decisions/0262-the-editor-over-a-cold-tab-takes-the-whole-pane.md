@@ -5,7 +5,7 @@
 
 ## Decision
 
-Over a tab with no claude running, the Editor's drawer covers the whole pane, with no scrim, as that tab's history does; once the tab starts, it goes back to its place beside claude.
+Over a tab that stands alone, with no claude, none starting and no failed start whose terminal is still in view, the Editor's drawer covers the whole pane, with no scrim, as a history opened on that tab does; once the tab starts, it goes back to its place beside the tab, where a standing history closes instead.
 The terminal area decides it for anything a panel shows in the drawer, by the tab on show, rather than the Editor asking for it.
 
 ## Why

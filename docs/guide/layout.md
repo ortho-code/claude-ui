@@ -220,7 +220,7 @@ Untracked files past the first 500 are counted under the list rather than listed
 ## The Editor
 
 Files open in the Editor, as a drawer over the terminal area, the one the history opens in: claude stays in view beside it, dimmed, and Esc, a click on claude, or closing the last file, closes it.
-Over a tab with no claude running, the Editor takes the whole pane, as the history does there.
+Over a tab with no claude, one you have not resumed, the Editor takes the whole pane, as the history does there.
 **Dock** in its head puts it beside the terminal instead, so you can read while the session goes on working, and **Undock** puts it back; the app remembers which.
 Docked, it takes no room while nothing is open in it, and comes back at the size you last gave it when a file opens; in the default layout it first takes two-thirds of what it shares with the terminal.
 The **×** at the end of its head closes all its files at once, docked or not, as **Close all** in a tab's menu does.
