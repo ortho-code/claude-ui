@@ -1,6 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup } from '../../../ui/dom';
 import { Keyed } from '../../../ui/keyed';
+import type { RowLines } from '../../../rules/sectioned-view';
 import type { ProjectTree } from '../../../rules/session-list';
 import './drawn.css';
 
@@ -98,6 +99,7 @@ export interface FlatSection {
   id: string;
   heading: { name: string; count: number; note: string | null } | null;
   rows: readonly SessionSummary[];
+  lines: RowLines;
 }
 
 /** A flat section as drawn: its section, the well its rows sit in, and its heading's parts where it has one — its name, its count, and the line saying why it cannot answer. */

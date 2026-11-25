@@ -143,6 +143,11 @@ describe('stateLines', () => {
     expect(texts({ reasons: [{ type: 'pr.merged', at: 0, pr: 'acme/app#2' }] })).toEqual(['Needs you — PR #2 merged']);
   });
 
+  it('leaves a reason bare for a surface whose heading says it, the status and the read mark as ever', () => {
+    const bare = stateLines(states({ status: 'ready', reasons: [wasRunning], acked: true }), APP_ORDER, () => undefined, false).map((line) => line.text);
+    expect(bare).toEqual(['Was running when the app quit (read)', 'At its prompt']);
+  });
+
   it("leads with what the tab says, and leaves a status nobody named last, as itself", () => {
     expect(texts({ tab: 'stopping', status: 'busy', reasons: [wasRunning] })).toEqual(['Stopping — waiting for claude to leave', 'Working', 'Needs you — was running when the app quit']);
     expect(texts({ status: 'compacting', reasons: [wasRunning] })).toEqual(['Needs you — was running when the app quit', 'compacting']);

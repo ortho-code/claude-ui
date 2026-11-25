@@ -22,8 +22,8 @@ export const REVIEW = {
   name: 'Review',
   shared: `is:unfinished -is:set-aside -kept:>=today-${KEPT_DAYS}d`,
   sections: [
-    { id: 'ready', name: 'Ready to finish', query: 'is:ready-to-finish', sort: 'activity-oldest' },
-    { id: 'untouched', name: `Untouched ${UNTOUCHED_DAYS}+ days`, query: `active:<today-${UNTOUCHED_DAYS}d`, sort: 'activity-oldest' },
+    { id: 'ready', name: 'Ready to finish', query: 'is:ready-to-finish', sort: 'activity-oldest', lines: 'time' },
+    { id: 'untouched', name: `Untouched ${UNTOUCHED_DAYS}+ days`, query: `active:<today-${UNTOUCHED_DAYS}d`, sort: 'activity-oldest', lines: 'time' },
   ],
 } as const satisfies SectionedView;
 

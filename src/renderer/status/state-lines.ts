@@ -96,10 +96,11 @@ export interface DotStates {
  * Every state a session is in, a line each, in its dot's tooltip and its menu's header alike: what its tab says, then its status and its reasons in the strength order, or the status first where muted reasons give way to it (`mutedGivesWay`), the first being what the dot shows where the tab says nothing (decided 2026-11-06, where the tooltip had said what the dot showed alone).
  * The read mark marks what the dot shows read, all its reasons where it shows one, and a muted reason is read wherever it is.
  * A status the order does not know goes after the rest and says itself, so a state nobody named still reads (`statusLabel`).
+ * Each reason is led with "Needs you — " unless `reasonsLed` is false, for a surface whose heading already says it.
  */
-export function stateLines(states: DotStates, strength: Strength, titles: PrTitles): (StateLine & { read: boolean })[] {
+export function stateLines(states: DotStates, strength: Strength, titles: PrTitles, reasonsLed = true): (StateLine & { read: boolean })[] {
   const shown = states.tab ?? shownState(states.status, states.reasons, strength, states.muted);
-  const reasons = needsYouLines(states.reasons, strength, titles).map((line) => ({ ...line, text: `${NEEDS_YOU}${inSentence(line.text)}` }));
+  const reasons = needsYouLines(states.reasons, strength, titles).map((line) => (reasonsLed ? { ...line, text: `${NEEDS_YOU}${inSentence(line.text)}` } : line));
   const status = states.status === undefined ? [] : [{ text: statusLabel(states.status, states.background), state: states.status }];
   const ranked = mutedGivesWay(states.status, states.muted) ? [...status, ...reasons] : [...status, ...reasons].sort((a, b) => rankOf(a.state, strength) - rankOf(b.state, strength));
   const lines = [...(states.tab === undefined ? [] : [{ text: statusLabel(states.tab, []), state: states.tab }]), ...ranked];

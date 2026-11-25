@@ -16,8 +16,8 @@ const VIEW: SectionedView = {
   name: 'Test',
   shared: '-is:set-aside',
   sections: [
-    { id: 'pinned', name: 'Pinned', query: 'is:pinned', sort: 'activity' },
-    { id: 'noted', name: 'Noted', query: 'has:note', sort: 'activity-oldest' },
+    { id: 'pinned', name: 'Pinned', query: 'is:pinned', sort: 'activity', lines: 'time' },
+    { id: 'noted', name: 'Noted', query: 'has:note', sort: 'activity-oldest', lines: 'state' },
   ],
 };
 

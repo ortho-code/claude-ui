@@ -14,7 +14,8 @@ import { showSuperseded, supersededMark } from '../../../status/superseded-mark'
 import { scheduledMark, showScheduled } from '../../../status/scheduled-mark';
 import { store, type View } from '../../../state/app';
 import { tabWith } from '../../../state/views';
-import { ackOnClick, applyStatus } from '../../../status/status-dot';
+import { ackOnClick, applyStatus, rowStateLines } from '../../../status/status-dot';
+import type { RowLines } from '../../../rules/sectioned-view';
 import { noteMark, showNote } from '../../../status/note-mark';
 import { PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../ui/svg';
 import { showToast } from '../../../ui/toast';
@@ -60,6 +61,8 @@ interface RowEls {
   noteSep: HTMLElement;
   meta: HTMLElement;
   metaText: HTMLElement;
+  /** A line per state the session is in, drawn only where its section says `state`. */
+  stateLines: HTMLElement;
   pin: HTMLButtonElement;
   reopenBtn: HTMLButtonElement;
   deleteBtn: HTMLButtonElement;
@@ -207,7 +210,10 @@ function createSessionRow(drawn: DrawnRows, key: string): HTMLElement {
     if (session && newest) hostOf('sessions').openOlderCopy(session.id, newest.stamp);
   });
   subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge, superseded);
-  content.append(subline);
+  const stateLines = document.createElement('div');
+  stateLines.className = 'session-state-lines';
+  stateLines.hidden = true;
+  content.append(subline, stateLines);
 
   const { pin, reopenBtn, deleteBtn, kebab } = rowButtons(drawn, key);
 
@@ -215,7 +221,7 @@ function createSessionRow(drawn: DrawnRows, key: string): HTMLElement {
   item.prepend(tickBox(), dot);
   item.append(pin, reopenBtn, deleteBtn, kebab);
   followSight(item);
-  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, superseded, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, reopenBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, superseded, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, stateLines, pin, reopenBtn, deleteBtn, kebab });
   item.addEventListener('click', (event) => {
     // In bulk mode a press ticks the row rather than opening it; the dot, the marks, the pin and the kebab keep their own presses, which stop here.
     if (store.get().bulk) {
@@ -301,11 +307,29 @@ export function showTabMarks(marks: RowTabMarks, id: string, view: View<'schedul
 }
 
 /**
- * What a row drawn flat says ahead of the rest of its line: where it sits, where no heading above it says so.
- * Worked out again on the minute clock like the time it leads, of the session as the newest listing has it.
+ * What a row drawn flat says under its title (`RowLines`), and ahead of the rest of its line where it sits, where no heading above it says so.
+ * Where it sits is worked out again on the minute clock like the time it leads, of the session as the newest listing has it.
  */
 export interface FlatLine {
   lead: (shown: SessionSummary) => string | null;
+  lines: RowLines;
+}
+
+/** Draw a row's line per state where its section says `state`, and take them away where it says anything else. */
+function showStateLines(el: HTMLElement, id: string, view: RowView, lines: RowLines): void {
+  el.hidden = lines !== 'state';
+  if (el.hidden) {
+    el.replaceChildren();
+    return;
+  }
+  el.replaceChildren(
+    ...rowStateLines(id, view).map(({ text, read }) => {
+      const line = document.createElement('span');
+      line.className = read ? 'session-state-line read' : 'session-state-line';
+      line.textContent = text;
+      return line;
+    }),
+  );
 }
 
 /**
@@ -388,14 +412,17 @@ export function updateRow(drawn: DrawnRows, row: HTMLElement, session: SessionSu
     setTooltip(els.prBadge, `${prCount === 1 ? '1 PR' : `${prCount} PRs`} linked to this session${mark.says ? ` — ${mark.says}` : ''} — click to list them`);
   }
 
+  showStateLines(els.stateLines, session.id, view, flat?.lines ?? 'time');
   // When it was finished in the finished view, where every session is; when it was active everywhere else.
   // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, rules/sessions.ts), and so is the row's tooltip, which says everything the row shows (`rowTooltip`) wherever on the row you hover; a button or mark with a tooltip of its own keeps it, the nearest tooltip being the one shown.
+  // Where its section lists its states or keeps it compact, the line under its title says only where it sits, and the time and model only its tooltip.
+  const timeShown = (flat?.lines ?? 'time') === 'time';
   const moment = (shown: SessionSummary, as: RowView): Moment => {
     const own = (finishedView ? finishedMoment(shown, as) : null) ?? activityMoment(shown, as);
     const lead = flat?.lead(shown) ?? null;
-    const text = lead ? `${lead} · ${own.text}` : own.text;
+    const full = lead ? `${lead} · ${own.text}` : own.text;
     const tab = tabWith(shown.id, as);
-    return { ...own, text, tooltip: rowTooltip(shown, as, (tab && notLeftWords(tab)) ?? text, own) };
+    return { ...own, text: timeShown ? full : (lead ?? ''), tooltip: rowTooltip(shown, as, (tab && notLeftWords(tab)) ?? full, own) };
   };
   showMoment(els.metaText, moment(session, view), () => moment(newest(session), store.get()), row, () => outOfSight.has(row));
 

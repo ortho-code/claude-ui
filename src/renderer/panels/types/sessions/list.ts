@@ -239,7 +239,7 @@ function drawList(view: ListView): void {
     if (shape.recent.length === 0) showEmpty(shape.finished ?? nothing, view);
     else {
       // One section without a heading; its id is its own for good, never one of the review's (`FlatSection`).
-      renderSections([{ id: 'recent', heading: null, rows: shape.recent }], view);
+      renderSections([{ id: 'recent', heading: null, rows: shape.recent, lines: 'time' }], view);
       updateCollapseToggle(view);
     }
     return;

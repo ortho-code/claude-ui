@@ -10,12 +10,18 @@ import { entityKey } from './sessions';
  * A VIEW WITH SECTIONS, pure (docs/architecture/session-list.md § The review): sessions sectioned by queries, each section with its own order.
  */
 
-/** One section: its id and name, which its heading says, the query that puts a session in it, and the order of its rows. */
+/**
+ * What a row says under its title: `time`, when it was last active, its model and its marks; `state`, a line per state it is in, as its dot's tooltip lists them, a reason without "Needs you — " since its section's heading says why it is there; `compact`, only where it sits, every state in its tooltip.
+ */
+export type RowLines = 'time' | 'state' | 'compact';
+
+/** One section: its id and name, which its heading says, the query that puts a session in it, the order of its rows, and what each row says under its title. */
 export interface ViewSection {
   id: string;
   name: string;
   query: string;
   sort: SortName;
+  lines: RowLines;
 }
 
 /** A view's sections in the order they are shown, a session in the first whose query holds, and the query every section's rows also meet. */
@@ -26,11 +32,12 @@ export interface SectionedView {
   sections: readonly ViewSection[];
 }
 
-/** A section as shown: its id, its name and its rows. */
+/** A section as shown: its id, its name, its rows and what each says under its title. */
 export interface ShownSection {
   id: string;
   name: string;
   rows: SessionSummary[];
+  lines: RowLines;
 }
 
 /** One of a view's own queries, read; one that does not read is a mistake in the app, so it throws rather than showing nothing. */
@@ -58,6 +65,6 @@ export function sectioned(view: SectionedView, offered: readonly SessionSummary[
     const query = viewQuery(view, section.query, fields);
     const rows = offered.filter((session) => !shown.has(entityKey(session)) && matches(session, query, fields, facts)).sort((a, b) => SORTS[section.sort](a, b, facts));
     for (const session of rows) shown.add(entityKey(session));
-    return { id: section.id, name: section.name, rows };
+    return { id: section.id, name: section.name, rows, lines: section.lines };
   });
 }

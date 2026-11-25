@@ -29,6 +29,17 @@
   min-width: 0;
 }
 
+/* A line per state the session is in, under its subline where its section lists them (rows.ts): each a line of its own, at the meta line's size and grey, a line its dot shows read dimmed as the dot is. */
+.session-state-line {
+  display: block;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+
+.session-state-line.read {
+  opacity: var(--dimmed);
+}
+
 /* The text carries the ellipsis now that the paragraph is a flex container.
    text-box trims its box to cap-height/baseline so flex centres the mark against the text's INK: centring the em box aligns to a box that includes descender space, which leaves the mark reading a touch low.
    Same fix as .badge-text in the pills. */

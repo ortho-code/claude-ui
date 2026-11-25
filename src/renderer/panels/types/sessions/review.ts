@@ -30,7 +30,7 @@ export function reviewInScope(view: ReviewView, now = Date.now()): ReviewSection
 
 /** The review's sets as the list draws them flat (list.ts), each under its heading. */
 export function reviewFlat(sections: readonly ReviewSection[]): FlatSection[] {
-  return sections.map((set) => ({ id: set.id, heading: { name: set.name, count: set.rows.length, note: set.note }, rows: set.rows }));
+  return sections.map((set) => ({ id: set.id, heading: { name: set.name, count: set.rows.length, note: set.note }, rows: set.rows, lines: set.lines }));
 }
 
 /** The Review button follows the review in scope: its count, unavailable at none while the list does not show it, since a review with nothing in it would end at once; pressed, and a press that ends it, while the list shows it. */

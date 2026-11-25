@@ -26,7 +26,7 @@ export function drawFlat(drawn: DrawnRows, into: HTMLElement, sections: readonly
       els.heading.note.hidden = section.heading.note === null;
     }
     // Where it sits, worked out again at each tick from the store as it then is.
-    const line: FlatLine = { lead: (shown) => whereOf(shown, store.get()) };
+    const line: FlatLine = { lead: (shown) => whereOf(shown, store.get()), lines: section.lines };
     const rows = section.rows.map((session) => {
       const row = drawRow(drawn, entityKey(session));
       updateRow(drawn, row, session, view, line);
