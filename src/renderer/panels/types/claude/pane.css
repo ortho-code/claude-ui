@@ -1,10 +1,3 @@
-/* The pane's Resume, and the button beside it, wherever the pane offers them: under its sentence, and in the history's note when the history stands in for a cold tab (the history's own rules are history/view.css, head.css, exchange.css and bar.css). */
-.history-note button,
-.pane-actions button {
-  padding: 3px 12px;
-  font-size: var(--text-meta);
-}
-
 /* The pane's sentence lies OVER the tab's terminal rather than above it, on the terminal area's own background, so it covers a booting tab's empty terminal.
    That terminal is laid out already, fitted to the area before claude starts; in the flow it sat below the sentence, hanging out of the area over whatever lay under it until the first output took the sentence away.
    Above the terminal's own stacking context, below the history and its scrim (z-index 2), which lie over both. */
@@ -13,11 +6,4 @@
   inset: 0;
   z-index: 1;
   background: var(--terminal-bg);
-}
-
-/* A cold tab's two ways on, under its sentence. */
-.pane-actions {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
 }

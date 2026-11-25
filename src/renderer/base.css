@@ -399,3 +399,17 @@ button:focus:not(:focus-visible) {
   white-space: pre-line;
   text-align: center;
 }
+
+/* The ways on a sentence in a pane's place offers, in a row under it, such as a cold tab's Resume and Show history. */
+.pane-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Those buttons, a step smaller than a dialog's, and the same in the history's note when the history stands in for a cold tab. */
+.history-note button,
+.pane-actions button {
+  padding: 3px 12px;
+  font-size: var(--text-meta);
+}
