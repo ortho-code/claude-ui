@@ -159,7 +159,10 @@ export interface Asks {
    * Holding it again takes the new `entry`, and redraws the rail, as for a new count.
    */
   holdInDrawer(el: HTMLElement, entry: DrawerEntry): void;
-  /** Show `el`, held, in the drawer, taking it from whatever was on show there, which closes its own way. */
+  /**
+   * Show `el`, held, in the drawer, taking it from whatever was on show there, which closes its own way.
+   * Beside the tab's claude, or over the whole pane while the tab on show has none running, as the tab is when this is asked: asked again once the tab starts or stops, it stands as the tab then is.
+   */
   showInDrawer(el: HTMLElement): void;
   /** Close the drawer while `el` is what it shows, and give the keys back to the live terminal when they were in it; `el` stays held, and anything else on show stays. */
   hideFromDrawer(el: HTMLElement): void;

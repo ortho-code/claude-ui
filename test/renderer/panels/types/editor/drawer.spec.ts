@@ -150,6 +150,25 @@ test('the Editor taking the drawer from a history standing in for a cold tab clo
   await expect(page.locator('.history-note')).toBeHidden();
 });
 
+test('over a cold tab the Editor takes the whole pane, as its history does, with no scrim, since no claude runs beside it', async ({ app, page }) => {
+  await bootDiff(app, { since: listed }, { files });
+  await rows(page).nth(0).click();
+  await expect(page.locator('.drawer .editor-view')).toBeVisible();
+  await expect(page.locator('.drawer')).toHaveClass(/\bwhole\b/);
+  await expect(page.locator('.drawer-scrim')).not.toHaveClass(/\bshown\b/);
+  expect((await page.locator('.drawer').boundingBox())!.width).toBe((await page.locator('.terminal-stage').boundingBox())!.width);
+});
+
+test('the Editor over a cold tab goes back to the drawer beside claude once the tab is live', async ({ app, page }) => {
+  await bootDiff(app, { since: listed }, { files });
+  await rows(page).nth(0).click();
+  await expect(page.locator('.drawer')).toHaveClass(/\bwhole\b/);
+  await goLive(page, app, tab(page, here.title));
+  await expect(page.locator('.drawer .editor-view')).toBeVisible();
+  await expect(page.locator('.drawer')).not.toHaveClass(/\bwhole\b/);
+  await expect(page.locator('.drawer-scrim')).toHaveClass(/\bshown\b/);
+});
+
 test("Close all in a tab's menu closes every file of the session tab, and the drawer with them", async ({ app, page }) => {
   await bootDiff(app, { since: listed }, { files });
   await rows(page).nth(0).dblclick();

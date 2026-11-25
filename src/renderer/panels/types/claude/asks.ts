@@ -10,7 +10,7 @@ import { showToast } from '../../../ui/toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
 import { closeTabs, finishSessions, pressLeave, setAsideTabs } from './closing';
-import { drawer, showOlderCopy } from './pane';
+import { drawer, drawerStanding, showOlderCopy } from './pane';
 import { activateTab, buildTab, createTab, startTab, switchWorkspaceTerminal } from './terminals';
 import { persistOpenTabs } from './open-tabs';
 import { terminalOf, type TabLaunch } from './tab-state';
@@ -210,7 +210,7 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openOlderCop
   setAsideTabs: (ids, done) => setAsideTabs(ids, done),
   showProject: (repoRoot) => switchWorkspaceTerminal(repoRoot),
   holdInDrawer: (el, entry) => drawer.hold(el, entry),
-  showInDrawer: (el) => drawer.set(el, 'over'),
+  showInDrawer: (el) => drawer.set(el, drawerStanding()),
   hideFromDrawer: (el) => keysBackFrom(el, () => drawer.set(el, 'closed')),
   releaseFromDrawer: (el) => keysBackFrom(el, () => drawer.release(el)),
 };

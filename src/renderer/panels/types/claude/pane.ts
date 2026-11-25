@@ -174,6 +174,12 @@ function updatePlaceholder(view: PaneView): void {
   else if (history.standing) history.setStandalone(sentence, startButtons(standing)[0]);
 }
 
+/** How the drawer stands for what a panel shows in it: over the whole pane while the tab on show stands alone, as its history does there, since no claude runs beside it; else beside the tab's claude. */
+export function drawerStanding(): 'over' | 'whole' {
+  const tab = tabOnShow(store.get());
+  return tab && standsAlone(tab) ? 'whole' : 'over';
+}
+
 /**
  * What starts the tab on show, first the one to press: Resume, or, for a session another claude runs, a copy of it, and the start regardless.
  * The copy is a fork, which only reads the session, so it splits nothing.
