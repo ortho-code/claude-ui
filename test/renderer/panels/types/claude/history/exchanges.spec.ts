@@ -63,8 +63,8 @@ test("a press on a request's star or a message's star pins it, fills the star an
 
 test("a fold opened by hand stays open while claude's reply grows under it", async ({ app, page }) => {
   const tools: Exchange['parts'] = [
-    { kind: 'tool', name: 'Bash', detail: 'npm test' },
-    { kind: 'tool', name: 'Read', detail: '/repo/src/a.ts' },
+    { kind: 'tool', name: 'Bash', detail: 'npm test', file: null },
+    { kind: 'tool', name: 'Read', detail: '/repo/src/a.ts', file: '/repo/src/a.ts' },
   ];
   await app.boot({ openSessions: [one.id], activeSession: one.id, history: { [one.id]: [exchange('request-1', { parts: tools })] } });
   await page.getByRole('button', { name: 'Show history' }).click();

@@ -17,14 +17,32 @@ const SHELL_TOOLS = ['Bash', 'PowerShell'];
 /** A line that may call one of them, before it is parsed. */
 export const SHELL_TOOL_CALL = new RegExp(`"name":"(?:${SHELL_TOOLS.join('|')})"`);
 
-/** The tool calls in an assistant record, each by its tool's name and its input. */
-function toolCalls(event: Record<string, unknown>): { name: string; input: unknown }[] {
+/** Claude's tools that read or change one file, each with the input that names it. */
+const ONE_FILE_TOOLS = new Map([...FILE_TOOLS, ['Read', 'file_path']]);
+
+/** The tool calls in an assistant record, each by its id, its tool's name and its input. */
+function toolCalls(event: Record<string, unknown>): { id: string; name: string; input: unknown }[] {
   const content = (event.message as { content?: unknown } | undefined)?.content;
   if (!Array.isArray(content)) return [];
   return content.flatMap((part: unknown) => {
     if (typeof part !== 'object' || part === null) return [];
-    const { type, name, input } = part as { type?: unknown; name?: unknown; input?: unknown };
-    return type === 'tool_use' && typeof name === 'string' ? [{ name, input }] : [];
+    const { type, id, name, input } = part as { type?: unknown; id?: unknown; name?: unknown; input?: unknown };
+    return type === 'tool_use' && typeof name === 'string' ? [{ id: typeof id === 'string' ? id : '', name, input }] : [];
+  });
+}
+
+/** The absolute path of the one file a call of tool `name` reads or changes; null for any other call, and for a relative path, which names no file anyone can find. */
+export function fileOfCall(name: string, input: unknown): string | null {
+  const field = ONE_FILE_TOOLS.get(name);
+  const file = field && typeof input === 'object' && input !== null ? (input as Record<string, unknown>)[field] : undefined;
+  return typeof file === 'string' && path.isAbsolute(file) ? file : null;
+}
+
+/** An assistant record's calls that change a file, each by its call's id and the absolute path it changes. */
+export function fileChangeCalls(event: Record<string, unknown>): { id: string; file: string }[] {
+  return toolCalls(event).flatMap(({ id, name, input }) => {
+    const file = FILE_TOOLS.has(name) ? fileOfCall(name, input) : null;
+    return file && id ? [{ id, file }] : [];
   });
 }
 
@@ -40,9 +58,8 @@ export function shellCommands(event: Record<string, unknown>): string[] {
 /** The absolute paths an assistant record's file-tool calls change; a relative one names no file anyone can find. */
 export function changedFiles(event: Record<string, unknown>): string[] {
   return toolCalls(event).flatMap(({ name, input }) => {
-    const field = FILE_TOOLS.get(name);
-    const file = field && typeof input === 'object' && input !== null ? (input as Record<string, unknown>)[field] : undefined;
-    return typeof file === 'string' && path.isAbsolute(file) ? [file] : [];
+    const file = FILE_TOOLS.has(name) ? fileOfCall(name, input) : null;
+    return file ? [file] : [];
   });
 }
 

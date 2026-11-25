@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
+import { promises as fs } from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { useMetaDir } from '../sessions/meta-fixture';
 import { commit, git, remoteBranch, repo, useRepo, write } from './repo-fixture';
 
 vi.mock('electron', async () => (await import('../sessions/meta-fixture')).electronStub);
 
-const { diffCommits, diffSummary, fileDiff } = await import('../../../../src/main/diff/read');
+const { diffCommits, diffSummary, fileDiff, pathCheckout } = await import('../../../../src/main/diff/read');
 
 useMetaDir();
 useRepo();
@@ -141,6 +144,32 @@ describe('a file', () => {
     write('a.txt', 'if (x) {\n    y();\n}\n');
     expect((await fileDiff(repo(), base, 'a.txt', null, 3, false)).hunks).toHaveLength(1);
     expect((await fileDiff(repo(), base, 'a.txt', null, 3, true)).hunks).toHaveLength(0);
+  });
+});
+
+describe('the checkout a path is in', () => {
+  it('is the repository holding it, with the path from its root, for a file that is gone too', async () => {
+    branched({ 'src/a.txt': 'one\n', '.gitignore': 'notes/\n' });
+    const root = git('rev-parse', '--show-toplevel');
+    expect(await pathCheckout(path.join(repo(), 'src', 'a.txt'))).toEqual({ root, file: 'src/a.txt' });
+    expect(await pathCheckout(path.join(repo(), 'gone', 'deeper', 'b.txt'))).toEqual({ root, file: 'gone/deeper/b.txt' });
+  });
+
+  it('holds a file at its top whose name starts with two dots', async () => {
+    branched({ '..env': 'one\n' });
+    expect(await pathCheckout(path.join(repo(), '..env'))).toEqual({ root: git('rev-parse', '--show-toplevel'), file: '..env' });
+  });
+
+  it('is none for a file the repository ignores, nor for one outside every repository', async () => {
+    branched({ '.gitignore': 'notes/\n' });
+    write('notes/plan.md', 'plan\n');
+    expect(await pathCheckout(path.join(repo(), 'notes', 'plan.md'))).toBeNull();
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-ui-outside-'));
+    try {
+      expect(await pathCheckout(path.join(outside, 'a.txt'))).toBeNull();
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
+    }
   });
 });
 

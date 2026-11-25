@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import type { DiffFile } from '../../../../src/shared/diff/types';
-import { closed, keyOf, kept, NO_TABS, opened, picked, reordered, stepped, updated, type EditorTabs, type FileRef } from '../../../../src/renderer/state/editor-tabs';
+import { closed, keyOf, kept, NO_TABS, opened, pathOf, picked, reordered, stepped, updated, type CheckoutFileRef, type EditorTabs, type FileRef } from '../../../../src/renderer/state/editor-tabs';
 
 const file = (path: string): DiffFile => ({ path, from: null, status: 'M', added: 1, deleted: 0, binary: false, generated: false });
 const FILES = ['a.ts', 'b.ts', 'c.ts'].map((path) => ({ root: '/repo', question: 'since' as const, against: 'aaaaaaa', file: file(path) }));
-const ref = (path: string, against = 'aaaaaaa'): FileRef => ({ root: '/repo', file: file(path), diff: { question: 'since', against }, files: FILES });
+const ref = (path: string, against = 'aaaaaaa'): CheckoutFileRef => ({ kind: 'checkout', root: '/repo', file: file(path), diff: { question: 'since', against }, files: FILES });
 const key = (path: string): string => keyOf(ref(path));
+/** A tab's file by its path from the repository, as `ref` names it. */
+const named = (shown: FileRef): string => pathOf(shown).slice('/repo/'.length);
+/** The commit a tab's file is compared with. */
+const against = (shown: FileRef | undefined): string | null => (shown?.kind === 'checkout' ? shown.diff.against : null);
 
 /** The set as its tabs' paths, a preview marked with `*`, and the one on show. */
-const said = (set: EditorTabs): { tabs: string[]; active: string | null } => ({
-  tabs: set.tabs.map((tab) => `${tab.ref.file.path}${tab.preview ? '*' : ''}`),
-  active: set.active === null ? null : (set.tabs.find((tab) => tab.key === set.active)?.ref.file.path ?? 'gone'),
-});
+const said = (set: EditorTabs): { tabs: string[]; active: string | null } => {
+  const active = set.tabs.find((tab) => tab.key === set.active);
+  return { tabs: set.tabs.map((tab) => `${named(tab.ref)}${tab.preview ? '*' : ''}`), active: set.active === null ? null : active ? named(active.ref) : 'gone' };
+};
 
 describe('opening a file', () => {
   it('opens a preview, which the next file opened without keeping takes the place of', () => {
@@ -29,7 +33,7 @@ describe('opening a file', () => {
     const two = opened(opened(NO_TABS, ref('a.ts'), true), ref('b.ts'), false);
     const again = opened(two, ref('a.ts', 'bbbbbbb'), false);
     expect(said(again)).toEqual({ tabs: ['a.ts', 'b.ts*'], active: 'a.ts' });
-    expect(again.tabs[0].ref.diff.against).toBe('bbbbbbb');
+    expect(against(again.tabs[0]?.ref)).toBe('bbbbbbb');
     expect(said(opened(again, ref('b.ts'), true))).toEqual({ tabs: ['a.ts', 'b.ts'], active: 'b.ts' });
   });
 });
@@ -70,7 +74,7 @@ describe('a tab', () => {
   it('takes a newer comparison in its place, staying as it is and where it is', () => {
     const after = updated(three, key('a.ts'), ref('a.ts', 'bbbbbbb'));
     expect(said(after)).toEqual(said(three));
-    expect(after.tabs[0].ref.diff.against).toBe('bbbbbbb');
+    expect(against(after.tabs[0]?.ref)).toBe('bbbbbbb');
   });
 
   it('takes the order a drag leaves, a tab the order leaves out kept at the end', () => {

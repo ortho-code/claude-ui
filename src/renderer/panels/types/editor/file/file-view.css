@@ -42,6 +42,26 @@
   font-size: var(--text-small);
 }
 
+/* What the file is compared with, where its tab says so: quiet, as Read only beside it is, and the first to give way to the path. */
+.diff-file-mark {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+/* Why the file's changes cannot be shown: one quiet line under the header, the file itself still drawn below it. */
+.diff-file-notice {
+  margin: 0;
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  border-bottom: 1px solid var(--border);
+}
+
 .diff-view-button {
   display: inline-flex;
   align-items: center;

@@ -200,8 +200,8 @@ async function liveHistory(app: App, page: Page): Promise<void> {
       rewound: false,
       parts: [
         { kind: 'text', id: 'message-1', time: TIME, text: 'Reading it now, starting with `parse()`.' },
-        { kind: 'tool', name: 'Read', detail: 'src/parser.ts' },
-        { kind: 'tool', name: 'Bash', detail: 'npm test' },
+        { kind: 'tool', name: 'Read', detail: 'src/parser.ts', file: null },
+        { kind: 'tool', name: 'Bash', detail: 'npm test', file: null },
         { kind: 'text', id: 'message-2', time: TIME, text: 'Found it, as [the docs](https://example.com/docs) say:\n\n```ts\nconst x = 1;\n```\n\n> quoted' },
       ],
     },

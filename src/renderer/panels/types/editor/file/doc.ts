@@ -1,11 +1,11 @@
 import type { DiffFile, DiffView } from '../../../../../shared/diff/types';
 import type { EditorUi } from '../../../../../shared/types';
-import { isShown, type FileRef, type StepFile } from '../../../../state/editor-tabs';
+import { isShown, type CheckoutFileRef, type FileRef, type StepFile } from '../../../../state/editor-tabs';
 import { checkoutReads, type ChangesRead } from '../../../checkout-reads';
-import { FileView } from './file-view';
+import { FileView, WHITESPACE_HIDDEN, type FileViewHost } from './file-view';
 
 /** What a file's tab asks of the Editor it is in: the picks every tab draws by, and how wide the Editor is. */
-export interface FileDocHost {
+export interface DocHost {
   picks(): EditorUi;
   /** Whether the Editor is wide enough for Fit to draw split. */
   wide(): boolean;
@@ -16,8 +16,23 @@ export interface FileDocHost {
   refreshed(ref: FileRef): void;
 }
 
+/** What every tab's file view asks of the Editor alike: how to draw, by the picks the Editor keeps for the window, and how wide it is. */
+export function drawnAsPicked(host: DocHost): Pick<FileViewHost, 'view' | 'split' | 'ignoreWs' | 'changesOnly' | 'pickView' | 'pickIgnoreWs' | 'pickChangesOnly'> {
+  return {
+    view: () => host.picks().view,
+    split: () => host.picks().view === 'split' || (host.picks().view === 'fit' && host.wide()),
+    ignoreWs: () => host.picks().ignoreWs,
+    changesOnly: () => host.picks().changesOnly,
+    pickView: (view: DiffView) => host.pick({ view }),
+    pickIgnoreWs: (ignoreWs) => host.pick({ ignoreWs }),
+    pickChangesOnly: (changesOnly) => host.pick({ changesOnly }),
+  };
+}
+
 /** A tab of the Editor, whatever kind of file it shows: what the Editor's view holds of it. */
 export interface Doc {
+  /** The kind of file it shows, which a ref must have for `showRef` to show it. */
+  readonly kind: FileRef['kind'];
   readonly view: FileView;
   /** Show `ref`, the tab's file as its opener or a step now names it. */
   showRef(ref: FileRef): Promise<void>;
@@ -30,24 +45,20 @@ export interface Doc {
  * Its sequence steps from file to file as the list it was opened from orders them.
  */
 export class FileDoc implements Doc {
+  readonly kind = 'checkout';
   readonly view: FileView;
   /** Stops following its checkout's changes for its question. */
   private stopFollowing: () => void;
   private disposed = false;
 
   constructor(
-    private ref: FileRef,
-    private readonly host: FileDocHost,
+    private ref: CheckoutFileRef,
+    private readonly host: DocHost,
   ) {
     this.view = new FileView({
       read: (file, context, ignoreWs) => window.claudeUi.diffFile(this.ref.root, this.ref.diff.against, file.path, file.status === 'R' ? file.from : null, context, ignoreWs),
-      view: () => host.picks().view,
-      split: () => host.picks().view === 'split' || (host.picks().view === 'fit' && host.wide()),
-      ignoreWs: () => host.picks().ignoreWs,
-      changesOnly: () => host.picks().changesOnly,
-      pickView: (view: DiffView) => host.pick({ view }),
-      pickIgnoreWs: (ignoreWs) => host.pick({ ignoreWs }),
-      pickChangesOnly: (changesOnly) => host.pick({ changesOnly }),
+      unchanged: () => (host.picks().ignoreWs ? WHITESPACE_HIDDEN : 'No changes against this base.'),
+      ...drawnAsPicked(host),
       stepFile: (delta) => void this.stepFile(delta),
       place: () => ({ at: this.ref.files.findIndex((step) => isShown(this.ref, step)) + 1, of: this.ref.files.length }),
     });
@@ -57,7 +68,7 @@ export class FileDoc implements Doc {
 
   /** Show `ref`: the same file read again, compared as it now says, or another file afresh. */
   showRef(ref: FileRef): Promise<void> {
-    if (ref === this.ref) return Promise.resolve();
+    if (ref === this.ref || ref.kind !== 'checkout') return Promise.resolve();
     const same = ref.root === this.ref.root && ref.file.path === this.ref.file.path && ref.diff.against === this.ref.diff.against;
     this.setRef(ref);
     if (same) {
@@ -101,7 +112,7 @@ export class FileDoc implements Doc {
   }
 
   /** Show `ref` from now on, following its checkout's changes for its question once either is another than the last. */
-  private setRef(ref: FileRef): void {
+  private setRef(ref: CheckoutFileRef): void {
     const followed = ref.root === this.ref.root && ref.diff.question === this.ref.diff.question;
     this.ref = ref;
     if (followed) return;
@@ -134,6 +145,6 @@ export class FileDoc implements Doc {
 }
 
 /** `start` moved to `step`: its file, in its checkout, for the question that checkout was read for and against what it was read against. */
-function refAt(start: FileRef, step: StepFile): FileRef {
+function refAt(start: CheckoutFileRef, step: StepFile): CheckoutFileRef {
   return { ...start, root: step.root, file: step.file, diff: { question: step.question, against: step.against } };
 }

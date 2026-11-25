@@ -28,7 +28,7 @@ describe('applySlice', () => {
 
 describe('replyBlocks', () => {
   const text = (id: string): ReplyPart => ({ kind: 'text', id, time: '', text: id });
-  const tool = (name: string, detail = ''): ReplyPart => ({ kind: 'tool', name, detail });
+  const tool = (name: string, detail = ''): ReplyPart => ({ kind: 'tool', name, detail, file: null });
   const report = (agent: string): ReplyPart => ({ kind: 'report', agent, text: 'The report.' });
   const shape = (parts: ReplyPart[]): string[] =>
     replyBlocks(parts).map((b) => (b.kind === 'text' ? b.part.id : b.kind === 'tool' ? b.part.name : b.kind === 'report' ? `${b.at}:${b.part.agent}` : `${b.at}:[${b.parts.map((p) => p.name).join(',')}]`));
@@ -58,8 +58,8 @@ describe('reportLine', () => {
 });
 
 describe('toolSummary', () => {
-  const tools = (...names: string[]) => names.map((name) => ({ kind: 'tool' as const, name, detail: '' }));
-  const on = (...calls: [name: string, detail: string][]) => calls.map(([name, detail]) => ({ kind: 'tool' as const, name, detail }));
+  const tools = (...names: string[]) => names.map((name) => ({ kind: 'tool' as const, name, detail: '', file: null }));
+  const on = (...calls: [name: string, detail: string][]) => calls.map(([name, detail]) => ({ kind: 'tool' as const, name, detail, file: null }));
 
   it("names what the run did in claude's words, in the order the tools first came", () => {
     expect(toolSummary(tools('Read', 'Bash', 'Bash', 'Bash', 'Bash'))).toBe('Read 1 file, ran 4 shell commands');

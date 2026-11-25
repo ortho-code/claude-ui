@@ -230,6 +230,8 @@ Each session tab has its own files in it; switching tabs switches them, and clos
 
 A press on a file opens it as a preview, its name in italics, which the next file you open takes the place of; a double click, on the file or on its tab, or Pin in the tab's menu, keeps it, so the next one opens beside it.
 The tab's menu also copies the file's path, and closes the other tabs or this one; its cross closes it too.
+In the history, a press on the file a Read, Edit or Write names opens it in the Editor as a preview, which Pin keeps.
+A file outside every repository, such as a scratchpad file or a plan, or one its repository ignores, shows what changed since the session first changed it, as its header says; where claude did not record the text from before, a line says so and the file shows as it is, as does a file the session only read; a file no longer on disk, such as a scratchpad file a restart emptied, says so.
 The Editor only reads for now, and every file says "Read only".
 
 A file is shown whole, with its changes marked where they are.

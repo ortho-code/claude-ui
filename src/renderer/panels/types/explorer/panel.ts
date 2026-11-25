@@ -212,7 +212,7 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     const steps = this.files.order().flatMap((placed) => this.stepOf(placed) ?? []);
     const step = this.stepOf(pressed);
     if (!step) return;
-    openInEditor({ root: step.root, file: step.file, diff: { question: step.question, against: step.against }, files: steps }, keep);
+    openInEditor({ kind: 'checkout', root: step.root, file: step.file, diff: { question: step.question, against: step.against }, files: steps }, keep);
   }
 
   /** A file of the list as the Editor steps through it, for the question its root's drawn read answers; null where that root has no comparison to make. */
@@ -224,11 +224,11 @@ export class ExplorerPanel extends Driven implements MountedPanel {
     return file ? { root: placed.root, question, against: read.summary.against, file } : null;
   }
 
-  /** The file the Editor shows for the tab on show, by its root and path. */
+  /** The file of a checkout the Editor shows for the tab on show, by its root and path. */
   private picked(): Placed | null {
     const set = editorTabsOnShow();
-    const shown = set.tabs.find((tab) => tab.key === set.active);
-    return shown ? { root: shown.ref.root, path: shown.ref.file.path } : null;
+    const shown = set.tabs.find((tab) => tab.key === set.active)?.ref;
+    return shown?.kind === 'checkout' ? { root: shown.root, path: shown.file.path } : null;
   }
 
   /** The Editor's tabs changed: mark the row it shows. */

@@ -282,11 +282,11 @@ export interface Exchange {
 }
 
 /**
- * One piece of a reply: a message from claude (markdown), a tool call — the tool's name and, on one line, the input that says what it acted on (empty when none does) — or a subagent's report.
+ * One piece of a reply: a message from claude (markdown), a tool call — the tool's name and, on one line, the input that says what it acted on (empty when none does), with `file` the absolute path of the one file it reads or changes, null for a call that names none — or a subagent's report.
  * A message carries an id, its assistant record's uuid and its place among that record's messages, which is what a pin on it keys on and which a fork copies too.
  * A report is the subagent's markdown cut from the frame Claude Code hands it back in, with the agent's name, null where the transcript gives none.
  */
-export type ReplyPart = { kind: 'text'; id: string; time: string; text: string } | { kind: 'tool'; name: string; detail: string } | { kind: 'report'; agent: string | null; text: string };
+export type ReplyPart = { kind: 'text'; id: string; time: string; text: string } | { kind: 'tool'; name: string; detail: string; file: string | null } | { kind: 'report'; agent: string | null; text: string };
 
 /**
  * A request or one of claude's messages, pinned in the history and stored in meta.json under its id (`Exchange.id`, or a message's `id`).
@@ -539,7 +539,7 @@ export interface UiState {
 
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './helpers/folders';
-import type { BaseCandidate, BaseLayers, DiffCommit, DiffPicks, DiffQuestion, DiffSummaryRead, DiffView, FileDiff } from './diff/types';
+import type { BaseCandidate, BaseLayers, DiffCommit, DiffPicks, DiffQuestion, DiffSummaryRead, DiffView, FileDiff, PathCheckout, SessionFileDiff } from './diff/types';
 import type { NeedsYouChange, NeedsYouRegistry } from './status/needs-you';
 import type { LogLevel } from './helpers/log';
 import type { Look } from './status/looks';
@@ -829,6 +829,10 @@ export interface ClaudeUiApi {
   nestedRepositories(dir: string): Promise<string[]>;
   /** One file's hunks against the commit a summary named, with `context` unchanged lines around each change, whitespace-only changes left out with `ignoreWs`. */
   diffFile(dir: string, against: string, file: string, from: string | null, context: number, ignoreWs: boolean): Promise<FileDiff>;
+  /** The absolute path `file`'s changes since session `session` first changed it, with `context` unchanged lines around each change, whitespace-only changes left out with `ignoreWs` (src/main/diff/session-file.ts). */
+  sessionFileDiff(session: string, file: string, context: number, ignoreWs: boolean): Promise<SessionFileDiff>;
+  /** The checkout the absolute path `file` is in; null for a path no repository holds, or one its repository ignores. */
+  pathCheckout(file: string): Promise<PathCheckout | null>;
   /** The commits between the commit a summary named and `HEAD`, newest first. */
   diffCommits(dir: string, against: string): Promise<DiffCommit[]>;
   /** Every local and remote branch that is no symbolic ref, the one `dir` has out included, which the base of Since branched can be set to. */

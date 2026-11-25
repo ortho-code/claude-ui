@@ -3,6 +3,8 @@ import { relativeTime } from '../../../../ui/time-words';
 import { showMoment, type Moment } from '../../../../ui/moments';
 import { chevronIcon, PIN_ICON, PINNED_ICON } from '../../../../ui/svg';
 import { setTooltip } from '../../../../ui/tooltip';
+import { wordButton } from '../../../../ui/word-button';
+import { openPath } from '../../../open-path';
 import { renderMarkdown } from './markdown';
 import { replyBlocks, reportLine, toolSummary } from './model';
 import './exchange.css';
@@ -138,7 +140,7 @@ export function drawPins(node: HTMLElement, exchange: Exchange, pins: Readonly<R
   }
 }
 
-/** A tool call as claude draws it: the name in bold, what it acted on in brackets after it. */
+/** A tool call as claude draws it: the name in bold, what it acted on in brackets after it, the file a press opens in the Editor where it reads or changes one. */
 function toolLine(part: Extract<ReplyPart, { kind: 'tool' }>): HTMLElement {
   const piece = document.createElement('div');
   piece.className = 'exchange-tool';
@@ -146,8 +148,20 @@ function toolLine(part: Extract<ReplyPart, { kind: 'tool' }>): HTMLElement {
   name.className = 'exchange-tool-name';
   name.textContent = part.name;
   piece.append(name);
-  if (part.detail) piece.append(`(${part.detail})`);
+  if (part.detail) piece.append('(', part.file ? fileLink(part.file, part.detail) : part.detail, ')');
   return piece;
+}
+
+/**
+ * A tool call's file as words that open it in the Editor, as a preview, which Pin in its tab's menu keeps.
+ * No double click keeps it, as one does on a row of the Explorer: with the Editor in the drawer, the first press puts it where the history was, so a second one never reaches these words.
+ */
+function fileLink(file: string, words: string): HTMLButtonElement {
+  const link = wordButton('exchange-tool-file');
+  link.textContent = words;
+  setTooltip(link, `Open ${file} in the Editor`);
+  link.addEventListener('click', () => void openPath(file, false));
+  return link;
 }
 
 /** A star, like the session row's told apart by ink alone, filled or outlined; what it pins carries the accent line in the margin. */

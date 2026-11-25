@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { parseNameStatus, parseNumstat, parseUnified } from '../../shared/diff/parse';
-import type { DiffCommit, DiffFile, DiffQuestion, DiffSummary, FileDiff } from '../../shared/diff/types';
+import type { DiffCommit, DiffFile, DiffQuestion, DiffSummary, FileDiff, PathCheckout } from '../../shared/diff/types';
 import { markWords } from '../../shared/diff/words';
 import { git } from '../git';
 import { againstOf, baseOf, branchOf, countsOf } from './bases';
@@ -95,10 +95,10 @@ export async function diffSummary(dir: string, question: DiffQuestion): Promise<
   return { root, branch, against, base, missing, files, untrackedLeftOut, counts };
 }
 
-/** An untracked file as added from nothing: `--no-index` exits 1 when the two differ, which here they always do, so its output comes with that exit. */
-async function untrackedDiff(root: string, file: string, context: number): Promise<string> {
+/** The diff of two files git need not know, run in `dir`: `--no-index` exits 1 when the two differ, so its output comes with that exit. */
+export async function noIndexDiff(dir: string, flags: string[], from: string, to: string): Promise<string> {
   try {
-    return await text(root, ['diff', '--no-color', '--no-ext-diff', `-U${context}`, '--no-index', '--', '/dev/null', file]);
+    return await text(dir, ['diff', '--no-color', '--no-ext-diff', ...flags, '--no-index', '--', from, to]);
   } catch (error) {
     const failed = error as { code?: unknown; stdout?: unknown };
     if (failed.code === 1 && Buffer.isBuffer(failed.stdout)) return failed.stdout.toString('utf8');
@@ -106,10 +106,12 @@ async function untrackedDiff(root: string, file: string, context: number): Promi
   }
 }
 
-/** The file on disk line by line, without the empty line after a final newline; null past `READ_CAP` or when it cannot be read. */
-async function linesOf(root: string, file: string): Promise<string[] | null> {
+/** An untracked file as added from nothing. */
+const untrackedDiff = (root: string, file: string, context: number): Promise<string> => noIndexDiff(root, [`-U${context}`], '/dev/null', file);
+
+/** The file at `full` on disk line by line, without the empty line after a final newline; null past `READ_CAP` or when it cannot be read. */
+export async function fileLines(full: string): Promise<string[] | null> {
   try {
-    const full = path.join(root, file);
     if ((await fs.stat(full)).size > READ_CAP) return null;
     const content = await fs.readFile(full, 'utf8');
     if (content === '') return [];
@@ -139,7 +141,32 @@ export async function fileDiff(dir: string, against: string, file: string, from:
   let parsed = parseUnified(sectionFor(await text(root, args), file));
   if (!parsed.hunks.length && !parsed.binary && (await untrackedOf(root)).includes(file)) parsed = parseUnified(await untrackedDiff(root, file, context));
   for (const hunk of parsed.hunks) markWords(hunk.rows);
-  return { path: file, hunks: parsed.hunks, binary: parsed.binary, lines: await linesOf(root, file) };
+  return { path: file, hunks: parsed.hunks, binary: parsed.binary, lines: await fileLines(path.join(root, file)) };
+}
+
+/**
+ * The checkout an absolute path is in, and the path from its root, through the real folders on the way; null for a path no repository holds, for one its repository ignores, which git has nothing to compare with, and for one in git's own folder, which is in no working tree.
+ * A path whose folder is gone is asked about from the nearest folder above it that is there.
+ */
+export async function pathCheckout(file: string): Promise<PathCheckout | null> {
+  let dir = path.dirname(file);
+  while (!(await fs.stat(dir).then((stat) => stat.isDirectory(), () => false))) {
+    if (path.dirname(dir) === dir) return null;
+    dir = path.dirname(dir);
+  }
+  let root: string;
+  try {
+    root = await rootOf(dir);
+  } catch {
+    return null;
+  }
+  const relative = path.relative(root, path.join(await fs.realpath(dir), path.relative(dir, file)));
+  if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return null;
+  const ignored = await git(root, ['check-ignore', '-q', '--', relative], DIFF_CAP).then(
+    () => true,
+    () => false,
+  );
+  return ignored ? null : { root, file: relative };
 }
 
 /** The commits between `against` and `HEAD`, newest first, without merges, up to one past `COMMITS_CAP`. */

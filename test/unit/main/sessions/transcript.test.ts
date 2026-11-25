@@ -46,7 +46,7 @@ describe('what counts as a request', () => {
         rewound: false,
         parts: [
           { kind: 'text', id: `${first.uuid}:0`, time: first.timestamp, text: 'Let me look.' },
-          { kind: 'tool', name: 'Read', detail: '/repo/src/Sniff.php' },
+          { kind: 'tool', name: 'Read', detail: '/repo/src/Sniff.php', file: '/repo/src/Sniff.php' },
           { kind: 'text', id: `${second.uuid}:0`, time: second.timestamp, text: 'Found it.' },
         ],
       },

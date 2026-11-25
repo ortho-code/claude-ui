@@ -183,6 +183,15 @@ test('a binary file says so', async ({ app, page }) => {
   await expect(fileNote(page)).toHaveText('A binary file: nothing to show.');
 });
 
+test('with whitespace hidden, a file whose only change is whitespace says so under Changes only, and with whitespace shown says it has no changes', async ({ app, page }) => {
+  await bootDiff(app, { since: summary({ files: [file('src/a.ts')] }) }, { files: { 'src/a.ts': fileDiff('src/a.ts', [], ['same']) }, editor: { ignoreWs: true, changesOnly: true } });
+  await rows(page).first().click();
+  await expect(fileNote(page)).toHaveText('Only whitespace changed here, and whitespace is hidden.');
+  await editor(page).locator('.diff-view-button').click();
+  await menuRows(page).filter({ hasText: 'Hide whitespace changes' }).click();
+  await expect(fileNote(page)).toHaveText('No changes against this base.');
+});
+
 test('hiding whitespace reads the file again without it, and is kept for the window', async ({ app, page }) => {
   await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited } });
   await rows(page).first().click();

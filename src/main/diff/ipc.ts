@@ -5,7 +5,8 @@ import { resolveRepo } from '../sessions/repo';
 import { keepBase } from '../sessions/diff-bases';
 import { baseCount, baseLayers, branchOf, candidates } from './bases';
 import { nestedRepositories } from './nested';
-import { diffCommits, diffSummary, fileDiff } from './read';
+import { diffCommits, diffSummary, fileDiff, pathCheckout } from './read';
+import { sessionFileDiff } from './session-file';
 
 /** Keep `ref` as the base of the project `dir` is in, or of the branch it has out, or clear it with `null`; a detached checkout has no branch to keep one for. */
 async function setDiffBase(dir: string, scope: 'branch' | 'project', ref: string | null): Promise<void> {
@@ -27,6 +28,8 @@ export function registerDiffIpc(): void {
   ipcMain.handle('diff:summary', (_event, dir: string, question: DiffQuestion) => summaryRead(dir, question));
   ipcMain.handle('diff:nested', (_event, dir: string) => nestedRepositories(dir));
   ipcMain.handle('diff:file', (_event, dir: string, against: string, file: string, from: string | null, context: number, ignoreWs: boolean) => fileDiff(dir, against, file, from, context, ignoreWs));
+  ipcMain.handle('diff:sessionFile', (_event, session: string, file: string, context: number, ignoreWs: boolean) => sessionFileDiff(session, file, context, ignoreWs));
+  ipcMain.handle('diff:pathCheckout', (_event, file: string) => pathCheckout(file));
   ipcMain.handle('diff:commits', (_event, dir: string, against: string) => diffCommits(dir, against));
   ipcMain.handle('diff:baseCandidates', (_event, dir: string) => candidates(dir));
   ipcMain.handle('diff:baseCount', (_event, dir: string, ref: string) => baseCount(dir, ref));

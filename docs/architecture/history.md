@@ -98,6 +98,8 @@ The reader folds each uuid once and keeps the first copy.
 The `>` stands in the same gutter as claude's dots, centred where they are, so a request's text starts where a message's does, and its later lines start under its first line's text, as claude indents them.
 So the reader keeps a reply as `parts`, in the order claude wrote them: every message its own part, every tool call a one-line part where it came ([decided 2026-09-29](../decisions/0041-reply-kept-as-parts.md)).
 A tool call is drawn as claude draws one, a green dot, the tool's name in bold and what it acted on in grey.
+Where it reads or changes one file by an absolute path (Read, Edit, Write, MultiEdit, NotebookEdit), what it acted on is a link that opens that file in the Editor as a preview (`ReplyPart.file`, kept whole where the line is cut), which Pin in its tab's menu keeps ([The `editor` type](panels.md#the-editor-type)).
+It takes no double click, as a row of the Explorer does: with the Editor in the drawer, the first press shows it where the history was, so a second never reaches the link.
 **A run of tool calls between two of claude's messages is folded to one line**, as claude folds them — "Ran 4 shell commands, read 1 file", with a chevron — which opens into the calls; it stays open or closed while claude's reply grows.
 That is a fold in place.
 A lone call stays its own line, since its line says more than a count of one.

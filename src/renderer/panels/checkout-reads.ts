@@ -53,6 +53,12 @@ export class CheckoutReads {
     };
   }
 
+  /** The question the first reader still following the checkout at `root` follows, such as the Explorer showing it; null while nobody follows it. */
+  followedQuestion(root: string): DiffQuestion | null {
+    const first = this.checkouts.get(root)?.followers.values().next();
+    return first && !first.done ? first.value.question : null;
+  }
+
   /** Read `dir`'s changes for `question` now, joining a read of the same already under way; the root's followers hear the answer before it is returned. */
   read(dir: string, question: DiffQuestion): Promise<ChangesRead> {
     const key = `${question}\0${dir}`;

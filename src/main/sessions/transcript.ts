@@ -7,6 +7,7 @@ import { promises as fs } from 'node:fs';
 import { readFrom } from '../../shared/sessions/history';
 import type { Exchange, HistorySlice, ReplyPart } from '../../shared/types';
 import { fsFailure, logOnce } from '../logs/log';
+import { fileOfCall } from './tool-calls';
 
 /**
  * A slash command is written in tags — `<command-message>word</command-message>\n<command-name>/cmd</command-name>` plus an optional (possibly empty) `<command-args>…</command-args>` — which reads as junk where it is shown.
@@ -147,14 +148,14 @@ export interface TranscriptCursor {
 const CHUNK_BYTES = 4 * 1024 * 1024;
 
 /**
- * Read what was appended to the transcript at `file` since the cursor, handing each record to `onRecord`.
+ * Read what was appended to the transcript at `file` since the cursor, handing each record to `onRecord` with the byte offset its line starts at.
  * A file shorter than what was already read is not the same file any more, so the cursor goes back to the start, after `onRestart` has dropped whatever the reader built from the old one.
  * `scope` names the reader in the log.
  */
 export async function readAppended(
   file: string,
   cursor: TranscriptCursor,
-  onRecord: (record: Record<string, unknown>) => void,
+  onRecord: (record: Record<string, unknown>, offset: number) => void,
   onRestart: () => void,
   scope: string,
   chunkBytes = CHUNK_BYTES,
@@ -185,10 +186,13 @@ export async function readAppended(
         cursor.carry = Buffer.from(bytes);
         continue;
       }
-      // A newline byte never occurs inside a multi-byte UTF-8 character, so cutting at the last one leaves whole characters on both sides.
-      for (const line of bytes.subarray(0, end).toString('utf8').split('\n')) {
-        const record = parseRecord(line);
-        if (record) onRecord(record);
+      // A newline byte never occurs inside a multi-byte UTF-8 character, so cutting at each one leaves whole characters on both sides.
+      const start = cursor.offset - bytes.length;
+      for (let from = 0; from <= end; ) {
+        const newline = bytes.indexOf(0x0a, from);
+        const record = parseRecord(bytes.subarray(from, newline).toString('utf8'));
+        if (record) onRecord(record, start + from);
+        from = newline + 1;
       }
       cursor.carry = Buffer.from(bytes.subarray(end + 1));
     }
@@ -239,7 +243,7 @@ export function newFold(): HistoryFold {
   return { exchanges: [], parents: [], byParent: new Map(), records: new Map(), changedFrom: null, pending: null, answering: null };
 }
 
-/** A tool call as the history shows it: its name, and apart from it, on one line, the one input that says what it acted on. */
+/** A tool call as the history shows it: its name, and apart from it, on one line, the one input that says what it acted on, with the file it reads or changes whole, since that line is cut. */
 function toolPart(part: { name?: unknown; input?: unknown }): ReplyPart {
   const name = typeof part.name === 'string' ? part.name : 'tool';
   const input = (part.input ?? {}) as Record<string, unknown>;
@@ -248,7 +252,7 @@ function toolPart(part: { name?: unknown; input?: unknown }): ReplyPart {
   );
   // Its first line as written, not trimmed: a pattern's trailing space is part of what was searched for.
   const first = main?.split('\n').find((line) => line.trim() !== '') ?? '';
-  return { kind: 'tool', name, detail: first.length > 120 ? `${first.slice(0, 119)}…` : first };
+  return { kind: 'tool', name, detail: first.length > 120 ? `${first.slice(0, 119)}…` : first, file: fileOfCall(name, part.input) };
 }
 
 /** Where the frame Claude Code hands a subagent's report back in ends: a preface, this line, then the report with every line indented two spaces. */

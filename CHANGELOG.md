@@ -37,6 +37,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The × at the end of its head, or Close all in a tab's menu, closes all its files at once.
 - With both the history and files open in the drawer over the terminal area, a rail on its left edge switches between them, and the history comes back where it was when the files took its place.
 - Dock in the history's head puts it in a column beside claude, so you can read back while you type, at a width you drag; the window remembers it.
+- A press on the file a Read, Edit or Write names in the history opens it in the Editor.
+  A file outside every repository, such as a scratchpad file or a plan, shows what changed since the session first changed it.
 
 ### Changed
 

@@ -121,6 +121,24 @@ export interface FileDiff {
   lines: string[] | null;
 }
 
+/**
+ * Where a session's changes to a file start: from nothing, since the session created it; from the text it had then, which Claude Code recorded; `unknown` where it did not record that text, so there is nothing to compare with; `unwritten` for a file the session never changed.
+ */
+export type SessionStart = 'created' | 'recorded' | 'unknown' | 'unwritten';
+
+/** A file's changes since a session first changed it, with where they start; no hunks for `unknown` and `unwritten`, nor for a file that is `gone`. */
+export interface SessionFileDiff extends FileDiff {
+  start: SessionStart;
+  /** The file is no longer on disk, so there is nothing to compare with. */
+  gone: boolean;
+}
+
+/** The checkout a path is in, and the path from its root. */
+export interface PathCheckout {
+  root: string;
+  file: string;
+}
+
 export interface DiffCommit {
   sha: string;
   subject: string;

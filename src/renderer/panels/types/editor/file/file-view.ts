@@ -18,6 +18,9 @@ import './file-view.css';
 /** Unchanged lines around each change, as git gives them, before a fold is opened. */
 const CONTEXT = 3;
 
+/** What a file says when its only changes are in whitespace, which is hidden. */
+export const WHITESPACE_HIDDEN = 'Only whitespace changed here, and whitespace is hidden.';
+
 /** How each view is named in the menu and on its button. */
 const VIEW_NAMES: Record<DiffView, string> = { fit: 'Fit', split: 'Split', unified: 'Unified' };
 
@@ -26,6 +29,8 @@ export interface FileViewHost {
   /** `file`'s hunks, with `context` unchanged lines around each change and whitespace-only changes left out with `ignoreWs`, and the file as it is now. */
   read(file: DiffFile, context: number, ignoreWs: boolean): Promise<FileDiff>;
   view(): DiffView;
+  /** What stands in the file's place when it has no change to show and Changes only is on, or nothing to show at all: why, in words, `WHITESPACE_HIDDEN` where hiding whitespace is what left nothing. */
+  unchanged(): string;
   /** Whether the view on show is split, the panel's width deciding for Fit. */
   split(): boolean;
   ignoreWs(): boolean;
@@ -46,6 +51,10 @@ export class FileView {
   private readonly path = element('span', 'diff-file-path');
   private readonly position = element('span', 'diff-position');
   private readonly viewButton = element('button', 'diff-view-button');
+  /** What the file is compared with, where its tab says so. */
+  private readonly comparedWith = element('span', 'diff-file-mark');
+  /** A line under the header saying why the file's changes cannot be shown, where its tab says so. */
+  private readonly notice = element('p', 'diff-file-notice');
   private readonly frame = element('div', 'diff-frame');
   private readonly body = element('div', 'diff-hunks');
   private readonly map = element('div', 'diff-map');
@@ -71,13 +80,22 @@ export class FileView {
     const readOnly = element('span', 'diff-read-only');
     // Nothing in the Editor edits a file yet, so every file says so.
     readOnly.textContent = 'Read only';
-    this.header.append(this.path, element('span', 'diff-grow'), readOnly, this.position, this.stepButton('up', 'Previous change (k)', -1), this.stepButton('down', 'Next change (j)', 1), this.viewButton);
+    this.header.append(this.path, element('span', 'diff-grow'), this.comparedWith, readOnly, this.position, this.stepButton('up', 'Previous change (k)', -1), this.stepButton('down', 'Next change (j)', 1), this.viewButton);
     this.body.tabIndex = 0;
     this.body.addEventListener('keydown', (event) => this.key(event));
     this.frame.append(this.body, this.map);
-    this.el.append(this.header, this.frame, this.note);
+    this.el.append(this.header, this.notice, this.frame, this.note);
     new ResizeObserver(() => this.drawMap()).observe(this.body);
+    this.setMarks(null, null);
     void this.show(null);
+  }
+
+  /** Say in the header what the file is compared with, and under it why its changes cannot be shown; null for neither. */
+  setMarks(mark: string | null, notice: string | null): void {
+    this.comparedWith.textContent = mark ?? '';
+    this.comparedWith.hidden = mark === null;
+    this.notice.textContent = notice ?? '';
+    this.notice.hidden = notice === null;
   }
 
   /** The file the list's row picked, or none: read it afresh, folds closed, the stepper on its first change, or its last when a step back arrived here. */
@@ -186,8 +204,7 @@ export class FileView {
     if (!this.host.changesOnly() && diff.lines?.length) return null;
     if (file.status === 'U' || file.status === 'A') return 'A new, empty file.';
     if (file.status === 'R') return `Renamed from ${file.from ?? 'elsewhere'}, with nothing else changed.`;
-    if (this.host.ignoreWs()) return 'Only whitespace changed here, and whitespace is hidden.';
-    return 'No changes against this base.';
+    return this.host.unchanged();
   }
 
   private mark(): void {

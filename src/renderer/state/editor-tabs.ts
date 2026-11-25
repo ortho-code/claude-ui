@@ -7,8 +7,12 @@ import { store } from './app';
  * The rules are pure, so every surface that opens a file goes through the same ones, and the tests hold them; the writes below apply them to the set of the tab on show.
  */
 
-/** A file opened in the Editor, and what it is compared with. */
-export interface FileRef {
+/** A file opened in the Editor, and what it is compared with: a file of a checkout, against a commit, or any other file, against the text it had when a session first changed it. */
+export type FileRef = CheckoutFileRef | SessionFileRef;
+
+/** A file of a checkout, compared with the commit a question names. */
+export interface CheckoutFileRef {
+  kind: 'checkout';
   /** The checkout's root, which `file.path` is from. */
   root: string;
   file: DiffFile;
@@ -16,6 +20,13 @@ export interface FileRef {
   diff: { question: DiffQuestion; against: string };
   /** The files its previous and next file step through, in the opener's order, this one among them, each with its own checkout, so a step can cross from one checkout into the next. */
   files: readonly StepFile[];
+}
+
+/** A file git has nothing to compare with, by its absolute path, compared with the text it had when session `session` first changed it. */
+export interface SessionFileRef {
+  kind: 'session';
+  session: string;
+  path: string;
 }
 
 /** A file a tab steps through: the checkout it is in, the question that checkout was read for and the commit it was read against, and the file. */
@@ -27,7 +38,13 @@ export interface StepFile {
 }
 
 /** Whether `step` is the file `ref` shows. */
-export const isShown = (ref: FileRef, step: StepFile): boolean => step.root === ref.root && step.file.path === ref.file.path;
+export const isShown = (ref: CheckoutFileRef, step: StepFile): boolean => step.root === ref.root && step.file.path === ref.file.path;
+
+/** A file at `path` that no list names, so there are no counts to show: one its checkout's question lists no change in, or one git has nothing to compare with. */
+export const unlistedFile = (path: string): DiffFile => ({ path, from: null, status: 'M', added: 0, deleted: 0, binary: false, generated: false });
+
+/** The absolute path of the file `ref` shows. */
+export const pathOf = (ref: FileRef): string => (ref.kind === 'checkout' ? `${ref.root}/${ref.file.path}` : ref.path);
 
 export interface EditorTab {
   key: string;
@@ -45,7 +62,7 @@ export interface EditorTabs {
 export const NO_TABS: EditorTabs = { tabs: [], active: null };
 
 /** A file's tab is one per file, whatever it is compared with. */
-export const keyOf = (ref: FileRef): string => `file:${ref.root}/${ref.file.path}`;
+export const keyOf = (ref: FileRef): string => `file:${pathOf(ref)}`;
 
 /**
  * Open `ref` and put it on show: the tab it already has, kept now when `keep` says so; else a new tab, a preview taking the place of the preview there is unless `keep`.

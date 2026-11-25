@@ -1,5 +1,5 @@
 import type { EditorUi } from '../../../../shared/types';
-import { changeEditorTabs, closed, closedOthers, editorSetKey, editorTabsOnShow, keyOf, kept, NO_TABS, picked, reordered, stepped, updated, type EditorTabs, type FileRef } from '../../../state/editor-tabs';
+import { changeEditorTabs, closed, closedOthers, editorSetKey, editorTabsOnShow, keyOf, kept, NO_TABS, pathOf, picked, reordered, stepped, updated, type EditorTabs, type FileRef } from '../../../state/editor-tabs';
 import { store } from '../../../state/app';
 import { element } from '../../../ui/dom';
 import type { MenuItem } from '../../../ui/menu';
@@ -9,7 +9,8 @@ import { setTooltip } from '../../../ui/tooltip';
 import type { PanelTab, PanelTabs } from '../../contract';
 import { drawDockButton, tabsHeader } from '../../headers';
 import { HeaderTabs } from '../../tabs';
-import { FileDoc, type Doc } from './file/doc';
+import { FileDoc, type Doc, type DocHost } from './file/doc';
+import { SessionDoc } from './file/session-doc';
 import './view.css';
 
 /** The Editor's width from which Fit draws a diff split. */
@@ -128,32 +129,40 @@ export class EditorView {
     if (this.body.firstChild !== doc.view.el) this.body.replaceChildren(doc.view.el);
   }
 
+  /** The doc of the tab `key`, made for `ref`'s kind: the one it has, showing `ref`, unless the same file is opened again as the other kind, as after git started or stopped ignoring it, or after its checkout could not be read. */
   private docOf(key: string, ref: FileRef): Doc {
     const found = this.docs.get(key);
-    if (found) {
+    if (found?.kind === ref.kind) {
       void found.showRef(ref);
       return found;
     }
-    const doc = new FileDoc(ref, {
+    found?.release();
+    const host = this.docHost((): Doc => doc);
+    const doc: Doc = ref.kind === 'checkout' ? new FileDoc(ref, host) : new SessionDoc(ref, host);
+    this.docs.set(key, doc);
+    return doc;
+  }
+
+  /** What a tab asks of the Editor; `doc` is the tab asking, once it is made. */
+  private docHost(doc: () => Doc): DocHost {
+    return {
       picks: () => this.picks(),
       wide: () => this.wide,
       pick: (change) => this.pick(change),
       step: (next) => {
-        const now = this.keyOfDoc(doc);
+        const now = this.keyOfDoc(doc());
         if (now === undefined) return;
         this.docs.delete(now);
         // A file with a tab of its own already is put on show in that tab, and this one goes (`stepped`); else this doc moves to the new file's key, so the draw that follows finds it there, showing that file already.
-        if (this.docs.has(keyOf(next))) doc.release();
-        else this.docs.set(keyOf(next), doc);
+        if (this.docs.has(keyOf(next))) doc().release();
+        else this.docs.set(keyOf(next), doc());
         changeEditorTabs((set) => stepped(set, now, next));
       },
       refreshed: (next) => {
-        const now = this.keyOfDoc(doc);
+        const now = this.keyOfDoc(doc());
         if (now !== undefined) changeEditorTabs((set) => updated(set, now, next));
       },
-    });
-    this.docs.set(key, doc);
-    return doc;
+    };
   }
 
   private keyOfDoc(doc: Doc): string | undefined {
@@ -165,8 +174,8 @@ export class EditorView {
       tabs: set.tabs.map(
         (tab): PanelTab => ({
           id: tab.key,
-          text: tab.ref.file.path.slice(tab.ref.file.path.lastIndexOf('/') + 1),
-          tooltip: `${tab.ref.root}/${tab.ref.file.path}${tab.preview ? '\nA preview: the next file opened takes its place. Pin it, or double-click it, to keep it.' : ''}`,
+          text: pathOf(tab.ref).slice(pathOf(tab.ref).lastIndexOf('/') + 1),
+          tooltip: `${pathOf(tab.ref)}${tab.preview ? '\nA preview: the next file opened takes its place. Pin it, or double-click it, to keep it.' : ''}`,
           shown: tab.key === set.active,
           cold: false,
           preview: tab.preview,
@@ -192,7 +201,7 @@ export class EditorView {
   private menu(set: EditorTabs, id: string): MenuItem[] | null {
     const tab = set.tabs.find((each) => each.key === id);
     if (!tab) return null;
-    const path = `${tab.ref.root}/${tab.ref.file.path}`;
+    const path = pathOf(tab.ref);
     return [
       ...(tab.preview ? [{ label: 'Pin', onSelect: () => changeEditorTabs((each) => kept(each, id)) }] : []),
       { label: 'Copy path', onSelect: () => void copyText(path, 'Path copied.') },

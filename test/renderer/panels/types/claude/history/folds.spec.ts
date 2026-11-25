@@ -10,8 +10,8 @@ const exchange = (parts: Exchange['parts']): Exchange => ({ id: 'request-1', tim
 test('a run of tool calls folds to one line, closed, that opens into its calls and folds again', async ({ app, page }) => {
   const parts: Exchange['parts'] = [
     { kind: 'text', id: 'message-1', time: TIME, text: 'Running them.' },
-    { kind: 'tool', name: 'Bash', detail: 'npm test' },
-    { kind: 'tool', name: 'Read', detail: '/repo/src/a.ts' },
+    { kind: 'tool', name: 'Bash', detail: 'npm test', file: null },
+    { kind: 'tool', name: 'Read', detail: '/repo/src/a.ts', file: '/repo/src/a.ts' },
     { kind: 'text', id: 'message-2', time: TIME, text: 'All pass.' },
   ];
   await app.boot({ openSessions: [one.id], activeSession: one.id, history: { [one.id]: [exchange(parts)] } });
@@ -33,11 +33,11 @@ test('a run of tool calls folds to one line, closed, that opens into its calls a
 
 test('an edit folds into the run, which counts each file once', async ({ app, page }) => {
   const parts: Exchange['parts'] = [
-    { kind: 'tool', name: 'Read', detail: '/repo/src/a.ts' },
-    { kind: 'tool', name: 'Edit', detail: '/repo/src/a.ts' },
-    { kind: 'tool', name: 'Edit', detail: '/repo/src/a.ts' },
-    { kind: 'tool', name: 'Bash', detail: 'npm test' },
-    { kind: 'tool', name: 'Write', detail: '/repo/src/b.ts' },
+    { kind: 'tool', name: 'Read', detail: '/repo/src/a.ts', file: '/repo/src/a.ts' },
+    { kind: 'tool', name: 'Edit', detail: '/repo/src/a.ts', file: '/repo/src/a.ts' },
+    { kind: 'tool', name: 'Edit', detail: '/repo/src/a.ts', file: '/repo/src/a.ts' },
+    { kind: 'tool', name: 'Bash', detail: 'npm test', file: null },
+    { kind: 'tool', name: 'Write', detail: '/repo/src/b.ts', file: '/repo/src/b.ts' },
     { kind: 'text', id: 'message-1', time: TIME, text: 'Done.' },
   ];
   await app.boot({ openSessions: [one.id], activeSession: one.id, history: { [one.id]: [exchange(parts)] } });
@@ -51,9 +51,9 @@ test('an edit folds into the run, which counts each file once', async ({ app, pa
 
 test("a subagent's report folds to one line naming its agent, closed, that opens into the report as markdown", async ({ app, page }) => {
   const parts: Exchange['parts'] = [
-    { kind: 'tool', name: 'Agent', detail: 'Claim-check' },
+    { kind: 'tool', name: 'Agent', detail: 'Claim-check', file: null },
     { kind: 'report', agent: 'claim-checker', text: '## Verdict\n\n| Claim | Verdict |\n|---|---|\n| one | holds |' },
-    { kind: 'tool', name: 'Agent', detail: 'Look again' },
+    { kind: 'tool', name: 'Agent', detail: 'Look again', file: null },
     { kind: 'report', agent: null, text: 'Nothing new.' },
   ];
   await app.boot({ openSessions: [one.id], activeSession: one.id, history: { [one.id]: [exchange(parts)] } });
