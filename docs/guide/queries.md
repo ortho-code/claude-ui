@@ -2,7 +2,7 @@
 
 The field at the top of the session list, under Grouped and Recent, searches and filters in one.
 Type words to find sessions by what they say, and terms such as `is:pinned` to narrow the list by what they are.
-The help button beside the field, a question mark in a circle, opens a card of the same beside the session list, where pressing a value adds its term to the field.
+The funnel at the field's end opens the filters beside the session list, and "Every field and the syntax" at their foot unfolds a card of the same, where pressing a value adds its term to the field.
 
 ## Writing a query
 

@@ -91,7 +91,7 @@ test('a term that does not read is underlined and named under the field, and the
 test('with the pills shut over a query that does not read, the list stays dimmed and the field says why', async ({ app, page }) => {
   await boot(app, page);
   await typed(page, 'is:pin');
-  await expect(page.locator('#filter-panel')).toBeHidden();
+  await expect(page.locator('#filters-card')).toBeHidden();
   await expect(page.locator('#sessions')).toHaveClass(/\bstale\b/);
   await expect(page.locator('#query-problems')).toBeVisible();
   await expect(page.locator('#search')).toHaveClass(/\bhas-problems\b/);

@@ -1,12 +1,29 @@
-#query-help-card {
+/* A folded section at the foot of the filters (filter.css), set off from the facets above it by a rule. */
+#query-help {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
   font-size: var(--text-meta);
 }
 
-#query-help-card section + section {
+#query-help > summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+#query-help > summary:hover {
+  color: var(--text);
+}
+
+#query-help[open] > summary {
+  margin-bottom: 10px;
+}
+
+#query-help section + section {
   margin-top: 14px;
 }
 
-#query-help-card h3 {
+#query-help h3 {
   margin: 0 0 6px;
   color: var(--muted);
   font-size: var(--text-small);
@@ -42,7 +59,7 @@
   white-space: nowrap;
 }
 
-#query-help-card code {
+#query-help code {
   font-family: var(--font-mono);
 }
 

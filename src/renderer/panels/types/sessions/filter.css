@@ -16,16 +16,7 @@
   border: 1.5px solid var(--bg);
 }
 
-/* A bordered panel groups the filter controls into one unit that belongs to the funnel toggle. */
-#filter-panel {
-  position: relative; /* anchor for the floating custom-date popover */
-  margin: 0 16px 10px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-surface);
-}
-
-/* The query's row, under the list's and inset as it is (arrangement.css): the field taking the room, the help and the filter's toggle at its right. */
+/* The query's row, under the list's and inset as it is (arrangement.css): the field taking the room, the filters' toggle at its right. */
 #query-row {
   display: flex;
   align-items: center;
@@ -73,33 +64,48 @@
   border-color: var(--accent);
 }
 
+/* The filters, in the side popover beside the list: a title clear of the popover's ×, then each facet's name beside its pills. */
 #filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+  font-size: var(--text-meta);
 }
 
+.filters-title {
+  margin: 0 0 12px;
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+.facets {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+
+.facet-name {
+  color: var(--muted);
+}
+
+.facet-pills,
 #date-presets {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
 
-/* Custom date-range filter (air-datepicker, inline).
-   Floats as a popover over the session list (absolute + auto top = its in-flow position, lifted out of layout) so opening Custom doesn't push the list down. */
+/* Custom date-range filter (air-datepicker, inline), on its own line under the presets, inside the filters, which have the room for it. */
 #date-custom {
-  position: absolute;
-  left: 8px;
-  z-index: 40;
-  margin-top: 6px;
-  padding: 10px;
-  /* The calendar's header row brings 4px of its own above the month, so the popover adds no more than a menu's 4px there: at 10px the month sat lower than the room under it (2026-10-29). */
-  padding-top: 4px;
+  display: block;
+  flex-basis: 100%;
   width: max-content;
-  max-width: calc(100% - 16px);
-  /* Attached to the filter panel it belongs to: the chip that opens it wraps with the presets, so the notch points at the panel area rather than tracking it. */
-  --notch-x: 20px;
+  max-width: 100%;
+  padding: 4px 10px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-surface);
+}
+
+#date-custom[hidden] {
+  display: none;
 }
 
 /* Persistent line under the presets: shows the picked range while Custom is active (even with the calendar closed) and reopens the calendar on click. */

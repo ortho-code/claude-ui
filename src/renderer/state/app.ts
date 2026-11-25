@@ -106,8 +106,10 @@ export interface AppState {
   filter: FilterState;
   /** The list's folded sections, kept for the next launch; the list folds what it has drawn in place as they change, without drawing it again. */
   folds: Folds;
-  /** Whether the filter panel is open; not kept, so every launch starts with it shut, the query on show in its field. */
+  /** Whether the filters are open beside the list; not kept, so every launch starts with them shut, the query on show in its field. */
   filterPanelOpen: boolean;
+  /** Whether the query's help, folded at the foot of the filters, is unfolded, kept for the next launch. */
+  queryHelpOpen: boolean;
   /** Whether the tab bar shows every row of tabs or only one, the row of the tab on show where there is one, kept for the next launch. */
   tabBarExpanded: boolean;
   /**
@@ -183,7 +185,7 @@ export function noFilter(): FilterState {
 }
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
-export type StoredView = Pick<AppState, 'filter' | 'folds' | 'tabBarExpanded' | 'editorUi' | 'historyUi'>;
+export type StoredView = Pick<AppState, 'filter' | 'folds' | 'queryHelpOpen' | 'tabBarExpanded' | 'editorUi' | 'historyUi'>;
 
 /** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
 export interface TabState {
@@ -370,6 +372,7 @@ export const store = createStore<AppState>(
     filter: noFilter(),
     folds: { projects: new Set(), groups: new Set(), filterProjects: new Set(), filterGroups: new Set() },
     filterPanelOpen: false,
+    queryHelpOpen: defaultUi().queryHelpOpen,
     tabBarExpanded: defaultUi().tabBarExpanded,
     bulk: null,
     prStatus: NO_PR_STATUS,

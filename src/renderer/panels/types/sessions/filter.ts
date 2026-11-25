@@ -8,7 +8,8 @@ import { noFilter, store, type FilterState, type View } from '../../../state/app
 import { filterQuery } from '../../../state/filter-query';
 import { queryFields } from '../../../state/query-facts';
 import { followFieldScroll, queryMirror, showQueryProblems } from './query-problems';
-import { queryHelpButton, toggleQueryHelp } from './query-help';
+import { queryHelpSection } from './query-help';
+import { sidePopover } from '../../../ui/side-popover';
 import { isFiltering } from '../../../state/views';
 import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, svgImage, WORKTREE_ICON } from '../../../ui/svg';
 // The filter pill its pills and presets wear, shared with the history's All · Pinned.
@@ -17,42 +18,62 @@ import '../../../ui/popover.css';
 import './filter.css';
 
 /**
- * The sidebar's filter: the query field on a row of its own, always on screen, with the help and the toggle at its end; the panel the toggle opens under it — the pills and the date presets with their calendar; and, under the panel, the count with Clear.
+ * The sidebar's filter: the query field on a row of its own, always on screen, with the filters' toggle at its end; the filters the toggle opens beside the session list — the pills by facet, the date presets with their calendar, and the query's help folded at their foot; and, under the field, the count with Clear.
  * The query field is the filter: a pill or a preset writes its term into it and shows on while its term is there (the session-model design's decision 17), and only the finished switch stands beside it.
- * It sets the filter and the panel in the store; the list follows, and hands back the count it drew (`updateFilterStatus`), since only the list knows what matched.
+ * It sets the filter in the store; the list follows, and hands back the count it drew (`updateFilterStatus`), since only the list knows what matched.
  */
 
-/** The filter's three parts, built here and placed by the sidebar (index.ts): the query's row, the panel under it, and the status line under the panel. */
+/** The query's row and the status line under it, built here and placed by the sidebar (index.ts); the filters open in a side popover of their own. */
 const filterToggle = fromMarkup(`<button id="filter-toggle" class="icon-btn large" data-tooltip="Filter sessions" aria-label="Filter sessions" aria-expanded="false"></button>`, HTMLButtonElement);
 export const queryRow = fromMarkup(`
   <div id="query-row">
     <div id="query-field"><input id="search" type="search" placeholder="Search, or is:pinned OR is:running…" aria-label="Search or filter sessions" spellcheck="false" /></div>
   </div>`);
-export const filterPanel = fromMarkup(`
-  <div id="filter-panel" hidden>
-    <div id="filters">
-      <button id="pinned-filter" data-tooltip="Show only pinned sessions" aria-label="Show only pinned sessions" aria-pressed="false"></button>
-      <button id="open-filter" type="button" data-tooltip="Show only sessions with a tab open" aria-label="Show only sessions with a tab open" aria-pressed="false"></button>
-      <button id="live-filter" type="button" data-tooltip="Show only live sessions" aria-label="Show only live sessions" aria-pressed="false"></button>
-      <button id="set-aside-filter" type="button" data-tooltip="Show only sessions set aside" aria-label="Show only sessions set aside" aria-pressed="false"></button>
-      <button id="worktree-filter" type="button" data-tooltip="Show only worktree sessions" aria-label="Show only worktree sessions" aria-pressed="false"></button>
-      <button id="sibling-filter" type="button" data-tooltip="Show only sessions with siblings" aria-label="Show only sessions with siblings" aria-pressed="false"></button>
-      <button id="pr-filter" type="button" data-tooltip="Show only sessions with a PR" aria-label="Show only sessions with a PR" aria-pressed="false"></button>
-      <button id="note-filter" type="button" data-tooltip="Show only sessions with a note" aria-label="Show only sessions with a note" aria-pressed="false"></button>
-      <button id="finished-filter" type="button" data-tooltip="Show finished sessions" aria-label="Show finished sessions" aria-pressed="false"></button>
-      <button id="gone-filter" type="button" data-tooltip="Show only sessions whose folder is gone" aria-label="Show only sessions whose folder is gone" aria-pressed="false"></button>
-      <div id="date-presets">
-        <button type="button" data-range="any" class="active">Any</button>
-        <button type="button" data-range="today">Today</button>
-        <button type="button" data-range="7d">7d</button>
-        <button type="button" data-range="30d">30d</button>
-        <button type="button" data-range="custom">Custom</button>
-      </div>
-    </div>
-    <button type="button" id="date-range-label" hidden>Pick a start and end date</button>
-    <div id="date-custom" class="popover attach-top" hidden>
-      <div id="date-range"></div>
-      <div id="date-range-caption"></div>
+/** The pills by facet and the dates, built once; each opening of the filters shows them, with the help built anew under them. */
+const filtersContent = fromMarkup(`
+  <div id="filters">
+    <h3 class="filters-title">Filters</h3>
+    <div class="facets">
+      <span class="facet-name">Lifecycle</span>
+      <span class="facet-pills">
+        <button id="open-filter" type="button" class="pill" data-tooltip="Show only sessions with a tab open" aria-pressed="false"></button>
+        <button id="live-filter" type="button" class="pill" data-tooltip="Show only sessions whose claude runs" aria-pressed="false"></button>
+        <button id="set-aside-filter" type="button" class="pill" data-tooltip="Show only sessions set aside" aria-pressed="false"></button>
+        <button id="finished-filter" type="button" class="pill" data-tooltip="Show the finished sessions in place of the rest" aria-pressed="false"></button>
+      </span>
+      <span class="facet-name">Links</span>
+      <span class="facet-pills">
+        <button id="pr-filter" type="button" class="pill" data-tooltip="Show only sessions with a PR" aria-pressed="false"></button>
+      </span>
+      <span class="facet-name">Relations</span>
+      <span class="facet-pills">
+        <button id="sibling-filter" type="button" class="pill" data-tooltip="Show only sessions with siblings" aria-pressed="false"></button>
+      </span>
+      <span class="facet-name">Marks</span>
+      <span class="facet-pills">
+        <button id="pinned-filter" type="button" class="pill" data-tooltip="Show only pinned sessions" aria-pressed="false"></button>
+        <button id="note-filter" type="button" class="pill" data-tooltip="Show only sessions with a note" aria-pressed="false"></button>
+      </span>
+      <span class="facet-name">Place</span>
+      <span class="facet-pills">
+        <button id="worktree-filter" type="button" class="pill" data-tooltip="Show only worktree sessions" aria-pressed="false"></button>
+        <button id="gone-filter" type="button" class="pill" data-tooltip="Show only sessions whose folder is gone" aria-pressed="false"></button>
+      </span>
+      <span class="facet-name">Last active</span>
+      <span class="facet-pills">
+        <span id="date-presets">
+          <button type="button" data-range="any" class="active">Any</button>
+          <button type="button" data-range="today">Today</button>
+          <button type="button" data-range="7d">7d</button>
+          <button type="button" data-range="30d">30d</button>
+          <button type="button" data-range="custom">Custom</button>
+        </span>
+        <button type="button" id="date-range-label" hidden>Pick a start and end date</button>
+        <span id="date-custom" hidden>
+          <span id="date-range"></span>
+          <span id="date-range-caption"></span>
+        </span>
+      </span>
     </div>
   </div>`);
 export const filterStatus = fromMarkup(`
@@ -64,25 +85,25 @@ export const filterStatus = fromMarkup(`
     </span>
   </div>`);
 
-const pinnedFilter = byId(filterPanel, 'pinned-filter', HTMLButtonElement);
-const openFilter = byId(filterPanel, 'open-filter', HTMLButtonElement);
-const liveFilter = byId(filterPanel, 'live-filter', HTMLButtonElement);
-const setAsideFilter = byId(filterPanel, 'set-aside-filter', HTMLButtonElement);
-const worktreeFilter = byId(filterPanel, 'worktree-filter', HTMLButtonElement);
-const siblingFilter = byId(filterPanel, 'sibling-filter', HTMLButtonElement);
-const prFilter = byId(filterPanel, 'pr-filter', HTMLButtonElement);
-const noteFilter = byId(filterPanel, 'note-filter', HTMLButtonElement);
-const finishedFilter = byId(filterPanel, 'finished-filter', HTMLButtonElement);
-const goneFilter = byId(filterPanel, 'gone-filter', HTMLButtonElement);
-const datePresets = byId(filterPanel, 'date-presets');
-const dateCustom = byId(filterPanel, 'date-custom');
-const dateRangeLabel = byId(filterPanel, 'date-range-label'); // persistent line under presets
-const dateRangeCaption = byId(filterPanel, 'date-range-caption'); // same text, inside calendar
+const pinnedFilter = byId(filtersContent, 'pinned-filter', HTMLButtonElement);
+const openFilter = byId(filtersContent, 'open-filter', HTMLButtonElement);
+const liveFilter = byId(filtersContent, 'live-filter', HTMLButtonElement);
+const setAsideFilter = byId(filtersContent, 'set-aside-filter', HTMLButtonElement);
+const worktreeFilter = byId(filtersContent, 'worktree-filter', HTMLButtonElement);
+const siblingFilter = byId(filtersContent, 'sibling-filter', HTMLButtonElement);
+const prFilter = byId(filtersContent, 'pr-filter', HTMLButtonElement);
+const noteFilter = byId(filtersContent, 'note-filter', HTMLButtonElement);
+const finishedFilter = byId(filtersContent, 'finished-filter', HTMLButtonElement);
+const goneFilter = byId(filtersContent, 'gone-filter', HTMLButtonElement);
+const datePresets = byId(filtersContent, 'date-presets');
+const dateCustom = byId(filtersContent, 'date-custom');
+const dateRangeLabel = byId(filtersContent, 'date-range-label'); // persistent line under presets
+const dateRangeCaption = byId(filtersContent, 'date-range-caption'); // same text, inside calendar
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 // Inline range calendar, the app's own (calendar.ts): click the header to zoom out to a months grid, then a years grid, arrows paging through.
 // Capped at today: sessions are never in the future.
 let suppressPickerSelect = false;
-const datePicker = calendar(byId(filterPanel, 'date-range'), {
+const datePicker = calendar(byId(filtersContent, 'date-range'), {
   range: true,
   maxDate: new Date(),
   onSelect: () => {
@@ -91,11 +112,19 @@ const datePicker = calendar(byId(filterPanel, 'date-range'), {
 });
 const searchInput = byId(queryRow, 'search', HTMLInputElement);
 byId(queryRow, 'query-field').append(queryMirror);
-queryRow.append(queryHelpButton, filterToggle);
-// Beside the panel the list is in, wherever the layout puts it; a value pressed in it is ANDed with the query, as a pill's term is.
-queryHelpButton.addEventListener('click', () =>
-  toggleQueryHelp(queryRow.closest<HTMLElement>('.panel-group') ?? queryRow, (term) => setQuery(withTerms(store.get().filter.query, [term], vocabulary()))),
-);
+queryRow.append(filterToggle);
+/** The filters, beside the panel the list is in, wherever the layout puts it; whether they are open is the store's, for Clear and close beside the count. */
+const filters = sidePopover('filters-card', 'Filters', (open) => store.set({ filterPanelOpen: open }));
+/** A value pressed in the help, ANDed with the query as a pill's term is. */
+const addTerm = (term: string): void => setQuery(withTerms(store.get().filter.query, [term], vocabulary()));
+/** What the filters show: the pills and the dates as they stand, and the help built from the fields as they stand now, folded as it was last left. */
+const filtersShown = (): Node[] => [filtersContent, queryHelpSection(store.get().queryHelpOpen, (open) => store.set({ queryHelpOpen: open }), addTerm)];
+filterToggle.addEventListener('click', () => filters.toggle(filterToggle, queryRow.closest<HTMLElement>('.panel-group') ?? queryRow, filtersShown));
+
+/** Shut the filters, as the review does when it sets the filter aside. */
+export function closeFilters(): void {
+  filters.close();
+}
 searchInput.addEventListener('scroll', () => followFieldScroll(searchInput));
 const SEARCH_CLEAR_SIZE = 12;
 searchInput.style.setProperty('--search-clear', svgImage(closeIcon(SEARCH_CLEAR_SIZE)));
@@ -261,7 +290,7 @@ export function updateFilterStatus(matches: number, total: number, view: View<'f
   drawClearClose(view.filterPanelOpen);
 }
 
-/** Clear and close shows only while the panel is open: shut, there is nothing to close, and Clear does it all. */
+/** Clear and close shows only while the filters are open: shut, there is nothing to close, and Clear does it all. */
 function drawClearClose(open: boolean): void {
   filterClearClose.hidden = !open;
 }
@@ -282,21 +311,11 @@ function clearFilter(): void {
 }
 
 /**
- * The panel opened or shut: it follows, with Clear and close beside it.
+ * The filters opened or shut: Clear and close follows.
  * A watcher the sidebar registers (watch.ts), as it does `applyDatePickerMinDate`.
  */
-export function filterPanelFollows(view: View<'filterPanelOpen'>): void {
-  filterPanel.hidden = !view.filterPanelOpen;
-  filterToggle.setAttribute('aria-expanded', String(view.filterPanelOpen));
+export function filtersFollow(view: View<'filterPanelOpen'>): void {
   drawClearClose(view.filterPanelOpen);
-}
-
-/** Open or shut the panel from a press on its toggle. */
-function toggleFilterPanel(open: boolean): void {
-  store.set({ filterPanelOpen: open });
-  // Opening hands focus to the search box; closing drops focus so the ring doesn't linger.
-  if (open) searchInput.focus();
-  else filterToggle.blur();
 }
 
 /** The days the date terms the calendar writes name (`active:>=` and `active:<=` a date), as its range: what Custom shows picked. */
@@ -326,38 +345,39 @@ searchInput.addEventListener('input', () => {
   setFilter({ query: searchInput.value });
 });
 filterClear.addEventListener('click', clearFilter);
-// Closing alone keeps the filter (decided 2026-09-23); this is the one press that ends it and shuts the panel together.
+// Closing alone keeps the filter (decided 2026-09-23); this is the one press that ends it and shuts the filters together.
 filterClearClose.addEventListener('click', () => {
   clearFilter();
-  toggleFilterPanel(false);
+  filters.close();
 });
 
 /**
- * The filter pills, once, in the order they sit in the panel: each one's button, its mark and the term it writes, or the finished switch.
+ * The filter pills, once: each one's button, its mark, its words and the term it writes, or the finished switch.
  * Everything that asks about the pills as a set reads this: how they are drawn and wired, and which are on.
  */
 interface FilterPill {
   button: HTMLButtonElement;
   icon: string;
+  words: string;
   key: PillKey | 'finished';
 }
 const FILTER_PILLS: FilterPill[] = [
-  { button: pinnedFilter, icon: PINNED_ICON, key: 'pinned' },
-  { button: openFilter, icon: OPEN_ICON, key: 'open' },
-  { button: liveFilter, icon: LIVE_ICON, key: 'live' },
-  { button: setAsideFilter, icon: SET_ASIDE_ICON, key: 'setAside' },
-  { button: worktreeFilter, icon: WORKTREE_ICON, key: 'worktree' },
-  { button: siblingFilter, icon: SIBLING_ICON, key: 'siblings' },
-  { button: prFilter, icon: PR_ICON, key: 'prs' },
-  { button: noteFilter, icon: NOTE_ICON, key: 'noted' },
-  { button: finishedFilter, icon: FINISH_ICON, key: 'finished' },
-  { button: goneFilter, icon: folderGoneIcon(13), key: 'gone' },
+  { button: openFilter, icon: OPEN_ICON, words: 'Working', key: 'open' },
+  { button: liveFilter, icon: LIVE_ICON, words: 'Running', key: 'live' },
+  { button: setAsideFilter, icon: SET_ASIDE_ICON, words: 'Set aside', key: 'setAside' },
+  { button: finishedFilter, icon: FINISH_ICON, words: 'Finished', key: 'finished' },
+  { button: prFilter, icon: PR_ICON, words: 'PR', key: 'prs' },
+  { button: siblingFilter, icon: SIBLING_ICON, words: 'Siblings', key: 'siblings' },
+  { button: pinnedFilter, icon: PINNED_ICON, words: 'Pinned', key: 'pinned' },
+  { button: noteFilter, icon: NOTE_ICON, words: 'Noted', key: 'noted' },
+  { button: worktreeFilter, icon: WORKTREE_ICON, words: 'Worktree', key: 'worktree' },
+  { button: goneFilter, icon: folderGoneIcon(13), words: 'Folder gone', key: 'gone' },
 ];
 
-// Each pill shows the same mark the rows use, from the one definition — a glyph would render at a different weight beside them.
-// Icon-only: the words cost the panel an extra line at a 320px sidebar, and every pill carries a tooltip and an aria-label (see panels/types/sessions/index.ts) for what it means.
+// Each pill shows the same mark the rows use, from the one definition — a glyph would render at a different weight beside them — and its words, which its tooltip says in full.
 for (const pill of FILTER_PILLS) {
   pill.button.innerHTML = pill.icon;
+  pill.button.append(pill.words);
   // A pill writes its term or takes it out; the finished switch flips the set in view; the list follows, from its top.
   const { key } = pill;
   pill.button.addEventListener('click', () => {
@@ -368,7 +388,6 @@ for (const pill of FILTER_PILLS) {
 }
 // The header's toggle draws its mark through the same helper as the rest, rather than inline in the sidebar's markup.
 filterToggle.innerHTML = filterIcon(14);
-filterToggle.addEventListener('click', () => toggleFilterPanel(!store.get().filterPanelOpen));
 datePresets.addEventListener('click', (event) => {
   const preset = (event.target as HTMLElement).dataset.range;
   if (preset) applyDatePreset(preset);

@@ -1,11 +1,8 @@
-/* The filter pill, which the sidebar's filter wears and any other button wears as `.pill`, and the look of a filter that is on, which the date presets wear too.
+/* The filter pill, which the sidebar's filters and any other button wear as `.pill`, and the look of a filter that is on, which the date presets wear too.
    The date presets' own rules sit here as well, because the "on" look has to come after their hover rule to beat it at equal specificity. */
 
 /* Filter toggles: dimmed when off, accent-filled when on. */
-/* The filter pills are every direct-child button of #filters (date-preset buttons are nested a level deeper, so they're excluded).
-   Styling by pattern means a new pill needs no CSS change. */
 /* Off = --muted, the same "inactive" cue the rest of the app uses, rather than opacity: a dimmed button fades its border and background too, so an off pill read as disabled instead of unselected. */
-#filters > button,
 .pill {
   flex: 0 0 auto;
   padding: 5px 8px;
@@ -13,10 +10,7 @@
   color: var(--muted);
 }
 
-/* The sidebar filter's pills are icon-only: the same marks the rows use (star, branch, fork, lidded box), injected by the filter (panels/types/sessions/filter.ts).
-   Words cost the panel a whole extra line at a 320px sidebar, and each pill keeps its tooltip and aria-label, so the meaning is still one hover away.
-   A `.pill` holds words, an icon or both; icons are 13px, matching the pills' 12px text so they don't make the row taller. */
-#filters > button,
+/* A `.pill` holds words, an icon or both, as the sidebar's filters do, each the mark the rows use beside its words (panels/types/sessions/filter.ts); icons are 13px, matching the pills' 12px text so they don't make the row taller. */
 .pill {
   display: inline-flex;
   align-items: center;
@@ -24,14 +18,12 @@
   gap: 4px;
 }
 
-#filters > button svg,
 .pill svg {
   width: 13px;
   height: 13px;
 }
 
 /* The accent hover outline and fill come from the base button rule; the pill only brightens. */
-#filters > button:hover,
 .pill:hover {
   color: var(--text);
 }
@@ -57,7 +49,6 @@
 
 /* A filter that is on looks the same wherever it shows: a pill, a date preset.
    After both hover rules, which it has to beat at equal specificity so an on pill keeps its fill under the pointer. */
-#filters > button.active,
 #date-presets button.active,
 #set-aside-choices button.active,
 .pill.active {

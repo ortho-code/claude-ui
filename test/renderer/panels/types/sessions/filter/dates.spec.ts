@@ -120,6 +120,7 @@ test('Custom pressed with no range stays lit until something else changes the qu
 test('a stored custom range comes back as it was picked', async ({ app, page }) => {
   await app.boot({ ...fixture, uiState: { ...defaultUi(), query: 'active:>=2026-09-09 active:<=2026-09-11' } });
   await expect.poll(() => sortedTitles(page)).toEqual(sorted(days20));
+  await page.locator('#filter-toggle').click();
   await expect(page.locator('#date-range-label')).toHaveText('09-09-2026 – 11-09-2026');
   await expect(page.locator('#filter-count')).toHaveText('Showing 1 of 4');
 });

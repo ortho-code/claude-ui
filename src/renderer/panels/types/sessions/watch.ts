@@ -1,7 +1,7 @@
 import { store } from '../../../state/app';
 import { railStatusFollowsSessions } from './index';
 import { fallBackIfEmptied, refreshSwitcher } from './switcher';
-import { applyDatePickerMinDate, filterPanelFollows } from './filter';
+import { applyDatePickerMinDate, closeFilters, filtersFollow } from './filter';
 import { watchList } from './list';
 import { watchReviewButton } from './review';
 import { watchArrangement } from './arrangement';
@@ -29,8 +29,12 @@ export const sessionsWatch = {
     watchReviewButton();
     // The switch between Grouped and Recent follows the arrangement, unavailable while the review is open (arrangement.ts).
     watchArrangement();
-    // The filter panel opened or shut: it follows, with Clear and close.
-    store.watch(['filterPanelOpen'], filterPanelFollows);
+    // The filters opened or shut: Clear and close follows.
+    store.watch(['filterPanelOpen'], filtersFollow);
+    // The review sets the filter aside, so it shuts the filters, which stand outside the sidebar the review hides them in.
+    store.watch(['reviewing'], (view) => {
+      if (view.reviewing) closeFilters();
+    });
     // The switcher counts every project's sessions, rolls up their statuses and names the project on show.
     // A session with no transcript yet is in its project only through its tab, so the tabs are among what it counts.
     // The strength order, and the categories that place a reason in it, decide which state each roll-up shows.

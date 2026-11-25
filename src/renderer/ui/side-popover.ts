@@ -4,7 +4,7 @@ import './popover.css';
 import './side-popover.css';
 
 /**
- * A SIDE POPOVER — a wide surface opened beside the panel that asked for it, toward the side with room, over the panel there, for content too big for a menu: the query field's help first.
+ * A SIDE POPOVER — a wide surface opened beside the panel that asked for it, toward the side with room, over the panel there, for content too big for a menu: the session list's filters first.
  * One per use, made by `sidePopover`; it holds whatever nodes its opener gives it, so a page of the guide can be one more kind of content rather than a second popover.
  * Shut only deliberately, by its ×, its opener again, or Esc, since it is something to work from: a press outside it, such as in the field it helps with, leaves it open, and a change of the window's size moves it rather than shutting it.
  */
@@ -55,8 +55,8 @@ function place(el: HTMLElement, anchor: HTMLElement, beside: HTMLElement): void 
   el.style.setProperty('--notch-y', `${notchAt(at.top + at.height / 2, top, parseFloat(getComputedStyle(el).borderTopWidth), el.offsetHeight)}px`);
 }
 
-/** A side popover with its own id and label, attached to the page and shut until opened. */
-export function sidePopover(id: string, label: string): SidePopover {
+/** A side popover with its own id and label, attached to the page and shut until opened; `onChange` hears it open and shut, whatever shut it. */
+export function sidePopover(id: string, label: string, onChange?: (open: boolean) => void): SidePopover {
   const el = document.createElement('div');
   el.id = id;
   el.className = 'side-popover popover';
@@ -78,6 +78,7 @@ export function sidePopover(id: string, label: string): SidePopover {
   let besideOf: HTMLElement | null = null;
 
   const close = (): void => {
+    if (owner) onChange?.(false);
     el.hidden = true;
     owner?.setAttribute('aria-expanded', 'false');
     // The look every icon button wears while what it opened is up (base.css).
@@ -111,6 +112,7 @@ export function sidePopover(id: string, label: string): SidePopover {
       besideOf = beside;
       anchor.setAttribute('aria-expanded', 'true');
       anchor.classList.add('menu-open');
+      onChange?.(true);
     },
   };
 }

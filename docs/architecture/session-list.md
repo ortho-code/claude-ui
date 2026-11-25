@@ -53,7 +53,7 @@ Its two numbers of days are written there and nowhere else, what Keep says of it
 **Keep's stamp** is when a session was kept, in `meta.json` (`kept`), never an expiry: how long it holds is the review's own term, so it is worked out when read, nothing sweeps it, and a stamp past its days does nothing until its session is kept again or deleted, which takes it with the session's other marks.
 Finishing leaves it, since a finished session is out of the review anyway.
 
-**The list in review mode** draws the sets in place of the projects, each a heading with its count and its box over its rows, flat; the filter is set aside meanwhile — the query's row with its toggle, the panel and the count hidden, not applied, and the collapse-all button with them, since the sets do not fold — and comes back as it was, since the review is not a filter.
+**The list in review mode** draws the sets in place of the projects, each a heading with its count and its box over its rows, flat; the filter is set aside meanwhile — the query's row with its toggle and the count hidden, the filters shut, not applied, and the collapse-all button with them, since the sets do not fold — and comes back as it was, since the review is not a filter.
 The folder part of "every link settled", no changes left in a folder only the session worked in, waits for links to folders: the app sees a session's changes through claude's file tools only, never through Bash, and a fork or a resume works in the same worktree, so which folder only one session worked in cannot be told; measured on 2026-11-04, every worktree the review's sessions had used was gone or clean, so it would have held none back.
 
 ## Recent

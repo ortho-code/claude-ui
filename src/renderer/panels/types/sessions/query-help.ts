@@ -1,13 +1,10 @@
 import type { Field, FieldRegistry } from '../../../../shared/query/field';
 import { store } from '../../../state/app';
 import { queryFields } from '../../../state/query-facts';
-import { fromMarkup } from '../../../ui/dom';
-import { sidePopover } from '../../../ui/side-popover';
-import { strokeIcon } from '../../../ui/svg';
 import './query-help.css';
 
 /**
- * The query field's help (the session-model design's decision 226): a button beside the field opening, beside the session list, the syntax and every field with its values, drawn from the fields' list as it stands when it opens, and a link to the guide's page on queries.
+ * The query field's help (the session-model design's decision 226): a folded section at the foot of the filters, of the syntax and every field with its values, drawn from the fields' list as it stands when the filters open, and a link to the guide's page on queries.
  * A value is a button that adds its term to the query.
  */
 
@@ -26,16 +23,6 @@ const SYNTAX: readonly [string, string][] = [
 
 /** Days a moment field's buttons offer: the forms a day is written in. */
 const DAY_EXAMPLES = ['today', '>=today-7d', '<today-30d'];
-
-const helpIcon = (size: number): string => strokeIcon(size, '<circle cx="8" cy="8" r="6" /><path d="M6.3 6.2a1.8 1.8 0 1 1 2.5 1.7c-.5.2-.8.6-.8 1.1v.4" /><path d="M8 11.4v.1" />');
-
-/** The button beside the field, placed by the filter (filter.ts). */
-export const queryHelpButton = fromMarkup(
-  `<button id="query-help" type="button" class="icon-btn" data-tooltip="How to write a query" aria-label="How to write a query" aria-expanded="false">${helpIcon(14)}</button>`,
-  HTMLButtonElement,
-);
-
-const popover = sidePopover('query-help-card', 'How to write a query');
 
 function cell(...nodes: (Node | string)[]): HTMLTableCellElement {
   const td = document.createElement('td');
@@ -123,7 +110,14 @@ function content(registry: FieldRegistry, add: (term: string) => void): Node[] {
   return [section('Syntax', syntax), section('Fields', table([...registry.fields.values()].map((field) => fieldRow(field, add)))), foot];
 }
 
-/** Open the help beside `beside`, the panel the field is in, or shut it; a value pressed in it goes to `add`. */
-export function toggleQueryHelp(beside: HTMLElement, add: (term: string) => void): void {
-  popover.toggle(queryHelpButton, beside, () => content(queryFields(store.get()), add));
+/** The help as a folded section of the filters, built from the fields as they stand; it starts unfolded when `open` says, `onToggle` hears it fold and unfold, and a value pressed in it goes to `add`. */
+export function queryHelpSection(open: boolean, onToggle: (open: boolean) => void, add: (term: string) => void): HTMLDetailsElement {
+  const details = document.createElement('details');
+  details.id = 'query-help';
+  details.open = open;
+  const summary = document.createElement('summary');
+  summary.textContent = 'Every field and the syntax';
+  details.append(summary, ...content(queryFields(store.get()), add));
+  details.addEventListener('toggle', () => onToggle(details.open));
+  return details;
 }

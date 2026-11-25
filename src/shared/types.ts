@@ -525,6 +525,8 @@ export interface UiState {
   query: string;
   /** The finished sessions in place of the rest, a switch beside the query until views say it as a term. */
   finished: boolean;
+  /** Whether the query's help, folded at the foot of the filters, was left unfolded. */
+  queryHelpOpen: boolean;
   /**
    * Whether the tab bar shows every row of tabs, or only one, the row of the tab on show where there is one.
    * Open by default, every tab in sight; the terminal area's part of the stored view, where the rest is the sidebar's.

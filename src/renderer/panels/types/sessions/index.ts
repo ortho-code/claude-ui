@@ -7,7 +7,7 @@ import type { NudgeStatus } from '../../../status/rollup';
 import { builtinType, hostOf, tellRail } from '../builtin';
 import './index.css';
 import { switcherEl } from './switcher';
-import { filterPanel, filterStatus, queryRow } from './filter';
+import { filterStatus, queryRow } from './filter';
 import { queryProblemList } from './query-problems';
 import { collapseToggle } from './folding';
 import { container } from './drawn';
@@ -33,8 +33,8 @@ header.append(switcherEl, actions);
 listRowEnd.append(collapseToggle);
 const sidebar = element('aside');
 sidebar.id = 'sidebar';
-// The query on a row of its own under the list's, always on screen, with what does not read in it under it, and the filter panel its toggle opens under that.
-sidebar.append(header, listRow, queryRow, queryProblemList, bulkLine, filterPanel, filterStatus, loadingEl, container, bulkBar);
+// The query on a row of its own under the list's, always on screen, with what does not read in it under it; the filters its toggle opens stand beside the list, outside the sidebar.
+sidebar.append(header, listRow, queryRow, queryProblemList, bulkLine, filterStatus, loadingEl, container, bulkBar);
 document.getElementById('parked')!.append(sidebar);
 
 export const sessionsType = builtinType('sessions', sidebar, 'Sessions', 'sessions', { fullScreenSlot: actions, buttonSize: 'large' }, () => railStatus(store.get()), arrangementMounted);

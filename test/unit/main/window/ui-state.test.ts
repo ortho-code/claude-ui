@@ -79,6 +79,7 @@ describe('ui state', () => {
   const view = {
     query: 'psalm is:pinned active:>=2026-11-01',
     finished: false,
+    queryHelpOpen: true,
     tabBarExpanded: false,
     editor: { docked: true, view: 'split' as const, ignoreWs: true, changesOnly: true },
     history: { docked: true, width: 520 },
@@ -99,6 +100,7 @@ describe('ui state', () => {
     expect(await getUiState()).toEqual({
       query: '',
       finished: false,
+      queryHelpOpen: false,
       tabBarExpanded: true,
       editor: { docked: false, view: 'fit', ignoreWs: false, changesOnly: false },
       history: { docked: false, width: null },

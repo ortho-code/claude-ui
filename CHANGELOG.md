@@ -85,10 +85,11 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The 7d and 30d presets count whole days from midnight, today included.
   A session's id is found from its start or its end, no longer from its middle, so a short number does not match every id that holds it.
   A term that does not read is underlined with why under the field, and the list is dimmed until it reads.
-  A help button beside the field opens, beside the list, the syntax and every field with its values, a press on a value adding it to the field, and the guide has a page on queries.
+  "Every field and the syntax", at the foot of the filters, unfolds the syntax and every field with its values, a press on a value adding it to the field, and the guide has a page on queries.
 - A session's dot, its menu, its tab and the strength order in Settings say "Working" where they said "Busy", and "At its prompt" where they said "Ready".
-- The query field is always on screen, on a row of its own under Grouped and Recent, with the help and the funnel at its end; the funnel opens only the pills and the date presets.
-  A filter left on no longer shows as a row of chips, since the field shows it, and the pills start shut at every launch.
+- The query field is always on screen, on a row of its own under Grouped and Recent, with the funnel at its end.
+  The funnel opens the filters beside the session list rather than above it, the pills named in words under what they ask about, and they stay open until the funnel, their × or Esc shuts them.
+  A filter left on no longer shows as a row of chips, since the field shows it, and the filters start shut at every launch.
 
 ### Fixed
 

@@ -283,13 +283,15 @@ test("Pick a date…'s calendar is the filter's: the app's palette, weeks from t
 // A pick of a moment, as the filter's date presets are, so it wears their pill, and the one chosen their look of a filter that is on.
 test("the choices wear the date presets' pill, the one chosen filled as a preset that is on", async ({ app, page }) => {
   await app.boot(fixture);
+  // The filter's date presets join the page when the filters first open, and stay in it once shut, so their computed pill is there to hold these to.
+  await page.locator('#filter-toggle').click();
+  await page.keyboard.press('Escape');
   await openSetAside(page, one.title);
   await choice(page, /^Whenever$/).click();
   const chosen = await lookOf(choice(page, /^Whenever$/));
   const other = await lookOf(choice(page, /^Tomorrow/));
   expect(chosen.background).toBe(await token(page, '--active'));
   expect(other.background).not.toBe(chosen.background);
-  // The filter's date presets are in the page while its panel is shut, so their computed pill is there to hold these to.
   const pill = (el: Element): string[] => ((style) => [style.borderRadius, style.paddingTop, style.paddingLeft, style.fontSize])(getComputedStyle(el));
   expect(await choice(page, /^Tomorrow/).evaluate(pill)).toEqual(await page.locator('#date-presets button').first().evaluate(pill));
 });

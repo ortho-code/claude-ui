@@ -50,7 +50,8 @@ test('the set-aside pill narrows the list to the sessions set aside, with a tab 
   await app.boot({ ...fixture, sessions: all, openSessions: [tabbed.id, aside.id], setAside: { [aside.id]: { due: null, at: 1 }, [plain.id]: { due: Date.now() + 86_400_000, at: 1 } }, history: { [tabbed.id]: [], [aside.id]: [] } });
   await page.locator('#filter-toggle').click();
   const button = page.locator('#set-aside-filter');
-  await expect(button).toHaveAttribute('aria-label', 'Show only sessions set aside');
+  await expect(button).toHaveText('Set aside');
+  await expect(button).toHaveAttribute('data-tooltip', 'Show only sessions set aside');
 
   await button.click();
   await expect(button).toHaveAttribute('aria-pressed', 'true');

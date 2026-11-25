@@ -14,11 +14,12 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
   In either, a session worked on again moves to its place within a minute, never while the pointer or the focus is in the list or a menu from it is open.
 - A query field, always on screen under Grouped and Recent, that searches and filters in one: words find a session by its title, first prompt, folder, note, group or a PR's number or title, each word anywhere and a quoted phrase whole, and by its id from the id's start or end, so a pasted id or a short form of it finds it; terms such as `is:pinned`, `has:pr` or `active:>=today-7d` filter, terms side by side must all hold, `OR` between them for either and `-` before one for not, so `is:pinned OR is:running` and `-is:pinned` say what the pills alone could not.
   A word with a colon or a parenthesis in it, such as `TODO:`, reads as a term, and one starting with `-` as not, so put it in quotes to search for it: `"TODO:"`, `"-text"`.
-  The funnel at the field's end opens the filter pills, pinned, open, live, set aside, worktree, siblings, linked PR, noted and folder gone, and the date presets, which write their terms into the field and show on while their term is in every part of the query; finished is a switch beside it.
+  The funnel at the field's end opens the filters beside the session list, over the panel next to it, or over the list when it fills the window: the pills by what they ask about, Working, Running, Set aside and Finished, PR, Siblings, Pinned and Noted, Worktree and Folder gone, and the date presets, which write their terms into the field and show on while their term is in every part of the query; Finished is a switch beside it.
+  They stay open while you type in the field or press in the list, and shut on the funnel, their × or Esc.
   A term that does not read is underlined, with why under the field, and the list is dimmed while it keeps what the last query that did showed; a query left that did not read shows nothing at the next launch until it does.
-  [Queries](queries.md) has every field and value, and the help button beside the field a short card of them.
+  [Queries](queries.md) has every field and value, and "Every field and the syntax", folded at the foot of the filters, a short card of them, which stays unfolded once you unfold it.
   While a filter is on, a line under it says how many sessions it shows of how many, and "finished" when the finished switch is on, and the funnel carries a dot.
-  Clear empties the filter; Clear and close, under the open pills, also shuts them.
+  Clear empties the filter; Clear and close, while the filters are open, also shuts them.
 - Hovering a session's row shows what it says in full, whatever the sidebar's width cuts off: its name, its line, its state, when it was last active, its PRs with their dates where GitHub gave them, and its whole note.
 - A project switcher scopes the sidebar and counts the sessions in other projects that need you.
 - A session whose folder is gone says so, in its row and on its tab, and refuses to start, instead of starting somewhere nobody chose; pinning, notes, finishing and deleting still work.

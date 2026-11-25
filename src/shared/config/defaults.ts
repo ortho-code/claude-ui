@@ -17,6 +17,7 @@ export function defaultUi(): UiState {
   return {
     query: '',
     finished: false,
+    queryHelpOpen: false,
     tabBarExpanded: true,
     editor: { docked: false, view: 'fit', ignoreWs: false, changesOnly: false },
     history: { docked: false, width: null },

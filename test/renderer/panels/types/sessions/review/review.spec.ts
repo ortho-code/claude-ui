@@ -58,7 +58,7 @@ test('opening it shows the two sets, each row reading as it does anywhere in the
   await expect(line(page, old.title)).toHaveText('41 d ago · Opus 5.5');
   await expect(row(page, old.title)).toHaveAttribute('data-tooltip', [old.title, '41 d ago · Opus 5.5', 'Last active: do 24 sep, 13:00', 'Note: blocked on design'].join('\n'));
   await expect(page.locator('#query-row')).toBeHidden();
-  await expect(page.locator('#filter-panel')).toBeHidden();
+  await expect(page.locator('#filters-card')).toBeHidden();
   await expect(page.locator('#bulk-line')).toContainText('Review');
   await expect(page.locator('#bulk-line .bulk-count')).toHaveText('demo · 2 to decide · 0 ticked');
 

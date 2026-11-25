@@ -13,7 +13,6 @@
 /* While the list shows the review, the filter is set aside: the review is not a filter, and the filter comes back as it was when it ends. */
 #sidebar.reviewing #query-row,
 #sidebar.reviewing #query-problems,
-#sidebar.reviewing #filter-panel,
 #sidebar.reviewing #filter-status,
 #sidebar.reviewing #collapse-toggle {
   display: none;

@@ -2,6 +2,7 @@
 
 - **Date:** 2026-11-25
 - **Area:** [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it)
+- **Partly replaced** by [0272](0272-the-filters-open-beside-the-list.md) on 2026-11-25: the help moved into the filters, so only the toggle stands at the field's end.
 
 ## Decision
 

@@ -6,7 +6,7 @@ import { restoreFilter } from './filter';
 import { container } from './drawn';
 
 /**
- * The sidebar's part of the view kept for the next launch — the filter, the folds and the list's scroll — in the shape `UiState` stores it, and putting it back.
+ * The sidebar's part of the view kept for the next launch — the filter, the folds, the help's fold and the list's scroll — in the shape `UiState` stores it, and putting it back.
  * The window's saving (view-saving.ts) composes it with the layout tree's part, so `meta.json` keeps the one shape it has.
  */
 
@@ -16,6 +16,7 @@ export function sidebarSnapshot(view: StoredView = store.get()): Omit<UiState, '
   return {
     // The search as typed, not the trimmed and lowercased text it matches: what is restored has to be what was typed.
     ...view.filter,
+    queryHelpOpen: view.queryHelpOpen,
     collapsedProjects: [...folds.projects],
     collapsedGroups: [...folds.groups],
     filterCollapsedProjects: [...folds.filterProjects],
@@ -42,6 +43,7 @@ export async function restoreSidebar(state: UiState): Promise<{ scrollTop: numbe
       filterProjects: new Set(underFilter ? state.filterCollapsedProjects : []),
       filterGroups: new Set(underFilter ? state.filterCollapsedGroups : []),
     },
+    queryHelpOpen: state.queryHelpOpen,
   };
   return { scrollTop: state.scrollTop, view };
 }

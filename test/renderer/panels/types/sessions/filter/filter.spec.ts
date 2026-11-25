@@ -11,15 +11,36 @@ const docs = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'Write
 const tests = session({ id: '00000000-0000-4000-8000-0000000000b3', title: 'Parser tests' });
 const fixture = { sessions: [parser, docs, tests], pinned: [parser.id] };
 
-test('the query field stands on a row of its own, with the help and the filter button, while the pills are shut', async ({ app, page }) => {
+test('the query field stands on a row of its own, with the filter button, while the filters are shut', async ({ app, page }) => {
   await app.boot(fixture);
-  await expect(page.locator('#filter-panel')).toBeHidden();
+  await expect(page.locator('#filters-card')).toBeHidden();
   const row = page.locator('#query-row');
   await expect(row.locator('#search')).toBeVisible();
-  await expect(row.locator('#query-help')).toBeVisible();
   await expect(row.locator('#filter-toggle')).toBeVisible();
   await page.locator('#search').fill('parser');
   await expect(titles(page)).toHaveText([parser.title, tests.title]);
+});
+
+test('the filter button opens the filters beside the list, each facet named and each pill in words, and the list keeps its place', async ({ app, page }) => {
+  await app.boot(fixture);
+  const before = await page.locator('#sessions').boundingBox();
+  await page.locator('#filter-toggle').click();
+  const card = page.locator('#filters-card');
+  await expect(card).toBeVisible();
+  await expect(page.locator('#filter-toggle')).toHaveAttribute('aria-expanded', 'true');
+  await expect(card.locator('.facet-name')).toHaveText(['Lifecycle', 'Links', 'Relations', 'Marks', 'Place', 'Last active']);
+  await expect(card.locator('.facet-pills > .pill')).toHaveText(['Working', 'Running', 'Set aside', 'Finished', 'PR', 'Siblings', 'Pinned', 'Noted', 'Worktree', 'Folder gone']);
+  const list = await page.locator('#sidebar').evaluate((el) => (el.closest('.panel-group') ?? el).getBoundingClientRect().right);
+  expect(await card.evaluate((el) => el.getBoundingClientRect().left)).toBeGreaterThanOrEqual(list);
+  expect(await page.locator('#sessions').boundingBox()).toEqual(before);
+
+  await card.getByRole('button', { name: 'Pinned' }).click();
+  await expect(titles(page)).toHaveText([parser.title]);
+  await expect(card).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(card).toBeHidden();
+  await expect(page.locator('#filter-toggle')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#search')).toHaveValue('is:pinned');
 });
 
 test('search and a pill narrow the list and say by how much, shutting the pills leaves the query in the field, and Clear undoes it all', async ({ app, page }) => {
@@ -39,7 +60,7 @@ test('search and a pill narrow the list and say by how much, shutting the pills 
 
   // Shut over a filter: the pills go, the field still says what is on.
   await page.locator('#filter-toggle').click();
-  await expect(page.locator('#filter-panel')).toBeHidden();
+  await expect(page.locator('#filters-card')).toBeHidden();
   await expect(page.locator('#search')).toHaveValue('parser is:pinned');
   await expect(page.locator('#filter-count')).toHaveText('Showing 1 of 3');
 
@@ -63,7 +84,7 @@ test('Clear and close empties the filter and shuts the pills in one press, and s
 
   await page.locator('#filter-toggle').click();
   await page.locator('#filter-clear-close').click();
-  await expect(page.locator('#filter-panel')).toBeHidden();
+  await expect(page.locator('#filters-card')).toBeHidden();
   await expect(page.locator('#filter-status')).toBeHidden();
   await expect(titles(page)).toHaveText([parser.title, docs.title, tests.title]);
   await expect(page.locator('#search')).toHaveValue('');
@@ -88,7 +109,7 @@ test('the finished switch, which the field does not show, is said by the count a
   await page.locator('#filter-toggle').click();
   await page.locator('#finished-filter').click();
   await page.locator('#filter-toggle').click();
-  await expect(page.locator('#filter-panel')).toBeHidden();
+  await expect(page.locator('#filters-card')).toBeHidden();
   await expect(page.locator('#search')).toHaveValue('');
   await expect(titles(page)).toHaveText([docs.title, tests.title]);
   await expect(page.locator('#filter-count')).toHaveText('Showing 2 of 2 finished');
@@ -98,7 +119,7 @@ test('the finished switch, which the field does not show, is said by the count a
 test('a filter left on comes back on at launch, in the field, with the pills shut', async ({ app, page }) => {
   await app.boot({ ...fixture, uiState: { ...defaultUi(), query: 'parser is:pinned' } });
   await expect(titles(page)).toHaveText([parser.title]);
-  await expect(page.locator('#filter-panel')).toBeHidden();
+  await expect(page.locator('#filters-card')).toBeHidden();
   await expect(page.locator('#filter-toggle')).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#search')).toHaveValue('parser is:pinned');
   await expect(page.locator('#filter-count')).toHaveText('Showing 1 of 3');
