@@ -2,6 +2,7 @@ import type { SessionPr, SessionSummary } from '../../../../shared/types';
 import { prKey, prName, spansRepositories } from '../../../../shared/sessions/prs';
 import { entityKey, LAST_ACTIVE, modelLabel, sessionLabel, unstartableReason, worktreeMarkState } from '../../../rules/sessions';
 import { setAsideLabel } from '../../../status/state-lines';
+import { supersededLines } from '../../../status/superseded-mark';
 import { prDetails, prRulesIn } from '../../../status/pr-status';
 import { relativeTime } from '../../../ui/time-words';
 import { momentInLanguage } from '../../../ui/locale';
@@ -72,6 +73,7 @@ export function rowTooltip(session: SessionSummary, view: RowTooltipView, line: 
     ...statusLines(session.id, view).map(({ text }) => text),
     setAside && setAsideLabel(setAside),
     worktreeMarkState(session)?.tooltip,
+    supersededLines(session.supersededCopies),
     moment.at && momentLine(moment.label, moment.at),
     moment.label !== LAST_ACTIVE && momentLine(LAST_ACTIVE, session.lastActivity),
     ...prItemWords(session, view).map(({ label, details }) => (details.length > 0 ? `${label} — ${details.join(' · ')}` : label)),

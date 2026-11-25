@@ -22,13 +22,15 @@ export interface ExchangeDrawing {
   readonly openFolds: Set<string>;
   pinRequest(exchange: Exchange): void;
   pinMessage(part: Extract<ReplyPart, { kind: 'text' }>): void;
+  /** Whether the exchange is drawn with an edge: one of an older copy's requests that the session's current transcript lacks. */
+  edged(exchange: Exchange): boolean;
 }
 
 /** Exchange `index` as the history draws it: your request on its line, and claude's reply under it. */
 export function exchangeNode(exchange: Exchange, index: number, drawing: ExchangeDrawing): HTMLElement {
   const node = document.createElement('article');
   // Sent again or rewound past, it is no longer in claude's conversation, and is drawn the one way for both.
-  node.className = `exchange${exchange.replaced || exchange.rewound ? ' left-behind' : ''}`;
+  node.className = `exchange${exchange.replaced || exchange.rewound ? ' left-behind' : ''}${drawing.edged(exchange) ? ' not-in-current' : ''}`;
 
   // Your request as claude echoes it, on a band, with its number, time and marks on a line under it, at the band's end.
   const request = document.createElement('div');

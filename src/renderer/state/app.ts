@@ -2,7 +2,7 @@ import { defaultUi } from '../../shared/config/defaults';
 import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/config/settings';
-import type { EditorUi, GroupState, HistoryUi, SetAside, NeedsYou, PrNames, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
+import type { EditorUi, GroupState, HistoryUi, SetAside, NeedsYou, PrNames, PrStatusRead, RunningElsewhere, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../rules/sessions';
 import { NO_PR_STATUS } from '../status/pr-status';
 import type { EditorTabs } from './editor-tabs';
@@ -173,15 +173,13 @@ export interface Folds {
   filterGroups: ReadonlySet<string>;
 }
 
-/**
- * The filter, in the shape it is stored in, so the two cannot come apart: the search as typed, the pills, and the date window its preset or the calendar gave (a rolling preset's window is worked out when it is chosen).
- */
-export type FilterState = Pick<UiState, 'search' | 'filters' | 'datePreset' | 'dateFrom' | 'dateTo'>;
+/** The filter, in the shape it is stored in, so the two cannot come apart: the query as typed, and the finished switch beside it. */
+export type FilterState = Pick<UiState, 'query' | 'finished'>;
 
 /** No filter at all: what a first run has, and what Clear goes back to. */
 export function noFilter(): FilterState {
-  const { search, filters, datePreset, dateFrom, dateTo } = defaultUi();
-  return { search, filters, datePreset, dateFrom, dateTo };
+  const { query, finished } = defaultUi();
+  return { query, finished };
 }
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
@@ -237,6 +235,11 @@ export interface TabState {
    * A refusal is not an exit: the tab never had a process, so nothing arrives on the terminal to explain itself.
    */
   failure: string | null;
+  /**
+   * The claude that runs this tab's session elsewhere, when that is why the last start was refused; `failure` says it in words.
+   * Its pane then offers a copy of the session, or the start regardless.
+   */
+  elsewhere: RunningElsewhere | null;
   /**
    * Its last start failed: claude exited within moments of starting, so the tab is cold, and what claude printed before it went stays on show in place of the pane, since those lines are the explanation.
    * Cleared by the next start.

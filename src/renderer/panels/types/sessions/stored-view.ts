@@ -1,5 +1,6 @@
 import type { UiState } from '../../../../shared/types';
 import { store, type StoredView, type View } from '../../../state/app';
+import { forgetLastQuery } from '../../../state/filter-query';
 import { isFiltering } from '../../../state/views';
 import { restoreFilter } from './filter';
 import { container } from './drawn';
@@ -30,6 +31,8 @@ export function sidebarSnapshot(view: StoredView = store.get()): Omit<UiState, '
  */
 export async function restoreSidebar(state: UiState): Promise<{ scrollTop: number; view: Omit<StoredView, 'tabBarExpanded' | 'editorUi' | 'historyUi'> }> {
   const filter = await restoreFilter(state);
+  // A stored query that does not read shows nothing until it does, rather than whatever the empty filter of the launch drew.
+  forgetLastQuery();
   // The folds made under a filter apply only while it is on, so a filter stored off leaves them behind.
   const underFilter = isFiltering({ filter });
   const view: Omit<StoredView, 'tabBarExpanded' | 'editorUi' | 'historyUi'> = {

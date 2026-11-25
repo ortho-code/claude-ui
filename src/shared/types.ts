@@ -112,21 +112,28 @@ export interface SessionSummary {
   isSibling: boolean;
   /** The other members of this session's family (empty when not a sibling). */
   siblingIds: string[];
+  /** The copies of its transcript another copy of it replaced, which Claude Code keeps for a while, oldest first; empty when none. */
+  supersededCopies: SupersededCopy[];
   /**
    * The PRs the session's transcript links, from Claude Code's `pr-link` records and the reviews and comments claude posted with a `gh` command naming the PR's repository, each once whatever its repository's capitals, in the order first linked; empty when none.
    * A link says the session worked on the PR, not who opened it.
    */
   prs: SessionPr[];
   /**
-   * The PRs the session opened in the browser to be created there, by a `gh pr create --web` naming the repository and the branch, each once, the latest command for it kept; empty when none.
-   * No PR exists when the command runs, so the window asks GitHub for the one made from that branch afterwards and links it as the app's own.
+   * The PRs the session created, by a `gh pr create` naming the repository and the branch, with or without `--web`, each once, the latest command for it kept; empty when none.
+   * The command's output cannot be relied on to name the PR, so the window asks GitHub for the one made from that branch after it ran and links it as the app's own.
    */
-  webCreates: PendingPr[];
+  prCreates: PendingPr[];
   /**
    * The ids a review or comment the session posted through GraphQL names, each once, the latest command for it kept; empty when none.
    * The command names no PR, so the window asks GitHub which PR each id belongs to and links it as the app's own.
    */
   postedNodes: PendingNode[];
+  /**
+   * The issues or PRs the session posted a comment on by number, each once, the latest command for it kept; empty when none.
+   * GitHub numbers issues and PRs from one count, so the window asks it whether each is a PR, and links one that is as the app's own.
+   */
+  postedNumbers: PendingNumber[];
   /**
    * First user/assistant uuid after each compaction boundary.
    * A fork of a compacted session adopts one of these as its own conversationId, which is how such a fork is linked into the family.
@@ -166,7 +173,7 @@ export interface SessionPr {
   url: string;
 }
 
-/** A PR a session opened in the browser to be created: the repository it is for, the branch it is from, `owner:branch` for a fork's, and when the command ran (ISO), which the PR is made after. */
+/** A PR a session created, the PR itself still to find: the repository it is for, the branch it is from, `owner:branch` for a fork's, and when the command ran (ISO), which the PR is made after. */
 export interface PendingPr {
   repository: string;
   head: string;
@@ -179,12 +186,22 @@ export interface PendingNode {
   at: string;
 }
 
-/** A PR the window asks main to find, with the session it is for: one opened in the browser, or the one a posted id belongs to. */
-export type PrToFind = (PendingPr | PendingNode) & { id: string };
+/** An issue or PR a session posted a comment on by number, which does not say which of the two it is, and when the command ran (ISO). */
+export interface PendingNumber {
+  repository: string;
+  number: number;
+  at: string;
+}
 
-/** What main found of the PRs asked for: each found one, as it was asked for, with the page of the PR now linked to its session, and why the asking failed, null when it did not. */
+/** A PR the window asks main to find, with the session it is for: one it created, the one a posted id belongs to, or one a comment posted by number may be. */
+export type PrToFind = (PendingPr | PendingNode | PendingNumber) & { id: string };
+
+/**
+ * What main found of the PRs asked for: each found one, as it was asked for, with the page of the PR now linked to its session; each GitHub said is no PR, a number that is an issue, as it was asked for; and why the asking failed, null when it did not.
+ */
 export interface PrsFound {
   found: { asked: PrToFind; url: string }[];
+  notPrs: PrToFind[];
   problem: string | null;
 }
 
@@ -313,6 +330,8 @@ export interface HistorySlice {
   from: number;
   exchanges: Exchange[];
   total: number;
+  /** For a read of a superseded copy: the ids of its requests the session's current transcript lacks, all of them on every read. */
+  notInCurrent?: string[];
 }
 
 /**
@@ -349,6 +368,34 @@ export interface TerminalLaunch {
    * `sessionId` settles which session a terminal starts with; this is what keeps the answer right afterwards, since `/clear` replaces the session with one the app did not name.
    */
   tabToken?: string;
+  /**
+   * Not a claude flag: resume even while another claude runs the session, which then splits its transcript in two.
+   * Without it a resume of a session running elsewhere is refused with `RUNS_ELSEWHERE:` and a `RunningElsewhere`.
+   */
+  despiteElsewhere?: boolean;
+}
+
+/**
+ * A copy of a session's transcript that another copy replaced, when that one was moved into its folder: Claude Code renames it rather than deleting it.
+ * Claude Code's cleanup deletes it once its cleanup period has passed since `at`.
+ */
+export interface SupersededCopy {
+  /** What names the copy: the digits after `.superseded-` in its file name. */
+  stamp: string;
+  /** When it was replaced, in ms since the epoch. */
+  at: number;
+  /** How many of its requests the current transcript lacks. */
+  missing: number;
+}
+
+/** A claude that runs a session already, as Claude Code's own record of running sessions names it. */
+export interface RunningElsewhere {
+  /** What started it: claude-ui (another window, or a preview of the app), the Claude desktop app, a script (`claude -p`), or a terminal. */
+  where: 'claude-ui' | 'desktop' | 'script' | 'terminal';
+  /** The folder it runs in. */
+  cwd: string;
+  /** When that claude started, in ms since the epoch, which may be before it took this session. */
+  since: number;
 }
 
 /**
@@ -474,36 +521,10 @@ export interface HistoryUi {
 }
 
 export interface UiState {
-  /** The search box's contents. */
-  search: string;
-  /** The filter toggles, named as their buttons are. */
-  filters: {
-    pinned: boolean;
-    open: boolean;
-    live: boolean;
-    /** Sessions set aside, with a tab or without. */
-    setAside: boolean;
-    worktree: boolean;
-    /** Sessions whose folder is gone. */
-    gone: boolean;
-    siblings: boolean;
-    /** Sessions whose transcript links a PR. */
-    prs: boolean;
-    noted: boolean;
-    /** The finished sessions in place of the rest; stored as `archived` before the act was called Finished. */
-    finished: boolean;
-  };
-  /**
-   * The active date preset, or 'any' when the date filter is off.
-   * A rolling preset ("last 7 days") is recomputed from the current moment on restore, which is what makes it still mean what it said; only 'custom' reads the stored range back.
-   */
-  datePreset: string;
-  /**
-   * The custom range, in epoch ms.
-   * Only meaningful while `datePreset` is 'custom'.
-   */
-  dateFrom: number | null;
-  dateTo: number | null;
+  /** The query field's text, as typed; the pills and date presets write their terms into it. */
+  query: string;
+  /** The finished sessions in place of the rest, a switch beside the query until views say it as a term. */
+  finished: boolean;
   /**
    * Whether the filter panel is open, restored exactly as stored — an active filter included.
    * Closing it over a filter left deliberately on is a choice to keep the results and take the space back, so a shut panel folds down to a row of chips naming what is on, above the count, and the filter icon carries its accent.
@@ -550,8 +571,9 @@ export interface ClaudeUiApi {
   /**
    * Session `id`'s requests and replies, for a caller that holds `known` exchanges of `generation` (0 and 0 the first time).
    * The first call reads the whole transcript and later ones only what was appended; see HistorySlice for how to apply the answer.
+   * With `copy`, the stamp of one of its superseded copies, that copy is read instead.
    */
-  getHistory(id: string, known: number, generation: number): Promise<HistorySlice>;
+  getHistory(id: string, known: number, generation: number, copy?: string): Promise<HistorySlice>;
   /** Whether a worktree of this name already exists for the repo (blocks creating a duplicate). */
   worktreeExists(repoRoot: string, name: string): Promise<boolean>;
   /** Fires when a session transcript on disk is created or changes (debounced). */
@@ -732,7 +754,7 @@ export interface ClaudeUiApi {
   onOpenFailed(callback: (url: string, problem: string) => void): void;
   /** What GitHub says of `prs`, asked with `gh` (`src/main/sessions/pr-status.ts`); a merged one is not asked again while the app runs. */
   prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
-  /** Find the PRs sessions opened in the browser to be created, or posted on by an id, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */
+  /** Find the PRs sessions created, or posted on by an id, asked with `gh` (`src/main/sessions/pr-find.ts`), each found one linked to its session as the app's own link. */
   findPrs(toFind: PrToFind[]): Promise<PrsFound>;
   /** Current status per session id (busy | ready | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;

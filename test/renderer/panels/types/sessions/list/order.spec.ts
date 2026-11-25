@@ -44,11 +44,13 @@ test('the order holds while the pointer is over the list, and catches up at the 
   await expect.poll(() => order(page)).toEqual([older.title, newer.title]);
 });
 
-test('an open review takes in a session that crosses its 30 days, within a minute', async ({ app, page }) => {
+test('an open review takes in a session that crosses its 30 days at midnight, within a minute', async ({ app, page }) => {
   const DAY = 24 * 60 * MINUTE;
-  const long = session({ id: '00000000-0000-4000-8000-000000000003', title: 'Long untouched', lastActivity: at(START - 40 * DAY) });
-  const nearly = session({ id: '00000000-0000-4000-8000-000000000004', title: 'Nearly untouched', lastActivity: at(START - 30 * DAY + MINUTE) });
-  await page.clock.install({ time: START });
+  // 23:59 on 30 September in the checks' time zone; the review counts its 30 days from today's midnight, so 31 August's activity crosses them when the day turns.
+  const beforeMidnight = Date.parse('2026-09-30T21:59:00.000Z');
+  const long = session({ id: '00000000-0000-4000-8000-000000000003', title: 'Long untouched', lastActivity: at(beforeMidnight - 40 * DAY) });
+  const nearly = session({ id: '00000000-0000-4000-8000-000000000004', title: 'Nearly untouched', lastActivity: '2026-08-31T10:00:00.000Z' });
+  await page.clock.install({ time: beforeMidnight });
   await app.boot({ sessions: [nearly, long] });
   await page.locator('#review-button').click();
   await expect.poll(() => order(page)).toEqual([long.title]);

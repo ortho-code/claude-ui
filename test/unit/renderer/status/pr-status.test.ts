@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 
 import { PR_TYPES, type NeedsYouRegistry } from '../../../../src/shared/status/needs-you';
-import { approvalsIn, FIND_FOR_MS, findKey, firesForRole, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, stillToFind, takenBack, verdictOf, withNames, type PrInk, type PrRules, type PrVerdict, type PrWords } from '../../../../src/renderer/status/pr-status';
+import { approvalsIn, FIND_FOR_MS, findKey, firesForRole, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prRoleOf, prStatesOf, prVerdict, rollUpPrTone, stillToFind, takenBack, verdictOf, withNames, type PrInk, type PrRules, type PrVerdict, type PrWords } from '../../../../src/renderer/status/pr-status';
 import type { Approvals } from '../../../../src/shared/sessions/prs';
-import type { PrRef, PrSeen, PrStatus, SessionPr } from '../../../../src/shared/types';
+import type { PrRef, PrSeen, PrStatus, PrStatusRead, SessionPr } from '../../../../src/shared/types';
 import { bundledNeedsYou } from '../../../renderer/support/needs-you';
 
 /** The needs-you types as shipped, whose roles say whose turn a PR's state is. */
@@ -338,14 +338,37 @@ describe('verdictOf', () => {
   });
 });
 
-describe('settledState', () => {
+describe('prStatesOf', () => {
+  const pr: PrRef = { repository: 'acme/app', number: 1 };
+  const answer = (status: PrStatus): PrStatusRead => ({ statuses: { 'acme/app#1': status }, problem: null });
+
+  it('is the one state of a merged or closed PR', () => {
+    expect([...prStatesOf(pr, answer({ state: 'closed', role: 'own' }), GITHUB_DECIDES)]).toEqual(['closed']);
+  });
+
+  it('is every state an open PR is in at once', () => {
+    const states = prStatesOf(pr, answer(open({ draft: true, review: 'changes-requested', checks: 'failed', conflict: true })), GITHUB_DECIDES);
+    expect([...states]).toEqual(['open', 'draft', 'changes-requested', 'checks-failed', 'conflict']);
+    expect([...prStatesOf(pr, answer(open({ checks: 'running' })), GITHUB_DECIDES)]).toEqual(['open', 'approved', 'checks-running']);
+  });
+
+  it('counts approved only with as many approvals as the repository needs', () => {
+    expect(prStatesOf(pr, answer(open({ approvals: 1 })), { 'acme/app': 2 }).has('approved')).toBe(false);
+    expect(prStatesOf(pr, answer(open({ approvals: 2 })), { 'acme/app': 2 }).has('approved')).toBe(true);
+  });
+
+  it('is empty for a PR the answer lacks, and while main could not ask', () => {
+    expect(prStatesOf(pr, NO_PR_STATUS, GITHUB_DECIDES).size).toBe(0);
+    expect(prStatesOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: 'gh was not found' }, GITHUB_DECIDES).size).toBe(0);
+  });
+});
+
+describe('prRoleOf', () => {
   const pr: PrRef = { repository: 'acme/app', number: 1 };
 
-  it('is merged or closed by the answer, and null for an open PR, one it lacks, or while main could not ask', () => {
-    expect(settledState(pr, { statuses: { 'acme/app#1': { state: 'closed', role: 'own' } }, problem: null })).toBe('closed');
-    expect(settledState(pr, { statuses: { 'acme/app#1': open() }, problem: null })).toBeNull();
-    expect(settledState(pr, NO_PR_STATUS)).toBeNull();
-    expect(settledState(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: 'gh was not found' })).toBeNull();
+  it('is your role by the answer, and null while main could not ask', () => {
+    expect(prRoleOf(pr, { statuses: { 'acme/app#1': open({ role: 'reviewing' }) }, problem: null })).toBe('reviewing');
+    expect(prRoleOf(pr, { statuses: { 'acme/app#1': open({ role: 'reviewing' }) }, problem: 'gh was not found' })).toBeNull();
   });
 });
 
@@ -398,7 +421,7 @@ describe('prDetails', () => {
 
 describe('stillToFind', () => {
   const at = '2026-11-09T09:00:00.000Z';
-  const sessions = [{ id: 's1', webCreates: [{ repository: 'acme/app', head: 'fix', at }], postedNodes: [] }, { id: 's2', webCreates: [], postedNodes: [] }];
+  const sessions = [{ id: 's1', prCreates: [{ repository: 'acme/app', head: 'fix', at }], postedNodes: [], postedNumbers: [] }, { id: 's2', prCreates: [], postedNodes: [], postedNumbers: [] }];
 
   it('looks for a PR opened in the browser until 30 days after the command, with the session that opened it', () => {
     const now = Date.parse(at);
@@ -412,11 +435,23 @@ describe('stillToFind', () => {
   });
 
   it('looks for the PR a review posted by its id belongs to, as long and until found, beside the ones opened in the browser', () => {
-    const posted = [{ id: 's3', webCreates: [], postedNodes: [{ node: 'PRR_kwDOAAAAAAAAAAAAone', at }] }];
+    const posted = [{ id: 's3', prCreates: [], postedNodes: [{ node: 'PRR_kwDOAAAAAAAAAAAAone', at }], postedNumbers: [] }];
     const now = Date.parse(at);
     expect(stillToFind(posted, new Set(), now + FIND_FOR_MS - 1)).toEqual([{ id: 's3', node: 'PRR_kwDOAAAAAAAAAAAAone', at }]);
     expect(stillToFind(posted, new Set(), now + FIND_FOR_MS)).toEqual([]);
     expect(stillToFind(posted, new Set([findKey({ id: 's3', node: 'PRR_kwDOAAAAAAAAAAAAone', at })]), now)).toEqual([]);
+  });
+
+  it('looks for the PR a comment posted by number may be, as long and until settled, whatever the repository’s capitals', () => {
+    const posted = [{ id: 's4', prCreates: [], postedNodes: [], postedNumbers: [{ repository: 'acme/app', number: 7, at }] }];
+    const now = Date.parse(at);
+    expect(stillToFind(posted, new Set(), now + FIND_FOR_MS - 1)).toEqual([{ id: 's4', repository: 'acme/app', number: 7, at }]);
+    expect(stillToFind(posted, new Set(), now + FIND_FOR_MS)).toEqual([]);
+    expect(stillToFind(posted, new Set([findKey({ id: 's4', repository: 'Acme/App', number: 7, at })]), now)).toEqual([]);
+  });
+
+  it('tells a number from a create on the same repository', () => {
+    expect(findKey({ id: 's1', repository: 'acme/app', number: 7, at })).not.toBe(findKey({ id: 's1', repository: 'acme/app', head: '7', at }));
   });
 });
 

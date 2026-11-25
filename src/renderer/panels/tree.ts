@@ -110,6 +110,10 @@ function leavingFullScreen(asks: Asks): Asks {
       leave();
       asks.openTab(...args);
     },
+    openOlderCopy: (...args) => {
+      leave();
+      asks.openOlderCopy(...args);
+    },
     openNewSession: (...args) => {
       leave();
       return asks.openNewSession(...args);

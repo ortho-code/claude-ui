@@ -1,0 +1,80 @@
+#query-help-card {
+  font-size: var(--text-meta);
+}
+
+#query-help-card section + section {
+  margin-top: 14px;
+}
+
+#query-help-card h3 {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Fixed, so the columns keep their share whatever a cell holds: a long meaning wraps in its own column rather than squeezing the values to a sliver. */
+.query-help-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.query-help-table td {
+  padding: 5px 0;
+  vertical-align: top;
+}
+
+.query-help-table tr + tr td {
+  border-top: 1px solid var(--border);
+}
+
+/* The field or the example, with what it means wrapping under it; the values take the rest. */
+.query-help-table td.query-help-name {
+  width: 42%;
+  padding-right: 14px;
+}
+
+.query-help-name > code {
+  display: block;
+  white-space: nowrap;
+}
+
+#query-help-card code {
+  font-family: var(--font-mono);
+}
+
+.query-help-muted {
+  color: var(--muted);
+}
+
+/* A value: the pill the filter's pills wear, a press adding its term. */
+.query-help-value {
+  margin: 0 4px 4px 0;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.query-help-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.query-help-guide {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.query-help-guide:hover {
+  text-decoration: underline;
+}

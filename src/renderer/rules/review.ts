@@ -1,87 +1,46 @@
-import type { PrStatusRead, SessionSummary, SetAside } from '../../shared/types';
+import { matches } from '../../shared/query/evaluate';
+import type { QueryFacts } from '../../shared/query/facts';
+import type { FieldRegistry } from '../../shared/query/field';
+import { parseQuery, type Query } from '../../shared/query/parse';
+import type { PrStatusRead, SessionSummary } from '../../shared/types';
 import { entityKey } from './sessions';
-import { settledState } from '../status/pr-status';
 
 /**
  * THE REVIEW, pure (docs/architecture/session-list.md § The review): which sessions it offers, and in which of its two sets.
- * One function per term the review is made of, each named for the query term it becomes when the session-model design's stage 3 brings the query language, so the review, a query typed by hand and a needs-you type can never disagree about them: `is:unfinished`, `is:set-aside`, `kept:<Nd`, `untouched:>Nd`, `is:ready-to-finish`.
+ * It is queries in the query language, so the review, a query typed by hand and a needs-you type can never disagree about a term.
  * The review itself is a definition, data rather than code, which stage 3 moves into the bundled `views/review.json` as a view in review mode; its two numbers of days are written there and nowhere else (decided 2026-11-04).
  */
 
-const DAY = 86_400_000;
-
-/** What the terms read besides the session itself: what the store holds of it. */
-export interface ReviewFacts {
-  /** The sessions with a tab, by key. */
-  tabbed: ReadonlySet<string>;
-  finished: { has(key: string): boolean };
-  pendingDeletes: ReadonlySet<string>;
-  setAside: ReadonlyMap<string, SetAside>;
-  kept: ReadonlyMap<string, number>;
-  /** What GitHub said of the PRs, as the PR marks read it; empty while the setting is off (`Settings.prStatus`). */
-  prStatus: PrStatusRead;
-  /** Whether the setting lets the app ask GitHub. */
-  prStatusOn: boolean;
-}
-
-/** `is:unfinished`: no tab, not finished, and not on its way to the trash. */
-function isUnfinished(session: SessionSummary, facts: ReviewFacts): boolean {
-  const key = entityKey(session);
-  return !facts.tabbed.has(key) && !facts.finished.has(key) && !facts.pendingDeletes.has(key);
-}
-
-/** `is:set-aside`: set aside, with a day or whenever. */
-function isSetAside(session: SessionSummary, facts: ReviewFacts): boolean {
-  return facts.setAside.has(entityKey(session));
-}
-
-/** `kept:<Nd`: kept out of the review less than `days` days before `now`. */
-export function keptWithin(session: SessionSummary, facts: ReviewFacts, days: number, now: number): boolean {
-  const at = facts.kept.get(entityKey(session));
-  return at !== undefined && now - at < days * DAY;
-}
-
-/** `untouched:>Nd`: last active more than `days` days before `now`. */
-export function untouchedFor(session: SessionSummary, days: number, now: number): boolean {
-  return now - Date.parse(session.lastActivity) > days * DAY;
-}
-
-/**
- * `is:ready-to-finish`: every link settled, so at least one link, since a session that links nothing has nothing settled; today a link is a PR, settled when merged or closed as the PR marks read GitHub's answer (`settledState`).
- * A PR GitHub has not answered for is not settled, nor any after a failed ask, nor any while the setting is off and nothing is asked.
- * Stage 4's folder links add "no changes left in a folder only it worked in" here.
- */
-export function isReadyToFinish(session: SessionSummary, facts: ReviewFacts): boolean {
-  return session.prs.length > 0 && session.prs.every((pr) => settledState(pr, facts.prStatus) !== null);
-}
-
-/** One of the review's sets: its id and name, which its heading says, and the term that puts a session in it. */
+/** One of the review's sets: its id and name, which its heading says, and the query that puts a session in it. */
 export interface ReviewSet {
   id: 'ready' | 'untouched';
   name: string;
-  /** The term, as stage 3's query language will write it. */
   query: string;
-  holds: (session: SessionSummary, facts: ReviewFacts, now: number) => boolean;
 }
 
-/** How long a session goes untouched before the review offers it, and how long Keep holds one out: the review's own terms, here and nowhere else, so what Keep says it does is read from here. */
+/** How long a session goes untouched before the review offers it, and how long Keep holds one out, each counted in whole days from today's midnight: the review's own terms, here and nowhere else, so what Keep says it does is read from here. */
 const UNTOUCHED_DAYS = 30;
 export const KEPT_DAYS = 30;
 
 /**
- * THE REVIEW'S DEFINITION: the terms every set shares, and its sets in the order they are shown, a session in more than one shown once, in the first (decided 2026-11-04).
+ * THE REVIEW'S DEFINITION: the query every set shares, and its sets in the order they are shown, a session in more than one shown once, in the first (decided 2026-11-04).
  * Shared, so that every act of the bar that decides a row takes it out of the review, Finished, Set aside… and Keep alike, and the review can end; a session with a tab is work in hand, for its tab to decide.
  */
 export const REVIEW = {
   id: 'review',
   name: 'Review',
-  shared: `is:unfinished -is:set-aside -kept:<${KEPT_DAYS}d`,
-  holds: (session: SessionSummary, facts: ReviewFacts, now: number): boolean => isUnfinished(session, facts) && !isSetAside(session, facts) && !keptWithin(session, facts, KEPT_DAYS, now),
+  shared: `is:unfinished -is:set-aside -kept:>=today-${KEPT_DAYS}d`,
   sets: [
-    { id: 'ready', name: 'Ready to finish', query: 'is:ready-to-finish', holds: (session, facts) => isReadyToFinish(session, facts) },
-    { id: 'untouched', name: `Untouched ${UNTOUCHED_DAYS}+ days`, query: `untouched:>${UNTOUCHED_DAYS}d`, holds: (session, _facts, now) => untouchedFor(session, UNTOUCHED_DAYS, now) },
+    { id: 'ready', name: 'Ready to finish', query: 'is:ready-to-finish' },
+    { id: 'untouched', name: `Untouched ${UNTOUCHED_DAYS}+ days`, query: `active:<today-${UNTOUCHED_DAYS}d` },
   ] satisfies ReviewSet[],
 } as const;
+
+/** What Ready to finish's line reads: GitHub's answer, and whether the setting lets the app ask. */
+export interface ReadyFacts {
+  prStatus: PrStatusRead;
+  prStatusOn: boolean;
+}
 
 /**
  * A set as shown: its id, name and rows, and for Ready to finish, the line saying why it cannot answer, null while it can.
@@ -94,16 +53,25 @@ export interface ReviewSection {
   note: string | null;
 }
 
+/** One of the review's own queries, read; one that does not read is a mistake in the app, so it throws rather than offering nothing. */
+function reviewQuery(text: string, fields: FieldRegistry): Query {
+  const query = parseQuery(text, fields.fields);
+  if (query.problems.length > 0) throw new Error(`The review's query "${text}" does not read: ${query.problems.map((problem) => problem.message).join(' ')}`);
+  return query;
+}
+
 /**
  * The review over `sessions`, the ones in scope: each set's rows, oldest activity first, a session in both under the first only; a set with none is still there, so its note can say why it is empty.
  */
-export function reviewSections(sessions: readonly SessionSummary[], facts: ReviewFacts, now: number): ReviewSection[] {
-  const offered = [...sessions].filter((session) => REVIEW.holds(session, facts, now)).sort((a, b) => Date.parse(a.lastActivity) - Date.parse(b.lastActivity));
+export function reviewSections(sessions: readonly SessionSummary[], fields: FieldRegistry, facts: QueryFacts, ready: ReadyFacts): ReviewSection[] {
+  const shared = reviewQuery(REVIEW.shared, fields);
+  const offered = sessions.filter((session) => matches(session, shared, fields, facts)).sort((a, b) => Date.parse(a.lastActivity) - Date.parse(b.lastActivity));
   const shown = new Set<string>();
   return REVIEW.sets.map((set: ReviewSet) => {
-    const rows = offered.filter((session) => !shown.has(entityKey(session)) && set.holds(session, facts, now));
+    const query = reviewQuery(set.query, fields);
+    const rows = offered.filter((session) => !shown.has(entityKey(session)) && matches(session, query, fields, facts));
     for (const session of rows) shown.add(entityKey(session));
-    return { id: set.id, name: set.name, rows, note: set.id === 'ready' ? readyNote(offered, facts) : null };
+    return { id: set.id, name: set.name, rows, note: set.id === 'ready' ? readyNote(offered, ready) : null };
   });
 }
 
@@ -116,10 +84,10 @@ export function reviewCount(sections: readonly ReviewSection[]): number {
  * Why Ready to finish cannot say which sessions are ready, null while it can, or while no session it would look at links a PR: PR status off in Settings, GitHub's ask failed, or its first answer not in yet.
  * Said on the set rather than leaving it empty as if nothing were ready (docs/principles.md, Failures show).
  */
-export function readyNote(offered: readonly SessionSummary[], facts: ReviewFacts): string | null {
+export function readyNote(offered: readonly SessionSummary[], ready: ReadyFacts): string | null {
   if (!offered.some((session) => session.prs.length > 0)) return null;
-  if (!facts.prStatusOn) return "PR status is off in Settings, so which sessions' PRs are settled is not known.";
-  if (facts.prStatus.problem !== null) return `GitHub could not be asked: ${facts.prStatus.problem}`;
-  if (Object.keys(facts.prStatus.statuses).length === 0) return 'Asking GitHub…';
+  if (!ready.prStatusOn) return "PR status is off in Settings, so which sessions' PRs are settled is not known.";
+  if (ready.prStatus.problem !== null) return `GitHub could not be asked: ${ready.prStatus.problem}`;
+  if (Object.keys(ready.prStatus.statuses).length === 0) return 'Asking GitHub…';
   return null;
 }

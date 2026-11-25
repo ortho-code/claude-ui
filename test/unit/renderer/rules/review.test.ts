@@ -1,97 +1,66 @@
 import { describe, expect, it } from 'vitest';
+import type { PrState, QueryFacts } from '../../../../src/shared/query/facts';
+import { coreFields } from '../../../../src/shared/query/fields';
 import type { SessionSummary } from '../../../../src/shared/types';
-import { isReadyToFinish, keptWithin, readyNote, REVIEW, reviewCount, reviewSections, untouchedFor, type ReviewFacts } from '../../../../src/renderer/rules/review';
+import { readyNote, REVIEW, reviewCount, reviewSections, type ReadyFacts } from '../../../../src/renderer/rules/review';
+import { bundledNeedsYou } from '../../../renderer/support/needs-you';
+import { ago, facts, NOW, only } from '../../shared/query/facts';
+import { session as fixture } from '../fixtures';
 
 const DAY = 86_400_000;
-const NOW = Date.parse('2026-11-04T12:00:00.000Z');
-const ago = (days: number): string => new Date(NOW - days * DAY).toISOString();
+const fields = coreFields(bundledNeedsYou());
 
 function session(id: string, days: number, prs: number[] = []): SessionSummary {
-  return {
-    id, conversationId: id, cwd: '/p', repoRoot: '/p', isRepo: true, worktree: '', leftWorktree: '', movedOutOfWorktree: false, workCwd: '', checkouts: [],
-    title: id, firstMessage: '', model: '', lastActivity: ago(days), isSibling: false, siblingIds: [], postCompactHeads: [], cwdExists: true, repoRootExists: true,
-    prs: prs.map((number) => ({ repository: 'acme/app', number, url: `https://github.com/acme/app/pull/${number}` })),
-    webCreates: [],
-    postedNodes: [],
-  };
+  return fixture({ id, title: id, lastActivity: ago(days), prs: prs.map((number) => ({ repository: 'acme/app', number, url: `https://github.com/acme/app/pull/${number}` })) });
 }
 
-function facts(overrides: Partial<ReviewFacts> = {}): ReviewFacts {
-  return {
-    tabbed: new Set(), finished: new Set(), pendingDeletes: new Set(), setAside: new Map(), kept: new Map(),
-    prStatus: {
-      statuses: {
-        'acme/app#1': { state: 'merged', role: 'own' },
-        'acme/app#2': { state: 'closed', role: 'own' },
-        'acme/app#3': { state: 'open', role: 'own', draft: false, review: null, checks: null, conflict: false, approvals: 0, newCommits: false, reviewAsked: false, changesRequested: [] },
-      },
-      problem: null,
-    },
-    prStatusOn: true,
-    ...overrides,
-  };
-}
+const STATES: Record<number, PrState[]> = { 1: ['merged'], 2: ['closed'], 3: ['open'] };
+const known = (over: Partial<QueryFacts> = {}): QueryFacts => facts({ prStates: (pr) => new Set(STATES[pr.number] ?? []), ...over });
+const ready: ReadyFacts = { prStatus: { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: null }, prStatusOn: true };
 
-const ids = (sections: ReturnType<typeof reviewSections>): string[][] => sections.map((section) => section.rows.map((row) => row.id));
+const sections = (sessions: SessionSummary[], over: Partial<QueryFacts> = {}): ReturnType<typeof reviewSections> => reviewSections(sessions, fields, known(over), ready);
+const ids = (shown: ReturnType<typeof reviewSections>): string[][] => shown.map((section) => section.rows.map((row) => row.id));
 
-describe('the terms', () => {
-  it('untouched: more than the days given since last active, at either side of the bound', () => {
-    expect(untouchedFor(session('a', 31), 30, NOW)).toBe(true);
-    expect(untouchedFor(session('a', 29), 30, NOW)).toBe(false);
-  });
-
-  it('kept: less than the days given since kept, at either side of the bound', () => {
-    expect(keptWithin(session('a', 40), facts({ kept: new Map([['a', NOW - 29 * DAY]]) }), 30, NOW)).toBe(true);
-    expect(keptWithin(session('a', 40), facts({ kept: new Map([['a', NOW - 31 * DAY]]) }), 30, NOW)).toBe(false);
-    expect(keptWithin(session('a', 40), facts(), 30, NOW)).toBe(false);
-  });
-
-  it('ready to finish: at least one PR, every one merged or closed, none unknown, and nothing known after a failed ask or with PR status off', () => {
-    expect(isReadyToFinish(session('a', 1, [1, 2]), facts())).toBe(true);
-    expect(isReadyToFinish(session('a', 1), facts())).toBe(false);
-    expect(isReadyToFinish(session('a', 1, [1, 3]), facts())).toBe(false);
-    expect(isReadyToFinish(session('a', 1, [1, 9]), facts())).toBe(false);
-    expect(isReadyToFinish(session('a', 1, [1]), facts({ prStatus: { statuses: facts().prStatus.statuses, problem: 'gh is missing' } }))).toBe(false);
-    expect(isReadyToFinish(session('a', 1, [1]), facts({ prStatus: { statuses: {}, problem: null }, prStatusOn: false }))).toBe(false);
-  });
-
-  it('the definition holds both numbers of days, 30, in its terms', () => {
-    expect(REVIEW.shared).toBe('is:unfinished -is:set-aside -kept:<30d');
-    expect(REVIEW.sets.map((set) => set.query)).toEqual(['is:ready-to-finish', 'untouched:>30d']);
+describe('the definition', () => {
+  it('holds both numbers of days, 30, in its queries', () => {
+    expect(REVIEW.shared).toBe('is:unfinished -is:set-aside -kept:>=today-30d');
+    expect(REVIEW.sets.map((set) => set.query)).toEqual(['is:ready-to-finish', 'active:<today-30d']);
   });
 });
 
 describe('the sets', () => {
-  const ready = session('ready', 2, [1]);
+  const readyRow = session('ready', 2, [1]);
   const old = session('old', 40);
   const both = session('both', 50, [1, 2]);
   const fresh = session('fresh', 3);
 
   it('hold the ready and the untouched, oldest first, one in both shown once under Ready to finish', () => {
-    const sections = reviewSections([fresh, ready, old, both], facts(), NOW);
-    expect(sections.map((section) => section.name)).toEqual(['Ready to finish', 'Untouched 30+ days']);
-    expect(ids(sections)).toEqual([['both', 'ready'], ['old']]);
-    expect(reviewCount(sections)).toBe(3);
+    const shown = sections([fresh, readyRow, old, both]);
+    expect(shown.map((section) => section.name)).toEqual(['Ready to finish', 'Untouched 30+ days']);
+    expect(ids(shown)).toEqual([['both', 'ready'], ['old']]);
+    expect(reviewCount(shown)).toBe(3);
   });
 
   it('leave out a session with a tab, finished, set aside, or kept within its days, from both sets', () => {
-    const sections = reviewSections([ready, old], facts({ tabbed: new Set(['ready']), setAside: new Map([['old', { due: null, at: 1 }]]) }), NOW);
-    expect(ids(sections)).toEqual([[], []]);
-    expect(ids(reviewSections([ready, old], facts({ kept: new Map([['ready', NOW - DAY], ['old', NOW - DAY]]) }), NOW))).toEqual([[], []]);
-    expect(ids(reviewSections([ready, old], facts({ finished: new Set(['ready', 'old']) }), NOW))).toEqual([[], []]);
-    // A stamp past its days holds nothing out.
-    expect(ids(reviewSections([old], facts({ kept: new Map([['old', NOW - 31 * DAY]]) }), NOW))).toEqual([[], ['old']]);
+    expect(ids(sections([readyRow, old], { tabbed: only('ready'), setAside: (s) => (s.id === 'old' ? { due: null, at: 1 } : undefined) }))).toEqual([[], []]);
+    expect(ids(sections([readyRow, old], { kept: () => NOW - DAY }))).toEqual([[], []]);
+    expect(ids(sections([readyRow, old], { finished: only('ready', 'old') }))).toEqual([[], []]);
   });
 
+  it('count their days in whole days from midnight: a session untouched 30 days to the hour joins tomorrow, and Keep 30 days ago to the hour still holds', () => {
+    expect(ids(sections([session('edge', 30), session('past', 31)]))).toEqual([[], ['past']]);
+    expect(ids(sections([old], { kept: () => NOW - 30 * DAY }))).toEqual([[], []]);
+    expect(ids(sections([old], { kept: () => NOW - 31 * DAY }))).toEqual([[], ['old']]);
+  });
 });
 
 describe("Ready to finish's line", () => {
   const offered = [session('a', 40, [1])];
   it('says why it cannot answer: PR status off, a failed ask, or no answer yet; and nothing while it can, or while nothing links a PR', () => {
-    expect(readyNote(offered, facts({ prStatusOn: false, prStatus: { statuses: {}, problem: null } }))).toBe("PR status is off in Settings, so which sessions' PRs are settled is not known.");
-    expect(readyNote(offered, facts({ prStatus: { statuses: {}, problem: 'gh is missing' } }))).toBe('GitHub could not be asked: gh is missing');
-    expect(readyNote(offered, facts({ prStatus: { statuses: {}, problem: null } }))).toBe('Asking GitHub…');
-    expect(readyNote(offered, facts())).toBeNull();
-    expect(readyNote([session('b', 40)], facts({ prStatusOn: false }))).toBeNull();
+    expect(readyNote(offered, { prStatusOn: false, prStatus: { statuses: {}, problem: null } })).toBe("PR status is off in Settings, so which sessions' PRs are settled is not known.");
+    expect(readyNote(offered, { prStatusOn: true, prStatus: { statuses: {}, problem: 'gh is missing' } })).toBe('GitHub could not be asked: gh is missing');
+    expect(readyNote(offered, { prStatusOn: true, prStatus: { statuses: {}, problem: null } })).toBe('Asking GitHub…');
+    expect(readyNote(offered, ready)).toBeNull();
+    expect(readyNote([session('b', 40)], { ...ready, prStatusOn: false })).toBeNull();
   });
 });

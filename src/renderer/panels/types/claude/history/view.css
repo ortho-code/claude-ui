@@ -54,3 +54,14 @@
   color: var(--muted);
   white-space: pre-line;
 }
+
+/* The line over an older copy of the session: what it is, and that it is read-only. */
+.history-copy-note {
+  flex: 0 0 auto;
+  padding: 4px 8px 4px 12px;
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid var(--waiting);
+  border-radius: 0;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}

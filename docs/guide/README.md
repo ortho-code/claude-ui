@@ -3,6 +3,7 @@
 How to use claude-ui, by area.
 
 - [Sessions](sessions.md): the session list and its groups, tabs and the terminal, a session's menu, forks and worktrees, pull requests, finishing, setting aside and the review, and the history.
+- [Queries](queries.md): searching and filtering the session list with words and terms such as `is:pinned OR is:running`, and every field.
 - [Status and what needs you](status.md): what a session's dot says, and every reason the app marks a session as needing you.
 - [Layout and panels](layout.md): the config folder, the layout file, and the panel types that ship with the app.
 - [Settings](settings.md): every setting in `settings.json`, and the files the app keeps.

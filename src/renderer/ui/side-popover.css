@@ -1,0 +1,23 @@
+/* A side popover floats over the panel beside the one that opened it; side-popover.ts sets its place, width and greatest height. */
+.side-popover {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  padding: 0;
+}
+
+/* The ×, in the corner over the content, which keeps clear of it with its padding below. */
+.side-popover-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+}
+
+/* What scrolls, inside the popover, so the notch outside its edge is never clipped. */
+.side-popover-body {
+  overflow-y: auto;
+  padding: 14px 16px;
+}

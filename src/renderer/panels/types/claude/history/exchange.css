@@ -113,6 +113,18 @@
   color: var(--muted);
 }
 
+/* An older copy's request that the session's current transcript lacks: edged in the waiting ink the copy's mark on the row has. */
+.exchange.not-in-current {
+  border-left: 2px solid var(--waiting);
+  border-radius: 0;
+  padding-left: 10px;
+}
+
+/* An older copy is read-only, so nothing in it can be pinned. */
+.history.copy .exchange-pin {
+  display: none;
+}
+
 .exchange-reply {
   padding-top: 8px;
   overflow-wrap: anywhere;

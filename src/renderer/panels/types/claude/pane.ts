@@ -8,7 +8,8 @@ import { Drawer, type DrawerState } from './drawer';
 import { HistoryBar } from './history/bar';
 import { HistoryDock } from './history/dock';
 import { HistoryView } from './history/view';
-import { activateTab } from './terminals';
+import { hostOf } from '../builtin';
+import { activateTab, startTab } from './terminals';
 import { isOnShow, terminalOf, terminalsEl } from './tab-state';
 // Its Resume, in its own actions and in the history's note.
 import '../../../ui/decisive-button.css';
@@ -25,7 +26,7 @@ terminalsEl.prepend(placeholder);
 export const drawer = new Drawer();
 // The active tab's history, in that drawer (history/view.ts): one view, pointed at whichever session the pane shows.
 export const history = new HistoryView({
-  getHistory: (id, known, generation) => window.claudeUi.getHistory(id, known, generation),
+  getHistory: (id, known, generation, copy) => window.claudeUi.getHistory(id, known, generation, copy),
   toggleHistoryPin: (id, pin) => window.claudeUi.toggleHistoryPin(id, pin),
   openExternal: (url) => window.claudeUi.openExternal(url),
   leave: () => showHistory(false),
@@ -163,14 +164,40 @@ function updatePlaceholder(view: PaneView): void {
     show.type = 'button';
     show.textContent = 'Show history';
     show.addEventListener('click', openHistory);
-    actions.append(resumeButton(standing), show);
+    actions.append(...startButtons(standing), show);
     const line = document.createElement('div');
     line.textContent = sentence;
     placeholder.replaceChildren(line, actions);
   } else placeholder.textContent = sentence;
   // The history, once asked for on such a tab, stands under the same sentence; a tab that is no longer cold takes the pane back.
   if (!standing) history.setStandalone(null);
-  else if (history.standing) history.setStandalone(sentence, resumeButton(standing));
+  else if (history.standing) history.setStandalone(sentence, startButtons(standing)[0]);
+}
+
+/**
+ * What starts the tab on show, first the one to press: Resume, or, for a session another claude runs, a copy of it, and the start regardless.
+ * The copy is a fork, which only reads the session, so it splits nothing.
+ */
+function startButtons(tab: TabState): HTMLButtonElement[] {
+  if (!tab.elsewhere) return [resumeButton(tab)];
+  const { token } = tab;
+  const copy = paneButton('Start a copy', 'Start a new session that goes on from this one, and leave this one to the claude that runs it');
+  copy.className = 'primary';
+  copy.addEventListener('click', () => void hostOf('claude').forkSession(tab.session.id));
+  const anyway = paneButton('Start anyway', 'Resume it here as well, and both claudes write their own copy of it');
+  anyway.addEventListener('click', () => {
+    if (isOnShow(token)) void startTab(token, { despiteElsewhere: true });
+  });
+  return [copy, anyway];
+}
+
+/** A button of the pane's, with what it does as its tooltip. */
+function paneButton(label: string, tooltip: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  setUnavailable(button, null, tooltip);
+  return button;
 }
 
 /** The session each open tab held when the pane last looked, by token, so it knows whose history to forget when a tab closes. */
@@ -186,6 +213,9 @@ export function paneFollows(view: PaneView): void {
   const before = paneSessions;
   paneSessions = new Map(view.tabs.map((t) => [t.token, t.session.id]));
   if (tabOnShow(view) !== drawnTab || paneSentence(view) !== drawnSentence) updatePlaceholder(view);
+  // After the follow, so a session the history has just moved to brings its own copies.
+  const shown = tabOnShow(view);
+  history.setCopies((shown ? view.sessions.find((s) => s.id === shown.session.id)?.supersededCopies : undefined) ?? []);
   for (const [token, id] of before) if (!paneSessions.has(token)) history.forget(id);
 }
 
@@ -213,6 +243,12 @@ function openHistory(): void {
   if (!activeTab) return;
   if (standsAlone(activeTab)) history.setStandalone(paneSentence(store.get()), resumeButton(activeTab));
   else showHistory(true);
+}
+
+/** Open the history of the tab on show, as every way in does, on its session's older copy `stamp`. */
+export function showOlderCopy(stamp: string): void {
+  openHistory();
+  history.showCopy(stamp);
 }
 
 /** What the pane says when there is no live claude to show: one sentence, and the next move it names. */

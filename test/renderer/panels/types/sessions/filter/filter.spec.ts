@@ -65,7 +65,7 @@ test('Clear and close empties the filter and shuts the panel in one press, and s
 });
 
 test('the row of chips opens the panel again', async ({ app, page }) => {
-  await app.boot({ ...fixture, uiState: { ...defaultUi(), search: 'parser', filterPanelOpen: false } });
+  await app.boot({ ...fixture, uiState: { ...defaultUi(), query: 'parser', filterPanelOpen: false } });
   await page.locator('#filter-chips .filter-chip-text').click();
   await expect(page.locator('#filter-panel')).toBeVisible();
   await expect(page.locator('#search')).toHaveValue('parser');
@@ -78,15 +78,15 @@ test('the filter and the panel are saved as they are set', async ({ app, page })
   await page.locator('#filter-toggle').click();
   await expect.poll(async () => (await app.saved())?.filterPanelOpen).toBe(true);
   await page.locator('#search').fill('parser');
-  await expect.poll(async () => (await app.saved())?.search).toBe('parser');
+  await expect.poll(async () => (await app.saved())?.query).toBe('parser');
   await page.locator('#pinned-filter').click();
-  await expect.poll(async () => (await app.saved())?.filters.pinned).toBe(true);
+  await expect.poll(async () => (await app.saved())?.query).toBe('parser is:pinned');
   await page.locator('#filter-toggle').click();
   await expect.poll(async () => (await app.saved())?.filterPanelOpen).toBe(false);
 });
 
 test('a panel left open comes back open, with what was typed in it and no chips', async ({ app, page }) => {
-  await app.boot({ ...fixture, uiState: { ...defaultUi(), search: 'parser', filterPanelOpen: true } });
+  await app.boot({ ...fixture, uiState: { ...defaultUi(), query: 'parser', filterPanelOpen: true } });
   await expect(titles(page)).toHaveText([parser.title, tests.title]);
   await expect(page.locator('#filter-panel')).toBeVisible();
   await expect(page.locator('#filter-toggle')).toHaveAttribute('aria-expanded', 'true');
@@ -95,7 +95,7 @@ test('a panel left open comes back open, with what was typed in it and no chips'
 });
 
 test('a filter left on comes back on, with the panel as it was left', async ({ app, page }) => {
-  await app.boot({ ...fixture, uiState: { ...defaultUi(), search: 'parser', filters: { ...defaultUi().filters, pinned: true }, filterPanelOpen: false } });
+  await app.boot({ ...fixture, uiState: { ...defaultUi(), query: 'parser is:pinned', filterPanelOpen: false } });
   await expect(titles(page)).toHaveText([parser.title]);
   await expect(page.locator('#filter-panel')).toBeHidden();
   await expect(page.locator('#filter-chips .filter-chip')).toHaveCount(2);

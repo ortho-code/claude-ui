@@ -423,7 +423,7 @@ test("typing words of a linked PR's title finds its session", async ({ app, page
 
 // A PR opened in the browser with `gh pr create --web` exists only once it is submitted there, so the window looks for it until it does, and links it to the session that opened it.
 const COMMAND_AT = '2026-11-09T09:21:32.000Z';
-const opener = session({ id: '00000000-0000-4000-8000-0000000000fb', title: 'Opened a PR in the browser', webCreates: [{ repository: 'ScientaNL/demo', head: 'me:fix', at: COMMAND_AT }] });
+const opener = session({ id: '00000000-0000-4000-8000-0000000000fb', title: 'Opened a PR in the browser', prCreates: [{ repository: 'ScientaNL/demo', head: 'me:fix', at: COMMAND_AT }] });
 const createdUrl = 'https://github.com/ScientaNL/demo/pull/40';
 
 test('a PR opened in the browser is looked for every five minutes, linked to its session once it exists, and then asked about as any other', async ({ app, page }) => {
@@ -464,6 +464,20 @@ test('a review posted by its id is looked for, linked to its session once GitHub
   await expect.poll(() => app.calls('findPrs')).toEqual([[[{ id: poster.id, node: REVIEW, at: COMMAND_AT }]]]);
   await expect(mark(page, poster.title)).toHaveText('1');
   await expect.poll(() => app.calls('prStatuses')).toEqual([[[ref(40)]]]);
+});
+
+// A comment posted by number may be on an issue or on a PR's conversation, so the window asks which, links a PR, and asks no more about either.
+test('a comment posted by number links its PR once GitHub says it is one, and neither it nor an issue is asked about again', async ({ app, page }) => {
+  const commenter = session({ id: '00000000-0000-4000-8000-0000000000fd', title: 'Commented by number', postedNumbers: [{ repository: 'ScientaNL/demo', number: 40, at: COMMAND_AT }, { repository: 'ScientaNL/demo', number: 41, at: COMMAND_AT }] });
+  await page.clock.install({ time: new Date('2026-11-09T09:22:00.000Z') });
+  await app.boot({ sessions: [commenter], history: { [commenter.id]: [] }, numberPrs: { 'ScientaNL/demo#40': createdUrl, 'ScientaNL/demo#41': null }, prStatuses: { 'scientanl/demo#40': { ...open(), title: 'Fix the thing' } } });
+  await expect.poll(() => app.calls('findPrs')).toEqual([[[{ id: commenter.id, repository: 'ScientaNL/demo', number: 40, at: COMMAND_AT }, { id: commenter.id, repository: 'ScientaNL/demo', number: 41, at: COMMAND_AT }]]]);
+  await expect(mark(page, commenter.title)).toHaveText('1');
+  await expect.poll(() => app.calls('prStatuses')).toEqual([[[ref(40)]]]);
+
+  await page.clock.fastForward(5 * MINUTE);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(2);
+  expect(await app.calls('findPrs')).toHaveLength(1);
 });
 
 test('with PR status off, a PR opened in the browser is not looked for', async ({ app, page }) => {

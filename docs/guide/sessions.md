@@ -12,8 +12,12 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 - A jump list on the project heading reaches a group without scrolling.
 - Recent, beside Grouped under the header, shows every session of the project on show, or of all of them, in one flat list, last worked on first, each row naming its group and in All its project; filters and the finished sessions work in it as in Grouped, and selecting several from a row's menu.
   In either, a session worked on again moves to its place within a minute, never while the pointer or the focus is in the list or a menu from it is open.
-- Search plus filters: pinned, open, live, set aside, worktree, siblings, linked PR, noted, finished, folder gone and a date range.
-  A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
+- A query field that searches and filters in one: words find a session by its title, first prompt, folder, note, group or a PR's number or title, each word anywhere and a quoted phrase whole, and by its id from the id's start or end, so a pasted id or a short form of it finds it; terms such as `is:pinned`, `has:pr` or `active:>=today-7d` filter, terms side by side must all hold, `OR` between them for either and `-` before one for not, so `is:pinned OR is:running` and `-is:pinned` say what the pills alone could not.
+  A word with a colon or a parenthesis in it, such as `TODO:`, reads as a term, and one starting with `-` as not, so put it in quotes to search for it: `"TODO:"`, `"-text"`.
+  The filter pills, pinned, open, live, set aside, worktree, siblings, linked PR, noted and folder gone, and the date presets write their terms into the field and show on while their term is in every part of the query; finished is a switch beside it.
+  A term that does not read is underlined, with why under the field, and the list is dimmed while it keeps what the last query that did showed; a query left that did not read shows nothing at the next launch until it does.
+  [Queries](queries.md) has every field and value, and the help button beside the field a short card of them.
+  A filter left on with its panel shut stays on screen as a row of chips above the count: one per term, or one of the whole query when it has an `OR`, and one for finished.
   Clear empties the filter; Clear and close, under the open panel, also shuts it.
 - Hovering a session's row shows what it says in full, whatever the sidebar's width cuts off: its name, its line, its state, when it was last active, its PRs with their dates where GitHub gave them, and its whole note.
 - A project switcher scopes the sidebar and counts the sessions in other projects that need you.
@@ -25,6 +29,8 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 
 - Each open session has a tab with an embedded terminal running the real `claude` CLI: a click resumes it (`claude --resume`), and new sessions start there too, named when you fork one or create a worktree.
 - Several sessions are open at once; drag a tab to reorder, and open tabs cluster by group in the tab bar, where a group's name takes you to the group in the list.
+- On Linux, a session that already runs somewhere else, in a terminal, the Claude desktop app, another tab or another copy of the app, is not resumed in its tab, since two claudes on one session each write their own copy of it, and the copies drift apart.
+  The tab says where it runs and when that claude started, and offers Start a copy, a new session that goes on from it, or Start anyway.
 - The tabs are restored on the next launch, where the sessions that were running come back marked as needing you, started again too if you choose, and the rest wait.
 - A tab's own button stops the session before a second press removes the tab, or marks the session finished if you choose that in Settings.
   A session that asks something on its way out, such as whether to keep its worktree, is answered in its tab, which stays until claude has gone, its dot pulsing meanwhile; one that has not gone a second later can be forced.
@@ -47,12 +53,14 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
 - Sessions sharing a conversation show as siblings, with a fork badge and a jump list.
+- A session whose transcript replaced an older copy of it, as when two claudes ran it at once in different folders, has a two-pages mark saying when the copy was replaced and how many requests it holds that the session's history lacks, while the copy sits beside the session's transcript.
+  Claude Code keeps that copy for a while and then deletes it, and the mark goes with it.
 - Worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life, and a session that has since left its worktree keeps the badge, muted unless claude's newest change is in a worktree.
 - A session that changed files in other checkouts than the worktree its badge names, such as a worktree it reached by path or with a `cd`, has the badge count and list them, with the worktree it names, and picking one there points the panels at it while that session is on show.
 
 ## Pull requests
 
-- The PRs a session links, as Claude Code records them in its transcript, those it posted a review or comment on with a `gh` command naming the PR's repository, or through GitHub's GraphQL naming the review or comment by its id, within 30 days, one it opened in the browser with `gh pr create --web` naming the repository and the branch, once you have submitted it there and within 30 days, and the one a panel row's `session` action names with `pr`: a badge on its row that lists them, an entry in its options, and each opening its page in the browser; a filter finds the sessions with one, and search finds a session by a PR's number or words of its title.
+- The PRs a session links, as Claude Code records them in its transcript, those it posted a review or comment on with a `gh` command naming the PR's repository, a comment on its conversation posted by the PR's number as for an issue included, or through GitHub's GraphQL naming the review or comment by its id, within 30 days, one it created with `gh pr create` naming the repository and the branch, also when its output was cut short, and with `--web` once you have submitted it in the browser, within 30 days, and the one a panel row's `session` action names with `pr`: a badge on its row that lists them, an entry in its options, and each opening its page in the browser; a filter finds the sessions with one, and search finds a session by a PR's number or words of its title.
 - Each PR is listed by its number and title, with its repository under it, or in front of the number where the session links PRs in several; until GitHub has given a title, by its number alone, and from launch by the title it last gave.
 - The badge takes the colour of what GitHub says of them where it is your turn — changes requested, failing checks or a merge conflict, ready to merge, new commits since your review or your review asked, all merged or closed — asked with `gh`, and each PR GitHub has answered for is listed with its state, its approvals, when it merged or closed or since when it is open, and, where it is not yours, who opened it and whether you review it.
 - Whose turn follows the roles of the needs-you types ([Status](status.md#what-needs-you)): as shipped, a conflict, failing checks, changes requested and approved colour only your own PRs, and on someone else's PR the state says who it waits on instead, "waiting on the author"; a PR you review with new commits or your review asked takes the colour of that type's needs-you mark.
@@ -66,7 +74,7 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
   A claude running in its tab is asked to leave, as Stop asks, and the tab closes once it has gone, unless `setAsideRunning` in [Settings](settings.md) says to keep the tab or to leave claude running; a message says until when, and its Undo puts it all back, claude started again included.
   The mark goes when its day comes, when you send a prompt there, when you finish the session, or with Clear set aside, which a close's message offers too.
 - Selecting several sessions, a project's or a group's from its menu or one from its row's, puts a box on every row and heading, and a bar that marks finished, sets aside, keeps out of the review, moves to a group, stops or closes the tabs of every one ticked, in one go, with one Undo for what it finishes, sets aside, keeps or closes of the sessions that are not running; among the finished sessions it makes them unfinished, or deletes them after one question for all.
-- A review, from its button under the header, lists the sessions without a tab that are ready to finish, every PR they link merged or closed, or untouched for 30 days, under a heading for each, to mark finished, set aside or keep out of the review for 30 days in bulk, until nothing is left to decide.
+- A review, from its button under the header, lists the sessions without a tab that are ready to finish, every PR they link merged or closed, or untouched for 30 days, counted in whole days from midnight, under a heading for each, to mark finished, set aside or keep out of the review for 30 days in bulk, until nothing is left to decide.
 
 ## The history
 
@@ -74,9 +82,10 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 - A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
 - It opens as a drawer over the terminal; Dock in its head puts it in a column beside claude instead, so you can read back while you type, with a divider to drag its width, and Undock puts it back.
   The window remembers which, and Close hides the docked column until the bar opens it again.
+- A session with an older copy of its transcript has a switch in its history's head between Current and that copy, which it shows read-only, the requests the current one lacks edged; a press on the copy's mark on the row opens it there, without starting claude.
 
 ## The window
 
-- It opens the way you left it: window size and position, the sidebar's search, filters, folds, width and scroll offset, and the tab bar's fold.
+- It opens the way you left it: window size and position, the sidebar's query, the finished switch, folds, width and scroll offset, and the tab bar's fold.
 - The window's layout is yours to arrange, with panels beside the sidebar and the terminal; see [Layout and panels](layout.md).
 - Every mark is an SVG icon, clickable icons share one mark size and one hover for each kind, a borderless one turning accent blue, a bordered one filling, and radius and type come from tokens.

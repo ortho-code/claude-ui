@@ -1,4 +1,4 @@
-import type { SessionSummary } from '../../shared/types';
+import type { RunningElsewhere, SessionSummary } from '../../shared/types';
 
 // The stable key for a displayed session entity: the session's own id, always.
 // It is immutable, so pins/finished marks/tabs can never go stale — a conversation-derived key stopped matching its session the moment the session gained a sibling.
@@ -47,12 +47,16 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   // Both shown as the sibling mark, and both can change MID-session when a fork lands.
   isSibling: true,
   siblingIds: true,
+  // Drawn as the superseded copy mark, which comes and goes with the copy's file and its count changes as the session runs on.
+  supersededCopies: true,
   // Drawn as the PR mark, and a running session can link one.
   prs: true,
   // Not drawn, but the window asks GitHub for the PR each one becomes, so a new one has to reach the store.
-  webCreates: true,
+  prCreates: true,
   // Not drawn either, and asked about the same way: GitHub says which PR each posted id belongs to.
   postedNodes: true,
+  // Not drawn either: GitHub says whether each number a comment was posted on is a PR.
+  postedNumbers: true,
   // Both change what the row IS — a session whose folder is gone cannot be opened, and says so — and both can flip while the app is running, with nothing in the transcript moving to announce it.
   cwdExists: true,
   repoRootExists: true,
@@ -114,6 +118,21 @@ export function unstartableReason(session: SessionSummary): string | null {
     return `The worktree “${session.worktree}” is gone, so this session cannot run. Recreate it at ${session.cwd} to use this session again.`;
   }
   return `This session's folder is gone, so it cannot run: ${session.cwd}`;
+}
+
+const ELSEWHERE_WORDS: Record<RunningElsewhere['where'], string> = {
+  'claude-ui': 'another claude-ui tab',
+  desktop: 'the Claude desktop app',
+  script: 'a script',
+  terminal: 'a terminal',
+};
+
+/**
+ * Why a session was not resumed while another claude runs it, in the words the pane and the toast both say.
+ * `started` is when that claude started, as the window's language writes it, which may be before it took this session.
+ */
+export function elsewhereReason(session: SessionSummary, found: RunningElsewhere, started: string): string {
+  return `“${sessionLabel(session)}” is already running in ${ELSEWHERE_WORDS[found.where]} in ${found.cwd}, which started ${started}. Starting it here too would split its transcript in two.`;
 }
 
 /** What a session's worktree mark says, when it has one. */

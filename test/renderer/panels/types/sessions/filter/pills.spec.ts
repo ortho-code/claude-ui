@@ -3,7 +3,7 @@ import { session, sorted } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { sortedTitles, tabLabel } from '../../../../support/window';
 
-// Each pill narrows the list to what it names, is shown pressed, and a second press gives the whole list back; which session passes which pill is `sessionPasses`'s, unit-tested on its own, so this holds the wiring.
+// Each pill narrows the list to what it names, is shown pressed, and a second press gives the whole list back; which session meets which pill's term is the query fields', unit-tested on their own, so this holds the wiring.
 const plain = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'A plain one' });
 const worktree = session({ id: '00000000-0000-4000-8000-0000000000c2', title: 'In a worktree', worktree: 'feature-x' });
 const sibling = session({ id: '00000000-0000-4000-8000-0000000000c3', title: 'A sibling', isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000c4'] });

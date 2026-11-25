@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig(
   // test-results/ is Playwright's output, which a run of the window's checks deletes at its start, so a lint walking the tree beside one failed on the folder gone under it.
-  { ignores: ['dist/', 'release/', 'test-results/'] },
+  // .claude/worktrees/ holds other checkouts of this repository, each linted in its own checkout; read from here, their work in progress failed this checkout's lint.
+  { ignores: ['dist/', 'release/', 'test-results/', '.claude/worktrees/'] },
   js.configs.recommended,
   {
     files: ['**/*.ts'],

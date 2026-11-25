@@ -74,7 +74,7 @@ test('a filter leaves out a project whose sessions are all finished, as it does 
 
 // The delete itself takes it away, before main has listed anything again: the listing is held, so only the delete in flight can.
 test('deleting the last finished session of the project on show takes the project away at once, and falls back to All', async ({ app, page }) => {
-  await app.boot({ ...fixture, sessions: [here, there], finished: { [here.id]: 1 }, activeProject: PROJECT, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } });
+  await app.boot({ ...fixture, sessions: [here, there], finished: { [here.id]: 1 }, activeProject: PROJECT, uiState: { ...defaultUi(), finished: true } });
   await expect(page.locator('#switcher-name')).toHaveText('demo');
   await expect(row(page, here.title)).toHaveCount(1);
 

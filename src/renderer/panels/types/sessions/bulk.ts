@@ -105,7 +105,7 @@ export function showBulk(view: View<'bulk' | 'tabs' | 'reviewing' | 'activeProje
   bulkBar.hidden = !on;
   if (!view.bulk) return;
   // The finished view's sessions are put away: its bar makes them unfinished or deletes them, and offers nothing that works a session, as its rows do not; the review sets the filter aside, the finished view with it.
-  const finishedView = view.filter.filters.finished && !view.reviewing;
+  const finishedView = view.filter.finished && !view.reviewing;
   for (const button of bulkBar.querySelectorAll<HTMLButtonElement>('button')) button.hidden = (button.dataset.in === 'finished') !== finishedView;
   const set = view.bulk.ticked;
   for (const row of container.querySelectorAll<HTMLElement>('.session')) drawBox(row.querySelector(':scope > .tick'), set.has(row.dataset.key ?? '') ? 'all' : 'none');
@@ -218,7 +218,7 @@ document.addEventListener('keydown', (event) => {
  */
 export function bulkFollows(view: View<'bulk' | 'tabs' | 'filter' | 'reviewing' | 'activeProject' | 'projectNames'>, before: View<'bulk' | 'tabs' | 'filter'>): void {
   // The review sets the filter aside, so the finished view does not end it.
-  if (view.bulk && !view.reviewing && view.filter.filters.finished !== before.filter.filters.finished) {
+  if (view.bulk && !view.reviewing && view.filter.finished !== before.filter.finished) {
     endBulk();
     return;
   }

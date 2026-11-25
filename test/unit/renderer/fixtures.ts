@@ -22,9 +22,11 @@ export function session(over: Partial<SessionSummary> = {}): SessionSummary {
     lastActivity: '2026-07-28T10:00:00.000Z',
     isSibling: false,
     siblingIds: [],
+    supersededCopies: [],
     prs: [],
-    webCreates: [],
+    prCreates: [],
     postedNodes: [],
+    postedNumbers: [],
     postCompactHeads: [],
     // A session whose folders are both there, which is every case except the ones that say otherwise.
     cwdExists: true,

@@ -10,7 +10,7 @@ import { tabLabel, tabs, titles } from '../../../../support/window';
 const one = session();
 const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Another session' });
 const fixture = { sessions: [one, two], history: { [one.id]: [], [two.id]: [] }, openSessions: [one.id] };
-const withFilter = (filter: 'open' | 'live'): { uiState: UiState } => ({ uiState: { ...defaultUi(), filters: { ...defaultUi().filters, [filter]: true } } });
+const withFilter = (filter: 'open' | 'live'): { uiState: UiState } => ({ uiState: { ...defaultUi(), query: filter === 'open' ? 'is:working' : 'is:running' } });
 
 const tabButton = (page: Page): Locator => tabs(page).locator('.tab-close');
 

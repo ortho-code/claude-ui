@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { postedNodes, postedPrs, webCreates } from '../../../../src/main/sessions/posted-prs';
+import { postedNodes, postedNumbers, postedPrs, prCreates } from '../../../../src/main/sessions/posted-prs';
 
 const pr = (repository: string, number: number) => ({ repository, number, url: `https://github.com/${repository}/pull/${number}` });
 
@@ -101,26 +101,37 @@ describe('postedPrs', () => {
   });
 });
 
-describe('webCreates', () => {
+describe('prCreates', () => {
   // The command session 2a3c1b9a ran on 2026-11-09, its title shortened.
   it('reads a PR created in the browser, by the repository and the branch the command names', () => {
     const command = 'cd /repo/.claude/worktrees/fix && git push origin HEAD && gh pr create --web --repo ScientaNL/Scienta --base develop --head alleknalle:fix --title "Setup creates the host folders"';
-    expect(webCreates(command)).toEqual([{ repository: 'ScientaNL/Scienta', head: 'alleknalle:fix' }]);
+    expect(prCreates(command)).toEqual([{ repository: 'ScientaNL/Scienta', head: 'alleknalle:fix' }]);
   });
 
   it('reads the short flags and values given after an equals sign', () => {
-    expect(webCreates('gh pr create -w -R=acme/app -H fix')).toEqual([{ repository: 'acme/app', head: 'fix' }]);
-    expect(webCreates('gh pr create --repo=https://github.com/acme/app --head=fix --web')).toEqual([{ repository: 'acme/app', head: 'fix' }]);
+    expect(prCreates('gh pr create -w -R=acme/app -H fix')).toEqual([{ repository: 'acme/app', head: 'fix' }]);
+    expect(prCreates('gh pr create --repo=https://github.com/acme/app --head=fix --web')).toEqual([{ repository: 'acme/app', head: 'fix' }]);
   });
 
-  it('reads nothing without --web, or with the repository or the branch left to the checkout', () => {
-    expect(webCreates('gh pr create --repo acme/app --head fix --title x')).toEqual([]);
-    expect(webCreates('gh pr create --web --head fix')).toEqual([]);
-    expect(webCreates('gh pr create --web --repo acme/app')).toEqual([]);
+  // The command session 7fc40938 ran on 2026-11-23, its title shortened: its piped output kept only gh's notice after the PR's address.
+  it('reads a PR created without --web, whatever its output is cut to', () => {
+    const command = 'cd /tmp && gh pr create --draft --repo ScientaNL/Scienta --base develop --head alleknalle:renovate-holds-back --title "Renovate holds back" 2>&1 | tail -2';
+    expect(prCreates(command)).toEqual([{ repository: 'ScientaNL/Scienta', head: 'alleknalle:renovate-holds-back' }]);
+  });
+
+  it('reads nothing with the repository or the branch left to the checkout', () => {
+    expect(prCreates('gh pr create --head fix --title x')).toEqual([]);
+    expect(prCreates('gh pr create --web --head fix')).toEqual([]);
+    expect(prCreates('gh pr create --repo acme/app')).toEqual([]);
+  });
+
+  it('reads nothing from a dry run, which creates no PR', () => {
+    expect(prCreates('gh pr create --dry-run --repo acme/app --head fix')).toEqual([]);
   });
 
   it('never takes a value such as a title for the flag it spells', () => {
-    expect(webCreates('gh pr create --title --web --repo acme/app --head fix')).toEqual([]);
+    expect(prCreates('gh pr create --repo acme/app --title --head fix')).toEqual([]);
+    expect(prCreates('gh pr create --repo acme/app --head fix --title --dry-run')).toEqual([{ repository: 'acme/app', head: 'fix' }]);
   });
 });
 
@@ -164,5 +175,41 @@ describe('postedNodes', () => {
 
   it('keeps nothing from a gh call that is not GraphQL', () => {
     expect(postedNodes(`gh api repos/acme/app/pulls/1/reviews -f event=COMMENT -f body=${REVIEW}`)).toEqual([]);
+  });
+});
+
+describe('postedNumbers', () => {
+  // Session bec6ee95 commented on a PR's conversation on 2026-10-30, its body file's path shortened.
+  it('keeps a comment a gh api request posts under an issue’s number, which may be a PR’s', () => {
+    expect(postedNumbers('gh api -X POST repos/ScientaNL/scienta/issues/36555/comments --input /tmp/comment.json')).toEqual([{ repository: 'ScientaNL/scienta', number: 36555 }]);
+  });
+
+  // Session 5afda3b3 commented on an issue on 2026-11-23, its body file's path shortened.
+  it('reads a request a body makes a post', () => {
+    expect(postedNumbers('gh api repos/zircote/swagger-php/issues/2017/comments -F body=@/tmp/comment.md')).toEqual([{ repository: 'zircote/swagger-php', number: 2017 }]);
+  });
+
+  it('keeps a comment gh issue comment posts, by the repository or the issue’s page', () => {
+    expect(postedNumbers('gh issue comment 12 --repo acme/app --body hi')).toEqual([{ repository: 'acme/app', number: 12 }]);
+    expect(postedNumbers('gh issue comment https://github.com/acme/app/issues/9 -b hi')).toEqual([{ repository: 'acme/app', number: 9 }]);
+  });
+
+  it('keeps nothing for a read of the comments, or an issue named by a bare number or under a placeholder', () => {
+    expect(postedNumbers("gh api --paginate repos/acme/app/issues/3/comments --jq '.[]|.body'")).toEqual([]);
+    expect(postedNumbers('gh api -X GET repos/acme/app/issues/3/comments -f per_page=100')).toEqual([]);
+    expect(postedNumbers('gh issue comment 12 --body hi')).toEqual([]);
+    expect(postedNumbers('gh api repos/{owner}/{repo}/issues/3/comments -f body=x')).toEqual([]);
+  });
+
+  it('keeps nothing for a post that is not a comment, or a gh issue command that posts none', () => {
+    expect(postedNumbers('gh api repos/acme/app/issues/3/labels -f labels[]=bug')).toEqual([]);
+    expect(postedNumbers('gh issue view 12 --repo acme/app')).toEqual([]);
+  });
+
+  it('keeps each number once, in its order', () => {
+    expect(postedNumbers('gh issue comment 2 --repo acme/app -b a && gh api repos/acme/app/issues/2/comments -f body=b && gh issue comment 1 --repo acme/app -b c')).toEqual([
+      { repository: 'acme/app', number: 2 },
+      { repository: 'acme/app', number: 1 },
+    ]);
   });
 });

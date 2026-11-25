@@ -96,7 +96,14 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     listSessions: () => answer(withPrLinks(fixture.sessions, fixture.prLinks)),
     // Where the answer starts is main's own rule, `readFrom`; a fixture transcript never changes after its one read, so nothing in it is ever marked as changed.
     // A session the listing does not have has no transcript, which is main's empty answer; one it has needs its history in the fixture.
-    getHistory: (id, known, generation) => {
+    getHistory: (id, known, generation, copy) => {
+      // An older copy: its exchanges and the ids main says the current transcript lacks, read whole each time, as a copy never changes.
+      if (copy !== undefined) {
+        const key = `${id}:${copy}`;
+        if (!(key in fixture.copies)) return unmodelled('getHistory')();
+        const held = fixture.copies[key];
+        return answer({ generation: READ, from: 0, exchanges: held.exchanges, total: held.exchanges.length, notInCurrent: held.notInCurrent });
+      }
       if (!(id in fixture.history)) return fixture.sessions.some((s) => s.id === id) ? unmodelled('getHistory')() : answer(NO_TRANSCRIPT);
       const exchanges = fixture.history[id];
       const from = readFrom(known, exchanges.length, generation === READ, null);
@@ -268,15 +275,16 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
         ),
         problem: fixture.prProblem,
       }),
-    // Main links each PR it finds to its session as the app's own link, and answers what it found (`findAndLink`, src/main/sessions/pr-find.ts); while it cannot ask GitHub it finds nothing and says why.
+    // Main links each PR it finds to its session as the app's own link, and answers what it found and what GitHub said is no PR (`findAndLink`, src/main/sessions/pr-find.ts); while it cannot ask GitHub it finds nothing and says why.
     findPrs: (toFind) => {
-      if (fixture.prProblem !== null) return answer({ found: [], problem: fixture.prProblem });
-      const found = toFind.flatMap((asked) => {
-        const [prs, key] = 'node' in asked ? [fixture.nodePrs, asked.node] : [fixture.createdPrs, `${asked.repository}\n${asked.head}`];
-        return Object.hasOwn(prs, key) ? [{ asked, url: prs[key] }] : [];
+      if (fixture.prProblem !== null) return answer({ found: [], notPrs: [], problem: fixture.prProblem });
+      const answers = toFind.map((asked) => {
+        const [prs, key]: [Record<string, string | null>, string] = 'node' in asked ? [fixture.nodePrs, asked.node] : 'head' in asked ? [fixture.createdPrs, `${asked.repository}\n${asked.head}`] : [fixture.numberPrs, `${asked.repository}#${asked.number}`];
+        return { asked, url: Object.hasOwn(prs, key) ? prs[key] : undefined };
       });
+      const found = answers.flatMap(({ asked, url }) => (typeof url === 'string' ? [{ asked, url }] : []));
       for (const { asked, url } of found) fixture.prLinks = withPrLink(fixture.prLinks, asked.id, url);
-      return answer({ found, problem: null });
+      return answer({ found, notPrs: answers.flatMap(({ asked, url }) => (url === null ? [asked] : [])), problem: null });
     },
     getAllStatuses: () => answer(fixture.statuses),
     onSessionStatus: on('onSessionStatus'),
@@ -285,7 +293,11 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     onSessionScheduled: on('onSessionScheduled'),
     clearStatus: sent,
     // A claude that has started and printed nothing yet: its tab boots until a check fires `onTerminalData` for it.
-    startTerminal: (cwd) => start(cwd),
+    // Main's refusal of a plain resume of a session another claude runs (`refuseElsewhere`, src/main/pty/terminal.ts), made before anything is spawned, after the folder's.
+    startTerminal: (cwd, launch) => {
+      const found = launch.resumeSessionId && !launch.fork && !launch.despiteElsewhere ? fixture.elsewhere[launch.resumeSessionId] : undefined;
+      return found && onDisk(cwd) !== 'missing' ? Promise.reject(new Error(`RUNS_ELSEWHERE:${JSON.stringify(found)}`)) : start(cwd);
+    },
     // A shell that has started and printed nothing yet, in the same id space as a claude, as main's are.
     startShell: (cwd) => start(cwd),
     // What main reads off the pty is the fixture's table, by terminal id, read when asked, so a check can start a command mid-run; nothing but the shell where it names none.

@@ -1,10 +1,15 @@
-import type { SessionSummary, UiState } from '../../../../shared/types';
+import type { UiState } from '../../../../shared/types';
+import { hasTerm, withoutTerms, withoutTerm, withTerms } from '../../../../shared/query/edit';
+import { parseQuery, type Term, type Vocabulary } from '../../../../shared/query/parse';
+import { dateTerm, PILL_TERMS, PRESET_TERMS, type PillKey } from '../../../../shared/query/stored-filter';
 import { calendar } from '../../../dialogs/calendar';
 import { byId, fromMarkup } from '../../../ui/dom';
-import { datePresetRange, sessionPasses } from '../../../rules/session-filter';
-import { entityKey } from '../../../rules/sessions';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
-import { isFiltering, searchText } from '../../../state/views';
+import { filterQuery } from '../../../state/filter-query';
+import { queryFields } from '../../../state/query-facts';
+import { followFieldScroll, queryMirror, queryProblemList, showQueryProblems } from './query-problems';
+import { queryHelpButton, toggleQueryHelp } from './query-help';
+import { isFiltering } from '../../../state/views';
 import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, svgImage, WORKTREE_ICON } from '../../../ui/svg';
 import { setTooltip } from '../../../ui/tooltip';
 import { iconSvg } from '../../icons';
@@ -14,7 +19,8 @@ import '../../../ui/popover.css';
 import './filter.css';
 
 /**
- * The sidebar's filter: the header's toggle, the panel under it — the search box, the pills and the date presets with their calendar — and, under the panel, the count with Clear and the chips that stand in for a shut panel.
+ * The sidebar's filter: the header's toggle, the panel under it — the query field, the pills and the date presets with their calendar — and, under the panel, the count with Clear and the chips that stand in for a shut panel.
+ * The query field is the filter: a pill or a preset writes its term into it and shows on while its term is there (the session-model design's decision 17), and only the finished switch stands beside it.
  * It sets the filter and the panel in the store; the list follows, and hands back the count it drew (`updateFilterStatus`), since only the list knows what matched.
  */
 
@@ -22,7 +28,7 @@ import './filter.css';
 export const filterToggle = fromMarkup(`<button id="filter-toggle" class="icon-btn large" data-tooltip="Filter sessions" aria-label="Filter sessions" aria-expanded="false"></button>`, HTMLButtonElement);
 export const filterPanel = fromMarkup(`
   <div id="filter-panel" hidden>
-    <input id="search" type="search" placeholder="Search sessions…" aria-label="Search sessions" />
+    <div id="query-wrap"><div id="query-field"><input id="search" type="search" placeholder="Search, or is:pinned OR is:running…" aria-label="Search or filter sessions" spellcheck="false" /></div></div>
     <div id="filters">
       <button id="pinned-filter" data-tooltip="Show only pinned sessions" aria-label="Show only pinned sessions" aria-pressed="false"></button>
       <button id="open-filter" type="button" data-tooltip="Show only sessions with a tab open" aria-label="Show only sessions with a tab open" aria-pressed="false"></button>
@@ -84,6 +90,15 @@ const datePicker = calendar(byId(filterPanel, 'date-range'), {
   },
 });
 const searchInput = byId(filterPanel, 'search', HTMLInputElement);
+const queryWrap = byId(filterPanel, 'query-wrap');
+byId(filterPanel, 'query-field').append(queryMirror);
+queryWrap.append(queryHelpButton);
+queryWrap.after(queryProblemList);
+// Beside the panel the list is in, wherever the layout puts it; a value pressed in it is ANDed with the query, as a pill's term is.
+queryHelpButton.addEventListener('click', () =>
+  toggleQueryHelp(filterPanel.closest<HTMLElement>('.panel-group') ?? filterPanel, (term) => setQuery(withTerms(store.get().filter.query, [term], vocabulary()))),
+);
+searchInput.addEventListener('scroll', () => followFieldScroll(searchInput));
 const SEARCH_CLEAR_SIZE = 12;
 searchInput.style.setProperty('--search-clear', svgImage(closeIcon(SEARCH_CLEAR_SIZE)));
 searchInput.style.setProperty('--search-clear-size', `${SEARCH_CLEAR_SIZE}px`);
@@ -106,49 +121,11 @@ const LIVE_ICON = strokeIcon(13, '<circle cx="8" cy="8" r="5.5" /><circle cx="8"
 // The finished filter's mark: the lidded box finishing wears everywhere (`finishIcon`).
 const FINISH_ICON = finishIcon(13);
 
-// Session key -> its group's NAME, so typing a group name reaches its sessions.
-// Built ONCE per filter pass and handed in: passesFilters runs per session, so building it there would be one pass over the membership map per row.
-export function groupNameByKey({ groupState }: View<'groupState'>): Map<string, string> {
-  const byId = new Map(groupState.groups.map((g) => [g.id, g.name]));
-  const out = new Map<string, string>();
-  for (const [key, id] of Object.entries(groupState.groupOf)) {
-    const name = byId.get(id);
-    if (name) out.set(key, name);
-  }
-  return out;
-}
+/** The fields the query field reads, as they stand. */
+const vocabulary = (): Vocabulary => queryFields(store.get()).fields;
 
-// Adapt the current filter state to the pure predicate.
-export function passesFilters(session: SessionSummary, view: View<'pinned' | 'finished' | 'notes' | 'pendingDeletes' | 'tabs' | 'setAside' | 'filter' | 'prNames'>, groupNames?: ReadonlyMap<string, string>): boolean {
-  const { filters, dateFrom, dateTo } = view.filter;
-  return sessionPasses(session, {
-    groupNames,
-    prNames: view.prNames,
-    text: searchText(view),
-    pinnedOnly: filters.pinned,
-    openOnly: filters.open,
-    open: filters.open ? new Set(view.tabs.map((t) => entityKey(t.session))) : undefined,
-    liveOnly: filters.live,
-    // Built per call rather than hoisted: cheap next to the tab count, and it must reflect the tabs as they are right now, since starting or stopping one changes what this filter shows.
-    live: filters.live
-      ? new Set(view.tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)))
-      : undefined,
-    setAsideOnly: filters.setAside,
-    setAside: view.setAside,
-    worktreeOnly: filters.worktree,
-    goneOnly: filters.gone,
-    siblingOnly: filters.siblings,
-    prsOnly: filters.prs,
-    notedOnly: filters.noted,
-    finishedOnly: filters.finished,
-    dateFrom,
-    dateTo,
-    pinned: view.pinned,
-    finished: view.finished,
-    notes: view.notes,
-    pendingDeletes: view.pendingDeletes,
-  });
-}
+/** A term a date preset or the calendar wrote, which a new choice of date replaces. */
+const isDateTerm = (term: Term): boolean => term.field === 'active' && !term.negated;
 
 // The custom-range calendar is an inline popover; its open state is independent of the active preset, so a picked range stays applied while the calendar is dismissed.
 let datePopoverOpen = false;
@@ -172,21 +149,43 @@ function setFilter(patch: Partial<FilterState>): void {
   putFilter({ ...store.get().filter, ...patch });
 }
 
-/** Turn one pill on or off. */
-function setPill(key: FilterPill['key'], on: boolean): void {
-  const { filters } = store.get().filter;
-  setFilter({ filters: { ...filters, [key]: on } });
+/** Write a query a control made into the field and the filter, so the field always shows what filters; Custom stays chosen only as long as the control that set it says so. */
+function setQuery(query: string): void {
+  customChosen = false;
+  searchInput.value = query;
+  setFilter({ query });
 }
 
-/** A date preset's [from, to] window, in epoch ms, null for unbounded on that side: a rolling preset's from now, Custom's from the calendar's selection. */
-function dateWindow(preset: string): Pick<FilterState, 'datePreset' | 'dateFrom' | 'dateTo'> {
-  if (preset === 'custom') return { datePreset: preset, ...customDates() };
-  const range = datePresetRange(preset, Date.now());
-  return { datePreset: preset, dateFrom: range.from, dateTo: range.to };
+/** Turn one pill on or off: its term added to the query, or taken out of it. */
+function setPill(key: PillKey, on: boolean): void {
+  const { query } = store.get().filter;
+  setQuery(on ? withTerms(query, [PILL_TERMS[key]], vocabulary()) : withoutTerm(query, PILL_TERMS[key], vocabulary()));
 }
 
-/** Show a preset as the one chosen. */
-function drawDatePreset(preset: string): void {
+/** The query with its date terms, those a preset or the calendar wrote, replaced by `terms`. */
+function withDates(query: string, terms: readonly string[]): string {
+  return withTerms(withoutTerms(query, isDateTerm, vocabulary()), terms, vocabulary());
+}
+
+/** Custom was chosen with no range picked yet, so it stays lit while the query has no date of its own. */
+let customChosen = false;
+
+/**
+ * Which preset the query says: the one whose term it holds, Custom for days the calendar wrote or while Custom waits for a range, Any for no date; null for a date term no preset writes, such as one typed by hand, or a query of several parts; undefined while the query does not read, which leaves the presets as they are.
+ */
+function presetOf(query: string): string | null | undefined {
+  const parsed = parseQuery(query, vocabulary());
+  if (parsed.problems.length > 0) return undefined;
+  if (parsed.parts.length !== 1) return null;
+  const dates = (parsed.parts[0] ?? []).filter(isDateTerm).map((term) => query.slice(term.from, term.to).toLowerCase());
+  if (dates.length === 0) return customChosen ? 'custom' : 'any';
+  const preset = (Object.keys(PRESET_TERMS) as (keyof typeof PRESET_TERMS)[]).find((key) => dates.length === 1 && dates[0] === PRESET_TERMS[key]);
+  if (preset) return preset;
+  return dates.every((date) => /^active:(>=|<=)\d{4}-\d{2}-\d{2}$/.test(date)) ? 'custom' : null;
+}
+
+/** Show a preset as the one chosen, or none for null. */
+function drawDatePreset(preset: string | null): void {
   // The persistent range line shows only while Custom is the active preset (open or closed calendar).
   dateRangeLabel.hidden = preset !== 'custom';
   for (const chip of datePresets.querySelectorAll('button')) {
@@ -196,16 +195,24 @@ function drawDatePreset(preset: string): void {
   if (preset !== 'custom') setDatePopover(false);
 }
 
+/** A preset pressed: its term in place of the query's dates; Custom writes the calendar's range, if one is picked. */
 function applyDatePreset(preset: string): void {
   drawDatePreset(preset);
-  setFilter(dateWindow(preset));
+  if (preset === 'custom') {
+    const range = customTerms();
+    if (range.length > 0) setQuery(withDates(store.get().filter.query, range));
+    customChosen = true;
+    drawDatePreset('custom');
+    return;
+  }
+  setQuery(withDates(store.get().filter.query, preset in PRESET_TERMS ? [PRESET_TERMS[preset as keyof typeof PRESET_TERMS]] : []));
 }
 
-/** The calendar's range as whole days, which the range line and the calendar's caption name as it changes. */
-function customDates(): Pick<FilterState, 'dateFrom' | 'dateTo'> {
+/** The calendar's range as the query's terms, by whole days, which the range line and the calendar's caption name as it changes. */
+function customTerms(): string[] {
   const [from, to] = datePicker.selectedDates.slice().sort((a, b) => a.getTime() - b.getTime());
   updateDateRangeLabel(from, to);
-  return { dateFrom: from ? new Date(from).setHours(0, 0, 0, 0) : null, dateTo: to ? new Date(to).setHours(23, 59, 59, 999) : null };
+  return [...(from ? [`active:>=${dateTerm(from.getTime())}`] : []), ...(to ? [`active:<=${dateTerm(to.getTime())}`] : [])];
 }
 
 // Show the picked range in day-month-year, in both the persistent line and the in-calendar caption.
@@ -239,23 +246,22 @@ export function applyDatePickerMinDate(view: View<'sessions'>): void {
 // Make an active filter obvious: show "N of M" with a clear button and flag the active controls.
 export function updateFilterStatus(matches: number, total: number, view: View<'filter' | 'filterPanelOpen'>): void {
   const filtering = isFiltering(view);
-  const { filters } = view.filter;
+  const { query, finished } = view.filter;
   filterStatus.hidden = !filtering;
-  searchInput.classList.toggle('active', searchText(view).length > 0);
+  searchInput.classList.toggle('active', query.trim() !== '');
+  showQueryProblems(searchInput, filterQuery(store.get()).problems);
   for (const pill of FILTER_PILLS) {
-    pill.button.classList.toggle('active', filters[pill.key]);
-    pill.button.setAttribute('aria-pressed', String(filters[pill.key]));
+    const on = pill.key === 'finished' ? finished : hasTerm(query, PILL_TERMS[pill.key], vocabulary());
+    pill.button.classList.toggle('active', on);
+    pill.button.setAttribute('aria-pressed', String(on));
   }
+  const preset = presetOf(query);
+  if (preset !== undefined) drawDatePreset(preset);
   // The toggle carries the accent when any filter is on, beside the status line under the panel, so an active filter is visible even with the panel closed.
   filterToggle.classList.toggle('active', filtering);
   // The finished view counts against the finished set, and says so, since that total is not the number the switcher shows.
-  if (filtering) filterCount.textContent = `Showing ${matches} of ${total}${filters.finished ? ' finished' : ''}`;
+  if (filtering) filterCount.textContent = `Showing ${matches} of ${total}${finished ? ' finished' : ''}`;
   updateFilterChips(view);
-}
-
-function clearSearch(): void {
-  searchInput.value = '';
-  setFilter({ search: '' });
 }
 
 /** Empty the calendar without its own change applying it: whoever clears it says what the filter is now. */
@@ -265,24 +271,21 @@ function clearCalendar(): void {
   suppressPickerSelect = false;
 }
 
-function clearDateFilter(): void {
-  clearCalendar();
-  applyDatePreset('any');
-}
-
 function clearFilter(): void {
-  searchInput.value = '';
+  customChosen = false;
   clearCalendar();
   drawDatePreset('any');
+  searchInput.value = '';
   putFilter(noFilter());
 }
 
 // --- What is on, while the panel is shut ---
-// Closing the panel over a filter keeps the filter, so the panel folds down to a row of what is on rather than disappearing: the search text, each pill that is on, the date range, each with its own ×.
+// Closing the panel over a filter keeps the filter, so the panel folds down to a row of what is on rather than disappearing: each term of the query, the finished switch, each with its own ×.
 // A filter that is on is never out of sight, which is the whole point; the count and Clear on the line below stay as they are with the panel open.
 
 // What the chips were last built from, so the row is rebuilt only when that changes: renders happen constantly, and rebuilding each time would drop the hover and focus from under the pointer.
 let lastChipsSignature = '';
+let lastChipsVocabulary: Vocabulary | null = null;
 
 function filterChip(icon: string, text: string, label: string, remove: () => void): HTMLElement {
   const chip = document.createElement('span');
@@ -306,6 +309,36 @@ function filterChip(icon: string, text: string, label: string, remove: () => voi
   return chip;
 }
 
+/**
+ * A chip per term of a query of one part: a pill's term with the pill's mark, a date with the clock, any other as its words; × takes that term out.
+ * A query of several parts, or one that does not read, is one chip of its whole text, since a term of one part is not a filter on its own; × empties it.
+ */
+function queryChips(query: string): HTMLElement[] {
+  const parsed = parseQuery(query, vocabulary());
+  const text = query.trim();
+  if (text === '') return [];
+  const [part] = parsed.parts;
+  if (parsed.problems.length > 0) {
+    const chip = filterChip(iconSvg('search', 13), text, `Does not read: ${parsed.problems.map((problem) => problem.message).join(' ')}`, () => setQuery(''));
+    chip.classList.add('has-problems');
+    return [chip];
+  }
+  if (parsed.parts.length !== 1 || part === undefined) return [filterChip(iconSvg('search', 13), text, `Query: ${text}`, () => setQuery(''))];
+  return part.map((term) => {
+    const said = query.slice(term.from, term.to);
+    const remove = (): void => setQuery(withoutTerms(store.get().filter.query, (each) => each.from === term.from, vocabulary()));
+    const pill = FILTER_PILLS.find((each) => each.key !== 'finished' && hasTerm(said, PILL_TERMS[each.key], vocabulary()));
+    if (pill) return filterChip(pill.icon, '', pill.button.getAttribute('aria-label') ?? said, remove);
+    if (isDateTerm(term)) {
+      // A preset's term says what the preset's button says, so the chip reads the same words as the control that set it.
+      const preset = (Object.keys(PRESET_TERMS) as (keyof typeof PRESET_TERMS)[]).find((key) => PRESET_TERMS[key] === said.toLowerCase());
+      const words = preset === undefined ? said : (datePresets.querySelector(`[data-range="${preset}"]`)?.textContent ?? said);
+      return filterChip(iconSvg('clock', 13), words, `Last active: ${words}`, remove);
+    }
+    return filterChip(iconSvg('search', 13), said, `Search: ${said}`, remove);
+  });
+}
+
 function updateFilterChips(view: View<'filter' | 'filterPanelOpen'>): void {
   const show = isFiltering(view) && !view.filterPanelOpen;
   // A shut panel leaves nothing to close, so Clear does it all there.
@@ -316,24 +349,14 @@ function updateFilterChips(view: View<'filter' | 'filterPanelOpen'>): void {
     lastChipsSignature = '';
     return;
   }
-  const { datePreset, filters } = view.filter;
-  const search = view.filter.search.trim();
-  const text = searchText(view);
-  const pills = FILTER_PILLS.filter((pill) => filters[pill.key]);
-  // The date chip says what the preset button says, or the picked range for Custom, so it reads the same words as the control that set it.
-  const dateText =
-    datePreset === 'any'
-      ? ''
-      : datePreset === 'custom'
-        ? dateRangeLabel.textContent
-        : (datePresets.querySelector(`[data-range="${datePreset}"]`)?.textContent ?? datePreset);
-  const signature = JSON.stringify([text ? search : '', pills.map((pill) => pill.button.id), dateText]);
-  if (signature === lastChipsSignature) return;
+  const { query, finished } = view.filter;
+  const signature = JSON.stringify([query, finished]);
+  // The fields too, since a query can start or stop reading when the needs-you types change.
+  if (signature === lastChipsSignature && vocabulary() === lastChipsVocabulary) return;
   lastChipsSignature = signature;
-  const chips: HTMLElement[] = [];
-  if (text) chips.push(filterChip(iconSvg('search', 13), search, `Search: ${search}`, clearSearch));
-  for (const pill of pills) chips.push(filterChip(pill.icon, '', pill.button.getAttribute('aria-label') ?? '', () => setPill(pill.key, false)));
-  if (dateText) chips.push(filterChip(iconSvg('clock', 13), dateText, `Last active: ${dateText}`, clearDateFilter));
+  lastChipsVocabulary = vocabulary();
+  const chips = queryChips(query);
+  if (finished) chips.push(filterChip(FINISH_ICON, '', finishedFilter.getAttribute('aria-label') ?? '', () => setFilter({ finished: false })));
   filterChips.replaceChildren(...chips);
 }
 
@@ -363,30 +386,33 @@ function toggleFilterPanel(open: boolean): void {
   else filterToggle.blur();
 }
 
+/** The days the date terms the calendar writes name (`active:>=` and `active:<=` a date), as its range: what Custom shows picked. */
+function datesOf(query: string): Date[] {
+  return [...query.matchAll(/\bactive:(?:>=|<=)(\d{4})-(\d{2})-(\d{2})\b/g)].map((found) => new Date(Number(found[1]), Number(found[2]) - 1, Number(found[3])));
+}
+
 /**
- * Put the filter's controls back as they were left — the search box, the calendar's range, the chosen preset, the panel — and hand back the filter they make, which the start-up read sets in the store with the listing.
+ * Put the filter's controls back as they were left — the query field, the calendar's range from the query's days, the panel — and hand back the filter they make, which the start-up read sets in the store with the listing.
  * Before the view is in the store, so the panel is drawn from what was stored (`drawFilterPanel`) rather than followed.
  */
 export async function restoreFilter(state: UiState): Promise<FilterState> {
-  searchInput.value = state.search;
-  // Only a CUSTOM range is restored as stored.
-  // The rolling presets are worked out again from the current moment, which is the whole point of "last 7 days" still meaning the last 7 days.
-  if (state.datePreset === 'custom') {
-    const picked = [state.dateFrom, state.dateTo].filter((ms): ms is number => ms !== null).map((ms) => new Date(ms));
-    if (picked.length > 0) {
-      // Awaited, because the window below reads the range back OUT of the picker: the selection has to have landed first.
-      // Flagged rather than the picker's own `silent`, so the calendar still repaints — this only needs onSelect not to set the filter mid-restore.
-      suppressPickerSelect = true;
-      await datePicker.selectDate(picked);
-      suppressPickerSelect = false;
-    }
+  searchInput.value = state.query;
+  const picked = datesOf(state.query);
+  if (picked.length > 0) {
+    // Flagged rather than the picker's own `silent`, so the calendar still repaints — this only needs onSelect not to set the filter mid-restore.
+    suppressPickerSelect = true;
+    await datePicker.selectDate(picked);
+    suppressPickerSelect = false;
+    updateDateRangeLabel(...(picked.slice().sort((a, b) => a.getTime() - b.getTime()) as [Date?, Date?]));
   }
-  drawDatePreset(state.datePreset);
   drawFilterPanel(state.filterPanelOpen);
-  return { search: state.search, filters: state.filters, ...dateWindow(state.datePreset) };
+  return { query: state.query, finished: state.finished };
 }
 
-searchInput.addEventListener('input', () => setFilter({ search: searchInput.value }));
+searchInput.addEventListener('input', () => {
+  customChosen = false;
+  setFilter({ query: searchInput.value });
+});
 filterClear.addEventListener('click', clearFilter);
 // Closing alone keeps the filter (decided 2026-09-23); this is the one press that ends it and shuts the panel together.
 filterClearClose.addEventListener('click', () => {
@@ -395,14 +421,13 @@ filterClearClose.addEventListener('click', () => {
 });
 
 /**
- * The filter pills, once, in the order they sit in the panel: each one's button, its mark and the flag it sets.
+ * The filter pills, once, in the order they sit in the panel: each one's button, its mark and the term it writes, or the finished switch.
  * Everything that asks about the pills as a set reads this — how they are drawn and wired, which chips stand in for a shut panel — so the chips cannot fall out of step with the panel.
- * The predicate (`passesFilters`) still names each flag, because it maps each to a criterion of its own.
  */
 interface FilterPill {
   button: HTMLButtonElement;
   icon: string;
-  key: keyof FilterState['filters'];
+  key: PillKey | 'finished';
 }
 const FILTER_PILLS: FilterPill[] = [
   { button: pinnedFilter, icon: PINNED_ICON, key: 'pinned' },
@@ -421,8 +446,13 @@ const FILTER_PILLS: FilterPill[] = [
 // Icon-only: the words cost the panel an extra line at a 320px sidebar, and every pill carries a tooltip and an aria-label (see panels/types/sessions/index.ts) for what it means.
 for (const pill of FILTER_PILLS) {
   pill.button.innerHTML = pill.icon;
-  // Every filter pill does the same thing: flip its flag; the list follows, from its top.
-  pill.button.addEventListener('click', () => setPill(pill.key, !store.get().filter.filters[pill.key]));
+  // A pill writes its term or takes it out; the finished switch flips the set in view; the list follows, from its top.
+  const { key } = pill;
+  pill.button.addEventListener('click', () => {
+    const { query, finished } = store.get().filter;
+    if (key === 'finished') setFilter({ finished: !finished });
+    else setPill(key, !hasTerm(query, PILL_TERMS[key], vocabulary()));
+  });
 }
 // The header's toggle draws its mark through the same helper as the rest, rather than inline in the sidebar's markup.
 filterToggle.innerHTML = filterIcon(14);
@@ -452,5 +482,7 @@ document.addEventListener('keydown', (event) => {
 // The persistent range line reopens (toggles) the calendar.
 dateRangeLabel.addEventListener('click', () => setDatePopover(!datePopoverOpen));
 function onCustomDateChange(): void {
-  setFilter(customDates());
+  setQuery(withDates(store.get().filter.query, customTerms()));
+  customChosen = true;
+  drawDatePreset('custom');
 }

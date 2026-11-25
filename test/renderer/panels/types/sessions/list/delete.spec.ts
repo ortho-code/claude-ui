@@ -8,7 +8,7 @@ import { row, tab, titles } from '../../../../support/window';
 // The row goes the moment the delete is confirmed and never comes back: it stays hidden while its files are being moved to the trash, and stops being hidden in the same change as the listing that no longer has it.
 const kept = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Kept session' });
 const gone = session({ id: '00000000-0000-4000-8000-0000000000c2', title: 'Deleted session' });
-const finishedView = { uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } };
+const finishedView = { uiState: { ...defaultUi(), finished: true } };
 const fixture = { sessions: [kept, gone], finished: { [kept.id]: 1, [gone.id]: 2 }, pinned: [gone.id], notes: { [gone.id]: 'a note' }, ...finishedView };
 
 /** Count every time a row for `key` is put into the page from now on. */

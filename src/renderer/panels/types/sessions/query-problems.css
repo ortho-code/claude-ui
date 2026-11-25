@@ -1,0 +1,41 @@
+/* The field and its mirror share a box, the mirror laid over the field; both read their font and padding from here, so the copy's letters fall exactly on the field's. */
+#query-field {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#query-mirror {
+  position: absolute;
+  inset: 0;
+  /* The field's 1px border plus its padding, so the copy starts where the field's text does. */
+  padding: 7px 11px;
+  font-size: var(--text-body);
+  white-space: pre;
+  overflow: hidden;
+  color: transparent;
+  pointer-events: none;
+}
+
+.query-problem {
+  text-decoration: underline wavy var(--danger);
+  text-decoration-skip-ink: none;
+}
+
+#search.has-problems,
+#search.has-problems:focus {
+  border-color: var(--danger);
+}
+
+#query-problems {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--danger);
+  font-size: var(--text-small);
+}
+
+/* The list still shows the last query that read, not what the field says. */
+#sessions.stale {
+  opacity: 0.55;
+}

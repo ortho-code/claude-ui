@@ -1,4 +1,4 @@
-import { prFromUrl } from '../../shared/sessions/prs';
+import { prFromUrl, prKey } from '../../shared/sessions/prs';
 import type { SessionPr } from '../../shared/types';
 
 /**
@@ -8,28 +8,28 @@ import type { SessionPr } from '../../shared/types';
  */
 export function postedPrs(command: string): SessionPr[] {
   return ghCalls(command).flatMap((args) => {
-    if (args[0] === 'pr' && (args[1] === 'review' || args[1] === 'comment')) return prCommandPost(args.slice(2));
-    if (args[0] === 'api') return apiPost(args.slice(1));
-    return [];
+    const target = args[0] === 'pr' && (args[1] === 'review' || args[1] === 'comment') ? namedTarget(args.slice(2), prFromUrl) : args[0] === 'api' ? apiPostTarget(args.slice(1), REVIEW_ENDPOINT) : null;
+    return target ? [prOf(target)] : [];
   });
 }
 
-/** A PR a command opened in the browser to be created there: the repository it is for and the branch it is from, `owner:branch` for a fork's. */
-export interface WebCreate {
+/** A PR a command creates: the repository it is for and the branch it is from, `owner:branch` for a fork's. */
+export interface PrCreate {
   repository: string;
   head: string;
 }
 
 /**
- * The PRs a shell command opens in the browser to create, `gh pr create --web` naming both the repository with `--repo` and the branch with `--head`, which `gh` prints no PR for, since the PR is made in the browser afterwards.
- * Read as `postedPrs` reads its commands; one that leaves either to the folder's checkout names nothing sure, and is left out.
+ * The PRs a shell command creates, `gh pr create` naming both the repository with `--repo` and the branch with `--head`, with or without `--web`.
+ * The command's output cannot be relied on to name the PR: `--web` prints none, since the PR is made in the browser afterwards, and an output piped through a filter may have lost the line that does.
+ * Read as `postedPrs` reads its commands; one that leaves either to the folder's checkout names nothing sure, and is left out, as is a `--dry-run`, which creates no PR.
  */
-export function webCreates(command: string): WebCreate[] {
+export function prCreates(command: string): PrCreate[] {
   return ghCalls(command).flatMap((args) => {
     if (args[0] !== 'pr' || args[1] !== 'create') return [];
     const { options } = parsed(args.slice(2), CREATE_VALUE_FLAGS);
     const last = (...flags: string[]): string | null | undefined => options.filter((option) => flags.includes(option.flag)).at(-1)?.value;
-    if (!options.some((option) => option.flag === '--web' || option.flag === '-w')) return [];
+    if (options.some((option) => option.flag === '--dry-run')) return [];
     const repository = REPOSITORY.exec(last('--repo', '-R') ?? '')?.[1];
     const head = last('--head', '-H');
     return repository && head ? [{ repository, head }] : [];
@@ -58,6 +58,25 @@ export function postedNodes(command: string): string[] {
     return fields.flatMap((field) => field.value.match(NODE_ID) ?? []);
   });
   return [...new Set(nodes)];
+}
+
+/** What a comment posted by number names: the repository and the number, which GitHub gives issues and PRs from one count, so it may be either. */
+export interface PostedNumber {
+  repository: string;
+  number: number;
+}
+
+/**
+ * The issues or PRs a shell command posts a comment on by number: a `gh api` POST under `repos/<owner>/<repo>/issues/<number>/comments`, which takes a PR's conversation comments as well as an issue's, and `gh issue comment` naming the repository with `--repo` or the issue by its page.
+ * Read as `postedPrs` reads its commands; each repository and number once, in the order first posted.
+ */
+export function postedNumbers(command: string): PostedNumber[] {
+  const posted = new Map<string, PostedNumber>();
+  for (const args of ghCalls(command)) {
+    const target = args[0] === 'issue' && args[1] === 'comment' ? namedTarget(args.slice(2), issueFromUrl) : args[0] === 'api' ? apiPostTarget(args.slice(1), ISSUE_COMMENTS_ENDPOINT) : null;
+    if (target && !posted.has(prKey(target))) posted.set(prKey(target), target);
+  }
+  return [...posted.values()];
 }
 
 /** A `name=value` field, its value read through `set` when it is a shell variable alone. */
@@ -105,6 +124,10 @@ const FIELD_FLAGS = new Set(['-f', '--raw-field', '-F', '--field']);
 const BODY_FLAGS = new Set([...FIELD_FLAGS, '--input']);
 
 const REVIEW_ENDPOINT = /^(?:https:\/\/api\.github\.com)?\/?repos\/([^/{}\s]+\/[^/{}\s]+)\/pulls\/([1-9]\d*)\/(?:reviews|comments)(?:[/?].*)?$/;
+/** Where a comment on an issue's or a PR's conversation is posted, by its number. */
+const ISSUE_COMMENTS_ENDPOINT = /^(?:https:\/\/api\.github\.com)?\/?repos\/([^/{}\s]+\/[^/{}\s]+)\/issues\/([1-9]\d*)\/comments(?:\?.*)?$/;
+/** A GitHub issue page, or a part of one such as a comment. */
+const ISSUE_PAGE = /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/issues\/([1-9]\d*)(?:[/?#]\S*)?$/;
 /** A repository as `--repo` takes it: `owner/name`, or with GitHub's host or page address before it. */
 const REPOSITORY = /^(?:(?:https:\/\/)?github\.com\/)?([^/\s]+\/[^/\s]+?)\/?$/;
 
@@ -125,8 +148,8 @@ function commandAt(words: readonly string[]): number {
   return at;
 }
 
-function prOf(repository: string, number: string): SessionPr {
-  return { repository, number: Number(number), url: `https://github.com/${repository}/pull/${number}` };
+function prOf({ repository, number }: PostedNumber): SessionPr {
+  return { repository, number, url: `https://github.com/${repository}/pull/${number}` };
 }
 
 /** The flag a word is and the value it carries in itself (`--repo=x`, `-XPOST`, `-X=POST`), or null for a word that is no flag. */
@@ -155,24 +178,32 @@ function parsed(args: readonly string[], takesValue: ReadonlySet<string>): { opt
   return { options, positional };
 }
 
-function prCommandPost(args: readonly string[]): SessionPr[] {
-  const { options, positional } = parsed(args, PR_VALUE_FLAGS);
-  const target = positional[0];
-  if (target === undefined) return [];
-  const page = prFromUrl(target);
-  if (page) return [page];
-  const repository = options.filter((option) => option.flag === '--repo' || option.flag === '-R').at(-1)?.value;
-  const named = repository ? REPOSITORY.exec(repository) : null;
-  return /^[1-9]\d*$/.test(target) && named ? [prOf(named[1]!, target)] : [];
+/** The issue a GitHub issue page is; null for any other address. */
+function issueFromUrl(url: string): PostedNumber | null {
+  const page = ISSUE_PAGE.exec(url);
+  return page ? { repository: page[1]!, number: Number(page[2]) } : null;
 }
 
-function apiPost(args: readonly string[]): SessionPr[] {
+/** What a `gh pr|issue` command posting on one names: the page `fromPage` reads, or a number with the repository in `--repo`; null for a bare number or nothing. */
+function namedTarget(args: readonly string[], fromPage: (url: string) => PostedNumber | null): PostedNumber | null {
+  const { options, positional } = parsed(args, PR_VALUE_FLAGS);
+  const target = positional[0];
+  if (target === undefined) return null;
+  const page = fromPage(target);
+  if (page) return page;
+  const repository = options.filter((option) => option.flag === '--repo' || option.flag === '-R').at(-1)?.value;
+  const named = repository ? REPOSITORY.exec(repository) : null;
+  return /^[1-9]\d*$/.test(target) && named ? { repository: named[1]!, number: Number(target) } : null;
+}
+
+/** The repository and number a `gh api` request posts to under `endpoint`, a POST given as the method or implied by a body; null for any other request. */
+function apiPostTarget(args: readonly string[], endpoint: RegExp): PostedNumber | null {
   const { options, positional } = parsed(args, API_VALUE_FLAGS);
-  const endpoint = positional[0] === undefined ? null : REVIEW_ENDPOINT.exec(positional[0]);
-  if (endpoint === null) return [];
+  const matched = positional[0] === undefined ? null : endpoint.exec(positional[0]);
+  if (matched === null) return null;
   const method = options.filter((option) => option.flag === '-X' || option.flag === '--method').at(-1)?.value;
   const posts = method ? method.toUpperCase() === 'POST' : options.some((option) => BODY_FLAGS.has(option.flag));
-  return posts ? [prOf(endpoint[1]!, endpoint[2]!)] : [];
+  return posts ? { repository: matched[1]!, number: Number(matched[2]) } : null;
 }
 
 /**

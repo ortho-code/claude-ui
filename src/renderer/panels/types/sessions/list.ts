@@ -6,7 +6,7 @@ import { entityKey, projectGoneReason, structuralSignature } from '../../../rule
 import { markProjectGone } from '../../../status/project-gone';
 import { onMinute } from '../../../ui/moments';
 import { sameOrder, store, type TabState, type View } from '../../../state/app';
-import { finishedOnlyProjects, isFiltering, mutedNeedsYou, projName, searchText, STATUS_SLICES, statusChanges, strengthNow, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions, type StatusView } from '../../../state/views';
+import { finishedOnlyProjects, isFiltering, mutedNeedsYou, projName, STATUS_SLICES, statusChanges, strengthNow, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions, type StatusView } from '../../../state/views';
 import { applyStatus } from '../../../status/status-dot';
 import { folderIcon } from '../../../ui/svg';
 import { setUnavailable } from '../../../ui/unavailable';
@@ -14,7 +14,8 @@ import { recentOrder } from '../../../rules/recent';
 import { reviewCount, type ReviewSection } from '../../../rules/review';
 import { endBulk } from '../../../state/bulk';
 import { container, currentByKey, rowInputs, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
-import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
+import { updateFilterStatus } from './filter';
+import { passesFilter, queryReads } from '../../../state/filter-query';
 import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
 import { createFlatSection, createGroupSection, createProjectSection } from './headings';
@@ -62,12 +63,12 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
       .sort()
       .join('\n');
   const standIns = (tabs: readonly TabState[]): string => structuralSignature(tabs.filter((t) => !onDisk.has(t.session.id)).map((t) => t.session));
-  const { open, live } = view.filter.filters;
+  const reads = queryReads(view);
   const moved =
     // The review holds only sessions without a tab, so one that gets a tab, or loses one, moves it.
     (view.reviewing && keys(before, false) !== keys(view.tabs, false)) ||
-    (open && keys(before, false) !== keys(view.tabs, false)) ||
-    (live && keys(before, true) !== keys(view.tabs, true)) ||
+    (reads.tabs && keys(before, false) !== keys(view.tabs, false)) ||
+    (reads.running && keys(before, true) !== keys(view.tabs, true)) ||
     standIns(before) !== standIns(view.tabs);
   if (moved) renderList(view);
   else {
@@ -91,8 +92,11 @@ function repaintDots(ids: Set<string>, view: StatusView & View<'tabs' | 'finishe
  * A status, the work behind one, a mark read, a needs-you mark or a set-aside mark, which can mute it, changed, or the strength order or the categories that place a reason in it: repaint the rows' dots that differ from what they were last painted from (`before`).
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function dotsFollowStatuses(view: StatusView & View<'tabs' | 'finished'>, before: StatusView): void {
-  repaintDots(statusChanges(before, view), view);
+function dotsFollowStatuses(view: StatusView & View<'tabs' | 'finished' | 'filter'>, before: StatusView): void {
+  const changed = statusChanges(before, view);
+  // A query that asks what claude is doing, or what needs you, can take a row in or out with any of these.
+  if (changed.size > 0 && queryReads(view).statuses) renderList(store.get());
+  else repaintDots(changed, view);
 }
 
 /** What draws the list again: the listing, a model switch, a pin, the finished marks, a note, a set-aside mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs and what they are called, which search matches, the needs-you types, whose roles say whose turn a PR is, a task claude scheduled, Grouped or Recent, and for the review, a keep stamp, the review opening or ending, and the settings, which say whether GitHub is asked. */
@@ -113,7 +117,7 @@ type RowSlice = (typeof ROW_SLICES)[number];
 export function watchList(): void {
   store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
-  store.watch(STATUS_SLICES, dotsFollowStatuses, { reads: ['tabs', 'finished'] });
+  store.watch(STATUS_SLICES, dotsFollowStatuses, { reads: ['tabs', 'finished', 'filter'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject', 'arrangement'] });
   // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and turning the finished view on or off ends it outside the review.
   store.watch(['bulk', 'tabs', 'filter'], bulkFollows, { reads: ['reviewing', 'activeProject', 'projectNames'] });
@@ -148,8 +152,7 @@ function listShape(view: ListView): ListShape {
   const all = visibleSessions(view);
   const { activeProject } = view;
 
-  const groupNames = searchText(view) ? groupNameByKey(view) : undefined;
-  const filtered = all.filter((s) => passesFilters(s, view, groupNames));
+  const filtered = all.filter(passesFilter(view));
   // Project scope applies everywhere, the finished view included.
   // It used to be exempt, from when finished was a rarely-visited global bin — but the scope is an explicit statement of what you are looking at, and one view quietly overriding it reads as a leak.
   // Switch to All to find a finished session whose project you have forgotten.
@@ -157,7 +160,7 @@ function listShape(view: ListView): ListShape {
   const scoped = inScope(filtered);
   // The total is the set the matches were taken from: the same project scope and the same view, finished or not, before the other filters.
   // So the count only ever compares a set with part of itself, and in the normal view the total is the number the switcher shows.
-  const total = inScope(viewPool(all, view.filter.filters.finished, view)).length;
+  const total = inScope(viewPool(all, view.filter.finished, view)).length;
   // A project whose sessions are all finished stays, empty and saying so, as it does in the switcher; a filter leaves it out, as it leaves out any project with no match, and the finished view lists it with its sessions.
   const finishedOnly = new Map(isFiltering(view) ? [] : [...finishedOnlyProjects(view)].filter(([repoRoot]) => !activeProject || repoRoot === activeProject));
   if (view.arrangement === 'recent') {

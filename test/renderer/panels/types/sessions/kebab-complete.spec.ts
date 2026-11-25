@@ -137,7 +137,7 @@ test("every control on a finished session's row is a shortcut to an item in its 
     ...fixture,
     openSessions: [],
     finished: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') },
-    uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } },
+    uiState: { ...defaultUi(), finished: true },
   });
   const surface = row(page, full.title);
   await eachControlHasItsItem(page, surface, surface.locator('.session-kebab'), FINISHED_ROW);

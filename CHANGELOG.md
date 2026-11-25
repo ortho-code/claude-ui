@@ -12,7 +12,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 
 - A linked PR shows its title beside its number, in its list and on a needs-you line, and search finds a session by words of it.
   A PR that is not yours says who opened it.
-- A PR a session opened in the browser with `gh pr create --web`, naming the repository and the branch, is linked to that session once you submit it there.
+- A PR a session creates with `gh pr create`, naming the repository and the branch, is linked to that session within 30 days even when the command's output was cut short, and with `--web` once you submit it in the browser.
 - A panel's row that names a session shows that session's note mark while it has a note, with the note on hover, and a press on it opens the note to edit.
 - `setAsideNews` in Settings can keep news on a set-aside session, such as a change on its PR, dimmed and uncounted while the session stays set aside (`"wait"`), instead of showing it at once (`"show"`, as before).
 - A session's list of PRs says when each merged or closed, or since when it is open, and a panel type is given those dates too.
@@ -37,6 +37,10 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The × at the end of its head, or Close all in a tab's menu, closes all its files at once.
 - With both the history and files open in the drawer over the terminal area, a rail on its left edge switches between them, and the history comes back where it was when the files took its place.
 - Dock in the history's head puts it in a column beside claude, so you can read back while you type, at a width you drag; the window remembers it.
+- On Linux, a session that already runs somewhere else, in a terminal, the Claude desktop app, another tab or another copy of the app, is not resumed in a tab, since the two would split its transcript in two.
+  The tab says where it runs, and offers Start a copy, a new session that goes on from it, or Start anyway.
+- A session whose transcript replaced an older copy of it, which Claude Code keeps for a while, has a mark on its row saying how many requests that copy holds that the session's history lacks.
+- That older copy can be read in the session's history, from a switch in its head or a press on the mark, read-only, with the requests the current transcript lacks edged.
 - A press on the file a Read, Edit or Write names in the history opens it in the Editor.
   A file outside every repository, such as a scratchpad file or a plan, shows what changed since the session first changed it.
 - A file path claude prints in a session's terminal opens the file in the Editor on a press, at the line a `:42` after it names.
@@ -68,6 +72,14 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The session list keeps up with a thousand sessions: a key in the search and the minute's clock no longer redraw every row, and a burst of status changes repaints the switcher once.
   Rows a search brings back appear from the top over a few frames.
 - The collapse-all button's two chevrons point at each other to collapse and apart to expand, as a code editor's do.
+- The review counts its 30 days in whole days from midnight, so a session joins Untouched 30+ days, and Keep lets it back in, when the day turns rather than at the hour it crossed.
+- The search box is a query field that searches and filters in one: `is:pinned OR is:running`, `-is:pinned`, `has:pr`, `active:>=today-7d` and more, in the style of GitHub's search.
+  The filter pills and date presets write their terms into it, and a filter you left on comes back as its query.
+  Words are matched each on its own, so `fix login` also finds "login page, fix it"; put a phrase in quotes to find it whole.
+  The 7d and 30d presets count whole days from midnight, today included.
+  A session's id is found from its start or its end, no longer from its middle, so a short number does not match every id that holds it.
+  A term that does not read is underlined with why under the field, and the list is dimmed until it reads.
+  A help button beside the field opens, beside the list, the syntax and every field with its values, a press on a value adding it to the field, and the guide has a page on queries.
 
 ### Fixed
 
@@ -86,6 +98,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The new day now brings its own reminder, unless something else the session needs you for still stands.
 - A request in the history has the whole width for its words, its number, time and any mark on a line of their own under it, where in a narrow history a long mark such as "sent while claude was working" squeezed the words to one a line.
 - A panel's buttons beside its tabs stay on the tabs' first line when the tabs wrap onto more lines, as the terminal's tab bar keeps its own, where they sank to the middle of the header.
+- A comment a session posts on a PR's conversation by its number, as for an issue, with `gh issue comment` naming the repository or the issue's page, or `gh api` to the issue's comments, now links that PR to the session once GitHub says it is a PR, within 30 days; a comment on an issue still links nothing.
 
 ## 0.4.0 — 2026-11-09
 

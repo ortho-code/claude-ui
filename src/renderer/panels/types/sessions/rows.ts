@@ -10,6 +10,7 @@ import { notLeftWords } from '../../../rules/claude';
 import { notLeftMark, showNotLeft } from '../../../status/not-left';
 import { inkClasses, PR_INKS, prMark, prRulesIn } from '../../../status/pr-status';
 import { setAsideMark, showSetAside } from '../../../status/set-aside-mark';
+import { showSuperseded, supersededMark } from '../../../status/superseded-mark';
 import { scheduledMark, showScheduled } from '../../../status/scheduled-mark';
 import { store, type View } from '../../../state/app';
 import { tabWith } from '../../../state/views';
@@ -49,6 +50,7 @@ interface RowEls {
   worktreeCount: HTMLElement;
   clock: HTMLElement;
   setAside: HTMLElement;
+  superseded: HTMLElement;
   notLeft: HTMLElement;
   siblingsBadge: HTMLElement;
   siblingCount: HTMLElement;
@@ -193,7 +195,18 @@ function createSessionRow(key: string): HTMLElement {
   const clock = scheduledMark('scheduled-badge', true);
   // Set aside, as its tab shows it (set-aside-mark.ts); shown in updateRow.
   const setAside = setAsideMark('set-aside-badge', true);
-  subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge);
+  // An older copy of its transcript that another copy replaced (superseded-mark.ts); shown in updateRow.
+  const superseded = supersededMark('superseded-badge', true);
+  // A press reads the newest copy in the session's history, and only that: the row's own press would start claude.
+  // Not in the finished view, where a press on the row opens nothing either, so a stray press cannot open a finished session.
+  superseded.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (store.get().filter.finished) return;
+    const session = currentByKey.get(key);
+    const newest = session?.supersededCopies.at(-1);
+    if (session && newest) hostOf('sessions').openOlderCopy(session.id, newest.stamp);
+  });
+  subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge, superseded);
   content.append(subline);
 
   const { pin, reopenBtn, deleteBtn, kebab } = rowButtons(key);
@@ -202,7 +215,7 @@ function createSessionRow(key: string): HTMLElement {
   item.prepend(tickBox(), dot);
   item.append(pin, reopenBtn, deleteBtn, kebab);
   followSight(item);
-  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, reopenBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, superseded, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, reopenBtn, deleteBtn, kebab });
   item.addEventListener('click', (event) => {
     // In bulk mode a press ticks the row rather than opening it; the dot, the marks, the pin and the kebab keep their own presses, which stop here.
     if (store.get().bulk) {
@@ -210,7 +223,7 @@ function createSessionRow(key: string): HTMLElement {
       return;
     }
     // A press on a finished row does nothing, so a stray press cannot reopen it: its Reopen button and its menu's Reopen do.
-    if (store.get().filter.filters.finished) return;
+    if (store.get().filter.finished) return;
     const session = currentByKey.get(key);
     if (!session) return;
     // A session whose folder is gone cannot run anywhere.
@@ -303,7 +316,7 @@ export interface FlatLine {
 export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView, flat?: FlatLine): void {
   const els = rowEls.get(row)!;
   // The review sets the filter aside, the finished view with it.
-  const finishedView = view.filter.filters.finished && !view.reviewing;
+  const finishedView = view.filter.finished && !view.reviewing;
   const now: DrawnFor = { session: `${rowLine(session)}\0${session.lastActivity}`, generation: rowInputs.generation, finishedView };
   const was = drawnFor.get(row);
   if (!flat && row.isConnected && was?.session === now.session && was.generation === now.generation && was.finishedView === now.finishedView) {
@@ -350,6 +363,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   showTabMarks(els, session.id, view);
   rowTabMarks.set(session.id, els);
   showSetAside(els.setAside, view.setAside.get(entityKey(session)));
+  showSuperseded(els.superseded, session.supersededCopies, !view.filter.finished);
 
   els.noteSep.hidden = !showNote(els.noteBadge, view.notes.get(entityKey(session)));
 

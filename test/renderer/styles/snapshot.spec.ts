@@ -87,9 +87,7 @@ test('a busy window: groups, marks, tabs in every state and both toasts', async 
 });
 
 test('the filter panel open, with a search, a pill and the calendar', async ({ app, page }) => {
-  const from = Date.parse('2026-09-01T00:00:00.000Z');
-  const to = Date.parse('2026-09-30T23:59:59.999Z');
-  await app.boot({ ...busy, openSessions: [], ...ui({ search: 'a', filters: { ...defaultUi().filters, pinned: true }, datePreset: 'custom', dateFrom: from, dateTo: to, filterPanelOpen: true }) });
+  await app.boot({ ...busy, openSessions: [], ...ui({ query: 'a is:pinned active:>=2026-09-01 active:<=2026-09-30', filterPanelOpen: true }) });
   await page.locator('#date-range-label').click();
   await expect(page.locator('#date-custom')).toBeVisible();
   // Off the button the click left it resting on, whose rounded corner otherwise came out a shade different from one capture to the next.
@@ -98,7 +96,7 @@ test('the filter panel open, with a search, a pill and the calendar', async ({ a
 });
 
 test('the filter panel shut over a filter, as chips', async ({ app, page }) => {
-  await app.boot({ ...busy, openSessions: [], ...ui({ search: 'a', filters: { ...defaultUi().filters, pinned: true }, datePreset: '7d', filterPanelOpen: false }) });
+  await app.boot({ ...busy, openSessions: [], ...ui({ query: 'a is:pinned active:>=today-7d', filterPanelOpen: false }) });
   await expect(page.locator('#filter-chips .filter-chip')).toHaveCount(3);
   await snapshot(page, DIR!, 'filter-shut');
 });
@@ -172,7 +170,7 @@ test('the text prompt open, renaming a project', async ({ app, page }) => {
 
 test('the confirm dialog open, deleting a finished session', async ({ app, page }) => {
   const one = session();
-  await app.boot({ finished: { [one.id]: Date.parse('2026-09-29T12:00:00.000Z') }, ...ui({ filters: { ...defaultUi().filters, finished: true } }) });
+  await app.boot({ finished: { [one.id]: Date.parse('2026-09-29T12:00:00.000Z') }, ...ui({ finished: true }) });
   await page.locator('.session .delete-btn').click();
   await expect(page.locator('#confirm-overlay')).toBeVisible();
   await snapshot(page, DIR!, 'confirm');

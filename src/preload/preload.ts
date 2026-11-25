@@ -6,7 +6,7 @@ import type { NeedsYouRegistry } from '../shared/status/needs-you';
 
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
-  getHistory: (id, known, generation) => ipcRenderer.invoke('history:get', id, known, generation),
+  getHistory: (id, known, generation, copy) => ipcRenderer.invoke('history:get', id, known, generation, copy),
   worktreeExists: (repoRoot, name) => ipcRenderer.invoke('sessions:worktreeExists', repoRoot, name),
   onSessionsChanged: (callback) => ipcRenderer.on('sessions:changed', () => callback()),
   onQuitting: (callback) => ipcRenderer.on('app:quitting', () => callback()),

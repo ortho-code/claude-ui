@@ -255,5 +255,14 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0247](0247-the-explorer-shows-every-checkout-of-the-session.md) | 2026-11-19 | The Explorer shows every checkout of the session | [The `explorer` type](../architecture/panels.md#the-explorer-type) |
 | [0248](0248-each-checkout-answers-its-own-question.md) | 2026-11-20 | Each checkout answers its own question | [The `explorer` type](../architecture/panels.md#the-explorer-type) |
 | [0249](0249-a-checkouts-base-is-picked-in-a-dialog.md) | 2026-11-20 | A checkout's base is picked in a dialog | [The `explorer` type](../architecture/panels.md#the-explorer-type) |
+| [0250](0250-every-created-pr-is-looked-for-by-its-branch.md) | 2026-11-23 | Every created PR is looked for by its branch | [Reading sessions](../architecture/sessions.md#reading-sessions) |
+| [0251](0251-a-comment-posted-by-number-links-the-pr-it-is-on.md) | 2026-11-23 | A comment posted by number links the PR it is on | [Reading sessions](../architecture/sessions.md#reading-sessions) |
+| [0252](0252-a-session-another-claude-runs-is-not-resumed.md) | 2026-11-24 | A session another claude runs is not resumed | [Claude tabs](../architecture/claude.md#a-session-another-claude-runs) |
+| [0253](0253-a-superseded-copy-is-marked-on-its-row.md) | 2026-11-24 | A superseded copy is marked on its row | [Reading sessions](../architecture/sessions.md#superseded-copies) |
+| [0254](0254-an-older-copy-is-read-in-the-history.md) | 2026-11-24 | An older copy is read in the history | [In-session history](../architecture/history.md#an-older-copy) |
+| [0255](0255-the-review-counts-whole-days-from-midnight.md) | 2026-11-25 | The review counts whole days from midnight | [The review](../architecture/session-list.md#the-review) |
+| [0256](0256-the-query-field-is-the-filter.md) | 2026-11-25 | The query field is the filter | [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it) |
+| [0257](0257-free-words-are-matched-each-on-its-own.md) | 2026-11-25 | Free words are matched each on its own | [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it) |
+| [0258](0258-a-query-that-does-not-read-keeps-the-last-result.md) | 2026-11-25 | A query that does not read keeps the last result | [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it) |
 | [0259](0259-a-file-outside-git-shows-its-changes-since-the-sessions-first-edit.md) | 2026-11-23 | A file outside git shows its changes since the session's first edit | [The `editor` type](../architecture/panels.md#the-editor-type) |
 | [0260](0260-a-path-claude-prints-opens-in-the-editor.md) | 2026-11-25 | A path claude prints opens in the Editor | [The `editor` type](../architecture/panels.md#the-editor-type) |

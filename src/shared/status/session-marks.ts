@@ -16,7 +16,7 @@ export interface SessionMarks {
   /** Each session's settled reasons, newest first, the newest `HISTORY_KEPT` kept. */
   needsYouHistory: Record<string, SettledNeedsYou[]>;
   setAside: Record<string, SetAside>;
-  /** When each session was last kept out of the review, epoch ms; how long that holds is the review's own term (`kept:<30d`), not the mark's. */
+  /** When each session was last kept out of the review, epoch ms; how long that holds is the review's own term (`-kept:>=today-30d`), not the mark's. */
   kept: Record<string, number>;
   /** The PRs the app linked each session to, such as the one a panel's row started it for, in the order linked. */
   prLinks: Record<string, SessionPr[]>;

@@ -5,7 +5,7 @@ import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../
 import type { Found } from '../../../src/shared/helpers/path-check';
 import type { BaseCandidate, DiffBases, DiffQuestion, DiffSummary, FileDiff, SessionFileDiff } from '../../../src/shared/diff/types';
 import type { SettingsFileRead } from '../../../src/shared/config/settings';
-import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, SettledNeedsYou, PrSeen, PrStatus, ScheduledTask, SessionPr, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
+import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, SettledNeedsYou, PrSeen, PrStatus, RunningElsewhere, ScheduledTask, SessionPr, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -63,6 +63,8 @@ export interface BridgeFixture {
   createdPrs: Record<string, string>;
   /** The page of the PR each posted review or comment id belongs to, by its id, as main would find it; one left out is an id GitHub does not know. */
   nodePrs: Record<string, string>;
+  /** What each number a comment was posted on is, by `<repository>#<number>`, as main would find it: the page of the PR it is, or null for an issue; one left out is a number GitHub does not know. */
+  numberPrs: Record<string, string | null>;
   historyPins: Record<string, HistoryPin>;
   /** Session id -> its transcript's exchanges, as main reads them; a listed session left out has no history the stand-in can answer for, and one the listing does not have has no transcript yet. */
   history: Record<string, Exchange[]>;
@@ -87,6 +89,13 @@ export interface BridgeFixture {
    * A check sets one while the window runs to start a command in it.
    */
   foreground: Record<number, string>;
+  /**
+   * The claude that runs a session somewhere else, by session id, as main reads it from Claude Code's record of running sessions; a session left out runs nowhere else.
+   * A check removes one while the window runs to let that claude end.
+   */
+  elsewhere: Record<string, RunningElsewhere>;
+  /** What main reads of a session's older copy, by `<session id>:<stamp>`: its exchanges, and the ids of those the current transcript lacks. */
+  copies: Record<string, { exchanges: Exchange[]; notInCurrent: string[] }>;
   /**
    * What main's diff reads answer for each folder, by question; a folder left out is in no working tree, which main answers with git's refusal.
    * A check changes one while the window runs to make a change in that checkout.
@@ -147,9 +156,11 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
     lastActivity: '2026-09-30T08:00:00.000Z',
     isSibling: false,
     siblingIds: [],
+    supersededCopies: [],
     prs: [],
-    webCreates: [],
+    prCreates: [],
     postedNodes: [],
+    postedNumbers: [],
     postCompactHeads: [],
     cwdExists: true,
     repoRootExists: true,
@@ -217,6 +228,7 @@ export function defaultFixture(): BridgeFixture {
     prProblem: null,
     createdPrs: {},
     nodePrs: {},
+    numberPrs: {},
     historyPins: {},
     history: {},
     layout: { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, status: 'missing', error: null, json: null, types: [], local: noLocalLayout() },
@@ -226,6 +238,8 @@ export function defaultFixture(): BridgeFixture {
     pickFolder: null,
     trees: {},
     foreground: {},
+    elsewhere: {},
+    copies: {},
     diffs: {},
     fileDiffs: {},
     nested: {},

@@ -9,7 +9,8 @@ import { flagNames, parseLaunchFlags } from '../../shared/config/flags';
 import { settingsNow } from '../config/settings';
 import { log } from '../logs/log';
 import { formatDuration } from '../files/stamp';
-import type { TerminalLaunch } from '../../shared/types';
+import type { RunningElsewhere, TerminalLaunch } from '../../shared/types';
+import { runningElsewhere } from './running-elsewhere';
 import type { ShellFolder } from '../panels/panel-data';
 import { ID_PATTERN, type PanelContext } from '../../shared/panels';
 
@@ -213,6 +214,7 @@ export function describeLaunch(launch: TerminalLaunch, extra: string[]): string 
   if (launch.fork && launch.resumeSessionId) what = `fork ${launch.sessionId ?? '(no id)'} of ${launch.resumeSessionId}`;
   else if (launch.resumeSessionId) what = `resume ${launch.resumeSessionId}`;
   else what = `new session ${launch.sessionId ?? '(no id)'}`;
+  if (launch.despiteElsewhere) what += ', though another claude runs it';
   if (launch.worktree !== undefined) what += ', in a new worktree';
   // That there is one, never what it says.
   if (launch.prompt) what += ', with a first prompt';
@@ -234,6 +236,15 @@ function refuseClosed(what: string): never {
 function refuseMissing(cwd: string): never {
   log('warn', 'terminal', `refused to start: ${cwd ? `${cwd} is not there` : 'no folder given'}`);
   throw new Error(`MISSING_CWD:${cwd}`);
+}
+
+/**
+ * A resume refused because another claude runs the session already, logged before the renderer is told.
+ * Two claudes on one session each write their own copy of its transcript, and once one of them enters or leaves a worktree the copies land in two folders and grow apart.
+ */
+function refuseElsewhere(id: string, found: RunningElsewhere): never {
+  log('info', 'terminal', `resume ${id} not started: it runs in ${found.where} already`);
+  throw new Error(`RUNS_ELSEWHERE:${JSON.stringify(found)}`);
 }
 
 /** What a session is launched with: the renderer's request plus the parts only the main process knows. */
@@ -303,6 +314,11 @@ export function registerTerminalIpc(): void {
     // Refusing here rather than only in the UI, so nothing can reach a spawn by another route.
     if (closed) refuseClosed('session');
     if (!cwd || !existsSync(cwd)) refuseMissing(cwd);
+    // A fork only reads the session it resumes, so only a plain resume is checked.
+    if (launch.resumeSessionId && !launch.fork && !launch.despiteElsewhere) {
+      const found = await runningElsewhere(launch.resumeSessionId);
+      if (found) refuseElsewhere(launch.resumeSessionId, found);
+    }
     // Guard on the settings file's existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
     // Flags the settings file gives are checked when they are read, and a refused value is never in force, so these parse; read per start, so an edit of the file counts from the next session on.
     const extra = parseLaunchFlags((await settingsNow()).launchFlags).tokens;
