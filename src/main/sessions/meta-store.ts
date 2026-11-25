@@ -88,7 +88,7 @@ export interface Meta {
    */
   setAside: Record<string, SetAside>;
   /**
-   * When each session was last kept out of the review, by session id (epoch ms): the review's own term says how long that holds (`kept:<30d`), so a stamp is never swept, and goes with its session's delete.
+   * When each session was last kept out of the review, by session id (epoch ms): the review's own term says how long that holds (`-kept:>=today-30d`), so a stamp is never swept, and goes with its session's delete.
    * Finishing leaves it, since a finished session is out of the review anyway.
    */
   kept: Record<string, number>;

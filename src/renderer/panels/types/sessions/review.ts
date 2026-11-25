@@ -1,7 +1,7 @@
 import { fromMarkup } from '../../../ui/dom';
-import { entityKey } from '../../../rules/sessions';
-import { REVIEW, reviewCount, reviewSections, type ReviewFacts, type ReviewSection } from '../../../rules/review';
+import { REVIEW, reviewCount, reviewSections, type ReviewSection } from '../../../rules/review';
 import { store, type View } from '../../../state/app';
+import { queryFacts, queryFields, type QueryView } from '../../../state/query-facts';
 import { endBulk, startReview } from '../../../state/bulk';
 import { visibleSessions } from '../../../state/views';
 import { unavailable, setUnavailable } from '../../../ui/unavailable';
@@ -19,26 +19,13 @@ const button = reviewButton;
 const count = reviewButton.querySelector<HTMLElement>('.review-count')!;
 
 /** What the review reads of the store. */
-export type ReviewView = View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'setAside' | 'kept' | 'prStatus' | 'settings' | 'activeProject'>;
-
-/** The store's state as the review's terms read it (`ReviewFacts`). */
-function reviewFacts(view: ReviewView): ReviewFacts {
-  return {
-    tabbed: new Set(view.tabs.map((t) => entityKey(t.session))),
-    finished: view.finished,
-    pendingDeletes: view.pendingDeletes,
-    setAside: view.setAside,
-    kept: view.kept,
-    prStatus: view.prStatus,
-    // On until the settings are read, as it is by default; nothing has been asked by then, so its line says it is asking.
-    prStatusOn: view.settings?.prStatus.value ?? true,
-  };
-}
+export type ReviewView = QueryView & View<'sessions' | 'activeProject' | 'needsYouTypes'>;
 
 /** The review in the switcher's scope, as of `now`: the project on show, or every project in All. */
 export function reviewInScope(view: ReviewView, now = Date.now()): ReviewSection[] {
   const sessions = visibleSessions(view).filter((s) => view.activeProject === null || s.repoRoot === view.activeProject);
-  return reviewSections(sessions, reviewFacts(view), now);
+  // PR status is on until the settings are read, as it is by default; nothing has been asked by then, so Ready to finish's line says it is asking.
+  return reviewSections(sessions, queryFields(view), queryFacts(view, now), { prStatus: view.prStatus, prStatusOn: view.settings?.prStatus.value ?? true });
 }
 
 /** The review's sets as the list draws them flat (list.ts), each under its heading. */
@@ -67,13 +54,15 @@ const REVIEW_LOOK_EVERY_MS =60 * 60 * 1000;
 
 /** The button's count, now and as the store and the clock move; registered with the sidebar's repaints (watch.ts). */
 export function watchReviewButton(): void {
-  const slices = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'setAside', 'kept', 'prStatus', 'settings', 'activeProject', 'reviewing'] as const;
+  const slices = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'setAside', 'kept', 'prStatus', 'settings', 'activeProject', 'reviewing', 'needsYouTypes'] as const;
   // Once a frame: it counts the review over every session, and draws the whole button from the store as it is, so nothing it skips is lost.
-  store.watch(slices, showReviewButton, { frame: true });
+  // The slices are what the review's own queries read; the count reads the whole store, since the query facts answer for every field.
+  store.watch(slices, () => showReviewButton(store.get()), { frame: true });
   window.setInterval(() => showReviewButton(store.get()), REVIEW_LOOK_EVERY_MS);
   showReviewButton(store.get());
   let wasReviewing = store.get().reviewing;
-  store.watch(slices, (view) => {
+  store.watch(slices, () => {
+    const view = store.get();
     if (view.reviewing === wasReviewing) return;
     wasReviewing = view.reviewing;
     window.claudeUi.recordReview(view.reviewing ? 'start' : 'end', view.activeProject === null ? 'all' : 'project', reviewCount(reviewInScope(view)));

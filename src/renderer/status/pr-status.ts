@@ -1,6 +1,7 @@
 import { approvalsRequired, authorName, prKey, prReference, referenceKey, type Approvals } from '../../shared/sessions/prs';
 import { firesFor, isPrReason, PR_TYPES, type NeedsYouRegistry } from '../../shared/status/needs-you';
 import type { SettingsView } from '../../shared/config/settings';
+import type { PrState } from '../../shared/query/facts';
 import type { NeedsYou, PrNames, PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, PrToFind, SessionSummary } from '../../shared/types';
 import type { View } from '../state/app';
 import type { Tone } from '../ui/tone';
@@ -91,6 +92,26 @@ type OpenStatus = Extract<PrStatus, { state: 'open' }>;
  */
 function isApproved(status: OpenStatus, required: number | null): boolean {
   return status.review === 'approved' && (required === null || (status.approvals ?? 0) >= required);
+}
+
+/** Every state a PR is in by main's answer, as a query's `pr.state:` names them, read as its mark reads it (`knownStatus`): none while it is not known. */
+export function prStatesOf(pr: PrRef, read: PrStatusRead, approvals: Approvals): Set<PrState> {
+  const status = knownStatus(pr, read);
+  if (status === null) return new Set();
+  if (status.state !== 'open') return new Set([status.state]);
+  const states = new Set<PrState>(['open']);
+  if (status.draft) states.add('draft');
+  if (status.review === 'changes-requested') states.add('changes-requested');
+  if (isApproved(status, approvalsRequired(approvals, pr.repository))) states.add('approved');
+  if (status.checks === 'failed') states.add('checks-failed');
+  if (status.checks === 'running') states.add('checks-running');
+  if (status.conflict === true) states.add('conflict');
+  return states;
+}
+
+/** Your role on a PR by main's answer, null while it is not known (`knownStatus`). */
+export function prRoleOf(pr: PrRef, read: PrStatusRead): PrRole | null {
+  return knownStatus(pr, read)?.role ?? null;
 }
 
 /**
@@ -310,12 +331,6 @@ export function verdictOf(pr: PrRef, read: PrStatusRead, rules: PrRules): PrVerd
 /** A PR's status from main's answer, null while main could not ask GitHub, whatever it still holds from before. */
 function knownStatus(pr: PrRef, read: PrStatusRead): PrStatus | null {
   return read.problem === null ? (read.statuses[prKey(pr)] ?? null) : null;
-}
-
-/** Whether a PR is merged or closed by main's answer, null for one open or not known to be either, read as its mark reads it (`knownStatus`). */
-export function settledState(pr: PrRef, read: PrStatusRead): 'merged' | 'closed' | null {
-  const status = knownStatus(pr, read);
-  return status === null || status.state === 'open' ? null : status.state;
 }
 
 /** The approvals each repository needs, from the settings as they stand; none before they are read, so GitHub's decision alone says approved until then. */

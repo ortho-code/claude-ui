@@ -35,19 +35,19 @@ The review is a moment to decide what the list has been carrying: the Review but
 Its count is the review in the switcher's scope, and at none, while the list does not show the review, the button is unavailable, saying so, since a review with nothing in it would end at once; while it does, a press ends it.
 The count is worked out again whenever what it reads in the store changes, and an open review is drawn again whenever the list is, a session getting or losing a tab included; since a session crosses its days, or a keep stamp runs out, with nothing in the store moving, the count is looked at again at least once an hour on a timer, as a set-aside mark comes due, and an open review every minute with the list's order ([§ UI conventions](ui-conventions.md#ui-conventions)).
 
-**Which sessions** (`review.ts`, pure): those that are unfinished — no tab, not finished — not set aside, and not kept within the last 30 days, in two sets, oldest activity first:
-- **Ready to finish**: every link settled, which today is every PR it links merged or closed, as the PR marks read what GitHub said (`verdictOf`); at least one link, since a session that links nothing has nothing settled and would put every such session here.
+**Which sessions** (`review.ts`, pure): those that are unfinished — no tab, not finished — not set aside, and not kept within the last 30 days, in two sets, oldest activity first, each number of days counted in whole days from today's midnight ([decided 2026-11-25](../decisions/0255-the-review-counts-whole-days-from-midnight.md)):
+- **Ready to finish**: every link settled, which today is every PR it links merged or closed, as the PR marks read what GitHub said (`prStatesOf`); at least one link, since a session that links nothing has nothing settled and would put every such session here.
   A PR GitHub has not answered for is not settled, nor any after a failed ask, which the marks show as no state either, nor any while `prStatus` is off and nothing is asked.
   While a session the review would look at links a PR, the set's heading says why it cannot answer, rather than standing empty as if nothing were ready: PR status off, the failed ask's reason, or, while GitHub has answered for none yet, that it is asking; one PR among answered ones that GitHub has not answered for leaves its session out without a word.
-- **Untouched 30+ days**: last active more than 30 days ago.
+- **Untouched 30+ days**: last active before the day 30 days ago.
 A session in both shows once, under Ready to finish.
 A row reads as it does in Recent, its time and model led by its project in All and its group where it has one: its set's heading says why it is there, and its tooltip names its PRs with when they merged or closed ([decided 2026-11-12](../decisions/0218-a-review-row-reads-like-any-other-row.md)).
 
 The conditions both sets share hold for every act that decides a row ([decided 2026-11-04](../decisions/0165-the-reviews-shared-conditions-hold-for-every-act.md)).
 A session with a tab is work in hand, which its tab decides, so the review leaves it out whatever its PRs say.
 
-**The terms are named for the query language** the session-model design brings later: `is:unfinished`, `is:set-aside`, `kept:<30d`, `untouched:>30d`, `is:ready-to-finish`, each one function, so the review and a query typed by hand cannot disagree.
-The review is a definition, data rather than code in the list (`REVIEW`): its sets, each with a name, its term and its why line, and the terms they share; that is the shape a view in review mode takes once views are files, so the review then becomes a bundled view without a second implementation.
+**The review is queries in the query language** (`src/shared/query/`): `is:unfinished -is:set-aside -kept:>=today-30d` shared, then `is:ready-to-finish` and `active:<today-30d` for its sets, read by the fields any query will use, so the review and a query typed by hand cannot disagree; the window answers the fields' questions from its store (`src/renderer/state/query-facts.ts`).
+The review is a definition, data rather than code in the list (`REVIEW`): its sets, each with a name and its query, and the query they share; that is the shape a view in review mode takes once views are files, so the review then becomes a bundled view without a second implementation.
 Its two numbers of days are written there and nowhere else, what Keep says of its days read from there too, and are fixed until views can be overridden ([decided 2026-11-04](../decisions/0164-the-reviews-days-are-fixed-in-its-definition.md)).
 
 **Keep's stamp** is when a session was kept, in `meta.json` (`kept`), never an expiry: how long it holds is the review's own term, so it is worked out when read, nothing sweeps it, and a stamp past its days does nothing until its session is kept again or deleted, which takes it with the session's other marks.

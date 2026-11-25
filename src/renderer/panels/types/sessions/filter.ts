@@ -106,18 +106,6 @@ const LIVE_ICON = strokeIcon(13, '<circle cx="8" cy="8" r="5.5" /><circle cx="8"
 // The finished filter's mark: the lidded box finishing wears everywhere (`finishIcon`).
 const FINISH_ICON = finishIcon(13);
 
-// Session key -> its group's NAME, so typing a group name reaches its sessions.
-// Built ONCE per filter pass and handed in: passesFilters runs per session, so building it there would be one pass over the membership map per row.
-export function groupNameByKey({ groupState }: View<'groupState'>): Map<string, string> {
-  const byId = new Map(groupState.groups.map((g) => [g.id, g.name]));
-  const out = new Map<string, string>();
-  for (const [key, id] of Object.entries(groupState.groupOf)) {
-    const name = byId.get(id);
-    if (name) out.set(key, name);
-  }
-  return out;
-}
-
 // Adapt the current filter state to the pure predicate.
 export function passesFilters(session: SessionSummary, view: View<'pinned' | 'finished' | 'notes' | 'pendingDeletes' | 'tabs' | 'setAside' | 'filter' | 'prNames'>, groupNames?: ReadonlyMap<string, string>): boolean {
   const { filters, dateFrom, dateTo } = view.filter;

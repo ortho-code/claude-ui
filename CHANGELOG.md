@@ -69,6 +69,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The session list keeps up with a thousand sessions: a key in the search and the minute's clock no longer redraw every row, and a burst of status changes repaints the switcher once.
   Rows a search brings back appear from the top over a few frames.
 - The collapse-all button's two chevrons point at each other to collapse and apart to expand, as a code editor's do.
+- The review counts its 30 days in whole days from midnight, so a session joins Untouched 30+ days, and Keep lets it back in, when the day turns rather than at the hour it crossed.
 
 ### Fixed
 

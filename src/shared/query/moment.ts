@@ -35,10 +35,19 @@ function dayStart(moment: Moment, now: number, after = 0): number {
   return start.getTime();
 }
 
-/** Whether a time stands as the comparison says to a moment's day: `:` within it, `<` before it, `<=` before its end, `>` after it, `>=` from its start. */
-export function atMoment(at: number, comparison: Comparison, moment: Moment, now: number): boolean {
-  const start = dayStart(moment, now);
-  const end = dayStart(moment, now, 1);
+/** A moment's day as times: from its midnight, up to the next one, exclusive. */
+export interface Day {
+  start: number;
+  end: number;
+}
+
+/** The day a moment names, as of `now`. */
+export function dayOf(moment: Moment, now: number): Day {
+  return { start: dayStart(moment, now), end: dayStart(moment, now, 1) };
+}
+
+/** Whether a time stands as the comparison says to a day: `:` within it, `<` before it, `<=` before its end, `>` after it, `>=` from its start. */
+export function atDay(at: number, comparison: Comparison, { start, end }: Day): boolean {
   switch (comparison) {
     case ':':
       return at >= start && at < end;

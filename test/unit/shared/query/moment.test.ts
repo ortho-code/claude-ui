@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
-import { atMoment, readMoment } from '../../../../src/shared/query/moment';
+import { atDay, dayOf, readMoment, type Comparison, type Moment } from '../../../../src/shared/query/moment';
+
+const atMoment = (time: number, comparison: Comparison, moment: Moment, now: number): boolean => atDay(time, comparison, dayOf(moment, now));
 
 const now = new Date(2026, 10, 25, 15, 30).getTime();
 const at = (day: number, hour = 12, month = 10): number => new Date(2026, month, day, hour).getTime();
@@ -26,7 +28,7 @@ describe('readMoment', () => {
   });
 });
 
-describe('atMoment', () => {
+describe('atDay', () => {
   const today = readMoment('today');
   const monthAgo = readMoment('today-30d');
   if (today === null || monthAgo === null) throw new Error('the moments under test must read');
