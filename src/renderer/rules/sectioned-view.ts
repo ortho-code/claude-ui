@@ -15,9 +15,13 @@ import { entityKey } from './sessions';
  */
 export type RowLines = 'time' | 'state' | 'compact';
 
+/** A mark a session row can show, beside its dot, its title and its menu, which every row keeps. */
+export type RowMark = 'pin' | 'pr' | 'note' | 'set-aside' | 'worktree' | 'siblings' | 'clock' | 'superseded';
+
 /**
  * One section: its id and name, which its heading says, the query that puts a session in it, the order of its rows, and what each row says under its title.
  * `empty` is what it says while it has no rows; `inProject` shows it only while the view shows one project, for a section of what is elsewhere, which the query alone cannot tell from a section with nothing in it.
+ * `folds`: its heading folds it; `hides`: the marks its rows leave out, every other mark showing, one added later included.
  */
 export interface ViewSection {
   id: string;
@@ -27,6 +31,8 @@ export interface ViewSection {
   lines: RowLines;
   empty?: string;
   inProject?: boolean;
+  folds?: boolean;
+  hides?: readonly RowMark[];
 }
 
 /** A view's sections in the order they are shown, a session in the first whose query holds, and the query every section's rows also meet. */
@@ -67,6 +73,6 @@ export function sectioned(view: SectionedView, offered: readonly SessionSummary[
     const query = viewQuery(view, section.query, fields);
     const rows = offered.filter((session) => !shown.has(entityKey(session)) && matches(session, query, fields, facts)).sort((a, b) => SORTS[section.sort](a, b, facts));
     for (const session of rows) shown.add(entityKey(session));
-    return { id: section.id, name: section.name, lines: section.lines, empty: section.empty, inProject: section.inProject, rows };
+    return { id: section.id, name: section.name, lines: section.lines, empty: section.empty, inProject: section.inProject, folds: section.folds, hides: section.hides, rows };
   });
 }

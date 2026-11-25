@@ -67,6 +67,33 @@ test("a row's first state sits on the line under its title, beside its marks, as
   expect(Math.round((await row.boundingBox())!.height)).toBe(Math.round((await sidebarRow.boundingBox())!.height));
 });
 
+test("a section's heading folds it and unfolds it, its count staying", async ({ app, page }) => {
+  await boot(app);
+  const needsYou = section(page, 'Needs you');
+  const heading = needsYou.locator('.section-heading');
+  await expect(needsYou.locator('.session')).toHaveCount(2);
+  await heading.click();
+  await expect(needsYou.locator('.session')).toHaveCount(0);
+  await expect(heading.locator('.heading-count')).toHaveText('2');
+  await expect(heading).toHaveAttribute('aria-expanded', 'false');
+  await heading.click();
+  await expect(needsYou.locator('.session')).toHaveCount(2);
+  await expect(heading).toHaveAttribute('aria-expanded', 'true');
+});
+
+test("a row shows its PR, note and menu, and not the pin, the set-aside mark or the siblings mark, which the sidebar's row shows", async ({ app, page }) => {
+  const pr = { repository: 'acme/app', number: 7, url: 'https://github.com/acme/app/pull/7' };
+  const marked = session({ id: asideHere.id, title: asideHere.title, prs: [pr], isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000b9'] });
+  await boot(app, { sessions: [asking, marked, askingThere, quiet], notes: { [asideHere.id]: 'A note' } });
+  const row = section(page, 'Not now').locator('.session');
+  const sidebarRow = page.locator('#sessions .session', { hasText: asideHere.title });
+  for (const mark of ['.pr-badge', '.note-badge', '.session-kebab']) await expect(row.locator(mark).first()).toBeVisible();
+  for (const mark of ['.pin', '.set-aside-badge', '.sibling-badge']) {
+    await expect(sidebarRow.locator(mark).first()).toBeVisible();
+    await expect(row.locator(mark).first()).toBeHidden();
+  }
+});
+
 test("This project shows the project on show, and other projects' sessions that ask for you under Elsewhere, compact and uncounted", async ({ app, page }) => {
   await boot(app);
   await view(page, 'This project').click();

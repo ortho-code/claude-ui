@@ -274,3 +274,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0266](0266-a-views-sections-are-the-reviews-sets-generalised.md) | 2026-11-25 | A view's sections are the review's sets, generalised | [Views with sections](../architecture/session-list.md#views-with-sections) |
 | [0267](0267-the-project-on-show-is-a-query-term.md) | 2026-11-25 | The project on show is a query term | [Now](../architecture/session-list.md#now) |
 | [0268](0268-a-rows-state-colour-is-its-dots-alone.md) | 2026-11-25 | A row's state colour is its dot's alone | [Views with sections](../architecture/session-list.md#views-with-sections) |
+| [0269](0269-a-section-folds-and-says-which-marks-its-rows-leave-out.md) | 2026-11-25 | A section folds, and says which marks its rows leave out | [Views with sections](../architecture/session-list.md#views-with-sections) |

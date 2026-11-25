@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup } from '../../../ui/dom';
 import { Keyed } from '../../../ui/keyed';
-import type { RowLines } from '../../../rules/sectioned-view';
+import type { RowLines, RowMark } from '../../../rules/sectioned-view';
 import type { ProjectTree } from '../../../rules/session-list';
 import './drawn.css';
 
@@ -98,20 +98,24 @@ export const groupSections = new Keyed<GroupSectionEls>((els) => els.section);
 
 /**
  * A section of the list drawn flat, as the list draws it (list.ts), such as one of the review's sets under its heading; its id names it for good, a heading and all.
- * Its rows in the order they are shown.
+ * Its rows in the order they are shown, what each says under its title, and the marks they leave out; `fold` for a section its heading folds: whether it is folded now, and what folds or unfolds it.
  */
 export interface FlatSection {
   id: string;
   heading: { name: string; count: number; note: string | null } | null;
   rows: readonly SessionSummary[];
   lines: RowLines;
+  hides?: readonly RowMark[];
+  fold?: { folded: boolean; toggle: () => void };
 }
 
 /** A flat section as drawn: its section, the well its rows sit in, and its heading's parts where it has one — its name, its count, and the line saying why it cannot answer. */
 export interface FlatSectionEls {
   section: HTMLElement;
   rows: HTMLElement;
-  heading: { heading: HTMLElement; label: HTMLElement; count: HTMLElement; note: HTMLElement } | null;
+  heading: { heading: HTMLElement; caret: HTMLElement; label: HTMLElement; count: HTMLElement; note: HTMLElement } | null;
+  /** What a press on its heading does, as its last draw said: fold or unfold it, or nothing for a section that does not fold. */
+  onFold: (() => void) | null;
 }
 
 /** The keys of the rows drawn under `scope`, in the order drawn, a folded section's included: what a Shift+press ticks a run of, what the bar acts on of what is ticked (bulk.ts), and what the list's order is compared against at each minute (list.ts). */

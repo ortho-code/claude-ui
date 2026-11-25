@@ -86,6 +86,8 @@ A view with sections (`SectionedView`, `rules/sectioned-view.ts`, pure) is a que
 The review is one, its sets its sections, and Now another, so a section is data, never code of its own.
 What a row says under its title is its section's (`RowLines`): `time`, its time, model and marks, as everywhere else; `state`, a line per state it is in (`rowStateLines`, the dot's lines with each reason bare and a PR by its number alone, then its set-aside mark), the first on the line under its title beside its marks, where its time goes elsewhere; `compact`, only where it sits, the rest in its tooltip.
 Where a row lists its states or is compact, its time and model are only in its tooltip.
+A section can fold (`folds`): a press on its heading folds or unfolds it, kept for as long as its panel is mounted, as a list panel's sections are; and it can leave marks off its rows (`hides`, `RowMark`), a list of what to hide so a mark added later shows, every action a hidden mark offers staying in the row's menu ([decided 2026-11-25](../decisions/0269-a-section-folds-and-says-which-marks-its-rows-leave-out.md)).
+The review's sets and Recent do neither.
 A row's left edge says it has a tab, on every surface, so a state's colour is its dot's alone ([decided 2026-11-25](../decisions/0268-a-rows-state-colour-is-its-dots-alone.md)).
 
 ## Now
@@ -99,3 +101,4 @@ Each session is in one section by whether it is its turn, the first in the order
 
 `project:current` is the project the panel shows: the switcher's in This project, every project in All ([decided 2026-11-25](../decisions/0267-the-project-on-show-is-a-query-term.md)), so in All Elsewhere holds nothing; a section can say it stands only while one project is on show (`inProject`), which Elsewhere does, since the query alone cannot tell "nothing elsewhere" from "no elsewhere".
 In This project with no project on show, the other three sections say so and the panel counts nothing.
+Every section folds, but for the three that say no project is on show, and its rows leave out the pin, the set-aside mark, the worktree mark and the siblings mark.

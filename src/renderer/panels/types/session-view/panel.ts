@@ -37,6 +37,8 @@ export class SessionViewPanel implements MountedPanel {
   private readonly drawn = new DrawnRows(false);
   private readonly stopWatching: () => void;
   private visible = false;
+  /** The sections folded by a press on their heading, by id, for as long as the panel is mounted, as a list panel keeps its sections' folds. */
+  private readonly folded = new Set<string>();
 
   constructor(private readonly host: PanelHost) {
     this.el.append(this.list);
@@ -67,10 +69,23 @@ export class SessionViewPanel implements MountedPanel {
         ? NOW.sections.filter((section) => !('inProject' in section)).map((section) => ({ id: section.id, heading: { name: section.name, count: 0, note: NO_PROJECT }, rows: [], lines: section.lines }))
         : sectionsOf(NOW, switcherPool(view), queryFields(view), queryFacts(view, Date.now(), current))
             .filter((section) => !section.inProject || current !== null)
-            .map((section) => ({ id: section.id, heading: { name: section.name, count: section.rows.length, note: section.rows.length === 0 ? (section.empty ?? null) : null }, rows: section.rows, lines: section.lines }));
+            .map((section) => ({
+              id: section.id,
+              heading: { name: section.name, count: section.rows.length, note: section.rows.length === 0 ? (section.empty ?? null) : null },
+              rows: section.rows,
+              lines: section.lines,
+              hides: section.hides,
+              ...(section.folds ? { fold: { folded: this.folded.has(section.id), toggle: () => this.toggle(section.id) } } : {}),
+            }));
     this.host.setCount(sections.find((section) => section.id === NOW_COUNTS)?.rows.length ?? 0);    if (!this.visible) return;
     drawFlat(this.drawn, this.list, sections, view, this.lead(current));
     markTabs(this.drawn, view);
+  }
+
+  /** Fold a section, or unfold it, and draw it so. */
+  private toggle(id: string): void {
+    if (!this.folded.delete(id)) this.folded.add(id);
+    this.draw();
   }
 
   /** Where a row sits: its project, where the view shows every project or the row stands for one elsewhere. */

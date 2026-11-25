@@ -34,7 +34,8 @@ A `session-view` panel showing Now ([Layout and panels](layout.md#the-panel-type
 - **Not now**: the sessions set aside, or with reasons that do not ask for you now, read or held back by their set-aside mark.
 
 Its header switches between All projects, first, and This project, the project on show; a row in All names its project.
-Each row is the session list's own, with its dot, title, marks and menu, and, outside Elsewhere, a line per state it is in, the first beside its marks where the session list shows the time: a reason in the words its dot's tooltip uses without "Needs you —", since the section's heading says it, and a PR by its number, its title on hover, then its set-aside mark.
+A press on a section's heading folds it, or unfolds it, until the panel goes from the layout, its options change or the app restarts.
+Each row is the session list's own, with its dot, title, menu and marks, but for the pin, the set-aside mark, the worktree mark and the siblings mark, and, outside Elsewhere, a line per state it is in, the first beside its marks where the session list shows the time: a reason in the words its dot's tooltip uses without "Needs you —", since the section's heading says it, and a PR by its number, its title on hover, then its set-aside mark.
 A press on a row opens its session, or says why it cannot when its folder is gone.
 
 ## Claude tabs

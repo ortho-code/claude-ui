@@ -15,7 +15,7 @@ import { scheduledMark, showScheduled } from '../../../status/scheduled-mark';
 import { store, type View } from '../../../state/app';
 import { tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, rowStateLines } from '../../../status/status-dot';
-import type { RowLines } from '../../../rules/sectioned-view';
+import type { RowLines, RowMark } from '../../../rules/sectioned-view';
 import { noteMark, showNote } from '../../../status/note-mark';
 import { PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../ui/svg';
 import { showToast } from '../../../ui/toast';
@@ -328,12 +328,14 @@ export function showTabMarks(marks: RowTabMarks, id: string, view: View<'schedul
 }
 
 /**
- * What a row drawn flat says under its title (`RowLines`), and ahead of the rest of its line where it sits, where no heading above it says so.
+ * What a row drawn flat says under its title (`RowLines`), ahead of the rest of its line where it sits, where no heading above it says so, and which marks it leaves out.
  * Where it sits is worked out again on the minute clock like the time it leads, of the session as the newest listing has it.
  */
 export interface FlatLine {
   lead: (shown: SessionSummary) => string | null;
   lines: RowLines;
+  /** The marks the row leaves out. */
+  hides: readonly RowMark[];
 }
 
 /**
@@ -468,4 +470,22 @@ export function updateRow(drawn: DrawnRows, row: HTMLElement, session: SessionSu
   // Reopen and delete are the finished view's two buttons, shortcuts to the items its kebab holds, and appear nowhere else.
   els.reopenBtn.hidden = !finishedView;
   els.deleteBtn.hidden = !finishedView;
+  hideMarks(els, flat?.hides ?? []);
+}
+
+/** Each mark's element on a row, the note's with the separator before it. */
+const MARK_ELS: Record<RowMark, (els: RowEls) => HTMLElement[]> = {
+  pin: (els) => [els.pin],
+  pr: (els) => [els.prBadge],
+  note: (els) => [els.noteBadge, els.noteSep],
+  'set-aside': (els) => [els.setAside],
+  worktree: (els) => [els.badge],
+  siblings: (els) => [els.siblingsBadge],
+  clock: (els) => [els.clock],
+  superseded: (els) => [els.superseded],
+};
+
+/** Take off a row the marks its section leaves out, after the row has drawn each as its session says. */
+function hideMarks(els: RowEls, hides: readonly RowMark[]): void {
+  for (const mark of hides) for (const el of MARK_ELS[mark](els)) el.hidden = true;
 }

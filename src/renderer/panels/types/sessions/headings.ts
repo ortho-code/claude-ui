@@ -68,7 +68,8 @@ function selectItem(section: HTMLElement): MenuItem {
 }
 
 /**
- * Build a flat section once (list.ts), such as a set of the review (docs/architecture/session-list.md § The review): the well its rows sit in, under a heading with its box, its name and its count, and a line under that for why it cannot answer, where `headed`; it folds nothing, so its heading has no caret to turn.
+ * Build a flat section once (flat.ts), such as a set of the review (docs/architecture/session-list.md § The review): the well its rows sit in, under a heading with its box, its caret, its name and its count, and a line under that for why it cannot answer or that it is empty, where `headed`.
+ * A press on the heading does what its last draw said (`onFold`); the caret shows only on a section that folds.
  */
 export function createFlatSection(headed: boolean): FlatSectionEls {
   const section = document.createElement('section');
@@ -77,15 +78,16 @@ export function createFlatSection(headed: boolean): FlatSectionEls {
   rows.className = 'flat-rows';
   if (!headed) {
     section.append(rows);
-    return { section, rows, heading: null };
+    return { section, rows, heading: null, onFold: null };
   }
   const { heading, caret, label, count } = sectionHeading('bar');
-  caret.remove();
   heading.prepend(headingBox(section));
   const note = document.createElement('p');
   note.className = 'flat-note';
   section.append(heading, note, rows);
-  return { section, rows, heading: { heading, label, count, note } };
+  const els: FlatSectionEls = { section, rows, heading: { heading, caret, label, count, note }, onFold: null };
+  heading.addEventListener('click', () => els.onFold?.());
+  return els;
 }
 
 // Build a project section once; its contents (name, count, caret, rows) are drawn by reconcileProjectSections, on this render and every later one.
