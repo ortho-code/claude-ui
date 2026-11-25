@@ -8,6 +8,7 @@ import { mutedText } from '../../../../ui/muted';
 import { languageOf } from '../../../../ui/syntax';
 import { flash } from '../../../../ui/flash';
 import '../../../../ui/decisive-button.css';
+import '../../../../ui/pill.css';
 import { foldHolding, HunkDrawer, type Reveal } from './hunks';
 import { drawMap, markCursor } from './steps';
 import './file-view.css';
