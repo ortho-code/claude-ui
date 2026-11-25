@@ -153,6 +153,7 @@ export class EditorView {
     });
     shareWidth(this.groups[0]!.el, this.groups[1]?.el ?? null, split ? set.share : null);
     this.measure();
+    this.shown();
   }
 
   /** Keep `count` group views in the window, the divider between two, and the Editor's own buttons in the last one's head. */
@@ -185,6 +186,12 @@ export class EditorView {
     this.putInSight();
     if (asked.line !== null && shownTab(editorTabsOnShow())?.key === asked.key) this.docs.get(asked.key)?.view.revealLine(asked.line);
   }
+
+  /** The view may have come into sight: each file on show brings a line asked for meanwhile into sight. */
+  shown(): void {
+    for (const group of editorTabsOnShow().groups) if (group.active !== null) this.docs.get(group.active)?.view.shown();
+  }
+
   /** The doc of the tab `key`, made for `ref`'s kind: the one it has, showing `ref`, unless the same file is opened again as the other kind, as after git started or stopped ignoring it, or after its checkout could not be read. */
   private docOf(key: string, ref: FileRef): Doc {
     const found = this.docs.get(key);

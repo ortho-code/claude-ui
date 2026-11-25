@@ -52,6 +52,12 @@ export function dockIn(lent: Dock | null): void {
   dock = lent;
   place();
 }
+
+/** The Editor panel is on screen, as the layout says after each of its draws. */
+export function dockShown(): void {
+  view?.shown();
+}
+
 function place(): void {
   if (!view || !drawer) return;
   const open = editorTabsOnShow().groups.length > 0;
@@ -71,7 +77,10 @@ function place(): void {
   if (store.get().editorDrawer) {
     drawer.showInDrawer(view.el);
     // Opening the drawer takes the keys, as opening the history does.
-    if (!inDrawer) view.focus();
+    if (!inDrawer) {
+      view.focus();
+      view.shown();
+    }
     inDrawer = true;
   } else {
     drawer.hideFromDrawer(view.el);

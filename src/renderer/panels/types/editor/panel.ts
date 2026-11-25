@@ -2,7 +2,7 @@ import { store } from '../../../state/app';
 import { editorDocked, editorTabsOnShow } from '../../../state/editor-tabs';
 import { element } from '../../../ui/dom';
 import type { MountedPanel, PanelHost } from '../../contract';
-import { dockIn } from './controller';
+import { dockIn, dockShown } from './controller';
 import './panel.css';
 
 /**
@@ -23,7 +23,9 @@ export class EditorPanel implements MountedPanel {
 
   refresh(): void {}
   contextChanged(): void {}
-  setVisible(): void {}
+  setVisible(visible: boolean): void {
+    if (visible) dockShown();
+  }
   recheck(): void {}
 
   unmount(): void {

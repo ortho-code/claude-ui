@@ -86,7 +86,7 @@ export class FileView {
   private landing: 'first' | 'last' | null = null;
   /** The latest load, so an earlier one that answers last draws nothing. */
   private loads = 0;
-  /** A line to bring into sight once the file is drawn, taken by the first draw that has it. */
+  /** A line of the file on show to bring into sight once it is drawn, taken by the first draw that has it while the view can be seen, or once it can (`shown`). */
   private revealAt: number | null = null;
   /** The load the drawn diff came from; behind `loads` while a read is under way, whose draw puts the stepper back on its change. */
   private drawnLoad = 0;
@@ -128,6 +128,7 @@ export class FileView {
   show(file: DiffFile | null, landing: 'first' | 'last' | null = null): Promise<void> {
     this.file = file;
     this.diff = null;
+    this.revealAt = null;
     this.reveal = new Map();
     this.context = CONTEXT;
     this.openGenerated = false;
@@ -224,6 +225,11 @@ export class FileView {
     this.bringIntoSight();
   }
 
+  /** The view may have come into sight, as its tab, its drawer or its panel was shown, or the layout drew it again: bring a line asked for meanwhile into sight. */
+  shown(): void {
+    this.bringIntoSight();
+  }
+
   /** Bring line `line` of the file as it is now into sight, marked for a moment: now when the file is drawn, else once it is. */
   revealLine(line: number): void {
     this.revealAt = line;
@@ -233,13 +239,18 @@ export class FileView {
   /**
    * The line asked for, in the middle of the view; one inside a fold opens that fold first.
    * A file that says a sentence instead of its lines has none to show: the ask waits while its sentence offers a pick to switch off, which draws the lines, and goes otherwise.
-   * While the file is read again the ask waits for that read's draw, which would otherwise scroll back to the stepper's change.
+   * While the file is read again the ask waits for that read's draw, which would otherwise scroll back to the stepper's change; while the view cannot be seen it waits too, since a line scrolled to there would never be seen, and one inside a hidden element cannot be scrolled to at all.
    */
   private bringIntoSight(): void {
     const line = this.revealAt;
     if (line === null || !this.diff || this.drawnLoad !== this.loads || this.lifting) return;
+    if (this.frame.hidden) {
+      this.revealAt = null;
+      return;
+    }
+    if (!this.body.checkVisibility({ visibilityProperty: true })) return;
     this.revealAt = null;
-    if (!this.frame.hidden && this.host.changesOnly()) {
+    if (this.host.changesOnly()) {
       const fold = foldHolding(this.diff, line);
       if (fold) {
         this.reveal.set(fold.index, { top: fold.count, bottom: 0 });

@@ -4,7 +4,7 @@ import { type App, expect, test } from '../../../support/harness';
 import { goLive } from '../../../support/live';
 import { tab } from '../../../support/window';
 import { here } from '../../layout/layout';
-import { bootDiff, editor, editorTabs, file, fileDiff, fileLift, fileSentence, rows, sessionFile, summary } from '../explorer/explorer';
+import { bootDiff, diffToggle, editor, editorTabs, file, fileDiff, fileLift, fileSentence, position, rows, sessionFile, summary } from '../explorer/explorer';
 
 // A file path claude prints in a session tab's terminal opens in the Editor on a press, read from the session's folder, at the line after it; so does a `file://` link claude sends.
 
@@ -90,6 +90,36 @@ test('under Changes only, a file with no change offers to show the whole file, w
   await fileLift(page).click();
   await expect(editor(page).locator('[data-line="150"]')).toBeInViewport();
   await expect.poll(async () => ((await app.calls('setUiState')).at(-1)?.[0] as { editor: { changesOnly: boolean } } | undefined)?.editor.changesOnly).toBe(false);
+});
+
+test('a line asked for behind the sentence’s button is dropped once a step shows another file', async ({ app, page }) => {
+  const unchanged = fileDiff('src/c.ts', [], Array.from({ length: 200 }, (_, at) => `line ${at + 1}`));
+  const steps = summary({ files: [file('src/c.ts', { added: 0, deleted: 0 }), file('src/b.ts')] });
+  await bootDiff(app, { since: steps }, { files: { 'src/b.ts': changedAtTop, 'src/c.ts': unchanged }, diskFiles: [`${PROJECT}/src/c.ts`], editor: { changesOnly: true } });
+  await goLive(page, app, tab(page, here.title));
+  await print(app, 'src/c.ts:150');
+  await pressTopLeft(page);
+  await expect(fileSentence(page)).toHaveText('No changes against this base.');
+  await editor(page).getByRole('button', { name: 'Next change (j)' }).click();
+  await expect(position(page)).toHaveText('change 1 of 1 · file 2 of 2');
+  await expect(editor(page).locator('.diff-fold').first()).toBeVisible();
+  await expect(editor(page).locator('[data-line="150"]')).toHaveCount(0);
+});
+
+test('a line asked for behind the sentence’s button waits while its tab is out of sight, and is brought into sight when it is shown again', async ({ app, page }) => {
+  const unchanged = fileDiff('src/c.ts', [], Array.from({ length: 200 }, (_, at) => `line ${at + 1}`));
+  await bootDiff(app, { since: listed }, { files: { 'src/b.ts': changedAtTop, 'src/c.ts': unchanged }, diskFiles: [`${PROJECT}/src/c.ts`], editor: { docked: true, changesOnly: true } });
+  await goLive(page, app, tab(page, here.title));
+  await print(app, 'src/c.ts:150');
+  await pressTopLeft(page);
+  await expect(fileSentence(page)).toHaveText('No changes against this base.');
+  await editorTabs(page).nth(0).locator('.tab-label').dblclick();
+  await rows(page).nth(1).click();
+  await expect(editorTabs(page)).toHaveText(['c.ts', 'b.ts']);
+  await diffToggle(page, 'Changes only').click();
+  await expect(editor(page).locator('.diff-fold')).toHaveCount(0);
+  await editorTabs(page).nth(0).locator('.tab-label').click();
+  await expect(editor(page).locator('[data-line="150"]')).toBeInViewport();
 });
 
 test('with whitespace hidden, a file whose only change is whitespace offers to show it', async ({ app, page }) => {
