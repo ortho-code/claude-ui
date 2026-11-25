@@ -34,7 +34,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A file shows whole, with its changes and the changed words marked, coloured by its language, side by side once the Editor is wide enough, and `j` and `k` step through the changes.
   A single press opens a preview the next file takes the place of; a double click or Pin keeps it.
   `"hidden": true` on its layout entry keeps it from docking.
-  The × at the end of its head, or Close all in a tab's menu, closes all its files at once.
+  The × at the end of its head closes all its files at once.
 - With both the history and files open in the drawer over the terminal area, a rail on its left edge switches between them, and the history comes back where it was when the files took its place.
 - Dock in the history's head puts it in a column beside claude, so you can read back while you type, at a width you drag; the window remembers it.
 - On Linux, a session that already runs somewhere else, in a terminal, the Claude desktop app, another tab or another copy of the app, is not resumed in a tab, since the two would split its transcript in two.
@@ -44,6 +44,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A press on the file a Read, Edit or Write names in the history opens it in the Editor.
   A file outside every repository, such as a scratchpad file or a plan, shows what changed since the session first changed it.
 - A file path claude prints in a session's terminal opens the file in the Editor on a press, at the line a `:42` after it names.
+- The Editor splits into two sides from Move to the other side in a tab's menu, and a tab dragged into the other side's row moves there.
+  A file opens on the side you pressed last, the divider between them drags their widths, and closing a side's last file ends the split.
 
 ### Changed
 

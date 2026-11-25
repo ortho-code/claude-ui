@@ -43,6 +43,12 @@
   font-weight: 400;
 }
 
+/* A tab wider than its header has room for, alone on its line, gives way, its name cut short, so the header's own buttons stay in view beside it; tabs that fit wrap onto more lines first, as they do at their own width. */
+.panel-tabs > .tab {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
 /* A preview, which the next thing opened takes the place of. */
 .panel-tabs .tab.preview .tab-label {
   font-style: italic;

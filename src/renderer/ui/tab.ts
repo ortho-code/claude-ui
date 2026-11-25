@@ -102,12 +102,13 @@ export function dropSortable(sortable: Sortable): void {
 }
 
 /**
- * Drag to reorder the tabs in `row`, one Sortable per row; none names a group, so none takes a drop from another, and a drag stays inside its row.
+ * Drag to reorder the tabs in `row`, one Sortable per row; a drag stays inside its row, unless `group` names one, when rows of the same group take a drop from each other.
  * `start` and `end` are the owner's: while a drag is under way the library moves the tabs itself, so the owner holds its draws until `end`.
  * Made with its row, and let go of when the row goes through `dropSortable`, never destroyed directly.
  */
-export function sortableTabs(row: HTMLElement, on: DragEnds): Sortable {
+export function sortableTabs(row: HTMLElement, on: DragEnds, group: string | null = null): Sortable {
   return Sortable.create(row, {
+    ...(group === null ? {} : { group }),
     draggable: '.tab', // never a row's label
     // The tab's buttons, its close and its kebab, are not drag handles.
     // Without this, a mousedown on one starts a potential drag, and `forceFallback` then calls preventDefault to take over pointer handling — after which Chromium on macOS never synthesises the click, so closing a tab silently did nothing there.

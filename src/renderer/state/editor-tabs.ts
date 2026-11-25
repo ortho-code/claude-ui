@@ -61,12 +61,19 @@ export interface EditorGroup {
 
 export const NO_GROUP: EditorGroup = { tabs: [], active: null };
 
-/** One session tab's files in the Editor, in groups, none of them empty; a file has one tab in the whole set. */
+/** One session tab's files in the Editor, in one group or two side by side, none of them empty; a file has one tab in the whole set. */
 export interface EditorTabs {
   groups: readonly EditorGroup[];
+  /** The group last pressed or given the keys: a file opens in it, and its tab on show is the Editor's file on show. */
+  focused: number;
+  /** The first group's part of the width while there are two, from 0 to 1. */
+  share: number;
 }
 
-export const NO_TABS: EditorTabs = { groups: [] };
+/** The share two groups start with. */
+export const EVEN_SHARE = 0.5;
+
+export const NO_TABS: EditorTabs = { groups: [], focused: 0, share: EVEN_SHARE };
 
 /** A file's tab is one per file, whatever it is compared with. */
 export const keyOf = (ref: FileRef): string => `file:${pathOf(ref)}`;
@@ -134,31 +141,83 @@ export function reordered(group: EditorGroup, keys: readonly string[]): EditorGr
   return { ...group, tabs: [...first, ...group.tabs.filter((tab) => !keys.includes(tab.key))] };
 }
 
-/** The set with `groups` as its groups, a group left with no tab gone, so the set of no files has no group. */
-const withGroups = (groups: readonly EditorGroup[]): EditorTabs => ({ groups: groups.filter((group) => group.tabs.length > 0) });
+/**
+ * The set with `groups` as its groups, `focused` the index among them of the group last pressed.
+ * A group left with no tab goes, so the set of no files has no group, and the group last pressed going, the one left is; with one group left the split ends, so the next one starts even.
+ */
+function withGroups(set: EditorTabs, groups: readonly EditorGroup[], focused = set.focused): EditorTabs {
+  const kept = groups.filter((group) => group.tabs.length > 0);
+  const at = kept.indexOf(groups[focused] ?? NO_GROUP);
+  return { groups: kept, focused: Math.max(at, 0), share: kept.length > 1 ? set.share : EVEN_SHARE };
+}
+
+/** The index of the group holding the tab `key`, or -1. */
+export const groupOf = (set: EditorTabs, key: string): number => set.groups.findIndex((group) => group.tabs.some((tab) => tab.key === key));
 
 /** Change the group holding the tab `key` by one of the rules above; a key no group holds changes nothing. */
 export function inGroupOf(set: EditorTabs, key: string, change: (group: EditorGroup) => EditorGroup): EditorTabs {
-  const at = set.groups.findIndex((group) => group.tabs.some((tab) => tab.key === key));
-  return at < 0 ? set : withGroups(set.groups.map((group, index) => (index === at ? change(group) : group)));
+  const at = groupOf(set, key);
+  return at < 0 ? set : withGroups(set, set.groups.map((group, index) => (index === at ? change(group) : group)));
 }
 
-/** Open `ref` as `opened` does, in the group that has a tab for it already, else in the first, which a set of no files gets. */
+/** Open `ref` as `opened` does, in the group that has a tab for it already, else in the group last pressed, which a set of no files gets; either way that group becomes the one last pressed. */
 export function openedIn(set: EditorTabs, ref: FileRef, keep: boolean): EditorTabs {
-  const key = keyOf(ref);
-  if (set.groups.some((group) => group.tabs.some((tab) => tab.key === key))) return inGroupOf(set, key, (group) => opened(group, ref, keep));
-  const [first = NO_GROUP, ...rest] = set.groups;
-  return withGroups([opened(first, ref, keep), ...rest]);
+  const holder = groupOf(set, keyOf(ref));
+  const groups = set.groups.length > 0 ? set.groups : [NO_GROUP];
+  const at = holder >= 0 ? holder : Math.min(set.focused, groups.length - 1);
+  return withGroups(
+    set,
+    groups.map((group, index) => (index === at ? opened(group, ref, keep) : group)),
+    at,
+  );
 }
 
-/** Step the tab `key` as `stepped` does, in its group. */
+/**
+ * Step the tab `key` as `stepped` does, in its group.
+ * A file with a tab in the other group is put on show there, that group becomes the one last pressed, and the stepped tab goes, so no file has two.
+ */
 export function steppedIn(set: EditorTabs, key: string, ref: FileRef): EditorTabs {
-  return inGroupOf(set, key, (group) => stepped(group, key, ref));
+  const next = keyOf(ref);
+  const from = groupOf(set, key);
+  const holder = groupOf(set, next);
+  if (from < 0) return set;
+  if (holder < 0 || holder === from) return inGroupOf(set, key, (group) => stepped(group, key, ref));
+  return withGroups(
+    set,
+    set.groups.map((group, index) => (index === from ? closed(group, key) : index === holder ? picked(group, next) : group)),
+    holder,
+  );
 }
 
-/** The tab on show: the one on show in the first group. */
+/**
+ * Move the tab `key` into the other group, at `at` among its tabs, or after them for none or a place below 0, kept and on show there, and make that group the one last pressed.
+ * With one group the other is a new one after it, which splits the Editor; the group it leaves going empty, it goes, which ends the split.
+ */
+export function movedAcross(set: EditorTabs, key: string, at?: number): EditorTabs {
+  const from = groupOf(set, key);
+  const tab = set.groups[from]?.tabs.find((each) => each.key === key);
+  if (!tab) return set;
+  const to = from === 0 ? 1 : 0;
+  const target = set.groups[to] ?? NO_GROUP;
+  const tabs = [...target.tabs];
+  tabs.splice(at !== undefined && at >= 0 ? at : tabs.length, 0, { ...tab, preview: false });
+  const groups = [0, 1].map((index) => (index === from ? closed(set.groups[from]!, key) : index === to ? { tabs, active: key } : (set.groups[index] ?? NO_GROUP)));
+  return withGroups(set, groups, to);
+}
+
+/** Make the group at `index` the one last pressed. */
+export function focusedOn(set: EditorTabs, index: number): EditorTabs {
+  return index === set.focused || index >= set.groups.length ? set : { ...set, focused: index };
+}
+
+/** The first group's part of the width set to `share`, while there are two. */
+export function sharedAs(set: EditorTabs, share: number): EditorTabs {
+  return set.groups.length < 2 || share === set.share ? set : { ...set, share };
+}
+
+/** The tab on show: the one on show in the group last pressed. */
 export function shownTab(set: EditorTabs): EditorTab | undefined {
-  const group = set.groups[0];
+  const group = set.groups[set.focused];
   return group?.tabs.find((tab) => tab.key === group.active);
 }
 
@@ -175,11 +234,13 @@ export function editorTabsOnShow(view = store.get()): EditorTabs {
   return view.editorTabs.get(editorSetKey(view)) ?? NO_TABS;
 }
 
-/** Change the set of the tab on show by one of the rules above. */
+/** Change the set of the tab on show by one of the rules above; a rule that returns the set itself tells no one. */
 export function changeEditorTabs(change: (set: EditorTabs) => EditorTabs): void {
   const view = store.get();
   const key = editorSetKey(view);
-  const next = change(view.editorTabs.get(key) ?? NO_TABS);
+  const before = view.editorTabs.get(key) ?? NO_TABS;
+  const next = change(before);
+  if (next === before) return;
   const all = new Map(view.editorTabs);
   const none = next.groups.length === 0;
   if (none) all.delete(key);

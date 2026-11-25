@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DiffFile } from '../../../../src/shared/diff/types';
-import { allTabs, closed, inGroupOf, keyOf, kept, NO_GROUP, NO_TABS, opened, openedIn, pathOf, picked, reordered, shownTab, stepped, steppedIn, updated, type CheckoutFileRef, type EditorGroup, type FileRef } from '../../../../src/renderer/state/editor-tabs';
+import { allTabs, closed, EVEN_SHARE, focusedOn, inGroupOf, keyOf, kept, movedAcross, NO_GROUP, NO_TABS, opened, openedIn, pathOf, picked, reordered, sharedAs, shownTab, stepped, steppedIn, updated, type CheckoutFileRef, type EditorGroup, type EditorTabs, type FileRef } from '../../../../src/renderer/state/editor-tabs';
 
 const file = (path: string): DiffFile => ({ path, from: null, status: 'M', added: 1, deleted: 0, binary: false, generated: false });
 const FILES = ['a.ts', 'b.ts', 'c.ts'].map((path) => ({ root: '/repo', question: 'since' as const, against: 'aaaaaaa', file: file(path) }));
@@ -83,19 +83,27 @@ describe('a tab', () => {
 });
 
 describe('the set', () => {
-  /** Two groups, as no rule makes them yet: a.ts and b.ts, then c.ts. */
+  /** Two groups side by side, the first last pressed: a.ts and b.ts, then c.ts. */
   const first = opened(opened(NO_GROUP, ref('a.ts'), true), ref('b.ts'), true);
   const second = opened(NO_GROUP, ref('c.ts'), true);
-  const split = { groups: [first, second] };
+  const split: EditorTabs = { groups: [first, second], focused: 0, share: 0.3 };
+  /** The same two, the second last pressed. */
+  const onSecond: EditorTabs = { ...split, focused: 1 };
 
   it('of no files opens a file in a group of its own', () => {
     expect(NO_TABS.groups).toEqual([]);
     expect(openedIn(NO_TABS, ref('a.ts'), false).groups.map(said)).toEqual([{ tabs: ['a.ts*'], active: 'a.ts' }]);
   });
 
-  it('opens a file already open in the group that has it, and another in the first', () => {
-    expect(openedIn(split, ref('c.ts', 'bbbbbbb'), false).groups.map(said)).toEqual([said(first), { tabs: ['c.ts'], active: 'c.ts' }]);
+  it('opens a file in the group last pressed', () => {
     expect(openedIn(split, ref('d.ts'), false).groups.map(said)).toEqual([{ tabs: ['a.ts', 'b.ts', 'd.ts*'], active: 'd.ts' }, said(second)]);
+    expect(openedIn(onSecond, ref('d.ts'), false).groups.map(said)).toEqual([said(first), { tabs: ['c.ts', 'd.ts*'], active: 'd.ts' }]);
+  });
+
+  it('opens a file already open in the group that has it, which becomes the one last pressed', () => {
+    const again = openedIn(split, ref('c.ts', 'bbbbbbb'), false);
+    expect(again.groups.map(said)).toEqual([said(first), { tabs: ['c.ts'], active: 'c.ts' }]);
+    expect(again.focused).toBe(1);
   });
 
   it('changes only the group holding a tab, and a key no group holds changes nothing', () => {
@@ -103,9 +111,9 @@ describe('the set', () => {
     expect(inGroupOf(split, 'file:/elsewhere', () => NO_GROUP)).toBe(split);
   });
 
-  it('loses a group whose last tab closes, and with the last group the set holds none', () => {
-    const one = inGroupOf(split, key('c.ts'), (group) => closed(group, key('c.ts')));
-    expect(one.groups.map(said)).toEqual([said(first)]);
+  it('loses a group whose last tab closes, ending the split, and with the last group the set holds none', () => {
+    const one = inGroupOf(onSecond, key('c.ts'), (group) => closed(group, key('c.ts')));
+    expect(one).toEqual({ groups: [first], focused: 0, share: EVEN_SHARE });
     expect(inGroupOf(one, key('a.ts'), () => NO_GROUP)).toEqual(NO_TABS);
   });
 
@@ -113,8 +121,46 @@ describe('the set', () => {
     expect(steppedIn(split, key('c.ts'), ref('d.ts')).groups.map(said)).toEqual([said(first), { tabs: ['d.ts'], active: 'd.ts' }]);
   });
 
-  it('shows the tab on show in its first group, and lists every tab group after group', () => {
+  it('steps into a file open in the other group by showing it there, last pressed, and closing the stepped tab', () => {
+    const after = steppedIn(onSecond, key('c.ts'), ref('a.ts'));
+    expect(after.groups.map(said)).toEqual([{ tabs: ['a.ts', 'b.ts'], active: 'a.ts' }]);
+    expect(after.focused).toBe(0);
+    const fromFirst = steppedIn(split, key('a.ts'), ref('c.ts'));
+    expect(fromFirst.groups.map(said)).toEqual([{ tabs: ['b.ts'], active: 'b.ts' }, said(second)]);
+    expect(fromFirst.focused).toBe(1);
+    expect(steppedIn(split, 'file:/elsewhere', ref('c.ts'))).toBe(split);
+  });
+
+  it('moves a tab across into a new group, splitting it, kept and on show there and last pressed', () => {
+    const one: EditorTabs = { groups: [opened(first, ref('d.ts'), false)], focused: 0, share: EVEN_SHARE };
+    const moved = movedAcross(one, key('d.ts'));
+    expect(moved.groups.map(said)).toEqual([{ tabs: ['a.ts', 'b.ts'], active: 'b.ts' }, { tabs: ['d.ts'], active: 'd.ts' }]);
+    expect(moved.focused).toBe(1);
+  });
+
+  it('moves a tab across to where it was dropped, and back, its group going when it was the last', () => {
+    expect(movedAcross(split, key('a.ts'), 0).groups.map(said)).toEqual([{ tabs: ['b.ts'], active: 'b.ts' }, { tabs: ['a.ts', 'c.ts'], active: 'a.ts' }]);
+    const back = movedAcross(split, key('c.ts'), 1);
+    expect(back.groups.map(said)).toEqual([{ tabs: ['a.ts', 'c.ts', 'b.ts'], active: 'c.ts' }]);
+    expect(back).toMatchObject({ focused: 0, share: EVEN_SHARE });
+    expect(movedAcross(split, 'file:/elsewhere')).toBe(split);
+    // A drop the row lost track of has no place, and lands after the tabs there.
+    expect(movedAcross(split, key('a.ts'), -1).groups.map(said)).toEqual([{ tabs: ['b.ts'], active: 'b.ts' }, { tabs: ['c.ts', 'a.ts'], active: 'a.ts' }]);
+  });
+
+  it('is pressed on a group, and shares its width, leaving it as it is for no change', () => {
+    expect(focusedOn(split, 1).focused).toBe(1);
+    expect(focusedOn(split, 0)).toBe(split);
+    expect(focusedOn(split, 2)).toBe(split);
+    expect(sharedAs(split, 0.7).share).toBe(0.7);
+    expect(sharedAs(split, 0.3)).toBe(split);
+    const one: EditorTabs = { groups: [first], focused: 0, share: EVEN_SHARE };
+    expect(sharedAs(one, 0.7)).toBe(one);
+  });
+
+  it('shows the tab on show in the group last pressed, and lists every tab group after group', () => {
     expect(shownTab(split)?.key).toBe(key('b.ts'));
+    expect(shownTab(onSecond)?.key).toBe(key('c.ts'));
     expect(shownTab(NO_TABS)).toBeUndefined();
     expect(allTabs(split).map((tab) => named(tab.ref))).toEqual(['a.ts', 'b.ts', 'c.ts']);
   });

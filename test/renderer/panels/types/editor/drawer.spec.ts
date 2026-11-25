@@ -94,7 +94,7 @@ test('a switch of session tabs closes the drawer', async ({ app, page }) => {
   await expect(editor(page)).toHaveCount(0);
 });
 
-test("a tab's menu holds Pin on a preview, Copy path, Close other tabs, Close and Close all, and each does what it says", async ({ app, page }) => {
+test("a tab's menu holds Pin on a preview, Copy path, Move to the other side, Close other tabs, Close and Close all, and each does what it says", async ({ app, page }) => {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await bootDiff(app, { since: listed }, { files });
   await rows(page).nth(2).click();
@@ -102,12 +102,12 @@ test("a tab's menu holds Pin on a preview, Copy path, Close other tabs, Close an
   await rows(page).nth(1).click();
   await expect(editorTabs(page)).toHaveText(['a.ts', 'b.ts']);
   await editorTabs(page).nth(1).click({ button: 'right' });
-  await expect(menuRows(page)).toHaveText(['Pin', 'Copy path', 'Close other tabs', 'Close', 'Close all']);
+  await expect(menuRows(page)).toHaveText(['Pin', 'Copy path', 'Move to the other side', 'Close other tabs', 'Close', 'Close all']);
   await menuRows(page).filter({ hasText: 'Pin' }).click();
   await expect(editorTabs(page).nth(1)).not.toHaveClass(/\bpreview\b/);
 
   await editorTabs(page).nth(1).click({ button: 'right' });
-  await expect(menuRows(page)).toHaveText(['Copy path', 'Close other tabs', 'Close', 'Close all']);
+  await expect(menuRows(page)).toHaveText(['Copy path', 'Move to the other side', 'Close other tabs', 'Close', 'Close all']);
   await menuRows(page).filter({ hasText: 'Copy path' }).click();
   await expect(page.locator('#toast-message')).toHaveText('Path copied.');
   expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/src\/b\.ts$/);

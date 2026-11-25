@@ -223,21 +223,27 @@ Files open in the Editor, as a drawer over the terminal area, the one the histor
 Over a tab with no claude running, the Editor takes the whole pane, as the history does there.
 **Dock** in its head puts it beside the terminal instead, so you can read while the session goes on working, and **Undock** puts it back; the app remembers which.
 Docked, it takes no room while nothing is open in it, and comes back at the size you last gave it when a file opens; in the default layout it first takes two-thirds of what it shares with the terminal.
-The **×** at the end of its head closes all its files at once, docked or not, as **Close all** in a tab's menu does.
+The **×** at the end of its head closes all its files at once, docked or not, on both sides while it is split.
 The Editor and the history take turns in the drawer; with the Editor docked, the history opens over the terminal and the file stays in view.
 With the history docked beside claude, a file's drawer slides in over both, from the right.
 With both open, a rail on the drawer's left edge switches between them: History, and Files with how many are open; a click on the lit one closes the drawer, a click on the other shows that one, and the history comes back where it was when the files took its place.
 Each session tab has its own files in it; switching tabs switches them, and closes the drawer.
 
 A press on a file opens it as a preview, its name in italics, which the next file you open takes the place of; a double click, on the file or on its tab, or Pin in the tab's menu, keeps it, so the next one opens beside it.
-The tab's menu also copies the file's path, and closes the other tabs or this one; its cross closes it too.
+The tab's menu also copies the file's path, moves it to the other side, and closes the other tabs, this one, or all of them on its side; its cross closes it too.
+
+**Move to the other side** in a tab's menu splits the Editor in two, with that file on the right; once it is split, drag a tab from one side's row to the other's to move it there.
+A file has one tab in the Editor, on one side.
+A file you open goes to the side you pressed last, whose tab on show has the coloured edge, unless it is open already, which shows it on its own side.
+The divider between the two sides drags their widths, and a double click makes them even; each session tab keeps its own split while the app runs.
+Closing the last file on a side ends the split, and the other side takes the whole width.
 In the history, a press on the file a Read, Edit or Write names opens it in the Editor as a preview, which Pin keeps.
 So does a press on a file path claude prints in a session tab's terminal, underlined when you point at it if the file is there; a line number after it, as in `src/app.ts:42`, brings that line into sight.
 A file outside every repository, such as a scratchpad file or a plan, or one its repository ignores, shows what changed since the session first changed it, as its header says; where claude did not record the text from before, a line says so and the file shows as it is, as does a file the session only read; a file no longer on disk, such as a scratchpad file a restart emptied, says so.
 The Editor only reads for now, and every file says "Read only".
 
 A file is shown whole, with its changes marked where they are.
-The diff's header names the file on its first row; on the second, its menu picks Fit, which draws the two sides next to each other once the Editor is 600px wide and one above the other below that, or Split or Unified whatever the width.
+The diff's header names the file on its first row; on the second, its menu picks Fit, which draws the two sides next to each other once the Editor, or the side the file is on, is 600px wide and one above the other below that, or Split or Unified whatever the width.
 Beside it, **Hide whitespace** leaves out changes that only touch whitespace, and **Changes only** folds the unchanged lines between changes, five or more of them: press a fold to show them all, or, on a fold of more than twenty lines, its `↑ 20` and `↓ 20` to show twenty more beside the change below or above it.
 When either leaves nothing to show, the Editor says why, with a button that switches it off: **Show the whole file** or **Show whitespace changes**.
 These picks are kept for the Editor.

@@ -23,6 +23,9 @@ interface Row {
   sortable: Sortable;
 }
 
+/** The strips of each drag group: the library moves a dragged tab into any of them under the pointer, so a drag out of one holds the draws of those in the group when it starts. */
+const stripsOf = new Map<string, Set<HeaderTabs>>();
+
 export class HeaderTabs {
   readonly el = element('div', 'panel-tabs');
   /** The fold: the chevron the tab bar folds from, laid on the header's bottom line, which the tree places in the header beside the tabs. */
@@ -41,18 +44,42 @@ export class HeaderTabs {
   private dragging = false;
   private held = false;
 
-  constructor() {
+  /**
+   * `dragGroup` names the strips a tab of this one's flat row can be dragged into, and from; null keeps every drag inside its row.
+   * A strip in a drag group is let go of with `release` when it leaves the window.
+   */
+  constructor(private readonly dragGroup: string | null = null) {
+    if (dragGroup !== null) stripsOf.set(dragGroup, (stripsOf.get(dragGroup) ?? new Set<HeaderTabs>()).add(this));
     this.addButton.type = 'button';
     this.addButton.innerHTML = plusIcon(14);
     this.addButton.addEventListener('click', () => {
       if (!unavailable(this.addButton)) this.said?.add?.press();
     });
-    this.flat = sortableTabs(this.el, this.dragEnds());
+    this.flat = sortableTabs(this.el, this.dragEnds(), dragGroup);
     this.foldButton.classList.add('panel-tabs-fold');
     this.foldButton.hidden = true;
     this.foldButton.addEventListener('click', () => {
       if (this.said) this.said.fold(!this.said.folded);
     });
+  }
+
+  /** Take the strip out of its drag group and let go of its rows' Sortables, as it leaves the window. */
+  release(): void {
+    if (this.dragGroup !== null) stripsOf.get(this.dragGroup)?.delete(this);
+    this.rows.clear();
+    dropSortable(this.flat);
+  }
+
+  /** This strip and the others of its drag group, which a drag out of it reaches. */
+  private reached(): HeaderTabs[] {
+    return this.dragGroup === null ? [this] : [...(stripsOf.get(this.dragGroup) ?? [this])];
+  }
+
+  /** Draw what was said while a drag held the draws. */
+  private drawHeld(): void {
+    if (!this.held || !this.said) return;
+    this.held = false;
+    this.draw(this.said);
   }
 
   /** Draw the tabs as the panel says them now. */
@@ -148,22 +175,26 @@ export class HeaderTabs {
     return { row, label, sortable: sortableTabs(row, this.dragEnds()) };
   }
 
-  /** What a drag does at its start and its end: holds the draws, then hands the panel its row's new order and draws what was held. */
+  /**
+   * What a drag does at its start and its end: holds the draws of the strips of its drag group as it starts, then hands the panel its row's new order, or the tab dropped into another strip's row and where, and lets go of and draws what those strips held.
+   * A strip that joins the group during the drag is not held.
+   */
   private dragEnds(): { start(): void; end(event: Sortable.SortableEvent): void } {
+    let reached: HeaderTabs[] = [];
     return {
       start: () => {
-        this.dragging = true;
+        reached = this.reached();
+        for (const strip of reached) strip.dragging = true;
       },
       end: (event) => {
-        this.dragging = false;
+        for (const strip of reached) strip.dragging = false;
         const ids = [...event.to.querySelectorAll<HTMLElement>('.tab')].map((el) => el.dataset.tab ?? '');
+        const id = event.item.dataset.tab ?? '';
         // After the drop has finished, as the tab bar does, so the library is done with the row first.
         queueMicrotask(() => {
-          if (event.oldIndex !== event.newIndex) this.said?.reorder(ids);
-          if (this.held && this.said) {
-            this.held = false;
-            this.draw(this.said);
-          }
+          if (event.from !== event.to) this.said?.moveAcross?.(id, ids.indexOf(id));
+          else if (event.oldIndex !== event.newIndex) this.said?.reorder(ids);
+          for (const strip of reached) strip.drawHeld();
         });
       },
     };

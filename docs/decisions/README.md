@@ -268,3 +268,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0260](0260-a-path-claude-prints-opens-in-the-editor.md) | 2026-11-25 | A path claude prints opens in the Editor | [The `editor` type](../architecture/panels.md#the-editor-type) |
 | [0261](0261-the-diff-header-is-two-rows.md) | 2026-11-25 | The diff header is two rows | [The `editor` type](../architecture/panels.md#the-editor-type) |
 | [0262](0262-the-editor-over-a-cold-tab-takes-the-whole-pane.md) | 2026-11-25 | The Editor over a cold tab takes the whole pane | [The `editor` type](../architecture/panels.md#the-editor-type) |
+| [0263](0263-the-editor-splits-into-two-sides.md) | 2026-11-25 | The Editor splits into two sides | [The `editor` type](../architecture/panels.md#the-editor-type) |

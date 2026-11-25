@@ -241,6 +241,8 @@ export interface PanelTabs {
   rename(id: string): void;
   /** A drag ended, leaving its row's tabs in this order. */
   reorder(ids: string[]): void;
+  /** A drag carried the tab `id` into the row of another strip of the same drag group (`HeaderTabs`' `dragGroup`), at `at` among its tabs; a strip with no drag group never hears it. */
+  moveAcross?(id: string, at: number): void;
   /** A press on a row's label, with the cluster's key. */
   showCluster(key: string): void;
   /**
