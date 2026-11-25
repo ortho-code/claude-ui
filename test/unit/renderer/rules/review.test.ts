@@ -24,7 +24,7 @@ const ids = (shown: ReturnType<typeof reviewSections>): string[][] => shown.map(
 describe('the definition', () => {
   it('holds both numbers of days, 30, in its queries', () => {
     expect(REVIEW.shared).toBe('is:unfinished -is:set-aside -kept:>=today-30d');
-    expect(REVIEW.sets.map((set) => set.query)).toEqual(['is:ready-to-finish', 'active:<today-30d']);
+    expect(REVIEW.sections.map((set) => set.query)).toEqual(['is:ready-to-finish', 'active:<today-30d']);
   });
 });
 

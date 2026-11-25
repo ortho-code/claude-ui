@@ -47,7 +47,7 @@ The conditions both sets share hold for every act that decides a row ([decided 2
 A session with a tab is work in hand, which its tab decides, so the review leaves it out whatever its PRs say.
 
 **The review is queries in the query language** (`src/shared/query/`): `is:unfinished -is:set-aside -kept:>=today-30d` shared, then `is:ready-to-finish` and `active:<today-30d` for its sets, read by the fields any query will use, so the review and a query typed by hand cannot disagree; the window answers the fields' questions from its store (`src/renderer/state/query-facts.ts`).
-The review is a definition, data rather than code in the list (`REVIEW`): its sets, each with a name and its query, and the query they share; that is the shape a view in review mode takes once views are files, so the review then becomes a bundled view without a second implementation.
+The review is a definition, data rather than code in the list (`REVIEW`): a view with sections (`SectionedView`, `rules/sectioned-view.ts`), its sets the sections, each with a name, its query and its order, and the query they share; a session goes in the first section whose query holds, so any view with sections works the same way.
 Its two numbers of days are written there and nowhere else, what Keep says of its days read from there too, and are fixed until views can be overridden ([decided 2026-11-04](../decisions/0164-the-reviews-days-are-fixed-in-its-definition.md)).
 
 **Keep's stamp** is when a session was kept, in `meta.json` (`kept`), never an expiry: how long it holds is the review's own term, so it is worked out when read, nothing sweeps it, and a stamp past its days does nothing until its session is kept again or deleted, which takes it with the session's other marks.
