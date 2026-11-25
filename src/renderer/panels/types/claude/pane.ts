@@ -26,7 +26,7 @@ terminalsEl.prepend(placeholder);
 export const drawer = new Drawer();
 // The active tab's history, in that drawer (history/view.ts): one view, pointed at whichever session the pane shows.
 export const history = new HistoryView({
-  getHistory: (id, known, generation) => window.claudeUi.getHistory(id, known, generation),
+  getHistory: (id, known, generation, copy) => window.claudeUi.getHistory(id, known, generation, copy),
   toggleHistoryPin: (id, pin) => window.claudeUi.toggleHistoryPin(id, pin),
   openExternal: (url) => window.claudeUi.openExternal(url),
   leave: () => showHistory(false),
@@ -213,6 +213,9 @@ export function paneFollows(view: PaneView): void {
   const before = paneSessions;
   paneSessions = new Map(view.tabs.map((t) => [t.token, t.session.id]));
   if (tabOnShow(view) !== drawnTab || paneSentence(view) !== drawnSentence) updatePlaceholder(view);
+  // After the follow, so a session the history has just moved to brings its own copies.
+  const shown = tabOnShow(view);
+  history.setCopies((shown ? view.sessions.find((s) => s.id === shown.session.id)?.supersededCopies : undefined) ?? []);
   for (const [token, id] of before) if (!paneSessions.has(token)) history.forget(id);
 }
 
@@ -240,6 +243,12 @@ function openHistory(): void {
   if (!activeTab) return;
   if (standsAlone(activeTab)) history.setStandalone(paneSentence(store.get()), resumeButton(activeTab));
   else showHistory(true);
+}
+
+/** Open the history of the tab on show, as every way in does, on its session's older copy `stamp`. */
+export function showOlderCopy(stamp: string): void {
+  openHistory();
+  history.showCopy(stamp);
 }
 
 /** What the pane says when there is no live claude to show: one sentence, and the next move it names. */

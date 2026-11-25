@@ -10,8 +10,9 @@ import { showToast } from '../../../ui/toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
 import { closeTabs, finishSessions, pressLeave, setAsideTabs } from './closing';
-import { drawer } from './pane';
-import { activateTab, createTab, startTab, switchWorkspaceTerminal } from './terminals';
+import { drawer, showOlderCopy } from './pane';
+import { activateTab, buildTab, createTab, startTab, switchWorkspaceTerminal } from './terminals';
+import { persistOpenTabs } from './open-tabs';
 import { terminalOf, type TabLaunch } from './tab-state';
 
 /**
@@ -49,6 +50,18 @@ async function openSession(session: SessionSummary, launch: Pick<TabLaunch, 'pro
     return;
   }
   await createTab(session, launch);
+}
+
+/**
+ * Show the older copy `stamp` of a session's transcript in its tab's history.
+ * Reading a copy needs no claude, so a session with no tab gets one that is not started, as one restored at launch is, and one whose folder is gone is read all the same.
+ */
+function openOlderCopy(session: SessionSummary, stamp: string): void {
+  ensureProjectVisible(session.repoRoot);
+  const token = tabWith(session.id)?.token ?? buildTab(session);
+  activateTab(token, false);
+  persistOpenTabs();
+  showOlderCopy(stamp);
 }
 
 // Land where a new tab will be visible: stay in its own project, else drop the scope to All.
@@ -172,11 +185,15 @@ async function forkSession(parent: SessionSummary): Promise<void> {
 }
 
 /** The asks the terminal area answers. */
-export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressLeave' | 'finishSessions' | 'closeTabs' | 'setAsideTabs' | 'showProject' | 'holdInDrawer' | 'showInDrawer' | 'hideFromDrawer' | 'releaseFromDrawer'> = {
+export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openOlderCopy' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressLeave' | 'finishSessions' | 'closeTabs' | 'setAsideTabs' | 'showProject' | 'holdInDrawer' | 'showInDrawer' | 'hideFromDrawer' | 'releaseFromDrawer'> = {
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
     if (session) openAsked(session, () => openSession(session));
+  },
+  openOlderCopy: (id, stamp) => {
+    const session = sessionById(id);
+    if (session) openOlderCopy(session, stamp);
   },
   openNewSession: (cwd, groupId, launch, id) => openNewSession(cwd, groupId, launch, id),
   openWorktreeSession: (repoRoot, groupId) => openWorktreeSession(repoRoot, groupId),

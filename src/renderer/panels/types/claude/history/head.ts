@@ -1,3 +1,5 @@
+import type { SupersededCopy } from '../../../../../shared/types';
+import { momentInLanguage } from '../../../../ui/locale';
 import { chevronIcon, PINNED_ICON } from '../../../../ui/svg';
 import { setTooltip } from '../../../../ui/tooltip';
 import { drawDockButton } from '../../../headers';
@@ -15,6 +17,8 @@ export interface HeadActions {
   leave(): void;
   /** Dock it beside the live session, or put it back in the drawer. */
   toggleDock(): void;
+  /** Show the older copy with this stamp, or the session's transcript for null. */
+  source(stamp: string | null): void;
 }
 
 /** The history's head: its title, the switch between every request and the pinned ones with their counts, the steps between requests, and the way back to live. */
@@ -24,6 +28,8 @@ export class HistoryHead {
   private readonly pinnedButton = document.createElement('button');
   private readonly dockButton = document.createElement('button');
   private readonly leaveButton = document.createElement('button');
+  /** The switch between the session's transcript and its older copies, there only while it has one. */
+  private readonly copies = document.createElement('span');
   private onlyPinned = false;
 
   constructor(private readonly actions: HeadActions) {
@@ -60,8 +66,32 @@ export class HistoryHead {
     this.leaveButton.type = 'button';
     this.leaveButton.className = 'history-leave';
     this.leaveButton.addEventListener('click', () => this.actions.leave());
-    this.el.append(title, show, grow, previous, next, this.dockButton, this.leaveButton);
+    this.copies.className = 'history-show history-copies';
+    this.copies.hidden = true;
+    this.el.append(title, show, this.copies, grow, previous, next, this.dockButton, this.leaveButton);
     this.setDocked(false, true);
+  }
+
+  /** Draw the switch for the session's older copies, the one with stamp `shown` on, or the transcript for null; none for a session without one. */
+  setCopies(copies: readonly SupersededCopy[], shown: string | null): void {
+    this.copies.hidden = copies.length === 0;
+    const choices: { stamp: string | null; label: string; tooltip: string }[] = [
+      { stamp: null, label: 'Current', tooltip: "Show the session's transcript" },
+      ...copies.map(({ stamp, at, missing }) => ({ stamp, label: `Older copy, ${momentInLanguage(at)} · ${missing} not in current`, tooltip: 'Show this older copy of the session, read-only' })),
+    ];
+    this.copies.replaceChildren(
+      ...choices.map(({ stamp, label, tooltip }) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'history-filter';
+        button.textContent = label;
+        setTooltip(button, tooltip);
+        button.classList.toggle('active', stamp === shown);
+        button.setAttribute('aria-pressed', String(stamp === shown));
+        button.addEventListener('click', () => this.actions.source(stamp));
+        return button;
+      }),
+    );
   }
 
   /**

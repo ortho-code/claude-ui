@@ -118,7 +118,7 @@ Whatever was said only in the older copy is then in no history, and Claude Code'
 The listing reads each project folder for those names (`src/main/sessions/superseded-copies.ts`) and gives each session the copies beside its current transcript, oldest first, with how many requests each holds that the current transcript lacks, by the history's own rule for a request and its record's id (`supersededCopies`).
 A copy in a folder the session has since moved away from is not shown.
 It asks on every listing, since a copy can appear or be deleted beside a transcript that has not changed, and reads on from where it left off in each transcript involved while that file is only appended to, so only a session with a copy pays; a file another one replaced under the same name, which Claude Code does by a rename, is read again from its start.
-The row's mark, two pages in the waiting ink (`superseded-mark.ts`), says when each copy was replaced and what it holds that the current one lacks, as the row's tooltip does; it goes with the copy.
+The row's mark, two pages in the waiting ink (`superseded-mark.ts`), says when each copy was replaced and what it holds that the current one lacks, as the row's tooltip does, and a press on it reads the newest in the session's history ([§ An older copy](history.md#an-older-copy)); it goes with the copy.
 
 ## App-side metadata and session groups
 

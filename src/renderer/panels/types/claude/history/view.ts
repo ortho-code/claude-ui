@@ -1,4 +1,5 @@
-import type { ClaudeUiApi, Exchange, HistoryPin, ReplyPart } from '../../../../../shared/types';
+import type { ClaudeUiApi, Exchange, HistoryPin, ReplyPart, SupersededCopy } from '../../../../../shared/types';
+import { momentInLanguage } from '../../../../ui/locale';
 import { routeLinks } from '../../../../window/external-links';
 import { flash } from '../../../../ui/flash';
 import { setTooltip } from '../../../../ui/tooltip';
@@ -44,6 +45,7 @@ export class HistoryView implements BarSource {
     step: (by) => void this.step(by),
     leave: () => this.leave(),
     toggleDock: () => this.host.toggleDock(),
+    source: (stamp) => this.showCopy(stamp),
   });
   /** Docking picked for the window; it docks only while it has a live claude to dock beside (`docked`). */
   private dockPicked = false;
@@ -73,7 +75,15 @@ export class HistoryView implements BarSource {
     openFolds: new Set<string>(),
     pinRequest: (exchange) => void this.togglePin(exchange),
     pinMessage: (part) => void this.toggleMessagePin(part),
+    edged: (exchange) => this.copy !== null && this.notInCurrent.has(exchange.id),
   };
+  /** The stamp of the older copy on show instead of the session's transcript, or null for the transcript. */
+  private copy: string | null = null;
+  /** The older copies the session followed has, from the listing. */
+  private copies: readonly SupersededCopy[] = [];
+  /** The ids of the requests in the copy on show that the session's transcript lacks. */
+  private notInCurrent = new Set<string>();
+  private readonly copyNote = document.createElement('div');
   private readonly list = new HistoryList(this.drawing, {
     exchanges: () => this.model.exchanges,
     atEnd: () => this.atEnd(),
@@ -108,7 +118,9 @@ export class HistoryView implements BarSource {
 
     this.note.className = 'history-note';
     this.note.hidden = true;
-    this.el.append(this.head.el, this.note, this.scroller);
+    this.copyNote.className = 'history-copy-note';
+    this.copyNote.hidden = true;
+    this.el.append(this.head.el, this.note, this.copyNote, this.scroller);
     this.drawCount();
   }
 
@@ -119,7 +131,8 @@ export class HistoryView implements BarSource {
   follow(id: string | null): void {
     if (id === this.session) return;
     if (this.session) {
-      if (this.shown) this.left.set(this.session, this.place());
+      // Left on an older copy, it comes back on its transcript, whose place is not the copy's: open, at the end.
+      if (this.shown) this.left.set(this.session, this.copy === null ? this.place() : null);
       // Left again before its history came back: it was never closed, so it keeps where it was.
       else if (this.reopen === undefined) this.left.delete(this.session);
     }
@@ -128,13 +141,53 @@ export class HistoryView implements BarSource {
     this.keptPlace = false;
     this.reopen = id ? this.left.get(id) : undefined;
     this.session = id;
+    // A tab comes back on its transcript: an older copy is something to look into, not where a tab is left.
+    this.setCopy(null);
+    this.restart();
+  }
+
+  /** Read the history on show again from its start: another session's, or the same session's transcript or one of its older copies. */
+  private restart(): void {
     this.followed++;
     this.model = emptyModel();
+    this.notInCurrent = new Set();
     this.list.reset();
     this.drawCount();
-    if (id) void this.refresh();
+    if (this.session) void this.refresh();
     else this.drawEmpty();
     this.onLayout?.();
+  }
+
+  /** The older copies of the session followed, from the listing; one on show that has gone gives way to the transcript. */
+  setCopies(copies: readonly SupersededCopy[]): void {
+    // The pane hands them over on every change it follows, and they change only when the listing does.
+    if (JSON.stringify(copies) === JSON.stringify(this.copies)) return;
+    this.copies = copies;
+    if (this.copy !== null && !copies.some((copy) => copy.stamp === this.copy)) this.showCopy(null);
+    else this.setCopy(this.copy);
+  }
+
+  /** Show the older copy `stamp` of the session followed, read-only, or its transcript for null. */
+  showCopy(stamp: string | null): void {
+    if (stamp === this.copy) return;
+    this.reopen = undefined;
+    this.setCopy(stamp);
+    this.restart();
+  }
+
+  /** Take the copy's requests the transcript lacks as they are now, and edge what is drawn by them, since the transcript can gain one the copy holds. */
+  private edge(notInCurrent: Set<string>): void {
+    this.notInCurrent = notInCurrent;
+    this.model.exchanges.forEach((exchange, index) => this.list.nodes[index]?.classList.toggle('not-in-current', this.drawing.edged(exchange)));
+  }
+
+  private setCopy(stamp: string | null): void {
+    this.copy = stamp;
+    const copy = this.copies.find((each) => each.stamp === stamp);
+    this.el.classList.toggle('copy', stamp !== null);
+    this.copyNote.hidden = !copy;
+    this.copyNote.textContent = copy ? `Read-only. An older copy of this session, replaced ${momentInLanguage(copy.at)}, which Claude Code deletes later. Edged requests are not in the current one.` : '';
+    this.head.setCopies(this.copies, stamp);
   }
 
   /** Drop what is remembered about session `id`, whose tab has gone: opening it again later starts closed. */
@@ -303,12 +356,13 @@ export class HistoryView implements BarSource {
         const session = this.session;
         if (!session) break;
         const followed = this.followed;
-        const slice = await this.host.getHistory(session, this.model.exchanges.length, this.model.generation);
-        // Pointed at another session while the read was out: this answer is for one no longer shown, so read again for the one that is.
+        const slice = await this.host.getHistory(session, this.model.exchanges.length, this.model.generation, this.copy ?? undefined);
+        // Pointed at another session, or another copy of it, while the read was out: this answer is for one no longer shown, so read again for the one that is.
         if (followed !== this.followed) {
           this.readAgain = true;
           continue;
         }
+        if (slice.notInCurrent) this.edge(new Set(slice.notInCurrent));
         const atEnd = this.atEnd();
         this.draw(applySlice(this.model, slice));
         if (atEnd) this.scrollToEnd();
@@ -423,12 +477,12 @@ export class HistoryView implements BarSource {
   }
 
   private async togglePin(exchange: Exchange): Promise<void> {
-    if (!this.session || !exchange.id) return;
+    if (this.copy !== null || !this.session || !exchange.id) return;
     this.setPins(await this.host.toggleHistoryPin(exchange.id, { kind: 'request', session: this.session, text: exchange.request, time: exchange.time }));
   }
 
   private async toggleMessagePin(part: Extract<ReplyPart, { kind: 'text' }>): Promise<void> {
-    if (!this.session || !part.id) return;
+    if (this.copy !== null || !this.session || !part.id) return;
     this.setPins(await this.host.toggleHistoryPin(part.id, { kind: 'reply', session: this.session, text: requestLabel(part.text, 300), time: part.time }));
   }
 }

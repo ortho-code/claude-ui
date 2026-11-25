@@ -10,7 +10,8 @@ vi.mock('../../../../src/main/logs/log', async (importOriginal) => ({
 vi.mock('node:os', async () => (await import('./sessions-home')).osStub);
 
 import { listSessions } from '../../../../src/main/sessions/sessions';
-import { copyOf, supersededCopies } from '../../../../src/main/sessions/superseded-copies';
+import { copyOf, readCopy, supersededCopies } from '../../../../src/main/sessions/superseded-copies';
+import { NO_TRANSCRIPT } from '../../../../src/shared/sessions/history';
 import { jsonl, projectsDir } from './sessions-home';
 
 const dir = path.join(projectsDir, '-tmp-superseded');
@@ -69,6 +70,18 @@ describe('supersededCopies', () => {
     await fs.writeFile(file('moved.incoming'), jsonl(asked('m2'), asked('m1')));
     await fs.rename(file('moved.incoming'), file('moved.jsonl'));
     expect((await supersededCopies(file('moved.jsonl'), ['1795440916583']))[0]?.missing).toBe(0);
+  });
+});
+
+describe('readCopy', () => {
+  it('reads a copy as a history, with the ids of its requests the current transcript lacks', async () => {
+    const slice = await readCopy(file('split.jsonl'), '1795440916583', 0, 0);
+    expect(slice.exchanges.map((exchange) => exchange.id)).toEqual(['before-1', 'before-2', 'shared']);
+    expect(slice.notInCurrent).toEqual(['before-1', 'before-2']);
+  });
+
+  it.each([['../split.jsonl'], ['1795440916583/x'], [''], [42]])('reads no history for a stamp that names no copy (%s)', async (stamp) => {
+    expect(await readCopy(file('split.jsonl'), stamp, 0, 0)).toEqual(NO_TRANSCRIPT);
   });
 });
 

@@ -74,3 +74,8 @@
 .superseded-badge {
   --badge-ink: var(--waiting);
 }
+
+/* A control only where a press on it reads the copy: not in the finished view. */
+.superseded-badge.pressable {
+  cursor: pointer;
+}

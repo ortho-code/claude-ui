@@ -133,6 +133,8 @@ export interface Asks {
   openSession(id: string, prompt?: string): void;
   /** Open a session's tab, started when it is not running, and nothing else: what a click on its row does, which moves neither the list nor the project. */
   openTab(id: string): void;
+  /** Show the older copy `stamp` of a session's transcript in its tab's history, opening the tab without starting claude when it has none. */
+  openOlderCopy(id: string, stamp: string): void;
   /** Start a brand-new session in `cwd`, filed in `groupId` when given, under `id` when the caller minted one to remember it by. */
   openNewSession(cwd: string, groupId?: string, launch?: { name?: string; prompt?: string }, id?: string): Promise<void>;
   /** Start a session in a new git worktree of the project, named as the dialog it opens is answered. */

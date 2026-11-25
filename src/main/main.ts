@@ -5,6 +5,7 @@ import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import { existsSync } from 'node:fs';
 import { findTranscript, listSessions, trashSessions, worktreeExists } from './sessions/sessions';
 import { readHistory } from './sessions/transcript';
+import { readCopy } from './sessions/superseded-copies';
 import { closeTerminals, liveTerminals, registerTerminalIpc, shellFolders, terminateAll } from './pty/terminal';
 import { KILL_GRACE_MS, untilGone } from './pty/shell';
 import { sweepLeftovers } from './pty/leftovers';
@@ -87,11 +88,13 @@ function installAppMenu(): void {
 }
 
 ipcMain.handle('sessions:list', async () => withPrLinks(await listSessions(), await getPrLinks()));
-ipcMain.handle('history:get', async (_event, id: string, known: number, generation: number): Promise<HistorySlice> => {
+ipcMain.handle('history:get', async (_event, id: string, known: number, generation: number, copy?: unknown): Promise<HistorySlice> => {
   const file = await findTranscript(id);
   // No transcript yet is a session nothing has been sent in: an empty history, not an error.
   if (!file) return NO_TRANSCRIPT;
-  return readHistory(file, Number.isInteger(known) && known > 0 ? known : 0, Number.isInteger(generation) ? generation : 0);
+  const from = Number.isInteger(known) && known > 0 ? known : 0;
+  const of = Number.isInteger(generation) ? generation : 0;
+  return copy === undefined ? readHistory(file, from, of) : readCopy(file, copy, from, of);
 });
 ipcMain.handle('sessions:worktreeExists', (_event, repoRoot: string, name: string) => worktreeExists(repoRoot, name));
 ipcMain.handle('sessions:delete', async (_event, id: string) => {

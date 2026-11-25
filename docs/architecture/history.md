@@ -133,6 +133,18 @@ Each pin keeps its kind, the session it was made in, the opening of the text and
 They are stored as `historyPins`; request pins made before messages could be pinned were stored as `requestPins`, which is still read, and written back as `historyPins` the next time `meta.json` is saved.
 Deleting a session leaves its pins: a sibling may still carry the request, and telling which pins nothing opens any more takes every transcript read, which is a job for a list of every pin rather than for a delete.
 
+### An older copy
+
+**A session with an older copy of its transcript ([§ Superseded copies](sessions.md#superseded-copies)) can show that copy in its history, read-only** ([decided 2026-11-24](../decisions/0254-an-older-copy-is-read-in-the-history.md)).
+A switch in the head, `Current · Older copy, Mon 23 Nov, 14:35 · 67 not in current`, beside All · Pinned, is there only while the session has one, a pill per copy.
+On a copy, a line under the head says it is read-only and that Claude Code deletes it later, the requests the current transcript lacks are edged in the waiting ink, and the pin stars are gone from its list, so nothing in it can be pinned or unpinned; a pin made on the current transcript still marks the same request in the copy on the bar, in the loupe and under Pinned, since a copy shares its records' ids.
+Main reads the copy by its stamp, all digits or nothing, as it reads a transcript, and hands back with it the ids of its requests the current transcript lacks (`readCopy`, `notInCurrent`).
+The view reads the copy from its start, as it does another session's, and a copy deleted while it is on show gives way to the transcript.
+A tab comes back on its transcript, whichever was on show when it was left, since a copy is something to look into, not where a tab is left.
+
+A press on the row's mark of an older copy reads the newest in the session's history, through the `openOlderCopy` ask: the session's tab, opened without starting claude when it has none, as one restored at launch is, and the history over it, standing in for it, or over a live claude.
+In the finished view the mark only says what the copy holds and a press on it opens nothing, as a press on a finished row does not, so reading the copy of a finished session starts with Reopen (decided 2026-11-25).
+
 ### A reply is untrusted text
 
 Claude quotes web pages, files and tool output, so a reply is rendered with raw HTML off (`markdown-it`, `html: false`): markup in it is shown as text ([decided 2026-09-29](../decisions/0038-markdown-it-with-html-off.md)).

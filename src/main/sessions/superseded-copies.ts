@@ -4,8 +4,9 @@
  */
 
 import { promises as fs } from 'node:fs';
-import type { SupersededCopy } from '../../shared/types';
-import { foldRecord, newFold, readAppended, type HistoryFold, type TranscriptCursor } from './transcript';
+import { NO_TRANSCRIPT } from '../../shared/sessions/history';
+import type { HistorySlice, SupersededCopy } from '../../shared/types';
+import { foldRecord, newFold, readAppended, readHistory, type HistoryFold, type TranscriptCursor } from './transcript';
 
 /** A superseded copy's name: the transcript's, then the moment it was superseded in ms. */
 const COPY_NAME = /^(.+)\.jsonl\.superseded-(\d+)$/;
@@ -70,6 +71,17 @@ export async function supersededCopies(current: string, stamps: string[]): Promi
         return { stamp, at: Number(stamp), missing: [...held].filter((id) => !now.has(id)).length };
       }),
   );
+}
+
+/**
+ * The history of the superseded copy `stamp` of the transcript at `current`, read as a transcript's is, with the ids of its requests the current transcript lacks.
+ * The stamp arrives from the window, so one that is not all digits names no copy and reads as no history.
+ */
+export async function readCopy(current: string, stamp: unknown, known: number, generation: number): Promise<HistorySlice> {
+  if (typeof stamp !== 'string' || !/^\d+$/.test(stamp)) return NO_TRANSCRIPT;
+  const file = `${current}.superseded-${stamp}`;
+  const [slice, held, now] = await Promise.all([readHistory(file, known, generation), requestIds(file), requestIds(current)]);
+  return { ...slice, notInCurrent: [...held].filter((id) => !now.has(id)) };
 }
 
 /** Forget what was read of a transcript that no longer has a copy beside it, and of its copies, given the transcripts that still have one. */

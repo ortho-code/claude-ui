@@ -94,6 +94,8 @@ export interface BridgeFixture {
    * A check removes one while the window runs to let that claude end.
    */
   elsewhere: Record<string, RunningElsewhere>;
+  /** What main reads of a session's older copy, by `<session id>:<stamp>`: its exchanges, and the ids of those the current transcript lacks. */
+  copies: Record<string, { exchanges: Exchange[]; notInCurrent: string[] }>;
   /**
    * What main's diff reads answer for each folder, by question; a folder left out is in no working tree, which main answers with git's refusal.
    * A check changes one while the window runs to make a change in that checkout.
@@ -233,6 +235,7 @@ export function defaultFixture(): BridgeFixture {
     trees: {},
     foreground: {},
     elsewhere: {},
+    copies: {},
     diffs: {},
     fileDiffs: {},
     nested: {},

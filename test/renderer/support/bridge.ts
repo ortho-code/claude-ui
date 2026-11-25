@@ -96,7 +96,14 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     listSessions: () => answer(withPrLinks(fixture.sessions, fixture.prLinks)),
     // Where the answer starts is main's own rule, `readFrom`; a fixture transcript never changes after its one read, so nothing in it is ever marked as changed.
     // A session the listing does not have has no transcript, which is main's empty answer; one it has needs its history in the fixture.
-    getHistory: (id, known, generation) => {
+    getHistory: (id, known, generation, copy) => {
+      // An older copy: its exchanges and the ids main says the current transcript lacks, read whole each time, as a copy never changes.
+      if (copy !== undefined) {
+        const key = `${id}:${copy}`;
+        if (!(key in fixture.copies)) return unmodelled('getHistory')();
+        const held = fixture.copies[key];
+        return answer({ generation: READ, from: 0, exchanges: held.exchanges, total: held.exchanges.length, notInCurrent: held.notInCurrent });
+      }
       if (!(id in fixture.history)) return fixture.sessions.some((s) => s.id === id) ? unmodelled('getHistory')() : answer(NO_TRANSCRIPT);
       const exchanges = fixture.history[id];
       const from = readFrom(known, exchanges.length, generation === READ, null);

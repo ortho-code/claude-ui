@@ -1,4 +1,4 @@
-/* THE HISTORY'S HEAD (head.ts): its title, All · Pinned, the steps between requests, and the way back to live. */
+/* THE HISTORY'S HEAD (head.ts): its title, All · Pinned, Current · Older copy for a session with one, the steps between requests, and the way back to live. */
 .history-head {
   flex: 0 0 auto;
   display: flex;
@@ -24,6 +24,17 @@
 .history-show .history-filter {
   padding: 2px 8px;
   white-space: nowrap;
+}
+
+/* Current · Older copy: the same pills, beside All · Pinned; a copy's long label gives way first when the head is narrow. */
+.history-copies {
+  min-width: 0;
+}
+
+.history-copies .history-filter {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .history-head .grow {

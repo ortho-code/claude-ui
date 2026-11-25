@@ -40,6 +40,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - On Linux, a session that already runs somewhere else, in a terminal, the Claude desktop app, another tab or another copy of the app, is not resumed in a tab, since the two would split its transcript in two.
   The tab says where it runs, and offers Start a copy, a new session that goes on from it, or Start anyway.
 - A session whose transcript replaced an older copy of it, which Claude Code keeps for a while, has a mark on its row saying how many requests that copy holds that the session's history lacks.
+- That older copy can be read in the session's history, from a switch in its head or a press on the mark, read-only, with the requests the current transcript lacks edged.
 
 ### Changed
 

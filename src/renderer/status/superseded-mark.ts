@@ -17,7 +17,9 @@ export function supersededLines(copies: readonly SupersededCopy[]): string | nul
   return copies.map(({ at, missing }) => `An older copy of this session, replaced ${momentInLanguage(at)}, has ${missing === 0 ? 'no request' : missing === 1 ? '1 request' : `${missing} requests`} the current one lacks.`).join('\n');
 }
 
-/** Show the mark for a session's superseded copies, or hide it for none; says whether it shows. */
-export function showSuperseded(mark: HTMLElement, copies: readonly SupersededCopy[]): boolean {
-  return showIconMark(mark, supersededLines(copies));
+/** Show the mark for a session's superseded copies, or hide it for none, its tooltip saying what a press on it does where it does anything (`pressable`); says whether it shows. */
+export function showSuperseded(mark: HTMLElement, copies: readonly SupersededCopy[], pressable: boolean): boolean {
+  const lines = supersededLines(copies);
+  mark.classList.toggle('pressable', pressable);
+  return showIconMark(mark, lines && (pressable ? `${lines}\nClick to read ${copies.length === 1 ? 'it' : 'the newest'} in the history.` : lines));
 }

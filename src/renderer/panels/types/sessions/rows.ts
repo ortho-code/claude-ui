@@ -197,6 +197,15 @@ function createSessionRow(key: string): HTMLElement {
   const setAside = setAsideMark('set-aside-badge', true);
   // An older copy of its transcript that another copy replaced (superseded-mark.ts); shown in updateRow.
   const superseded = supersededMark('superseded-badge', true);
+  // A press reads the newest copy in the session's history, and only that: the row's own press would start claude.
+  // Not in the finished view, where a press on the row opens nothing either, so a stray press cannot open a finished session.
+  superseded.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (store.get().filter.filters.finished) return;
+    const session = currentByKey.get(key);
+    const newest = session?.supersededCopies.at(-1);
+    if (session && newest) hostOf('sessions').openOlderCopy(session.id, newest.stamp);
+  });
   subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge, superseded);
   content.append(subline);
 
@@ -354,7 +363,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   showTabMarks(els, session.id, view);
   rowTabMarks.set(session.id, els);
   showSetAside(els.setAside, view.setAside.get(entityKey(session)));
-  showSuperseded(els.superseded, session.supersededCopies);
+  showSuperseded(els.superseded, session.supersededCopies, !view.filter.filters.finished);
 
   els.noteSep.hidden = !showNote(els.noteBadge, view.notes.get(entityKey(session)));
 

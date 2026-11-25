@@ -78,6 +78,7 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 - A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
 - It opens as a drawer over the terminal; Dock in its head puts it in a column beside claude instead, so you can read back while you type, with a divider to drag its width, and Undock puts it back.
   The window remembers which, and Close hides the docked column until the bar opens it again.
+- A session with an older copy of its transcript has a switch in its history's head between Current and that copy, which it shows read-only, the requests the current one lacks edged; a press on the copy's mark on the row opens it there, without starting claude.
 
 ## The window
 

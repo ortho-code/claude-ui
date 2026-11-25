@@ -330,6 +330,8 @@ export interface HistorySlice {
   from: number;
   exchanges: Exchange[];
   total: number;
+  /** For a read of a superseded copy: the ids of its requests the session's current transcript lacks, all of them on every read. */
+  notInCurrent?: string[];
 }
 
 /**
@@ -595,8 +597,9 @@ export interface ClaudeUiApi {
   /**
    * Session `id`'s requests and replies, for a caller that holds `known` exchanges of `generation` (0 and 0 the first time).
    * The first call reads the whole transcript and later ones only what was appended; see HistorySlice for how to apply the answer.
+   * With `copy`, the stamp of one of its superseded copies, that copy is read instead.
    */
-  getHistory(id: string, known: number, generation: number): Promise<HistorySlice>;
+  getHistory(id: string, known: number, generation: number, copy?: string): Promise<HistorySlice>;
   /** Whether a worktree of this name already exists for the repo (blocks creating a duplicate). */
   worktreeExists(repoRoot: string, name: string): Promise<boolean>;
   /** Fires when a session transcript on disk is created or changes (debounced). */

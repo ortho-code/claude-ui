@@ -259,3 +259,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0251](0251-a-comment-posted-by-number-links-the-pr-it-is-on.md) | 2026-11-23 | A comment posted by number links the PR it is on | [Reading sessions](../architecture/sessions.md#reading-sessions) |
 | [0252](0252-a-session-another-claude-runs-is-not-resumed.md) | 2026-11-24 | A session another claude runs is not resumed | [Claude tabs](../architecture/claude.md#a-session-another-claude-runs) |
 | [0253](0253-a-superseded-copy-is-marked-on-its-row.md) | 2026-11-24 | A superseded copy is marked on its row | [Reading sessions](../architecture/sessions.md#superseded-copies) |
+| [0254](0254-an-older-copy-is-read-in-the-history.md) | 2026-11-24 | An older copy is read in the history | [In-session history](../architecture/history.md#an-older-copy) |
