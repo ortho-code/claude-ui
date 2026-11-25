@@ -81,6 +81,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A session's id is found from its start or its end, no longer from its middle, so a short number does not match every id that holds it.
   A term that does not read is underlined with why under the field, and the list is dimmed until it reads.
   A help button beside the field opens, beside the list, the syntax and every field with its values, a press on a value adding it to the field, and the guide has a page on queries.
+- A session's dot, its menu, its tab and the strength order in Settings say "Working" where they said "Busy", and "At its prompt" where they said "Ready".
 
 ### Fixed
 
