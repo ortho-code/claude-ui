@@ -54,8 +54,11 @@ test('a pick in the jump menu takes the list there, unfolding a folded group on 
   await expect(group(page, 'Alpha')).not.toHaveClass(/\bcollapsed\b/);
   await expect(row(page, inAlpha.title)).toBeVisible();
 
-  await page.locator('#sessions').evaluate((list) => (list.scrollTop = 0));
-  await expect(row(page, loose.title)).not.toBeInViewport();
+  // A jump holds its landing for a few frames after it, which a scroll made inside them loses to on a slow machine, so the scroll back to the top is tried until it holds.
+  await expect(async () => {
+    await page.locator('#sessions').evaluate((list) => (list.scrollTop = 0));
+    await expect(row(page, loose.title)).not.toBeInViewport({ timeout: 500 });
+  }).toPass();
   await jumpButton(page, 'demo').click();
   await page.locator('.kebab-menu button', { hasText: 'Ungrouped' }).click();
   await expect(row(page, loose.title)).toBeInViewport();
