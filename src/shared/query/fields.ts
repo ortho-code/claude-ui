@@ -13,6 +13,7 @@ const settled = (session: SessionSummary, facts: QueryFacts): boolean =>
 const is = wordField('is', 'where a session stands', {
   working: { words: 'has a tab', holds: (s, f) => f.tabbed(s) },
   running: { words: 'claude runs in its tab', holds: (s, f) => f.running(s) },
+  asking: { words: 'asks for you now, as its dot counts it', holds: (s, f) => f.asking(s) },
   unfinished: { words: 'no tab, and not finished', holds: (s, f) => !f.tabbed(s) && !f.finished(s) && !f.deleting(s) },
   'set-aside': { words: 'set aside, with a day or whenever', holds: (s, f) => f.setAside(s) !== undefined },
   pinned: { words: 'pinned', holds: (s, f) => f.pinned(s) },
@@ -102,6 +103,19 @@ const WORDS: readonly WordSource[] = [
   { id: 'pr', texts: (s, f) => s.prs.flatMap((pr) => [prReference(pr), f.prTitle(pr) ?? '']) },
 ];
 
+/** The value of `project:` that names the project on show where the query is asked, rather than text in a project's name. */
+const CURRENT = 'current';
+
+/** `project:`, a project whose name holds the text, or `current`, the project on show, every project while none is. */
+function projectField(): Field {
+  const byName = textField('project', "its project's name", (s, f) => f.projectName(s));
+  return {
+    ...byName,
+    values: [{ value: CURRENT, words: 'the project on show' }],
+    holds: (session, value, comparison, facts) => (value.toLowerCase() === CURRENT ? facts.current === null || session.repoRoot === facts.current : byName.holds(session, value, comparison, facts)),
+  };
+}
+
 /** Every field the app has, the needs-you categories and types as they stand among `needs:`'s values. */
 export function coreFields(needsYou: NeedsYouRegistry): FieldRegistry {
   const fields: Field[] = [
@@ -109,7 +123,7 @@ export function coreFields(needsYou: NeedsYouRegistry): FieldRegistry {
     has,
     status,
     needsField(needsYou),
-    textField('project', "its project's name", (s, f) => f.projectName(s)),
+    projectField(),
     textField('group', "its group's name", (s, f) => f.groupName(s)),
     textField('title', 'its title', (s) => s.title),
     momentField('active', 'when it was last active', (s) => Date.parse(s.lastActivity)),

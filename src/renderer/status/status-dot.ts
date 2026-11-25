@@ -1,7 +1,7 @@
 import { referenceKey } from '../../shared/sessions/prs';
 import type { NudgeStatus } from './rollup';
 import { isNeeds, showsRead } from './shown';
-import { stateLines, type StateLine } from './state-lines';
+import { setAsideLabel, stateLines, type StateLine } from './state-lines';
 import { lookClass, lookOf } from './looks';
 import type { View } from '../state/app';
 import { canMarkRead, toggleAck } from '../state/statuses';
@@ -42,8 +42,8 @@ export function applyStatus(dot: HTMLElement, id: string, view: LinesView & View
 /** What a session's state lines are read from: its dot's states, and the titles of the PRs its reasons name. */
 export type LinesView = View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'settings' | 'needsYouTypes' | 'prNames'>;
 
-/** Every state a session's dot can show, a line each, in the strength order (`stateLines`). */
-function linesOf(id: string, view: LinesView): (StateLine & { read: boolean })[] {
+/** Every state a session's dot can show, a line each, in the strength order (`stateLines`), each reason led with "Needs you — " where `reasonsLed`, and a PR named with its title where `titled`. */
+function linesOf(id: string, view: LinesView, reasonsLed = true, titled = true): (StateLine & { read: boolean })[] {
   const tab = tabWith(id, view);
   return stateLines(
     {
@@ -55,8 +55,17 @@ function linesOf(id: string, view: LinesView): (StateLine & { read: boolean })[]
       muted: mutedNeedsYou(view).has(id),
     },
     strengthNow(view),
-    (reference) => view.prNames.get(referenceKey(reference))?.title,
+    (reference) => (titled ? view.prNames.get(referenceKey(reference))?.title : undefined),
+    reasonsLed,
   );
+}
+
+/**
+ * Every state a session is in, a line each, for a row that lists them under its title in a section whose heading says why it is there: its dot's lines without "Needs you — " before a reason and a PR by its number alone, whose title its row's tooltip has, then its set-aside mark; a line is read where the tooltip marks it so.
+ */
+export function rowStateLines(id: string, view: LinesView & View<'setAside'>): { text: string; read: boolean }[] {
+  const setAside = view.setAside.get(id);
+  return [...linesOf(id, view, false, false).map(({ text, read }) => ({ text, read })), ...(setAside ? [{ text: setAsideLabel(setAside), read: false }] : [])];
 }
 
 /** What a session's dot says, as its tooltip: every state it is in, the one it shows first; null for nothing to report. */

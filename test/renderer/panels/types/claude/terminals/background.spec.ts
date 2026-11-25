@@ -44,9 +44,9 @@ test('a turn ending with work behind it shows background on every dot of the ses
 
   // Its end starts a turn of its own, and only that turn's end is the session finishing.
   await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit');
-  for (const dot of dots(page, one.title)) await expect(dot).toHaveAttribute('data-tooltip', 'Busy');
+  for (const dot of dots(page, one.title)) await expect(dot).toHaveAttribute('data-tooltip', 'Working');
   await app.emit('onSessionStatus', one.id, 'ready', '', 'Stop');
-  for (const dot of dots(page, one.title)) await expect(dot).toHaveAttribute('data-tooltip', 'Ready');
+  for (const dot of dots(page, one.title)) await expect(dot).toHaveAttribute('data-tooltip', 'At its prompt');
   await expect(toasts(page)).toHaveCount(1);
 });
 

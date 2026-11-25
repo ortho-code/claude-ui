@@ -99,7 +99,7 @@ test('a running session is marked too, and a prompt there takes it off', async (
   await nextAsk(page);
   await needs(tab(page, cold.title).locator('.nudge'));
   // The tooltip lists every state, the one the dot shows first (decided 2026-11-06).
-  await expect(tab(page, cold.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 changes requested\nReady');
+  await expect(tab(page, cold.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 changes requested\nAt its prompt');
   await app.emit('onSessionStatus', cold.id, 'busy', '', 'UserPromptSubmit');
   await notNeeds(tab(page, cold.title).locator('.nudge'));
 });

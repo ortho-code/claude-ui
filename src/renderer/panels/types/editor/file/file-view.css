@@ -41,8 +41,8 @@
   display: none;
 }
 
-/* Under this width the position in words would push the stepper onto a row of its own, so it turns to numbers first: the view's menu, both switches and the stepper in words take about 505px. */
-@container (max-width: 520px) {
+/* Under this width the position in words would push the stepper onto a row of its own, so it turns to numbers first: the view's menu, both switches and the stepper in words take about 490px with single-digit counts and about 540px with three-digit ones. */
+@container (max-width: 560px) {
   .diff-position-long {
     display: none;
   }

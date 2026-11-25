@@ -44,6 +44,10 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A press on the file a Read, Edit or Write names in the history opens it in the Editor.
   A file outside every repository, such as a scratchpad file or a plan, shows what changed since the session first changed it.
 - A file path claude prints in a session's terminal opens the file in the Editor on a press, at the line a `:42` after it names.
+- A query can ask for the sessions that ask for you now, `is:asking`, and for the project on show, `project:current`.
+- A `session-view` panel showing Now holds what asks for you, what runs, what is set aside or has reasons you have read, and, while it shows one project, what asks or runs in the others; each row is the session list's own, most with a line per state it is in.
+  Place it with `{ "type": "session-view", "options": { "show": "now" } }` in your layout.
+  A press on a section's heading folds or unfolds it, and its rows leave out the pin, the set-aside, worktree and siblings marks.
 - The Editor splits into two sides from Move to the other side in a tab's menu, and a tab dragged into the other side's row moves there.
   A file opens on the side you pressed last, the divider between them drags their widths, and closing a side's last file ends the split.
 
@@ -82,6 +86,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A session's id is found from its start or its end, no longer from its middle, so a short number does not match every id that holds it.
   A term that does not read is underlined with why under the field, and the list is dimmed until it reads.
   A help button beside the field opens, beside the list, the syntax and every field with its values, a press on a value adding it to the field, and the guide has a page on queries.
+- A session's dot, its menu, its tab and the strength order in Settings say "Working" where they said "Busy", and "At its prompt" where they said "Ready".
 
 ### Fixed
 

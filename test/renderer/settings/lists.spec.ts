@@ -33,7 +33,7 @@ test('a type is drawn in its look, and one of Your turn’s as the status it is'
 test('Appearance lists the strength order in force, needs-you opened into the categories it stands for', async ({ app, page }) => {
   await app.boot({ settings: settingsFileWith('settings.json', { strength: ['waiting', 'back-to-work', 'busy', 'background', 'needs-you', 'ready', 'closed'] }) });
   const order = (await openSettings(page, 'Appearance')).locator('#settings-strength-list .settings-row-name');
-  await expect(order).toHaveText(['Waiting for you', 'Back to work', 'Busy', 'Working in the background', 'Ready to merge', 'Look again', 'Reminders', 'Finish up', 'Needs you, any other reason', 'Ready', 'Not running']);
+  await expect(order).toHaveText(['Waiting for you', 'Back to work', 'Working', 'Working in the background', 'Ready to merge', 'Look again', 'Reminders', 'Finish up', 'Needs you, any other reason', 'At its prompt', 'Not running']);
 });
 
 test('the lists follow settings.json while Settings is open', async ({ app, page }) => {

@@ -139,7 +139,7 @@ test('folded, the chevron turns into the dot of a tab out of sight that asks for
   await asChevron();
 
   expect(await app.emit('onSessionStatus', looseOne.id, 'ready', '', 'Stop')).toBe(1);
-  await asDot('ready', 'ready');
+  await asDot('ready', 'at its prompt');
   expect(await app.emit('onSessionStatus', looseTwo.id, 'waiting', '', 'Notification')).toBe(1);
   await asDot('waiting', 'waiting for you');
 
@@ -151,13 +151,13 @@ test('folded, the chevron turns into the dot of a tab out of sight that asks for
 
   // Marked read from its row in the list, the waiting one asks nothing, and the other's ready speaks; read too, nothing does.
   await row(page, looseTwo.title).locator('.nudge').click();
-  await asDot('ready', 'ready');
+  await asDot('ready', 'at its prompt');
   await row(page, looseOne.title).locator('.nudge').click();
   await asChevron();
 
   // Unfolded, nothing is out of sight.
   await row(page, looseOne.title).locator('.nudge').click();
-  await asDot('ready', 'ready');
+  await asDot('ready', 'at its prompt');
   await fold.click();
   await expect(tabBarRows(page)).toHaveCount(2);
   await page.mouse.move(0, 0);

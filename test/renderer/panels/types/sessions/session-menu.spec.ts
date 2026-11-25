@@ -328,7 +328,7 @@ test("an open submenu stays open when its menu is drawn again", async ({ app, pa
   // Inside the submenu, off its parent, so nothing under the pointer opens it again by itself.
   await submenu.locator('button.menu-row').first().hover();
   expect(await app.emit('onSessionStatus', full.id, 'busy', '', '')).toBe(1);
-  await expect(header(page)).toContainText('Busy');
+  await expect(header(page)).toContainText('Working');
   await expect(submenu).toBeVisible();
   // Its own, opened from the new row.
   await expect(item(page, 'Move to group')).toHaveClass(/\bmenu-open\b/);

@@ -45,7 +45,7 @@ test('each switch shows whether it is on, as kept for the window and as pressed'
 test('the file has the first row to itself, and in a wide header the controls and the stepper in words share the second', async ({ app, page }) => {
   await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited }, editor: { docked: true } });
   await rows(page).first().click();
-  await setHeaderWidth(page, 560);
+  await setHeaderWidth(page, 640);
   const path = await box(editor(page).locator('.diff-file-path'));
   const view = await box(editor(page).locator('.diff-view-button'));
   const steps = await box(editor(page).locator('.diff-steps'));

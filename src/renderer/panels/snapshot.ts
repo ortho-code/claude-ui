@@ -2,10 +2,9 @@ import { categoryOf } from '../../shared/status/needs-you';
 import { prKey } from '../../shared/sessions/prs';
 import type { ClosedHow, SetAside, NeedsYou, PrAuthor, PrDates, PrNames, PrRole, PrStatus } from '../../shared/types';
 import { sessionLabel } from '../rules/sessions';
-import { asksForYou } from '../status/rollup';
-import { rankedReasons, rankOf, shownState } from '../status/shown';
+import { rankedReasons } from '../status/shown';
 import { store, type AppState, type View } from '../state/app';
-import { mutedNeedsYou, sessionNudge, sessionRunning, strengthNow, switcherPool, tabWith } from '../state/views';
+import { mutedNeedsYou, sessionAsks, sessionRank, sessionRunning, strengthNow, switcherPool, tabWith } from '../state/views';
 
 /**
  * THE SESSIONS SNAPSHOT: the sessions the app has, as a list panel's script is given them in a file of its run's own (`CLAUDE_UI_SESSIONS`), so it can choose its rows from them; the live values keep the rows it chose current between runs.
@@ -41,7 +40,7 @@ export interface SnapshotSession {
   status: SnapshotStatus | null;
   /** Its dot was marked read. */
   read: boolean;
-  /** It asks for you now, by the rule its dot and the switcher's count follow (`asksForYou`, `sessionNudge`). */
+  /** It asks for you now, by the rule its dot and the switcher's count follow (`sessionAsks`). */
   asks: boolean;
   /** A tab holds it with its claude running, whatever claude last reported (`sessionRunning`). */
   running: boolean;
@@ -112,7 +111,6 @@ function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.g
       const group = groups.get(view.groupState.groupOf[id] ?? '');
       const status = view.statuses.get(id);
       const reasons = view.needsYou.get(id) ?? [];
-      const rank = rankOf(shownState(status, reasons, strength, muted.has(id)), strength);
       return {
         id,
         title: sessionLabel(session),
@@ -120,9 +118,9 @@ function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.g
         group: group ? { id: group.id, name: group.name } : null,
         status: status !== undefined && STATUSES.has(status) ? (status as SnapshotStatus) : null,
         read: view.acked.has(id),
-        asks: asksForYou(sessionNudge(id, view)),
+        asks: sessionAsks(id, view),
         running: sessionRunning(id, view),
-        rank: Number.isFinite(rank) ? rank : null,
+        rank: sessionRank(id, view),
         muted: muted.has(id),
         needsYou: rankedReasons(reasons, strength).map((reason) => ({ ...reason, category: categoryOf(view.needsYouTypes, reason.type) })),
         setAside: view.setAside.get(id) ?? null,

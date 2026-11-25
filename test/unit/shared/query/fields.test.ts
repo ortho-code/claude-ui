@@ -81,6 +81,27 @@ describe('names', () => {
     expect(found('title:login', {}, named)).toEqual(['a']);
     expect(found('group:"code rev"', { groupName: (s) => (s.id === 'a' ? 'Code reviews' : 'Elsewhere') }, named)).toEqual(['a']);
   });
+
+  it('holds project:current for the project on show, and for every project while none is', () => {
+    const named = [session({ id: 'a', repoRoot: '/work/claude-ui' }), session({ id: 'b', repoRoot: '/work/other' })];
+    expect(found('project:current', { current: '/work/claude-ui' }, named)).toEqual(['a']);
+    expect(found('-project:current', { current: '/work/claude-ui' }, named)).toEqual(['b']);
+    expect(found('project:current', { current: null }, named)).toEqual(['a', 'b']);
+    expect(found('-project:current', { current: null }, named)).toEqual([]);
+  });
+
+  it('reads project:current as the project on show, not as text in a name', () => {
+    const named = [session({ id: 'a', repoRoot: '/work/current-work' }), session({ id: 'b', repoRoot: '/work/other' })];
+    expect(found('project:current', { current: '/work/other' }, named)).toEqual(['b']);
+    expect(found('project:curren', { current: '/work/other' }, named)).toEqual(['a']);
+  });
+});
+
+describe('is:asking', () => {
+  it('holds for a session that asks for you now, and not for one with reasons it does not ask for', () => {
+    const reason = { type: 'pr.merged', at: 1, pr: 'acme/app#1' } as const;
+    expect(found('is:asking', { asking: only('a'), reasons: () => [reason] })).toEqual(['a']);
+  });
 });
 
 describe('moments', () => {

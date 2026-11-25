@@ -56,6 +56,7 @@ A day runs from midnight to midnight in your time zone, and the comparisons are 
 |---|---|---|
 | `is:` | `working` | has a tab |
 | | `running` | runs claude in its tab |
+| | `asking` | asks for you now, as its dot and the switcher's count say it: not marked read, not held back by its set-aside mark |
 | | `unfinished` | has no tab, and is not finished or being deleted |
 | | `set-aside` | is set aside, with a day or whenever |
 | | `pinned` | is pinned |
@@ -68,7 +69,7 @@ A day runs from midnight to midnight in your time zone, and the comparisons are 
 | `needs:` | `any` | needs you for any reason, read ones included, or whose claude waits for you, or is ready and not marked read |
 | | a category: `your-turn`, `back-to-work`, `ready-to-merge`, `look-again`, `reminders`, `finish-up` | needs you for a reason in that category |
 | | a type: `claude.asks`, `claude.ready`, `pr.checks-failed`, `pr.conflict`, `pr.changes-requested`, `pr.approved`, `pr.new-commits`, `pr.review-requested`, `pr.reopened`, `pr.merged`, `pr.closed`, `app.was-running`, `app.reminder` | needs you for that reason |
-| `project:` | text | is in a project whose name holds it |
+| `project:` | `current`, or text | is in the project on show, or in every project while All is on show; or is in a project whose name holds the text |
 | `group:` | text | is in a group whose name holds it |
 | `title:` | text | has a title that holds it |
 | `active:` | a day | was last active then |

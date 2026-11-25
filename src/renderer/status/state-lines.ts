@@ -10,8 +10,8 @@ import { isNeeds, mutedGivesWay, needsShown, rankedReasons, rankOf, shownState, 
  * `closed` is "Not running" rather than "Stopped" for that reason — it arrives from SessionEnd, which fires whether you stopped the session, claude finished, or the tab closed, so naming the event would be wrong in two of those three cases.
  */
 const STATUS_LABEL: Record<string, string> = {
-  busy: 'Busy',
-  ready: 'Ready',
+  busy: 'Working',
+  ready: 'At its prompt',
   // The turn has ended and claude's prompt is open, but work it started still runs.
   background: 'Working in the background',
   waiting: 'Waiting for you',
@@ -22,10 +22,16 @@ const STATUS_LABEL: Record<string, string> = {
 
 /** How the app closed, as the line of a session that was running then says it. */
 const WAS_RUNNING: Record<ClosedHow, string> = {
-  quit: 'Needs you — was running when the app quit',
-  ended: 'Needs you — was running when the app ended without quitting',
-  unknown: 'Needs you — was running when the app last closed',
+  quit: 'Was running when the app quit',
+  ended: 'Was running when the app ended without quitting',
+  unknown: 'Was running when the app last closed',
 };
+
+/** What a list of every state says before a reason, where no heading above it says the session needs you. */
+const NEEDS_YOU = 'Needs you — ';
+
+/** A line's words inside a sentence: its first letter small, unless its first word is written in capitals, as "PR" is. */
+const inSentence = (text: string): string => (/^[A-Z][a-z]/.test(text) ? `${text.charAt(0).toLowerCase()}${text.slice(1)}` : text);
 
 /** A PR's title by its reference (`prReference`), undefined while it is not known. */
 export type PrTitles = (reference: string) => string | undefined;
@@ -37,7 +43,7 @@ export interface StateLine {
 }
 
 /**
- * A session's reasons as they are listed, in its dot's tooltip and its menu's header alike, each where the strength order puts its category, and within one newest first (decided 2026-11-06, in place of a rank of their own).
+ * A session's reasons as they are listed, each where the strength order puts its category, and within one newest first (decided 2026-11-06, in place of a rank of their own); in the words every surface gives them, which a list of every state leads with "Needs you — " (`stateLines`).
  * A PR is named by its number and its title, cut to `SHORT_TITLE` (`prName`), "PR #35777 · Scheduler tick per host — merged", and with its repository, "PR acme/app#35777 · … — merged", only where the reasons name PRs in more than one; the changes one answer found, a reason each at the same moment, are named together on one line, in the same order, "PR #7 · … — checks failed, approved", and the line goes where its first does.
  * `titles` gives a PR's title by its reference, undefined while it is not known, when the line names its number alone, "PR #35777 merged".
  */
@@ -65,11 +71,11 @@ export function needsYouLines(reasons: readonly NeedsYou[], strength: Strength, 
     if (answer) {
       const title = titles(answer.pr);
       // A dash only after a title, to set its words apart from what changed.
-      return { text: `Needs you — PR ${prName(prOfReference(answer.pr), title, withRepository, SHORT_TITLE)}${title ? ' —' : ''} ${answer.types.map((type) => PR_TYPES[type]).join(', ')}`, state };
+      return { text: `PR ${prName(prOfReference(answer.pr), title, withRepository, SHORT_TITLE)}${title ? ' —' : ''} ${answer.types.map((type) => PR_TYPES[type]).join(', ')}`, state };
     }
     if (reason.type === 'app.was-running') return { text: WAS_RUNNING[reason.how], state };
-    if (reason.type === 'app.reminder') return { text: `Needs you — reminder for ${momentInLanguage(reason.at)}`, state };
-    return { text: `Needs you — ${reason.type}`, state };
+    if (reason.type === 'app.reminder') return { text: `Reminder for ${momentInLanguage(reason.at)}`, state };
+    return { text: reason.type, state };
   });
 }
 
@@ -90,10 +96,11 @@ export interface DotStates {
  * Every state a session is in, a line each, in its dot's tooltip and its menu's header alike: what its tab says, then its status and its reasons in the strength order, or the status first where muted reasons give way to it (`mutedGivesWay`), the first being what the dot shows where the tab says nothing (decided 2026-11-06, where the tooltip had said what the dot showed alone).
  * The read mark marks what the dot shows read, all its reasons where it shows one, and a muted reason is read wherever it is.
  * A status the order does not know goes after the rest and says itself, so a state nobody named still reads (`statusLabel`).
+ * Each reason is led with "Needs you — " unless `reasonsLed` is false, for a surface whose heading already says it.
  */
-export function stateLines(states: DotStates, strength: Strength, titles: PrTitles): (StateLine & { read: boolean })[] {
+export function stateLines(states: DotStates, strength: Strength, titles: PrTitles, reasonsLed = true): (StateLine & { read: boolean })[] {
   const shown = states.tab ?? shownState(states.status, states.reasons, strength, states.muted);
-  const reasons = needsYouLines(states.reasons, strength, titles);
+  const reasons = needsYouLines(states.reasons, strength, titles).map((line) => (reasonsLed ? { ...line, text: `${NEEDS_YOU}${inSentence(line.text)}` } : line));
   const status = states.status === undefined ? [] : [{ text: statusLabel(states.status, states.background), state: states.status }];
   const ranked = mutedGivesWay(states.status, states.muted) ? [...status, ...reasons] : [...status, ...reasons].sort((a, b) => rankOf(a.state, strength) - rankOf(b.state, strength));
   const lines = [...(states.tab === undefined ? [] : [{ text: statusLabel(states.tab, []), state: states.tab }]), ...ranked];

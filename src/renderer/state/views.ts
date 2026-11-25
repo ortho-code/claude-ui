@@ -8,8 +8,8 @@ import { tabButton, type TabButton, type TabButtonTab } from '../rules/claude';
 import { inView } from '../rules/session-filter';
 import { projectsForSwitcher, type SwitcherModel } from '../rules/switcher';
 import { displayName, entityKey, projectRootExists, sessionsByKey } from '../rules/sessions';
-import { sessionPart, type NudgeStatus } from '../status/rollup';
-import { isNeeds, shownState, type Strength } from '../status/shown';
+import { asksForYou, sessionPart, type NudgeStatus } from '../status/rollup';
+import { isNeeds, rankOf, shownState, type Strength } from '../status/shown';
 import { sameOrder, store, type AppState, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */
@@ -232,6 +232,18 @@ export function tabDotChanges(before: View<'tabs'>, after: View<'tabs'>): Set<st
 /** A session's part in a roll-up (`sessionPart`), read out of the store: a needs-you mark its set-aside mark mutes rolls up as read. */
 export function sessionNudge(id: string, view: View<'statuses' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): NudgeStatus {
   return sessionPart(view.statuses.get(id), view.needsYou.get(id) ?? [], mutedNeedsYou(view).has(id), view.acked.has(id), strengthNow(view));
+}
+
+/** Whether a session asks for you now, by the rule its dot and the switcher's count follow. */
+export function sessionAsks(id: string, view: View<'statuses' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): boolean {
+  return asksForYou(sessionNudge(id, view));
+}
+
+/** Where what a session's dot shows stands in the strength order, lower first; null for a state the order does not name. */
+export function sessionRank(id: string, view: View<'statuses' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): number | null {
+  const strength = strengthNow(view);
+  const rank = rankOf(shownState(view.statuses.get(id), view.needsYou.get(id) ?? [], strength, mutedNeedsYou(view).has(id)), strength);
+  return Number.isFinite(rank) ? rank : null;
 }
 
 /**

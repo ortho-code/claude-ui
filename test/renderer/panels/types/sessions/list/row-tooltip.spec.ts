@@ -26,7 +26,7 @@ test("a row's tooltip says its state, its PRs with their dates and its whole not
   await app.boot({ sessions: [linked], statuses: { [linked.id]: 'ready' }, notes: { [linked.id]: 'Waiting for the release\nthen finish' }, prStatuses: { 'acme/app#7': merged } });
   await expect(row(page, linked.title)).toHaveAttribute(
     'data-tooltip',
-    [linked.title, '5 min ago · Opus 5.5', 'Ready', 'Last active: wo 30 sep, 10:00', '#7 · Ship it — acme/app · merged di 29 sep, 14:02', 'Note: Waiting for the release\nthen finish'].join('\n'),
+    [linked.title, '5 min ago · Opus 5.5', 'At its prompt', 'Last active: wo 30 sep, 10:00', '#7 · Ship it — acme/app · merged di 29 sep, 14:02', 'Note: Waiting for the release\nthen finish'].join('\n'),
   );
   await expect(row(page, linked.title).locator('.pr-badge')).toHaveAttribute('data-tooltip', /^1 PR linked to this session/);
   await expect(row(page, linked.title).locator('.pin')).toHaveAttribute('data-tooltip', 'Pin');

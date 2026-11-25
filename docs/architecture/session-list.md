@@ -47,7 +47,7 @@ The conditions both sets share hold for every act that decides a row ([decided 2
 A session with a tab is work in hand, which its tab decides, so the review leaves it out whatever its PRs say.
 
 **The review is queries in the query language** (`src/shared/query/`): `is:unfinished -is:set-aside -kept:>=today-30d` shared, then `is:ready-to-finish` and `active:<today-30d` for its sets, read by the fields any query will use, so the review and a query typed by hand cannot disagree; the window answers the fields' questions from its store (`src/renderer/state/query-facts.ts`).
-The review is a definition, data rather than code in the list (`REVIEW`): its sets, each with a name and its query, and the query they share; that is the shape a view in review mode takes once views are files, so the review then becomes a bundled view without a second implementation.
+The review is a definition, data rather than code in the list (`REVIEW`): a view with sections (`SectionedView`, `rules/sectioned-view.ts`), its sets the sections, each with a name, its query and its order, and the query they share; a session goes in the first section whose query holds, so any view with sections works the same way.
 Its two numbers of days are written there and nowhere else, what Keep says of its days read from there too, and are fixed until views can be overridden ([decided 2026-11-04](../decisions/0164-the-reviews-days-are-fixed-in-its-definition.md)).
 
 **Keep's stamp** is when a session was kept, in `meta.json` (`kept`), never an expiry: how long it holds is the review's own term, so it is worked out when read, nothing sweeps it, and a stamp past its days does nothing until its session is kept again or deleted, which takes it with the session's other marks.
@@ -61,7 +61,7 @@ The folder part of "every link settled", no changes left in a folder only the se
 The session list lays its sessions out in one of two ways, switched on the row under the header, left of the Review button (`sessions/arrangement.ts`): Grouped, by project and group, and Recent, every session in the switcher's scope that passes the filter, flat, last worked on first (`recentOrder`, `recent.ts`), each row's line led by its group, and in All its project, as a review's row is (`whereOf`).
 The order catches up with what was worked on as Grouped's does ([§ UI conventions](ui-conventions.md#ui-conventions)), and compares times rather than the text main compares, since the ISO form is how Claude Code writes them today rather than a contract.
 
-**One flat renderer**: Recent and the review draw through the same code, sections of flat rows (`renderSections`, `FlatSection`), the review two under headings and Recent one without; what differs is data, which sessions, in what order, and whether a row's line says why it is there or its time.
+**One flat renderer**: Recent and the review draw through the same code, sections of flat rows (`drawFlat`, `FlatSection`), the review two under headings and Recent one without; what differs is data, which sessions, in what order, and whether a row's line says why it is there or its time.
 The list's other groupings in the session-model design, such as by activity, are more producers of sections for it; project › group stays the tree it is.
 
 **It is the panel's view**: Grouped and Recent are the sessions panel's two views, `grouped` and `recent`, kept as any panel's pick is, in the app's file beside the layout, with the layout entry's `view` where it starts ([§ Panel state](panels.md#panel-state)); the store's `arrangement` follows the pick ([decided 2026-11-04](../decisions/0157-grouped-and-recent-are-the-sessions-panels-views.md)).
@@ -79,3 +79,26 @@ Where every session in scope is finished and no filter is on, Recent says so in 
 The pin stays on the row, and the pinned filter finds them.
 
 **The tab bar's names** land, in Recent, on the newest row drawn of that project, or of that group, and flash it ([decided 2026-11-04](../decisions/0163-tab-bar-names-land-on-the-newest-row-in-recent.md)).
+
+## Views with sections
+
+A view with sections (`SectionedView`, `rules/sectioned-view.ts`, pure) is a query every section's rows meet and its sections in order, each a name, a query, an order (`SORTS`, `shared/query/sorts.ts`) and what its rows say under their title; a session goes in the first section whose query holds ([decided 2026-11-25](../decisions/0266-a-views-sections-are-the-reviews-sets-generalised.md)).
+The review is one, its sets its sections, and Now another, so a section is data, never code of its own.
+What a row says under its title is its section's (`RowLines`): `time`, its time, model and marks, as everywhere else; `state`, a line per state it is in (`rowStateLines`, the dot's lines with each reason bare and a PR by its number alone, then its set-aside mark), the first on the line under its title beside its marks, where its time goes elsewhere; `compact`, only where it sits, the rest in its tooltip.
+Where a row lists its states or is compact, its time and model are only in its tooltip.
+A section can fold (`folds`): a press on its heading folds or unfolds it, kept for as long as its panel is mounted, as a list panel's sections are; and it can leave marks off its rows (`hides`, `RowMark`), a list of what to hide so a mark added later shows, every action a hidden mark offers staying in the row's menu ([decided 2026-11-25](../decisions/0269-a-section-folds-and-says-which-marks-its-rows-leave-out.md)).
+The review's sets and Recent do neither.
+A row's left edge says it has a tab, on every surface, so a state's colour is its dot's alone ([decided 2026-11-25](../decisions/0268-a-rows-state-colour-is-its-dots-alone.md)).
+
+## Now
+
+Now (`NOW`, `rules/now.ts`) is the view of what calls you and what is in hand, shown by a `session-view` panel ([§ The `session-view` type](panels.md#the-session-view-type)), over the sessions the switcher counts from (`switcherPool`: not finished, no delete under way).
+Each session is in one section by whether it is its turn, the first in the order shown whose query holds; Running leaves out what asks, so what asks is always in Needs you ([decided 2026-11-25](../decisions/0265-nows-sections-say-whose-turn-it-is.md)):
+- **Needs you**, `is:asking`: it asks for you now, by the rule its dot and the switcher's count follow; ordered by `strength`, and counted on the panel, hidden or folded too, since the count stands on its rail icon.
+- **Running**, `is:running -is:asking`; ordered by project folder, then title.
+- **Elsewhere**, `-project:current`, asking or running; asking first by `strength`, then running by project, each row compact and naming its project.
+- **Not now**, set aside or with any reason; the set-aside first, soonest due first.
+
+`project:current` is the project the panel shows: the switcher's in This project, every project in All ([decided 2026-11-25](../decisions/0267-the-project-on-show-is-a-query-term.md)), so in All Elsewhere holds nothing; a section can say it stands only while one project is on show (`inProject`), which Elsewhere does, since the query alone cannot tell "nothing elsewhere" from "no elsewhere".
+In This project with no project on show, the other three sections say so and the panel counts nothing.
+Every section folds, but for the three that say no project is on show, and its rows leave out the pin, the set-aside mark, the worktree mark and the siblings mark.

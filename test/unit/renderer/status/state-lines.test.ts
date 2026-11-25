@@ -11,8 +11,8 @@ beforeAll(() => store.set({ settings: settingsView({ name: 'settings.json', stat
 
 describe('statusLabel', () => {
   it('names each status as a state', () => {
-    expect(statusLabel('busy')).toBe('Busy');
-    expect(statusLabel('ready')).toBe('Ready');
+    expect(statusLabel('busy')).toBe('Working');
+    expect(statusLabel('ready')).toBe('At its prompt');
     expect(statusLabel('waiting')).toBe('Waiting for you');
     // Not "Stopped": the status arrives from SessionEnd, which fires whether the session was stopped, finished on its own, or had its tab closed — so naming the event would be wrong twice over.
     expect(statusLabel('closed')).toBe('Not running');
@@ -41,7 +41,7 @@ describe('statusLabel', () => {
   });
 
   it('names the work only for background', () => {
-    expect(statusLabel('busy', ['shell'])).toBe('Busy');
+    expect(statusLabel('busy', ['shell'])).toBe('Working');
   });
 });
 
@@ -50,13 +50,13 @@ describe('needsYouLines', () => {
   const texts = (reasons: NeedsYou[], strength = APP_ORDER, titles: (reference: string) => string | undefined = untitled): string[] => needsYouLines(reasons, strength, titles).map((line) => line.text);
 
   it('says why a session needs you, by how the app closed while it ran', () => {
-    expect(texts([wasRunning])).toEqual(['Needs you — was running when the app quit']);
-    expect(texts([{ type: 'app.was-running', at: 1, how: 'ended' }])).toEqual(['Needs you — was running when the app ended without quitting']);
-    expect(texts([{ type: 'app.was-running', at: 1, how: 'unknown' }])).toEqual(['Needs you — was running when the app last closed']);
+    expect(texts([wasRunning])).toEqual(['Was running when the app quit']);
+    expect(texts([{ type: 'app.was-running', at: 1, how: 'ended' }])).toEqual(['Was running when the app ended without quitting']);
+    expect(texts([{ type: 'app.was-running', at: 1, how: 'unknown' }])).toEqual(['Was running when the app last closed']);
   });
 
   it('says which day a reminder was for, from when it was marked', () => {
-    expect(texts([{ type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() }])).toEqual(['Needs you — reminder for ma 2 nov, 09:00']);
+    expect(texts([{ type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() }])).toEqual(['Reminder for ma 2 nov, 09:00']);
   });
 
   it("says which PR changed and into what, by its category's place in the order, newest first within one", () => {
@@ -64,13 +64,13 @@ describe('needsYouLines', () => {
     // One answer's changes are a reason each at one moment, named together in the same order whatever order they are kept in.
     const reasons = [wasRunning, ...pr(1, 8, 'pr.approved'), ...pr(2, 1, 'pr.merged'), ...pr(3, 2, 'pr.reopened'), ...pr(4, 3, 'pr.changes-requested'), ...pr(5, 4, 'pr.conflict'), ...pr(6, 0, 'pr.approved', 'pr.checks-failed')];
     expect(texts(reasons)).toEqual([
-      'Needs you — PR #5 merge conflict',
-      'Needs you — PR #4 changes requested',
-      'Needs you — PR #6 checks failed, approved',
-      'Needs you — PR #1 approved',
-      'Needs you — PR #3 reopened',
-      'Needs you — was running when the app quit',
-      'Needs you — PR #2 merged',
+      'PR #5 merge conflict',
+      'PR #4 changes requested',
+      'PR #6 checks failed, approved',
+      'PR #1 approved',
+      'PR #3 reopened',
+      'Was running when the app quit',
+      'PR #2 merged',
     ]);
   });
 
@@ -79,13 +79,13 @@ describe('needsYouLines', () => {
       { type: 'pr.reopened', at: 1, pr: 'acme/app#7' },
       { type: 'pr.approved', at: 1, pr: 'acme/app#7' },
     ];
-    expect(texts(reasons)).toEqual(['Needs you — PR #7 approved, reopened']);
+    expect(texts(reasons)).toEqual(['PR #7 approved, reopened']);
     expect(needsYouLines(reasons, APP_ORDER, untitled)[0]?.state).toBe('needs:pr.approved');
   });
 
   it('follows an order of your own', () => {
     const reasons: NeedsYou[] = [wasRunning, { type: 'pr.merged', at: 0, pr: 'acme/app#2' }];
-    expect(texts(reasons, strengthOf(['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'ready', 'closed']))).toEqual(['Needs you — PR #2 merged', 'Needs you — was running when the app quit']);
+    expect(texts(reasons, strengthOf(['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'ready', 'closed']))).toEqual(['PR #2 merged', 'Was running when the app quit']);
   });
 
   it("names one answer's changes of a PR spelt with other capitals on one line, and no repository for it", () => {
@@ -93,7 +93,7 @@ describe('needsYouLines', () => {
       { type: 'pr.reopened', at: 1, pr: 'acme/app#7' },
       { type: 'pr.approved', at: 1, pr: 'Acme/App#7' },
     ];
-    expect(texts(reasons)).toEqual(['Needs you — PR #7 approved, reopened']);
+    expect(texts(reasons)).toEqual(['PR #7 approved, reopened']);
   });
 
   it('names the repository only where the reasons name PRs in more than one', () => {
@@ -101,7 +101,7 @@ describe('needsYouLines', () => {
       { type: 'pr.merged', at: 2, pr: 'acme/app#1' },
       { type: 'pr.merged', at: 1, pr: 'acme/site#2' },
     ];
-    expect(texts(reasons)).toEqual(['Needs you — PR acme/app#1 merged', 'Needs you — PR acme/site#2 merged']);
+    expect(texts(reasons)).toEqual(['PR acme/app#1 merged', 'PR acme/site#2 merged']);
   });
 
   it("names a PR's changes from different answers on lines of their own", () => {
@@ -109,7 +109,7 @@ describe('needsYouLines', () => {
       { type: 'pr.checks-failed', at: 1, pr: 'acme/app#1' },
       { type: 'pr.approved', at: 2, pr: 'acme/app#1' },
     ];
-    expect(texts(reasons)).toEqual(['Needs you — PR #1 checks failed', 'Needs you — PR #1 approved']);
+    expect(texts(reasons)).toEqual(['PR #1 checks failed', 'PR #1 approved']);
   });
 
   it("names a PR by its title where it is known, cut on a long one, set apart from what changed", () => {
@@ -119,13 +119,13 @@ describe('needsYouLines', () => {
       { type: 'pr.merged', at: 2, pr: 'acme/app#2' },
       { type: 'pr.merged', at: 1, pr: 'acme/app#3' },
     ];
-    expect(texts(reasons, APP_ORDER, titles)).toEqual([`Needs you — PR #1 · Scheduler tick per host — merged`, `Needs you — PR #2 · ${'A'.repeat(59)}… — merged`, 'Needs you — PR #3 merged']);
+    expect(texts(reasons, APP_ORDER, titles)).toEqual([`PR #1 · Scheduler tick per host — merged`, `PR #2 · ${'A'.repeat(59)}… — merged`, 'PR #3 merged']);
   });
 
   it('lists reasons of one category newest first', () => {
     const reminder: NeedsYou = { type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() };
-    expect(texts([reminder, { ...wasRunning, at: reminder.at + 1 }])).toEqual(['Needs you — was running when the app quit', 'Needs you — reminder for ma 2 nov, 09:00']);
-    expect(texts([reminder, { ...wasRunning, at: reminder.at - 1 }])).toEqual(['Needs you — reminder for ma 2 nov, 09:00', 'Needs you — was running when the app quit']);
+    expect(texts([reminder, { ...wasRunning, at: reminder.at + 1 }])).toEqual(['Was running when the app quit', 'Reminder for ma 2 nov, 09:00']);
+    expect(texts([reminder, { ...wasRunning, at: reminder.at - 1 }])).toEqual(['Reminder for ma 2 nov, 09:00', 'Was running when the app quit']);
   });
 });
 
@@ -134,13 +134,22 @@ describe('stateLines', () => {
   const texts = (over: Partial<DotStates>, strength = APP_ORDER): string[] => stateLines(states(over), strength, () => undefined).map((line) => line.text);
 
   it('lists every state, the one the dot shows first', () => {
-    expect(texts({ status: 'busy', reasons: [wasRunning] })).toEqual(['Busy', 'Needs you — was running when the app quit']);
-    expect(texts({ status: 'ready', reasons: [wasRunning] })).toEqual(['Needs you — was running when the app quit', 'Ready']);
-    expect(texts({ status: 'ready', reasons: [wasRunning] }, strengthOf(['waiting', 'busy', 'background', 'ready', 'needs-you', 'closed']))).toEqual(['Ready', 'Needs you — was running when the app quit']);
+    expect(texts({ status: 'busy', reasons: [wasRunning] })).toEqual(['Working', 'Needs you — was running when the app quit']);
+    expect(texts({ status: 'ready', reasons: [wasRunning] })).toEqual(['Needs you — was running when the app quit', 'At its prompt']);
+    expect(texts({ status: 'ready', reasons: [wasRunning] }, strengthOf(['waiting', 'busy', 'background', 'ready', 'needs-you', 'closed']))).toEqual(['At its prompt', 'Needs you — was running when the app quit']);
+  });
+
+  it("leads each reason with Needs you, keeping a PR's capitals", () => {
+    expect(texts({ reasons: [{ type: 'pr.merged', at: 0, pr: 'acme/app#2' }] })).toEqual(['Needs you — PR #2 merged']);
+  });
+
+  it('leaves a reason bare for a surface whose heading says it, the status and the read mark as ever', () => {
+    const bare = stateLines(states({ status: 'ready', reasons: [wasRunning], acked: true }), APP_ORDER, () => undefined, false).map((line) => line.text);
+    expect(bare).toEqual(['Was running when the app quit (read)', 'At its prompt']);
   });
 
   it("leads with what the tab says, and leaves a status nobody named last, as itself", () => {
-    expect(texts({ tab: 'stopping', status: 'busy', reasons: [wasRunning] })).toEqual(['Stopping — waiting for claude to leave', 'Busy', 'Needs you — was running when the app quit']);
+    expect(texts({ tab: 'stopping', status: 'busy', reasons: [wasRunning] })).toEqual(['Stopping — waiting for claude to leave', 'Working', 'Needs you — was running when the app quit']);
     expect(texts({ status: 'compacting', reasons: [wasRunning] })).toEqual(['Needs you — was running when the app quit', 'compacting']);
   });
 
@@ -149,13 +158,13 @@ describe('stateLines', () => {
     expect(texts({ status: 'ready', reasons: [wasRunning, { type: 'app.reminder', at: 0 }], acked: true })).toEqual([
       'Needs you — was running when the app quit (read)',
       `Needs you — reminder for ${momentInLanguage(0)} (read)`,
-      'Ready',
+      'At its prompt',
     ]);
-    expect(texts({ status: 'busy', reasons: [wasRunning], muted: true })).toEqual(['Busy', 'Needs you — was running when the app quit (read)']);
+    expect(texts({ status: 'busy', reasons: [wasRunning], muted: true })).toEqual(['Working','Needs you — was running when the app quit (read)']);
   });
 
   it('leads with the status a muted reason gives way to, unread', () => {
-    expect(texts({ status: 'ready', reasons: [wasRunning], muted: true })).toEqual(['Ready', 'Needs you — was running when the app quit (read)']);
+    expect(texts({ status: 'ready', reasons: [wasRunning], muted: true })).toEqual(['At its prompt', 'Needs you — was running when the app quit (read)']);
   });
 
   it('never marks a stop on its way read, since its claude is leaving', () => {

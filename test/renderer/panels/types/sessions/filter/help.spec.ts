@@ -19,10 +19,13 @@ test('the help button opens a card of the syntax and every field with its values
   await expect(page.locator('#query-help')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('#query-help')).toHaveClass(/\bmenu-open\b/);
   await expect(page.locator(`${card} h3`)).toHaveText(['Syntax', 'Fields']);
-  await expect(field(page, 'is').locator('.query-help-value')).toHaveText(['working', 'running', 'unfinished', 'set-aside', 'pinned', 'worktree', 'gone', 'sibling', 'ready-to-finish']);
+  await expect(field(page, 'is').locator('.query-help-value')).toHaveText(['working', 'running', 'asking', 'unfinished', 'set-aside', 'pinned', 'worktree', 'gone', 'sibling', 'ready-to-finish']);
   await expect(field(page, 'needs').locator('.query-help-value').filter({ hasText: /^finish-up$/ })).toHaveCount(1);
   await expect(field(page, 'active').locator('.query-help-value')).toHaveText(['today', '>=today-7d', '<today-30d']);
   await expect(field(page, 'pr')).toContainText('or a number, owner/repo#12');
+  await expect(field(page, 'project').locator('.query-help-value')).toHaveText(['current']);
+  await expect(field(page, 'project')).toContainText('or text, as part of it');
+  await expect(field(page, 'group')).toContainText('text, as part of it');
 
   await page.keyboard.press('Escape');
   await expect(page.locator(card)).toBeHidden();

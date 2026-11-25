@@ -25,6 +25,19 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
   A project whose folder is gone says so too, in the project switcher, on its heading and in the tab bar.
 - Projects can be renamed.
 
+## Now
+
+A `session-view` panel showing Now ([Layout and panels](layout.md#the-panel-types)) holds what calls you and what is in hand, each session once, in the first section that takes it:
+- **Needs you**: the sessions that ask for you now, as their dot and the project switcher's count say it, counted beside the panel's title and on its rail icon.
+- **Running**: the sessions whose claude runs in a tab and that do not ask for you.
+- **Elsewhere**, in This project only: the sessions of other projects that ask for you, then those running, a row each naming its project, every state they are in on hover.
+- **Not now**: the sessions set aside, or with reasons that do not ask for you now, read or held back by their set-aside mark.
+
+Its header switches between All projects, first, and This project, the project on show; a row in All names its project.
+A press on a section's heading folds it, or unfolds it, until the panel goes from the layout, its options change or the app restarts.
+Each row is the session list's own, with its dot, title, menu and marks, but for the pin, the set-aside mark, the worktree mark and the siblings mark, and, outside Elsewhere, a line per state it is in, the first beside its marks where the session list shows the time: a reason in the words its dot's tooltip uses without "Needs you —", since the section's heading says it, and a PR by its number, its title on hover, then its set-aside mark.
+A press on a row opens its session, or says why it cannot when its folder is gone.
+
 ## Claude tabs
 
 - Each open session has a tab with an embedded terminal running the real `claude` CLI: a click resumes it (`claude --resume`), and new sessions start there too, named when you fork one or create a worktree.

@@ -60,7 +60,7 @@ test("the menu's header lists every state the session is in, each with its dot, 
   const lines = page.locator('.kebab-menu .menu-header .menu-header-line');
   await expect(lines.nth(1)).toHaveText('demo');
   const dotted = page.locator('.kebab-menu .menu-header .menu-header-line.dotted');
-  await expect(dotted).toHaveText(['Needs you — was running when the app quit', 'Ready']);
+  await expect(dotted).toHaveText(['Needs you — was running when the app quit', 'At its prompt']);
   await expect(dotted.nth(0).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(dotted.nth(1).locator('.nudge')).toHaveClass(/\bready\b/);
 });
@@ -70,7 +70,7 @@ test("a session marked while claude works shows busy on its dot, and its tooltip
   await app.boot({ ...fixture, statuses: { [one.id]: 'busy' } });
   for (const dot of dots(page)) {
     await expect(dot).toHaveClass(/\bbusy\b/);
-    await expect(dot).toHaveAttribute('data-tooltip', 'Busy\nNeeds you — was running when the app quit');
+    await expect(dot).toHaveAttribute('data-tooltip', 'Working\nNeeds you — was running when the app quit');
   }
 });
 
@@ -79,7 +79,7 @@ test('a strength order naming Reminders over busy shows the mark over a busy cla
   await app.boot({ ...fixture, statuses: { [one.id]: 'busy' }, settings: settingsFileWith('settings.json', { strength: ['waiting', 'reminders', 'busy', 'background', 'needs-you', 'ready', 'closed'] }) });
   for (const dot of dots(page)) {
     await expect(dot).toHaveClass(/\bneeds\b/);
-    await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit\nBusy');
+    await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit\nWorking');
   }
 });
 

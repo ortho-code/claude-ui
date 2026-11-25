@@ -1,6 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup } from '../../../ui/dom';
 import { Keyed } from '../../../ui/keyed';
+import type { RowLines, RowMark } from '../../../rules/sectioned-view';
 import type { ProjectTree } from '../../../rules/session-list';
 import './drawn.css';
 
@@ -12,23 +13,42 @@ import './drawn.css';
 /** The list itself. */
 export const container = fromMarkup(`<div id="sessions" aria-live="polite"></div>`);
 
-// Status dots by tip session id; rebuilt each render (a status event names a session id).
-export const statusDots = new Map<string, HTMLElement>();
 /** What a row shows from the tab running its session: its clock, and the words for a stop claude has not left, which stand in for its time and model (`metaText`). */
 export interface RowTabMarks {
   clock: HTMLElement;
   notLeft: HTMLElement;
   metaText: HTMLElement;
 }
-// The rows' marks from their tabs the same way, which a tab's change can alter without the list drawing again (`listFollowsTabs`).
-export const rowTabMarks = new Map<string, RowTabMarks>();
+
 /**
- * How many times what rows draw from besides their own session has changed: a row drawn at the same count, for a session drawn the same, is left as it is (`updateRow`).
- * The draw moves it (`rowsFollow`, list.ts); an object rather than a number, since a module cannot assign to a binding another module exports.
+ * What one list keeps of the session rows it draws, so there can be more than one list of rows in the window.
  */
-export const rowInputs = { generation: 0 };
-// Row elements by entity key (the session id), kept across renders and left where they are (keyed.ts) — no flicker, no scroll jump, and a press or the focus on a row that keeps its place survives a render.
-export const sessionRows = new Keyed<HTMLElement>((row) => row);
+export class DrawnRows {
+  /** Row elements by entity key (the session id), kept across renders and left where they are (keyed.ts) — no flicker, no scroll jump, and a press or the focus on a row that keeps its place survives a render. */
+  readonly rows = new Keyed<HTMLElement>((row) => row);
+  /** Status dots by session id, rebuilt each render, since a status event names a session id. */
+  readonly dots = new Map<string, HTMLElement>();
+  /** The rows' marks from their tabs by session id, which a tab's change can alter without the list drawing again. */
+  readonly tabMarks = new Map<string, RowTabMarks>();
+  /** The session each row shows now, by entity key, so a kept row's handlers act on the live session of the latest render; refilled by each render. */
+  readonly current = new Map<string, SessionSummary>();
+  /**
+   * How many times what rows draw from besides their own session has changed: a row drawn at the same count, for a session drawn the same, is left as it is (`updateRow`).
+   * The list's draw moves it.
+   */
+  readonly inputs = { generation: 0 };
+  /** The flat sections by id, kept across renders as the rows are. */
+  readonly flat = new Keyed<FlatSectionEls>((els) => els.section);
+  /** The rows the last pass marked as having a tab, whose marks the next pass takes off where their tab has gone (`markTabs`). */
+  markedTabs = new Set<HTMLElement>();
+
+  /** `sidebar`: the rows are the sidebar's list, so they follow its bulk mode and its finished view; another list's rows open their session on a press whatever the sidebar is in. */
+  constructor(readonly sidebar: boolean) {}
+}
+
+/** The sidebar's list. */
+export const sidebarRows = new DrawnRows(true);
+
 // Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen rather than on everything that has ever existed.
 // Each render replaces its two lists rather than the object, since a module cannot assign to a binding another module exports.
 export const renderedSections: { projects: string[]; groups: string[] } = { projects: [], groups: [] };
@@ -78,25 +98,25 @@ export const groupSections = new Keyed<GroupSectionEls>((els) => els.section);
 
 /**
  * A section of the list drawn flat, as the list draws it (list.ts), such as one of the review's sets under its heading; its id names it for good, a heading and all.
- * Its rows in the order they are shown.
+ * Its rows in the order they are shown, what each says under its title, and the marks they leave out; `fold` for a section its heading folds: whether it is folded now, and what folds or unfolds it.
  */
 export interface FlatSection {
   id: string;
   heading: { name: string; count: number; note: string | null } | null;
   rows: readonly SessionSummary[];
+  lines: RowLines;
+  hides?: readonly RowMark[];
+  fold?: { folded: boolean; toggle: () => void };
 }
 
 /** A flat section as drawn: its section, the well its rows sit in, and its heading's parts where it has one — its name, its count, and the line saying why it cannot answer. */
 export interface FlatSectionEls {
   section: HTMLElement;
   rows: HTMLElement;
-  heading: { heading: HTMLElement; label: HTMLElement; count: HTMLElement; note: HTMLElement } | null;
+  heading: { heading: HTMLElement; caret: HTMLElement; label: HTMLElement; count: HTMLElement; note: HTMLElement } | null;
+  /** What a press on its heading does, as its last draw said: fold or unfold it, or nothing for a section that does not fold. */
+  onFold: (() => void) | null;
 }
-// The flat sections by id, kept across renders as the project sections are.
-export const flatSections = new Keyed<FlatSectionEls>((els) => els.section);
-// The session each row currently shows, by entity key (session id), so a reused row's click/pin handlers act on the live session data of the latest render.
-// Refilled by each render rather than replaced, since a module cannot assign to a binding another module exports.
-export const currentByKey = new Map<string, SessionSummary>();
 
 /** The keys of the rows drawn under `scope`, in the order drawn, a folded section's included: what a Shift+press ticks a run of, what the bar acts on of what is ticked (bulk.ts), and what the list's order is compared against at each minute (list.ts). */
 export function drawnKeys(scope: ParentNode = container): string[] {

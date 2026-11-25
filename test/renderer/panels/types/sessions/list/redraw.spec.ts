@@ -13,11 +13,11 @@ test("a status reported while the list stands still is in its row's tooltip afte
   await app.boot({ sessions: [one], statuses: { [one.id]: 'ready' } });
   await page.locator('#filter-toggle').click();
   await page.locator('#search').fill(KEEPING[0]);
-  await expect(row(page, one.title)).toHaveAttribute('data-tooltip', /\nReady\n/);
+  await expect(row(page, one.title)).toHaveAttribute('data-tooltip', /\nAt its prompt\n/);
 
   expect(await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit', undefined, 'go on')).toBe(1);
   await page.locator('#search').fill(KEEPING[1]);
-  await expect(row(page, one.title)).toHaveAttribute('data-tooltip', /\nBusy\n/);
+  await expect(row(page, one.title)).toHaveAttribute('data-tooltip', /\nWorking\n/);
 });
 
 test('a session last active again, with nothing else in the listing moved, says so on its row after the next key', async ({ app, page }) => {

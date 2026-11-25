@@ -4,13 +4,13 @@ import { coreFields } from '../../shared/query/fields';
 import { prKey } from '../../shared/sessions/prs';
 import type { NeedsYouRegistry } from '../../shared/status/needs-you';
 import type { SessionPr } from '../../shared/types';
-import { entityKey, unstartableReason, worktreeMarkState } from '../rules/sessions';
+import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../rules/sessions';
 import { approvalsIn, prRoleOf, prStatesOf } from '../status/pr-status';
 import type { View } from './app';
-import { projName } from './views';
+import { projName, sessionAsks, sessionRank } from './views';
 
 /** What a query's facts read of the store. */
-export type QueryView = View<'tabs' | 'pinned' | 'finished' | 'pendingDeletes' | 'statuses' | 'acked' | 'setAside' | 'kept' | 'notes' | 'groupState' | 'projectNames' | 'needsYou' | 'prStatus' | 'prNames' | 'settings'>;
+export type QueryView = View<'tabs' | 'pinned' | 'finished' | 'pendingDeletes' | 'statuses' | 'acked' | 'setAside' | 'kept' | 'notes' | 'groupState' | 'projectNames' | 'needsYou' | 'needsYouTypes' | 'prStatus' | 'prNames' | 'settings' | 'activeProject'>;
 
 /** Session key -> its group's name. */
 function groupNameByKey({ groupState }: View<'groupState'>): Map<string, string> {
@@ -31,10 +31,10 @@ function claudeAskOf(status: string | undefined, read: boolean): ClaudeAsk | nul
 }
 
 /**
- * The store's answers to a query's questions, as of `now`.
+ * The store's answers to a query's questions, as of `now`, `project:current` naming `current`, the switcher's project unless the asker shows another.
  * Built once per evaluation over every session, so the sets every session asks about are made once here rather than per session.
  */
-export function queryFacts(view: QueryView, now = Date.now()): QueryFacts {
+export function queryFacts(view: QueryView, now = Date.now(), current: string | null = view.activeProject): QueryFacts {
   const tabbed = new Set(view.tabs.map((t) => entityKey(t.session)));
   const running = new Set(view.tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)));
   const groups = groupNameByKey(view);
@@ -48,6 +48,7 @@ export function queryFacts(view: QueryView, now = Date.now()): QueryFacts {
   };
   return {
     now,
+    current,
     pinned: (s) => view.pinned.has(entityKey(s)),
     tabbed: (s) => tabbed.has(entityKey(s)),
     running: (s) => running.has(entityKey(s)),
@@ -59,8 +60,11 @@ export function queryFacts(view: QueryView, now = Date.now()): QueryFacts {
     note: (s) => view.notes.get(entityKey(s)),
     groupName: (s) => groups.get(entityKey(s)),
     projectName: (s) => projName(s.repoRoot, view),
+    label: sessionLabel,
     reasons: (s) => view.needsYou.get(entityKey(s)) ?? [],
     claudeAsks: (s) => claudeAskOf(view.statuses.get(entityKey(s)), view.acked.has(entityKey(s))),
+    asking: (s) => sessionAsks(entityKey(s), view),
+    rank: (s) => sessionRank(entityKey(s), view),
     worktree: (s) => worktreeMarkState(s) !== null,
     gone: (s) => unstartableReason(s) !== null,
     prRole: (pr) => prRoleOf(pr, view.prStatus),
