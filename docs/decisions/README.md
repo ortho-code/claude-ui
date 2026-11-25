@@ -266,3 +266,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0258](0258-a-query-that-does-not-read-keeps-the-last-result.md) | 2026-11-25 | A query that does not read keeps the last result | [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it) |
 | [0259](0259-a-file-outside-git-shows-its-changes-since-the-sessions-first-edit.md) | 2026-11-23 | A file outside git shows its changes since the session's first edit | [The `editor` type](../architecture/panels.md#the-editor-type) |
 | [0260](0260-a-path-claude-prints-opens-in-the-editor.md) | 2026-11-25 | A path claude prints opens in the Editor | [The `editor` type](../architecture/panels.md#the-editor-type) |
+| [0261](0261-the-diff-header-is-two-rows.md) | 2026-11-25 | The diff header is two rows | [The `editor` type](../architecture/panels.md#the-editor-type) |

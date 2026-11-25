@@ -236,7 +236,8 @@ A file outside every repository, such as a scratchpad file or a plan, or one its
 The Editor only reads for now, and every file says "Read only".
 
 A file is shown whole, with its changes marked where they are.
-The menu in the diff's header picks Fit, which draws the two sides next to each other once the Editor is 600px wide and one above the other below that, or Split or Unified whatever the width; it also hides changes that only touch whitespace, and Changes only folds the unchanged lines between changes, five or more of them: press a fold to show them all, or, on a fold of more than twenty lines, its `↑ 20` and `↓ 20` to show twenty more beside the change below or above it.
+The diff's header names the file on its first row; on the second, its menu picks Fit, which draws the two sides next to each other once the Editor is 600px wide and one above the other below that, or Split or Unified whatever the width.
+Beside it, **Hide whitespace** leaves out changes that only touch whitespace, and **Changes only** folds the unchanged lines between changes, five or more of them: press a fold to show them all, or, on a fold of more than twenty lines, its `↑ 20` and `↓ 20` to show twenty more beside the change below or above it.
 When either leaves nothing to show, the Editor says why, with a button that switches it off: **Show the whole file** or **Show whitespace changes**.
 These picks are kept for the Editor.
 The code is coloured by its language: PHP, TypeScript, JavaScript, JSON (with JSONC and JSON5), HTML, SCSS, CSS, Markdown, YAML, shell scripts, Twig, XML, SQL, a file named `Dockerfile`, INI, TOML, Python, PowerShell, Go and Rust; anything else is plain text.

@@ -13,7 +13,7 @@ import { drawMap, markCursor } from './steps';
 import './file-view.css';
 
 /**
- * The diff of one file: a header naming it, with the view, the whitespace switch and the stepper, then its hunks with the change map beside them.
+ * The diff of one file: a header naming it, over the view, the whitespace and Changes only switches and the stepper, then its hunks with the change map beside them.
  * What the file is compared with is its host's to say: the view asks its host to read the file, and draws what comes back.
  */
 
@@ -62,6 +62,8 @@ export class FileView {
   private readonly path = element('span', 'diff-file-path');
   private readonly position = element('span', 'diff-position');
   private readonly viewButton = element('button', 'diff-view-button');
+  private readonly whitespaceToggle = this.toggle('Hide whitespace', 'Leave out changes that only touch whitespace', () => this.host.pickIgnoreWs(!this.host.ignoreWs()));
+  private readonly changesOnlyToggle = this.toggle('Changes only', 'Fold the unchanged lines between changes', () => this.host.pickChangesOnly(!this.host.changesOnly()));
   /** What the file is compared with, where its tab says so. */
   private readonly comparedWith = element('span', 'diff-file-mark');
   /** A line under the header saying why the file's changes cannot be shown, where its tab says so. */
@@ -97,7 +99,13 @@ export class FileView {
     const readOnly = element('span', 'diff-read-only');
     // Nothing in the Editor edits a file yet, so every file says so.
     readOnly.textContent = 'Read only';
-    this.header.append(this.path, element('span', 'diff-grow'), this.comparedWith, readOnly, this.position, this.stepButton('up', 'Previous change (k)', -1), this.stepButton('down', 'Next change (j)', 1), this.viewButton);
+    const title = element('div', 'diff-file-title');
+    title.append(this.path, element('span', 'diff-grow'), this.comparedWith, readOnly);
+    const steps = element('div', 'diff-steps');
+    steps.append(this.position, this.stepButton('up', 'Previous change (k)', -1), this.stepButton('down', 'Next change (j)', 1));
+    const controls = element('div', 'diff-file-controls');
+    controls.append(this.viewButton, this.whitespaceToggle, this.changesOnlyToggle, steps);
+    this.header.append(title, controls);
     this.body.tabIndex = 0;
     this.body.addEventListener('keydown', (event) => this.key(event));
     this.frame.append(this.body, this.map);
@@ -260,8 +268,17 @@ export class FileView {
     markCursor(this.body, this.anchors, this.cursor);
     this.drawMap();
     const { at, of } = this.host.place();
-    const files = of > 1 ? ` · file ${at} of ${of}` : '';
-    this.position.textContent = this.anchors.length ? `change ${this.cursor + 1} of ${this.anchors.length}${files}` : files.slice(3);
+    const change = this.anchors.length ? { at: this.cursor + 1, of: this.anchors.length } : null;
+    const file = of > 1 ? { at, of } : null;
+    const long = [change && `change ${change.at} of ${change.of}`, file && `file ${file.at} of ${file.of}`].filter(Boolean).join(' · ');
+    const short = [change, file].filter((each) => each !== null).map((each) => `${each.at}/${each.of}`).join(' · ');
+    const longForm = element('span', 'diff-position-long');
+    longForm.textContent = long;
+    // What a narrow header shows in its place, the long form staying a hover away.
+    const shortForm = element('span', 'diff-position-short');
+    shortForm.textContent = short;
+    this.position.replaceChildren(longForm, shortForm);
+    this.position.title = long;
   }
 
   /** A generated file is one line until asked for: a lockfile is hundreds of lines nobody reviews, and it pushes the real changes out of sight. */
@@ -319,19 +336,30 @@ export class FileView {
     return button;
   }
 
+  /** A switch in the header's controls, pressed while it is on. */
+  private toggle(label: string, tip: string, press: () => void): HTMLButtonElement {
+    const button = element('button', 'pill');
+    button.type = 'button';
+    button.textContent = label;
+    button.title = tip;
+    button.addEventListener('click', press);
+    return button;
+  }
+
   private viewItems(): MenuItem[] {
     const view = this.host.view();
-    const ignore = this.host.ignoreWs();
-    return [
-      ...(['fit', 'split', 'unified'] as const).map((each) => ({ label: VIEW_NAMES[each], checked: each === view, onSelect: () => this.host.pickView(each) })),
-      { label: '', separator: true },
-      { label: 'Hide whitespace changes', checked: ignore, onSelect: () => this.host.pickIgnoreWs(!ignore) },
-      { label: 'Changes only', checked: this.host.changesOnly(), onSelect: () => this.host.pickChangesOnly(!this.host.changesOnly()) },
-    ];
+    return (['fit', 'split', 'unified'] as const).map((each) => ({ label: VIEW_NAMES[each], checked: each === view, onSelect: () => this.host.pickView(each) }));
   }
 
   private redrawButton(): void {
     this.viewButton.replaceChildren(VIEW_NAMES[this.host.view()], menuCaret());
+    for (const [button, on] of [
+      [this.whitespaceToggle, this.host.ignoreWs()],
+      [this.changesOnlyToggle, this.host.changesOnly()],
+    ] as const) {
+      button.classList.toggle('active', on);
+      button.setAttribute('aria-pressed', String(on));
+    }
   }
 
   private drawPath(): void {

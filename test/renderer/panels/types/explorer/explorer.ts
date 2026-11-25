@@ -108,7 +108,10 @@ export const fileNote = (page: Page): Locator => editor(page).locator('.diff-fil
 export const fileSentence = (page: Page): Locator => fileNote(page).locator(':scope > div:first-child');
 /** The button under that sentence. */
 export const fileLift = (page: Page): Locator => fileNote(page).locator('.pane-actions button');
-export const position = (page: Page): Locator => editor(page).locator('.diff-position');
+/** Where the stepper is, in words; a narrow header shows it as numbers instead. */
+export const position = (page: Page): Locator => editor(page).locator('.diff-position-long');
+/** A switch in the diff header's controls, Hide whitespace or Changes only. */
+export const diffToggle = (page: Page, label: 'Hide whitespace' | 'Changes only'): Locator => editor(page).locator('.diff-file-controls .pill', { hasText: label });
 /** The Editor's tabs, in its header. */
 export const editorTabs = (page: Page): Locator => page.locator('.editor-view .panel-tabs .tab');
 

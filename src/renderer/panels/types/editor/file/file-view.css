@@ -1,4 +1,4 @@
-/* THE DIFF OF THE FILE PICKED: a header naming it, with where the stepper is, the stepper and the view's menu, then its hunks scrolling beside the change map. */
+/* THE DIFF OF THE FILE PICKED: a header of two rows, the file on the first and how it is drawn with where the stepper is on the second, then its hunks scrolling beside the change map. */
 .diff-file-view {
   display: flex;
   flex-direction: column;
@@ -7,14 +7,49 @@
   min-height: 0;
 }
 
+/* A container, so the position can shorten by the header's own width rather than the window's. */
 .diff-file-header {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
   min-width: 0;
   padding: 4px 8px;
   font-size: var(--text-meta);
   border-bottom: 1px solid var(--border);
+  container-type: inline-size;
+}
+
+.diff-file-title,
+.diff-file-controls,
+.diff-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Where the controls do not fit on one row, the stepper wraps onto a row of its own, still at the right, so no switch has to shorten its words. */
+.diff-file-controls {
+  flex-wrap: wrap;
+}
+
+.diff-steps {
+  margin-left: auto;
+}
+
+.diff-position-short {
+  display: none;
+}
+
+/* Under this width the position in words would push the stepper onto a row of its own, so it turns to numbers first: the view's menu, both switches and the stepper in words take about 505px. */
+@container (max-width: 520px) {
+  .diff-position-long {
+    display: none;
+  }
+
+  .diff-position-short {
+    display: inline;
+  }
 }
 
 .diff-file-path {
