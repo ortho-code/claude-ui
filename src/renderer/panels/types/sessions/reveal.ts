@@ -2,7 +2,7 @@ import type { SessionSummary } from '../../../../shared/types';
 import { flash } from '../../../ui/flash';
 import { entityKey } from '../../../rules/sessions';
 import { store } from '../../../state/app';
-import { container, currentByKey, groupSections, projectSections, sessionRows } from './drawn';
+import { container, groupSections, projectSections, sidebarRows } from './drawn';
 import { unfold } from './folding';
 
 /**
@@ -21,7 +21,7 @@ export function revealSession(session: SessionSummary): boolean {
     if (groupId) unfold('groups', groupId);
     unfold('projects', session.repoRoot);
   }
-  const row = sessionRows.find(entityKey(session));
+  const row = sidebarRows.rows.find(entityKey(session));
   following = null;
   if (!row) return false;
   // A list out of sight has no layout to scroll, so the row is landed on once the list is on show again.
@@ -72,7 +72,7 @@ function revealInRecent(holds: (session: SessionSummary) => boolean): boolean {
   const { arrangement, reviewing } = store.get();
   if (arrangement !== 'recent' || reviewing) return false;
   const row = [...container.querySelectorAll<HTMLElement>('.session')].find((each) => {
-    const session = currentByKey.get(each.dataset.key ?? '');
+    const session = sidebarRows.current.get(each.dataset.key ?? '');
     return session !== undefined && holds(session);
   });
   if (row) {

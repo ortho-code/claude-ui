@@ -20,7 +20,7 @@ import { copyText, showToast } from '../../../ui/toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
 import { prItemWords, sessionHeader } from './describe';
-import { currentByKey, renderedSections } from './drawn';
+import { renderedSections, sidebarRows } from './drawn';
 import { fullRead } from './read';
 import { revealGroup, revealSession } from './reveal';
 import '../../../ui/tone.css';
@@ -195,7 +195,7 @@ export async function togglePinFor(key: string): Promise<void> {
  */
 export async function confirmAndDelete(keys: readonly string[]): Promise<void> {
   const titles = keys.map((key) => {
-    const session = currentByKey.get(key);
+    const session = sidebarRows.current.get(key);
     return session ? sessionLabel(session) : key.slice(0, 8);
   });
   if (keys.length === 0) return;

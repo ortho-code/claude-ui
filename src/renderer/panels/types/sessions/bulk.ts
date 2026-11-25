@@ -14,7 +14,7 @@ import { showToast } from '../../../ui/toast';
 import { setUnavailable, unavailable } from '../../../ui/unavailable';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, moveToGroupItems, setAsideFromList } from './actions';
-import { container, currentByKey, drawnKeys } from './drawn';
+import { container, drawnKeys, sidebarRows } from './drawn';
 import './bulk.css';
 
 /**
@@ -92,7 +92,7 @@ function drawBox(box: Element | null, state: 'all' | 'some' | 'none'): void {
 }
 
 /** The sessions behind keys, as the list last drew them. */
-const sessionsOf = (keys: readonly string[]): SessionSummary[] => keys.flatMap((key) => currentByKey.get(key) ?? []);
+const sessionsOf = (keys: readonly string[]): SessionSummary[] => keys.flatMap((key) => sidebarRows.current.get(key) ?? []);
 
 /**
  * Bulk mode as the store has it, drawn over the list as drawn: the mode's class on the list, every box, the line's count and which acts can do something now, each act that cannot saying why (`setUnavailable`).
@@ -142,7 +142,7 @@ const finishable = (key: string, view: View<'tabs'>): boolean => !view.tabs.some
 /** What a toast calls the ticked sessions: the one by its title, or how many. */
 function named(keys: readonly string[]): string {
   const [only] = keys;
-  const session = only !== undefined && keys.length === 1 ? currentByKey.get(only) : undefined;
+  const session = only !== undefined && keys.length === 1 ? sidebarRows.current.get(only) : undefined;
   return session ? `"${sessionLabel(session)}"` : `${keys.length} sessions`;
 }
 

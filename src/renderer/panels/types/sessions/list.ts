@@ -13,16 +13,16 @@ import { setUnavailable } from '../../../ui/unavailable';
 import { recentOrder } from '../../../rules/recent';
 import { reviewCount, type ReviewSection } from '../../../rules/review';
 import { endBulk } from '../../../state/bulk';
-import { container, currentByKey, rowInputs, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
+import { container, groupSections, jumpTrees, projectFacts, projectSections, renderedSections, sidebarRows, type FlatSection } from './drawn';
+import { drawFlat } from './flat';
 import { updateFilterStatus } from './filter';
 import { passesFilter, queryReads } from '../../../state/filter-query';
 import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
-import { createFlatSection, createGroupSection, createProjectSection } from './headings';
-import { whereOf } from './describe';
+import { createGroupSection, createProjectSection } from './headings';
 import { reviewFlat, reviewInScope } from './review';
 import { syncStickyOffsetSoon } from './reveal';
-import { drawRow, ROW_SLICES, showTabMarks, updateRow, type FlatLine, type RowView } from './rows';
+import { drawRow, ROW_SLICES, showTabMarks, updateRow, type RowView } from './rows';
 import './list.css';
 
 /**
@@ -37,7 +37,7 @@ let marked = new Set<HTMLElement>();
 /** Mark the rows whose session has a tab, open or cold, and the one on show: only those rows and the ones marked before, rather than every row drawn, since few sessions have a tab. */
 function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {
   const shown = tabOnShow(view);
-  const withTab = new Set(view.tabs.flatMap((tab) => sessionRows.find(tab.session.id) ?? []));
+  const withTab = new Set(view.tabs.flatMap((tab) => sidebarRows.rows.find(tab.session.id) ?? []));
   const touched = new Set([...marked, ...withTab]);
   marked = withTab;
   for (const row of touched) {
@@ -76,14 +76,14 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
     // A tab whose claude was asked to leave, or went, changes what its session's dot shows (`dotStatus`).
     repaintDots(tabDotChanges({ tabs: before }, view), view);
     // And one whose claude went, or reported again, what its clock shows (`clockOf`); and one whose stop has gone on, whether it says claude has not left.
-    for (const [id, marks] of rowTabMarks) showTabMarks(marks, id, view);
+    for (const [id, marks] of sidebarRows.tabMarks) showTabMarks(marks, id, view);
   }
 }
 
 /** Repaint the dots of these sessions' rows, those drawn, from what each shows now. */
 function repaintDots(ids: Set<string>, view: StatusView & View<'tabs' | 'finished'>): void {
   for (const id of ids) {
-    const dot = statusDots.get(id);
+    const dot = sidebarRows.dots.get(id);
     if (dot) applyStatus(dot, id, view);
   }
 }
@@ -205,11 +205,11 @@ let drewOrder: string[] = [];
 const rowsDrewFrom = new Map<RowSlice, unknown>();
 
 /**
- * Count a change for the rows (`rowInputs`) when anything they draw from besides their sessions changed since the last draw, by each slice's own equality: compared with that draw rather than with `before`, since the statuses and the other slices the list is not told of change between draws without a call here.
+ * Count a change for the rows (`DrawnRows.inputs`) when anything they draw from besides their sessions changed since the last draw, by each slice's own equality: compared with that draw rather than with `before`, since the statuses and the other slices the list is not told of change between draws without a call here.
  */
 function rowsFollow(view: ListView): void {
   const moved = (slice: RowSlice): boolean => !rowsDrewFrom.has(slice) || !store.same(slice, rowsDrewFrom.get(slice) as never, view[slice]);
-  if (ROW_SLICES.some(moved)) rowInputs.generation++;
+  if (ROW_SLICES.some(moved)) sidebarRows.inputs.generation++;
   for (const slice of ROW_SLICES) rowsDrewFrom.set(slice, view[slice]);
 }
 
@@ -245,10 +245,10 @@ function drawList(view: ListView): void {
     return;
   }
   const { tree } = shape;
-  statusDots.clear();
-  rowTabMarks.clear();
-  currentByKey.clear();
-  for (const s of all) currentByKey.set(entityKey(s), s);
+  sidebarRows.dots.clear();
+  sidebarRows.tabMarks.clear();
+  sidebarRows.current.clear();
+  for (const s of all) sidebarRows.current.set(entityKey(s), s);
 
   if (tree.length === 0) {
     showEmpty(nothing, view);
@@ -267,48 +267,23 @@ function drawList(view: ListView): void {
 }
 
 /**
- * The list drawn flat, in place of the projects: each section a heading over its rows where it has one, its rows the list's own, in the order given, each led by where it sits where the scope does not say it, then why it is there where its section says, else what the row says otherwise (`updateRow`).
+ * The list drawn flat, in place of the projects (`drawFlat`), with what is the sidebar's around it: no project or group sections, the rows with a tab marked, bulk mode's boxes.
  * The folds have nothing to fold here.
  */
 function renderSections(sections: readonly FlatSection[], view: ListView): void {
-  statusDots.clear();
-  rowTabMarks.clear();
-  currentByKey.clear();
-  for (const s of visibleSessions(view)) currentByKey.set(entityKey(s), s);
-  const drawn = sections.map((section) => {
-    const els = flatSections.draw(section.id, () => createFlatSection(section.heading !== null));
-    if (els.heading && section.heading) {
-      els.heading.label.textContent = section.heading.name;
-      els.heading.count.textContent = String(section.heading.count);
-      els.heading.note.textContent = section.heading.note ?? '';
-      els.heading.note.hidden = section.heading.note === null;
-    }
-    // Where it sits, worked out again at each tick from the store as it then is.
-    const line: FlatLine = { lead: (shown) => whereOf(shown, store.get()) };
-    const rows = section.rows.map((session) => {
-      const row = drawRow(entityKey(session));
-      updateRow(row, session, view, line);
-      row.classList.remove('after-groups');
-      return row;
-    });
-    placeRows(els.rows, rows);
-    return els.section;
-  });
-  placeChildren(container, drawn);
+  drawFlat(sidebarRows, container, sections, view);
   renderedSections.projects = [];
   renderedSections.groups = [];
   projectSections.sweep();
   groupSections.sweep();
-  flatSections.sweep();
-  sessionRows.sweep(inListing);
   updateSidebarHighlight(view);
   showBulk(view);
 }
 
 /** The list with nothing to draw, saying `text` in place of its rows. */
 function showEmpty(text: string, view: ListView): void {
-  currentByKey.clear();
-  for (const s of visibleSessions(view)) currentByKey.set(entityKey(s), s);
+  sidebarRows.current.clear();
+  for (const s of visibleSessions(view)) sidebarRows.current.set(entityKey(s), s);
   clearList();
   const message = document.createElement('div');
   message.className = 'empty-message';
@@ -322,19 +297,19 @@ function showEmpty(text: string, view: ListView): void {
 }
 
 /**
- * Whether a session's row is kept off the page when a draw leaves it out, so a filter that brings it back draws it without building it again: for as long as the session is in the listing (`currentByKey`, filled before each sweep).
+ * Whether a session's row is kept off the page when a draw leaves it out, so a filter that brings it back draws it without building it again: for as long as the session is in the listing (`DrawnRows.current`, filled before each sweep).
  */
-const inListing = (key: string): boolean => currentByKey.has(key);
+const inListing = (key: string): boolean => sidebarRows.current.has(key);
 
 // Reset to a blank list: drop every section, and take the rows off the page, keeping those still in the listing for the next draw that shows them.
 function clearList(): void {
   container.replaceChildren();
-  sessionRows.sweep(inListing);
+  sidebarRows.rows.sweep(inListing);
   projectSections.clear();
   groupSections.clear();
-  flatSections.clear();
-  statusDots.clear();
-  rowTabMarks.clear();
+  sidebarRows.flat.clear();
+  sidebarRows.dots.clear();
+  sidebarRows.tabMarks.clear();
 }
 
 // Bring the project sections in line with `desired`: draw each section, group and row, place them in order, and sweep away what is no longer drawn.
@@ -373,8 +348,8 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
         ? "Empty — move a session here from any session's options."
         : "Empty — start a session with the + above, or move one here from any session's options.";
       const members = sessions.map((session) => {
-        const row = drawRow(entityKey(session));
-        updateRow(row, session, view);
+        const row = drawRow(sidebarRows, entityKey(session));
+        updateRow(sidebarRows, row, session, view);
         row.classList.remove('after-groups'); // rows are reused: it may have been a loose row before
         return row;
       });
@@ -383,8 +358,8 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     }
     // Ungrouped sessions sit directly under the project heading, at full width — there is no "Ungrouped" heading, so the indent alone says whether a row is in a group.
     const loose = project.loose.map((session, index) => {
-      const row = drawRow(entityKey(session));
-      updateRow(row, session, view);
+      const row = drawRow(sidebarRows, entityKey(session));
+      updateRow(sidebarRows, row, session, view);
       // Extra breathing room between the last group and the loose rows, but not when there are no groups at all (then this is just the project's first row).
       row.classList.toggle('after-groups', index === 0 && project.groups.length > 0);
       return row;
@@ -398,7 +373,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
   // What this render did not draw is gone: a project or a group no longer shown, a session deleted or filtered out.
   projectSections.sweep();
   groupSections.sweep();
-  flatSections.sweep();
-  sessionRows.sweep(inListing);
+  sidebarRows.flat.sweep();
+  sidebarRows.rows.sweep(inListing);
   applyFolds(view);
 }
