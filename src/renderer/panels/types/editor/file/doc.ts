@@ -140,7 +140,8 @@ export class FileDoc implements Doc {
       const at = this.ref.files.findIndex((step) => step.root === summary.root);
       const rest = this.ref.files.filter((step) => step.root !== summary.root);
       const files = at < 0 ? [...rest, ...fresh] : [...rest.slice(0, at), ...fresh, ...rest.slice(at)];
-      this.ref = { ...this.ref, diff: { ...this.ref.diff, against }, files, file: file ?? this.ref.file };
+      // A file the list no longer has is unchanged, or untracked past the list's cap and read with hunks of its own, so its counts from before hold for neither.
+      this.ref = { ...this.ref, diff: { ...this.ref.diff, against }, files, file: file ?? { ...this.ref.file, added: 0, deleted: 0 } };
       this.view.refreshed(this.ref.file);
       // Kept with the tab too, so the next draw of the tab shows this comparison rather than the one it was opened with.
       this.host.refreshed(this.ref);

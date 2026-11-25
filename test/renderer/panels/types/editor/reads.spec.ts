@@ -1,6 +1,6 @@
 import { PROJECT } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
-import { bootDiff, editorTabs, file, fileDiff, rows, summary } from '../explorer/explorer';
+import { bootDiff, editorTabs, file, fileDiff, fileSentence, rows, summary } from '../explorer/explorer';
 
 // A file open in the Editor is read again, on its own watch, when its checkout's working tree changes, against the commit its list now measures from; that comparison stays with its tab.
 
@@ -34,4 +34,21 @@ test('a file read again against a newer commit keeps that commit when its tab is
   await expect(editorTabs(page).nth(0)).toHaveClass(/\bactive\b/);
   await page.clock.fastForward(1_000);
   expect((await againstOfA(app)).at(-1)).toBe('bbbbbbb');
+});
+
+test('a file put back as it was while open says it has no changes, not that only whitespace changed', async ({ app, page }) => {
+  await page.clock.install();
+  const spaced = summary({ files: [file('src/a.ts', { added: 1, deleted: 1 })] });
+  await bootDiff(app, { since: spaced }, { files, tree: 'edited', editor: { ignoreWs: true, changesOnly: true } });
+  await rows(page).nth(0).click();
+  await expect(editorTabs(page)).toHaveText(['a.ts']);
+
+  await page.evaluate(([dir, now, unchanged]) => {
+    window.__claudeUiFixture.diffs[dir].since = now;
+    window.__claudeUiFixture.fileDiffs[dir]['src/a.ts'] = unchanged;
+    window.__claudeUiFixture.trees[dir] = 'reverted';
+  }, [PROJECT, summary({ files: [] }), fileDiff('src/a.ts', [], ['a line'])] as const);
+  await page.clock.fastForward(POLL);
+  await page.clock.fastForward(POLL);
+  await expect(fileSentence(page)).toHaveText('No changes against this base.');
 });

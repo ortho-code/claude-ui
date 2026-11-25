@@ -61,7 +61,18 @@ describe('parseUnified', () => {
   });
 
   it('says a binary file is one, with no hunks', () => {
-    expect(parseUnified(['diff --git a/x b/x', 'Binary files a/x and b/x differ', ''].join('\n'))).toEqual({ hunks: [], binary: true });
+    expect(parseUnified(['diff --git a/x b/x', 'Binary files a/x and b/x differ', ''].join('\n'))).toEqual({ hunks: [], binary: true, mode: null });
+  });
+
+  it("reads a change of the file's mode from before the first hunk, and none where the mode stayed", () => {
+    const raw = ['diff --git a/run.sh b/run.sh', 'old mode 100644', 'new mode 100755', ''].join('\n');
+    expect(parseUnified(raw)).toEqual({ hunks: [], binary: false, mode: { from: '100644', to: '100755' } });
+    expect(parseUnified([...header, '@@ -1,1 +1,1 @@', '-a', '+b', ''].join('\n')).mode).toBeNull();
+  });
+
+  it('takes an added line that reads as a mode line as content once a hunk has begun', () => {
+    const raw = [...header, '@@ -1,1 +1,2 @@', ' kept', '+old mode 100644', ''].join('\n');
+    expect(parseUnified(raw).mode).toBeNull();
   });
 
   it('starts a new file at line 1 with nothing before it', () => {

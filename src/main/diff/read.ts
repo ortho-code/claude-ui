@@ -141,7 +141,7 @@ export async function fileDiff(dir: string, against: string, file: string, from:
   let parsed = parseUnified(sectionFor(await text(root, args), file));
   if (!parsed.hunks.length && !parsed.binary && (await untrackedOf(root)).includes(file)) parsed = parseUnified(await untrackedDiff(root, file, context));
   for (const hunk of parsed.hunks) markWords(hunk.rows);
-  return { path: file, hunks: parsed.hunks, binary: parsed.binary, lines: await fileLines(path.join(root, file)) };
+  return { path: file, ...parsed, lines: await fileLines(path.join(root, file)) };
 }
 
 /**

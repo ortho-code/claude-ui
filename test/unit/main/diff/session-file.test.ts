@@ -24,6 +24,9 @@ beforeAll(async () => {
   await fs.writeFile(file('edited.md'), 'one\nthree\n');
   await fs.writeFile(file('unknown.md'), 'as it is\n');
   await fs.writeFile(file('read.md'), 'only read\n');
+  await fs.writeFile(file('reverted.md'), 'as before\n');
+  await fs.writeFile(file('spaced.md'), '  indented\n');
+  await fs.writeFile(file('run.sh'), 'echo hi\n', { mode: 0o755 });
   const dir = path.join(projectsDir, '-notes');
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(
@@ -37,6 +40,12 @@ beforeAll(async () => {
       result('u', { filePath: file('unknown.md'), originalFile: null, structuredPatch: [] }),
       call('r', 'Read', file('read.md')),
       result('r', { type: 'text', file: { filePath: file('read.md'), content: 'only read\n' } }),
+      call('v', 'Edit', file('reverted.md')),
+      result('v', { filePath: file('reverted.md'), originalFile: 'as before\n', structuredPatch: [] }),
+      call('s', 'Edit', file('spaced.md')),
+      result('s', { filePath: file('spaced.md'), originalFile: 'indented\n', structuredPatch: [] }),
+      call('x', 'Edit', file('run.sh')),
+      result('x', { filePath: file('run.sh'), originalFile: 'echo ho\n', structuredPatch: [] }),
     ),
   );
 });
@@ -65,6 +74,24 @@ describe("a file's changes since the session first changed it", () => {
     expect([unknown.start, unknown.hunks, unknown.lines]).toEqual(['unknown', [], ['as it is']]);
     const read = await sessionFileDiff('session-a', file('read.md'), 3, false);
     expect([read.start, read.hunks, read.lines]).toEqual(['unwritten', [], ['only read']]);
+  });
+
+  it('a file put back to the text it had then is identical to it, and one changed only in whitespace is not, though it has no hunks with whitespace left out', async () => {
+    const reverted = await sessionFileDiff('session-a', file('reverted.md'), 3, true);
+    const spaced = await sessionFileDiff('session-a', file('spaced.md'), 3, true);
+    expect([reverted.hunks, reverted.identical]).toEqual([[], true]);
+    expect([spaced.hunks, spaced.identical]).toEqual([[], false]);
+  });
+
+  it('a changed file is not identical to its text from then, nor is one with nothing to compare with', async () => {
+    const changes = await Promise.all(['created.md', 'edited.md', 'unknown.md', 'read.md'].map((name) => sessionFileDiff('session-a', file(name), 3, false)));
+    expect(changes.map((diff) => diff.identical)).toEqual([false, false, false, false]);
+  });
+
+  it('says no change of mode, since the text from then has none recorded', async () => {
+    const diff = await sessionFileDiff('session-a', file('run.sh'), 3, false);
+    expect(rows(diff)).toEqual(['-echo ho', '+echo hi']);
+    expect(diff.mode).toBeNull();
   });
 
   it('a file no longer on disk says so, with no changes, whether the session created it, edited it or only read it', async () => {

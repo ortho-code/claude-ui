@@ -117,6 +117,8 @@ export interface FileDiff {
   path: string;
   hunks: DiffHunk[];
   binary: boolean;
+  /** The file's mode before and after, as git's octal, where git prints a change of mode for a file that stays a file, renamed or not; null otherwise, as for a new, deleted or type-changed file. */
+  mode: { from: string; to: string } | null;
   /** The file as it is on disk, line by line, which a fold draws its hidden lines from; null when it cannot be read or is past the cap. */
   lines: string[] | null;
 }
@@ -131,6 +133,8 @@ export interface SessionFileDiff extends FileDiff {
   start: SessionStart;
   /** The file is no longer on disk, so there is nothing to compare with. */
   gone: boolean;
+  /** The file's text is the text it had then, whitespace included; false where there is nothing to compare with. */
+  identical: boolean;
 }
 
 /** The checkout a path is in, and the path from its root. */

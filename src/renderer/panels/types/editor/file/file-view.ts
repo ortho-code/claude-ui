@@ -260,9 +260,13 @@ export class FileView {
     // With nothing changed, the whole file is the file as it is, where there is one to show.
     if (!this.host.changesOnly() && diff.lines?.length) return null;
     if (file.status === 'U' || file.status === 'A') return plain('A new, empty file.');
-    if (file.status === 'R') return plain(`Renamed from ${file.from ?? 'elsewhere'}, with nothing else changed.`);
     const { text, whitespace } = this.host.unchanged();
-    return { text, lift: whitespace ? 'ignoreWs' : this.host.changesOnly() && diff.lines?.length ? 'changesOnly' : null };
+    const lift = whitespace ? 'ignoreWs' : this.host.changesOnly() && diff.lines?.length ? 'changesOnly' : null;
+    if (whitespace) return { text, lift };
+    const mode = diff.mode && `the file mode changed, from ${diff.mode.from} to ${diff.mode.to}`;
+    if (file.status === 'R') return { text: `Renamed from ${file.from ?? 'elsewhere'}, with ${mode ? `only ${mode}` : 'nothing else changed'}.`, lift };
+    if (mode) return { text: `Only ${mode}.`, lift };
+    return { text, lift };
   }
 
   private mark(): void {

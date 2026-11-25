@@ -247,7 +247,7 @@ The Editor only reads for now, and every file says "Read only".
 A file is shown whole, with its changes marked where they are.
 The diff's header names the file on its first row; on the second, its menu picks Fit, which draws the two sides next to each other once the Editor, or the side the file is on, is 600px wide and one above the other below that, or Split or Unified whatever the width.
 Beside it, **Hide whitespace** leaves out changes that only touch whitespace, and **Changes only** folds the unchanged lines between changes, five or more of them: press a fold to show them all, or, on a fold of more than twenty lines, its `↑ 20` and `↓ 20` to show twenty more beside the change below or above it.
-When either leaves nothing to show, the Editor says why, with a button that switches it off: **Show the whole file** or **Show whitespace changes**.
+When either leaves nothing to show, the Editor says why, such as a file renamed and nothing else, or, in a repository, one whose mode alone changed, with a button that switches it off: **Show the whole file** or **Show whitespace changes**, the latter only where the file did change.
 These picks are kept for the Editor.
 The code is coloured by its language: PHP, TypeScript, JavaScript, JSON (with JSONC and JSON5), HTML, SCSS, CSS, Markdown, YAML, shell scripts, Twig, XML, SQL, a file named `Dockerfile`, INI, TOML, Python, PowerShell, Go and Rust; anything else is plain text.
 The words that changed inside a line are marked, a lockfile or generated file is folded to one line until you press it, and the map at the right edge has a mark for each change.

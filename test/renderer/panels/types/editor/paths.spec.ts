@@ -5,7 +5,7 @@ import { type App, expect, test } from '../../../support/harness';
 import { goLive } from '../../../support/live';
 import { tab } from '../../../support/window';
 import { here } from '../../layout/layout';
-import { bootDiff, diffLines, diffToggle, editor, editorTabs, file, fileDiff, fileLift, fileNote, fileSentence, rows, summary } from '../explorer/explorer';
+import { bootDiff, diffLines, diffToggle, editor, editorTabs, file, fileDiff, fileLift, fileNote, fileSentence, rows, sessionFile, summary } from '../explorer/explorer';
 
 // A file a tool call names in the history opens in the Editor: a file of a checkout as a press in the Explorer opens it, any other file with its changes since the session first changed it.
 
@@ -28,7 +28,7 @@ const mark = (page: Page): Locator => editor(page).locator('.diff-file-mark');
 const notice = (page: Page): Locator => editor(page).locator('.diff-file-notice');
 
 test("a file outside every checkout opens from the history with its changes since the session's first edit", async ({ app, page }) => {
-  await bootDiff(app, {}, { history: called('Write', NOTES), sessionFiles: { [NOTES]: { ...fileDiff(NOTES, [{ old: 1, new: 1, rows: ['-old line', '+new line'] }], ['new line']), start: 'recorded', gone: false } } });
+  await bootDiff(app, {}, { history: called('Write', NOTES), sessionFiles: { [NOTES]: sessionFile(fileDiff(NOTES, [{ old: 1, new: 1, rows: ['-old line', '+new line'] }], ['new line']), 'recorded') } });
   await pressToolFile(app, page);
   await expect(page.locator('.drawer .editor-view')).toBeVisible();
   await expect(editorTabs(page)).toHaveText(['plan.md']);
@@ -38,7 +38,7 @@ test("a file outside every checkout opens from the history with its changes sinc
 });
 
 test("where the text before the session's first edit is not recorded, a line says so and the file shows as it is", async ({ app, page }) => {
-  await bootDiff(app, {}, { history: called('Edit', NOTES), sessionFiles: { [NOTES]: { path: NOTES, hunks: [], binary: false, lines: ['as it is now'], start: 'unknown', gone: false } } });
+  await bootDiff(app, {}, { history: called('Edit', NOTES), sessionFiles: { [NOTES]: sessionFile(fileDiff(NOTES, [], ['as it is now']), 'unknown') } });
   await pressToolFile(app, page);
   await expect(notice(page)).toHaveText("The text before this session's first edit is not recorded, so its changes cannot be shown; the file is shown as it is now.");
   await expect(mark(page)).toBeHidden();
@@ -46,7 +46,7 @@ test("where the text before the session's first edit is not recorded, a line say
 });
 
 test('a file the session only read shows as it is, and under Changes only says the session has not changed it', async ({ app, page }) => {
-  await bootDiff(app, {}, { history: called('Read', NOTES), sessionFiles: { [NOTES]: { path: NOTES, hunks: [], binary: false, lines: ['read only'], start: 'unwritten', gone: false } } });
+  await bootDiff(app, {}, { history: called('Read', NOTES), sessionFiles: { [NOTES]: sessionFile(fileDiff(NOTES, [], ['read only']), 'unwritten') } });
   await pressToolFile(app, page);
   await expect(diffLines(page).filter({ hasText: 'read only' })).toHaveCount(1);
   await expect(mark(page)).toBeHidden();
@@ -56,7 +56,7 @@ test('a file the session only read shows as it is, and under Changes only says t
 });
 
 test('a file no longer on disk says so, with neither a mark nor a line under the header, Changes only or not', async ({ app, page }) => {
-  await bootDiff(app, {}, { history: called('Write', NOTES), sessionFiles: { [NOTES]: { path: NOTES, hunks: [], binary: false, lines: null, start: 'created', gone: true } } });
+  await bootDiff(app, {}, { history: called('Write', NOTES), sessionFiles: { [NOTES]: sessionFile(fileDiff(NOTES, []), 'created', { gone: true }) } });
   await pressToolFile(app, page);
   await expect(fileNote(page)).toHaveText('This file is no longer on disk.');
   await expect(fileNote(page).getByRole('button')).toHaveCount(0);
@@ -72,7 +72,7 @@ test('with whitespace hidden, a file no longer on disk still says so, and one th
   await bootDiff(app, {}, {
     history,
     editor: { ignoreWs: true, changesOnly: true },
-    sessionFiles: { [NOTES]: { path: NOTES, hunks: [], binary: false, lines: null, start: 'created', gone: true }, [READ]: { path: READ, hunks: [], binary: false, lines: ['read only'], start: 'unwritten', gone: false } },
+    sessionFiles: { [NOTES]: sessionFile(fileDiff(NOTES, []), 'created', { gone: true }), [READ]: sessionFile(fileDiff(READ, [], ['read only']), 'unwritten') },
   });
   await goLive(page, app, tab(page, here.title));
   await page.locator('.history-bar').click();
@@ -82,6 +82,20 @@ test('with whitespace hidden, a file no longer on disk still says so, and one th
   await page.locator('.history-bar').click();
   await page.locator('.exchange-tool-file').nth(1).click();
   await expect(fileSentence(page)).toHaveText('This session has not changed this file.');
+  await expect(fileLift(page)).toHaveText('Show the whole file');
+});
+
+test('with whitespace hidden, a file the session changed whose only change since is whitespace offers to show it', async ({ app, page }) => {
+  await bootDiff(app, {}, { history: called('Edit', NOTES), editor: { ignoreWs: true, changesOnly: true }, sessionFiles: { [NOTES]: sessionFile(fileDiff(NOTES, [], ['spaced']), 'recorded') } });
+  await pressToolFile(app, page);
+  await expect(fileSentence(page)).toHaveText('Only whitespace changed here, and whitespace is hidden.');
+  await expect(fileLift(page)).toHaveText('Show whitespace changes');
+});
+
+test('with whitespace hidden, a file the session changed and put back as it was says it has no changes, not that only whitespace changed', async ({ app, page }) => {
+  await bootDiff(app, {}, { history: called('Edit', NOTES), editor: { ignoreWs: true, changesOnly: true }, sessionFiles: { [NOTES]: sessionFile(fileDiff(NOTES, [], ['as before']), 'recorded', { identical: true }) } });
+  await pressToolFile(app, page);
+  await expect(fileSentence(page)).toHaveText("No changes since this session's first edit.");
   await expect(fileLift(page)).toHaveText('Show the whole file');
 });
 

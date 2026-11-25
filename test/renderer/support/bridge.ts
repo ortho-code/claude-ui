@@ -357,10 +357,10 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     // The repositories inside a folder are the fixture's, by the folder; one left out holds none, as a folder holds in most checkouts.
     nestedRepositories: (dir) => answer(fixture.nested[dir] ?? []),
     // A file's diff is the fixture's, by root and path; one left out has no changes, as git says of a file that matches its base.
-    diffFile: (root, _against, path) => answer(Object.hasOwn(fixture.fileDiffs, root) && Object.hasOwn(fixture.fileDiffs[root], path) ? fixture.fileDiffs[root][path] : { path, hunks: [], binary: false, lines: null }),
+    diffFile: (root, _against, path) => answer(Object.hasOwn(fixture.fileDiffs, root) && Object.hasOwn(fixture.fileDiffs[root], path) ? fixture.fileDiffs[root][path] : { path, hunks: [], binary: false, mode: null, lines: null }),
     // A file's changes since a session first changed it are the fixture's, by session and path; one left out is a file the session never changed, shown as it is.
     sessionFileDiff: (session, path) =>
-      answer(Object.hasOwn(fixture.sessionFiles, session) && Object.hasOwn(fixture.sessionFiles[session], path) ? fixture.sessionFiles[session][path] : { path, hunks: [], binary: false, lines: null, start: 'unwritten' as const, gone: false }),
+      answer(Object.hasOwn(fixture.sessionFiles, session) && Object.hasOwn(fixture.sessionFiles[session], path) ? fixture.sessionFiles[session][path] : { path, hunks: [], binary: false, mode: null, lines: null, start: 'unwritten' as const, gone: false, identical: false }),
     // A path a terminal prints names a file when the fixture has it on disk, read as main reads it: from the folder, or from home for `~/`.
     resolvePaths: (dir, candidates) =>
       answer(

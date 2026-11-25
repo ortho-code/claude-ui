@@ -139,6 +139,13 @@ describe('a file', () => {
     ]);
   });
 
+  it("says a change of the file's mode, with no hunks where nothing else changed", async () => {
+    const base = branched({ 'run.sh': 'echo hi\n' });
+    await fs.chmod(path.join(repo(), 'run.sh'), 0o755);
+    const file = await fileDiff(repo(), base, 'run.sh', null, 3, false);
+    expect([file.hunks, file.mode]).toEqual([[], { from: '100644', to: '100755' }]);
+  });
+
   it('leaves a whitespace-only change out when asked', async () => {
     const base = branched({ 'a.txt': 'if (x) {\n  y();\n}\n' });
     write('a.txt', 'if (x) {\n    y();\n}\n');

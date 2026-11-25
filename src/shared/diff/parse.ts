@@ -1,4 +1,4 @@
-import type { DiffHunk, DiffRow } from './types';
+import type { DiffHunk, DiffRow, FileDiff } from './types';
 
 /** One file of `git diff --numstat -z`: its counts, null for a binary file, and for a rename its old path. */
 export interface Numstat {
@@ -74,11 +74,13 @@ function hunkStarts(line: string): { oldStart: number; newStart: number; heading
 /**
  * One file's `git diff` in the unified format, as hunks of rows with each side's line number.
  * A hunk's `gapBefore` counts the unchanged lines between it and the one before, or the file's start.
- * Everything before the first hunk describes the file rather than its content (`diff --git`, `index`, `---`, `+++`), so a `---` or `+++` met later is a removed or added line.
+ * Everything before the first hunk describes the file rather than its content (`diff --git`, `old mode`, `index`, `---`, `+++`), so a `---` or `+++` met later is a removed or added line.
  */
-export function parseUnified(raw: string): { hunks: DiffHunk[]; binary: boolean } {
+export function parseUnified(raw: string): Pick<FileDiff, 'hunks' | 'binary' | 'mode'> {
   const hunks: DiffHunk[] = [];
   let binary = false;
+  let oldMode: string | null = null;
+  let newMode: string | null = null;
   let oldLine = 0;
   let newLine = 0;
   let oldEnd = 1;
@@ -86,6 +88,8 @@ export function parseUnified(raw: string): { hunks: DiffHunk[]; binary: boolean 
     const hunk = hunks.at(-1);
     if (!hunk) {
       if (line.startsWith('Binary files ') || line.startsWith('GIT binary patch')) binary = true;
+      else if (line.startsWith('old mode ')) oldMode = line.slice('old mode '.length);
+      else if (line.startsWith('new mode ')) newMode = line.slice('new mode '.length);
       else if (line.startsWith('@@')) ({ oldLine, newLine, oldEnd } = startHunk(hunks, line, oldEnd));
       continue;
     }
@@ -105,7 +109,7 @@ export function parseUnified(raw: string): { hunks: DiffHunk[]; binary: boolean 
     if (row.new !== null) newLine++;
     oldEnd = oldLine;
   }
-  return { hunks, binary };
+  return { hunks, binary, mode: oldMode !== null && newMode !== null ? { from: oldMode, to: newMode } : null };
 }
 
 function startHunk(hunks: DiffHunk[], line: string, oldEnd: number): { oldLine: number; newLine: number; oldEnd: number } {

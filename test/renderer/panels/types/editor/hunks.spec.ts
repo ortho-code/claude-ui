@@ -192,6 +192,37 @@ test('with whitespace hidden, a file whose only change is whitespace says so und
   await expect(fileLift(page)).toHaveText('Show the whole file');
 });
 
+test('under Changes only, a rename with nothing else changed says so and offers to show the whole file', async ({ app, page }) => {
+  const moved = summary({ files: [file('src/new.ts', { status: 'R', from: 'src/old.ts', added: 0, deleted: 0 })] });
+  await bootDiff(app, { since: moved }, { files: { 'src/new.ts': fileDiff('src/new.ts', [], ['kept']) }, editor: changesOnly });
+  await rows(page).first().click();
+  await expect(fileSentence(page)).toHaveText('Renamed from src/old.ts, with nothing else changed.');
+  await expect(fileLift(page)).toHaveText('Show the whole file');
+});
+
+test('with whitespace hidden, a rename whose only other change is whitespace offers to show it', async ({ app, page }) => {
+  const moved = summary({ files: [file('src/new.ts', { status: 'R', from: 'src/old.ts', added: 1, deleted: 1 })] });
+  await bootDiff(app, { since: moved }, { files: { 'src/new.ts': fileDiff('src/new.ts', [], ['kept']) }, editor: { ignoreWs: true, changesOnly: true } });
+  await rows(page).first().click();
+  await expect(fileSentence(page)).toHaveText('Only whitespace changed here, and whitespace is hidden.');
+  await expect(fileLift(page)).toHaveText('Show whitespace changes');
+});
+
+test('under Changes only, a file whose mode alone changed says so', async ({ app, page }) => {
+  const executable = { ...fileDiff('run.sh', [], ['echo hi']), mode: { from: '100644', to: '100755' } };
+  await bootDiff(app, { since: summary({ files: [file('run.sh', { added: 0, deleted: 0 })] }) }, { files: { 'run.sh': executable }, editor: changesOnly });
+  await rows(page).first().click();
+  await expect(fileSentence(page)).toHaveText('Only the file mode changed, from 100644 to 100755.');
+  await expect(fileLift(page)).toHaveText('Show the whole file');
+});
+
+test('under Changes only, a rename whose mode changed too says both', async ({ app, page }) => {
+  const moved = summary({ files: [file('bin/run', { status: 'R', from: 'run.sh', added: 0, deleted: 0 })] });
+  await bootDiff(app, { since: moved }, { files: { 'bin/run': { ...fileDiff('bin/run', [], ['echo hi']), mode: { from: '100644', to: '100755' } } }, editor: changesOnly });
+  await rows(page).first().click();
+  await expect(fileSentence(page)).toHaveText('Renamed from run.sh, with only the file mode changed, from 100644 to 100755.');
+});
+
 test('hiding whitespace reads the file again without it, and is kept for the window', async ({ app, page }) => {
   await bootDiff(app, { since: listed }, { files: { 'src/a.ts': edited } });
   await rows(page).first().click();

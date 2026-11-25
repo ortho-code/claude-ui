@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { DEFAULT_DIFF_PICKS, type DiffFile, type DiffPicks, type DiffQuestion, type DiffRow, type DiffSummary, type FileDiff, type SessionFileDiff } from '../../../../../src/shared/diff/types';
+import { DEFAULT_DIFF_PICKS, type DiffFile, type DiffPicks, type DiffQuestion, type DiffRow, type DiffSummary, type FileDiff, type SessionFileDiff, type SessionStart } from '../../../../../src/shared/diff/types';
 import type { LayoutReport, PanelData } from '../../../../../src/shared/panels';
 import type { EditorUi, Exchange, HistoryUi, SessionSummary } from '../../../../../src/shared/types';
 import { defaultUi } from '../../../../../src/shared/config/defaults';
@@ -81,6 +81,7 @@ export function fileDiff(path: string, hunks: { old: number; new: number; headin
   return {
     path,
     binary: false,
+    mode: null,
     lines,
     hunks: hunks.map((hunk) => {
       let old = hunk.old;
@@ -97,6 +98,9 @@ export function fileDiff(path: string, hunks: { old: number; new: number; headin
     }),
   };
 }
+
+/** What main reads of a file's changes since a session first changed it: `diff`'s hunks and lines, starting at `start`, on disk and not as it was then unless `over` says so. */
+export const sessionFile = (diff: FileDiff, start: SessionStart, over: Partial<Pick<SessionFileDiff, 'gone' | 'identical'>> = {}): SessionFileDiff => ({ ...diff, start, gone: false, identical: false, ...over });
 
 /** The Editor's view, in the drawer or docked. */
 export const editor = (page: Page): Locator => page.locator('.editor-view');

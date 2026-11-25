@@ -32,6 +32,8 @@ export class SessionDoc implements Doc {
   private start: SessionStart | null = null;
   /** The last read found the file no longer on disk. */
   private gone = false;
+  /** The last read found the file's text unchanged since then, whitespace included. */
+  private identical = false;
 
   constructor(
     private ref: SessionFileRef,
@@ -56,17 +58,18 @@ export class SessionDoc implements Doc {
 
   release(): void {}
 
-  /** Why there is nothing to show: the file is gone, or, where there was something to compare and whitespace is hidden, only whitespace changed, else what its start says. */
+  /** Why there is nothing to show: the file is gone, or, where its text differs from what there was to compare and whitespace is hidden, only whitespace changed, else what its start says. */
   private unchanged(ignoreWs: boolean): { text: string; whitespace: boolean } {
     if (this.gone) return { text: GONE, whitespace: false };
     const start = this.start ?? 'unwritten';
-    const whitespace = ignoreWs && (start === 'created' || start === 'recorded');
+    const whitespace = ignoreWs && !this.identical && (start === 'created' || start === 'recorded');
     return { text: whitespace ? WHITESPACE_HIDDEN : UNCHANGED[start], whitespace };
   }
 
   private heard(diff: SessionFileDiff): SessionFileDiff {
     this.start = diff.start;
     this.gone = diff.gone;
+    this.identical = diff.identical;
     // A file that is gone says only that, in the view's sentence, since there is nothing left to compare.
     this.view.setMarks(diff.gone ? null : (MARKS[diff.start] ?? null), !diff.gone && diff.start === 'unknown' ? NOT_RECORDED : null);
     return diff;

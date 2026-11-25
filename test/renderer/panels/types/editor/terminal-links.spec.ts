@@ -4,7 +4,7 @@ import { type App, expect, test } from '../../../support/harness';
 import { goLive } from '../../../support/live';
 import { tab } from '../../../support/window';
 import { here } from '../../layout/layout';
-import { bootDiff, editor, editorTabs, file, fileDiff, fileLift, fileSentence, rows, summary } from '../explorer/explorer';
+import { bootDiff, editor, editorTabs, file, fileDiff, fileLift, fileSentence, rows, sessionFile, summary } from '../explorer/explorer';
 
 // A file path claude prints in a session tab's terminal opens in the Editor on a press, read from the session's folder, at the line after it; so does a `file://` link claude sends.
 
@@ -127,7 +127,7 @@ test('a path that names no file on disk stays words', async ({ app, page }) => {
 
 test('a `file://` link claude sends opens its file in the Editor rather than the browser', async ({ app, page }) => {
   const notes = `${HOME}/notes/plan.md`;
-  await bootDiff(app, { since: listed }, { sessionFiles: { [notes]: { path: notes, hunks: [], binary: false, lines: ['the plan'], start: 'unwritten', gone: false } } });
+  await bootDiff(app, { since: listed }, { sessionFiles: { [notes]: sessionFile(fileDiff(notes, [], ['the plan']), 'unwritten') } });
   await goLive(page, app, tab(page, here.title));
   expect(await app.emit('onTerminalData', 1, `\x1b[2J\x1b[H\x1b]8;;file://${notes}\x07the plan\x1b]8;;\x07`)).toBe(1);
   const screen = (await page.locator('.term.active .xterm-screen').boundingBox())!;
