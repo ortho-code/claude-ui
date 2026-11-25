@@ -380,7 +380,7 @@ describe('settings, as kept here before the config folder', () => {
 
   it('keeps them through every other write, so an older build still finds them', async () => {
     await writeMetaFile({ version: 3, settings: { launchFlags: '--allowedTools Grep' } });
-    await setUiState({ ...(await getUiState()), search: 'anything' });
+    await setUiState({ ...(await getUiState()), query: 'anything' });
     await markMoved('launchFlags');
     expect(await getSettings()).toEqual({ launchFlags: '--allowedTools Grep' });
   });

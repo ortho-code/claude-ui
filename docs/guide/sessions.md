@@ -12,8 +12,11 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 - A jump list on the project heading reaches a group without scrolling.
 - Recent, beside Grouped under the header, shows every session of the project on show, or of all of them, in one flat list, last worked on first, each row naming its group and in All its project; filters and the finished sessions work in it as in Grouped, and selecting several from a row's menu.
   In either, a session worked on again moves to its place within a minute, never while the pointer or the focus is in the list or a menu from it is open.
-- Search plus filters: pinned, open, live, set aside, worktree, siblings, linked PR, noted, finished, folder gone and a date range.
-  A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
+- A query field that searches and filters in one: words find a session by its title, first prompt, folder, note, group or a PR's number or title, each word anywhere and a quoted phrase whole, and by its id from the id's start or end, so a pasted id or a short form of it finds it; terms such as `is:pinned`, `has:pr` or `active:>=today-7d` filter, terms side by side must all hold, `OR` between them for either and `-` before one for not, so `is:pinned OR is:running` and `-is:pinned` say what the pills alone could not.
+  A word with a colon or a parenthesis in it, such as `TODO:`, reads as a term, so put it in quotes to search for it.
+  The filter pills, pinned, open, live, set aside, worktree, siblings, linked PR, noted and folder gone, and the date presets write their terms into the field and show on while their term is in every part of the query; finished is a switch beside it.
+  While a term does not read yet, the list keeps what the last query that did showed, and a query left that did not read shows nothing at the next launch until it does.
+  A filter left on with its panel shut stays on screen as a row of chips above the count: one per term, or one of the whole query when it has an `OR`, and one for finished.
   Clear empties the filter; Clear and close, under the open panel, also shuts it.
 - Hovering a session's row shows what it says in full, whatever the sidebar's width cuts off: its name, its line, its state, when it was last active, its PRs with their dates where GitHub gave them, and its whole note.
 - A project switcher scopes the sidebar and counts the sessions in other projects that need you.
@@ -82,6 +85,6 @@ What a session's dot says, and what marks it as needing you, is in [Status and w
 
 ## The window
 
-- It opens the way you left it: window size and position, the sidebar's search, filters, folds, width and scroll offset, and the tab bar's fold.
+- It opens the way you left it: window size and position, the sidebar's query, the finished switch, folds, width and scroll offset, and the tab bar's fold.
 - The window's layout is yours to arrange, with panels beside the sidebar and the terminal; see [Layout and panels](layout.md).
 - Every mark is an SVG icon, clickable icons share one mark size and one hover for each kind, a borderless one turning accent blue, a bordered one filling, and radius and type come from tokens.

@@ -48,7 +48,7 @@ test("a row's tooltip gives the moment in the language of the settings, followin
 test("a finished row's time ages with the clock too, and its tooltip gives when it was finished", async ({ app, page }) => {
   const finishedAt = ACTIVE + MINUTE;
   await page.clock.install({ time: finishedAt + 5 * MINUTE });
-  await app.boot({ sessions: [one], finished: { [one.id]: finishedAt }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } });
+  await app.boot({ sessions: [one], finished: { [one.id]: finishedAt }, uiState: { ...defaultUi(), finished: true } });
   await expect(meta(page, one.title)).toHaveText('finished 5 min ago');
   await expect(row(page, one.title)).toHaveAttribute('data-tooltip', tipLine('Finished: wo 30 sep, 10:01'));
   await expect(row(page, one.title)).toHaveAttribute('data-tooltip', tipLine('Last active: wo 30 sep, 10:00'));

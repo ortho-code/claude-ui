@@ -15,11 +15,8 @@ export function defaultSettings(): Settings {
  */
 export function defaultUi(): UiState {
   return {
-    search: '',
-    filters: { pinned: false, open: false, live: false, setAside: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, finished: false },
-    datePreset: 'any',
-    dateFrom: null,
-    dateTo: null,
+    query: '',
+    finished: false,
     filterPanelOpen: false,
     tabBarExpanded: true,
     editor: { docked: false, view: 'fit', ignoreWs: false, changesOnly: false },

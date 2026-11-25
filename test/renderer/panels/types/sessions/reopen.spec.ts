@@ -14,7 +14,7 @@ const finishedView = {
   sessions: [done],
   history: { [done.id]: [] },
   finished: { [done.id]: FINISHED_AT },
-  uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } },
+  uiState: { ...defaultUi(), finished: true },
 };
 // The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the first claude is 1.
 const FIRST = 1;

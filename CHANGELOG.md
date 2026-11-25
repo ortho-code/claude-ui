@@ -70,6 +70,11 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Rows a search brings back appear from the top over a few frames.
 - The collapse-all button's two chevrons point at each other to collapse and apart to expand, as a code editor's do.
 - The review counts its 30 days in whole days from midnight, so a session joins Untouched 30+ days, and Keep lets it back in, when the day turns rather than at the hour it crossed.
+- The search box is a query field that searches and filters in one: `is:pinned OR is:running`, `-is:pinned`, `has:pr`, `active:>=today-7d` and more, in the style of GitHub's search.
+  The filter pills and date presets write their terms into it, and a filter you left on comes back as its query.
+  Words are matched each on its own, so `fix login` also finds "login page, fix it"; put a phrase in quotes to find it whole.
+  The 7d and 30d presets count whole days from midnight, today included.
+  A session's id is found from its start or its end, no longer from its middle, so a short number does not match every id that holds it.
 
 ### Fixed
 

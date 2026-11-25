@@ -187,14 +187,9 @@ export function projectGone(repoRoot: string, view: View<'sessions' | 'tabs'>): 
   return sessions.length > 0 && !projectRootExists(sessions);
 }
 
-/** What the search matches against: the box's contents, trimmed and in lower case; empty for no search. */
-export function searchText({ filter }: View<'filter'>): string {
-  return filter.search.trim().toLowerCase();
-}
-
-/** Whether any filter is on — the search, a pill, or a date window — which opens every fold and puts the filter's count and chips on screen. */
-export function isFiltering(view: View<'filter'>): boolean {
-  return searchText(view).length > 0 || Object.values(view.filter.filters).some(Boolean) || view.filter.datePreset !== 'any';
+/** Whether any filter is on, a query or the finished switch, which opens every fold and puts the filter's count and chips on screen. */
+export function isFiltering({ filter }: View<'filter'>): boolean {
+  return filter.query.trim() !== '' || filter.finished;
 }
 
 /** What a session's dot and its tooltip are painted from, and so what `statusChanges` compares. */

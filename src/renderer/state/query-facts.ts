@@ -13,7 +13,7 @@ import { projName } from './views';
 export type QueryView = View<'tabs' | 'pinned' | 'finished' | 'pendingDeletes' | 'statuses' | 'acked' | 'setAside' | 'kept' | 'notes' | 'groupState' | 'projectNames' | 'needsYou' | 'prStatus' | 'prNames' | 'settings'>;
 
 /** Session key -> its group's name. */
-export function groupNameByKey({ groupState }: View<'groupState'>): Map<string, string> {
+function groupNameByKey({ groupState }: View<'groupState'>): Map<string, string> {
   const byId = new Map(groupState.groups.map((g) => [g.id, g.name]));
   const out = new Map<string, string>();
   for (const [key, id] of Object.entries(groupState.groupOf)) {

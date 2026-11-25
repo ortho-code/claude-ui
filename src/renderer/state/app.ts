@@ -171,15 +171,13 @@ export interface Folds {
   filterGroups: ReadonlySet<string>;
 }
 
-/**
- * The filter, in the shape it is stored in, so the two cannot come apart: the search as typed, the pills, and the date window its preset or the calendar gave (a rolling preset's window is worked out when it is chosen).
- */
-export type FilterState = Pick<UiState, 'search' | 'filters' | 'datePreset' | 'dateFrom' | 'dateTo'>;
+/** The filter, in the shape it is stored in, so the two cannot come apart: the query as typed, and the finished switch beside it. */
+export type FilterState = Pick<UiState, 'query' | 'finished'>;
 
 /** No filter at all: what a first run has, and what Clear goes back to. */
 export function noFilter(): FilterState {
-  const { search, filters, datePreset, dateFrom, dateTo } = defaultUi();
-  return { search, filters, datePreset, dateFrom, dateTo };
+  const { query, finished } = defaultUi();
+  return { query, finished };
 }
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */

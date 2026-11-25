@@ -40,7 +40,8 @@ test("in bulk mode, each batch of rows comes back with its boxes saying what is 
   await expect(page.locator('#sessions .session > .tick.on')).toHaveCount(many.length);
   await page.locator('#bulk-done').click();
   await page.locator('#filter-toggle').click();
-  await page.locator('#search').fill(top.title);
+  // Quoted, since "000" alone is in every row's id.
+  await page.locator('#search').fill(`"${top.title}"`);
   await expect(rows(page)).toHaveCount(1);
   // Bulk mode again, with only the row on show ticked.
   await row(page, top.title).locator('.session-kebab').click();
@@ -58,8 +59,8 @@ test('a key typed while rows are still going on the page drops the ones an earli
   await expect(rows(page)).toHaveCount(0);
 
   await typeNow(page, '');
-  // Row 000 to Row 009: ten rows, all of which the first batch already drew.
-  await typeNow(page, 'Row 00');
+  // Row 000 to Row 009: ten rows, all of which the first batch already drew; quoted, since "00" alone is in every row's id.
+  await typeNow(page, '"Row 00"');
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done))))));
   await expect(rows(page)).toHaveCount(10);
 });

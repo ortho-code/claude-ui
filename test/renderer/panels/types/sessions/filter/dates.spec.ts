@@ -98,17 +98,38 @@ test("the calendar starts its weeks on the language's first day, an open one fol
   await expect(page.locator('#date-range .air-datepicker-cell.-day-').first()).toHaveAttribute('data-date', '30');
 });
 
+test("a custom range's days taken out of the field light Any again", async ({ app, page }) => {
+  await app.boot(fixture);
+  await page.locator('#filter-toggle').click();
+  await preset(page, 'custom').click();
+  await page.locator('#date-range-label').click();
+  await day(page, 9).click();
+  await day(page, 11).click();
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(days20));
+  await page.keyboard.press('Escape');
+  await page.locator('#search').fill('');
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(...everyone));
+  await expect(preset(page, 'any')).toHaveClass(/\bactive\b/);
+  await expect(page.locator('#date-range-label')).toBeHidden();
+});
+
+test('Custom pressed with no range stays lit until something else changes the query', async ({ app, page }) => {
+  await app.boot(fixture);
+  await page.locator('#filter-toggle').click();
+  await preset(page, 'custom').click();
+  await expect(preset(page, 'custom')).toHaveClass(/\bactive\b/);
+  await page.locator('#search').fill('Active');
+  await expect(preset(page, 'any')).toHaveClass(/\bactive\b/);
+});
+
 test('a stored custom range comes back as it was picked', async ({ app, page }) => {
-  const from = new Date(2026, 8, 9).getTime();
-  const to = new Date(2026, 8, 11, 23, 59, 59, 999).getTime();
-  await app.boot({ ...fixture, uiState: { ...defaultUi(), datePreset: 'custom', dateFrom: from, dateTo: to } });
+  await app.boot({ ...fixture, uiState: { ...defaultUi(), query: 'active:>=2026-09-09 active:<=2026-09-11' } });
   await expect.poll(() => sortedTitles(page)).toEqual(sorted(days20));
   await expect(page.locator('#date-range-label')).toHaveText('09-09-2026 – 11-09-2026');
   await expect(page.locator('#filter-count')).toHaveText('Showing 1 of 4');
 });
 
-test('a stored rolling preset is worked out again from now, not from the range it last stored', async ({ app, page }) => {
-  // A range from the epoch would let every session through.
-  await app.boot({ ...fixture, uiState: { ...defaultUi(), datePreset: '7d', dateFrom: 0, dateTo: null } });
+test('a stored rolling preset is worked out again from today', async ({ app, page }) => {
+  await app.boot({ ...fixture, uiState: { ...defaultUi(), query: 'active:>=today-7d' } });
   await expect.poll(() => sortedTitles(page)).toEqual(sorted(today, days3));
 });

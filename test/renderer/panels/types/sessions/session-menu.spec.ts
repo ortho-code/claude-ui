@@ -377,7 +377,7 @@ for (const [state, setAsideMarks] of [['cold', {}], ['cold and set aside', setAs
 }
 
 // The finished view's rows carry the kebab too, holding what the row's marks reach but its dot, its id, and the view's two buttons.
-const finishedView = { sessions: [full], finished: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } };
+const finishedView = { sessions: [full], finished: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') }, uiState: { ...defaultUi(), finished: true } };
 
 test("a finished session's menu holds its note, its id, Reopen, Unfinished and Delete, Select… on its row, and nothing else that starts or files it", async ({ app, page }) => {
   await app.boot(finishedView);

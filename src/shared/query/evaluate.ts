@@ -8,7 +8,7 @@ import type { Query, Term } from './parse';
 function holds(session: SessionSummary, term: Term, registry: FieldRegistry, facts: QueryFacts): boolean {
   if (term.field === null) {
     const word = term.values[0] ?? '';
-    return registry.words.some((source) => source.texts(session, facts).some((text) => containsIgnoringCase(text, word)));
+    return registry.words.some((source) => source.texts(session, facts).some((text) => (source.matches ?? containsIgnoringCase)(text, word)));
   }
   const field = registry.fields.get(term.field);
   return field !== undefined && term.values.some((value) => field.holds(session, value, term.comparison, facts));

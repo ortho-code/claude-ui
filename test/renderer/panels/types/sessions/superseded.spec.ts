@@ -39,7 +39,7 @@ test("a press on the mark reads the copy in the session's history, without start
 });
 
 test('in the finished view the mark only says what the copy holds, and a press on it opens nothing, as a press on the row does not', async ({ app, page }) => {
-  await app.boot({ sessions: [split], finished: { [split.id]: Date.parse('2026-11-24T08:00:00.000Z') }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } });
+  await app.boot({ sessions: [split], finished: { [split.id]: Date.parse('2026-11-24T08:00:00.000Z') }, uiState: { ...defaultUi(), finished: true } });
   const mark = row(page, split.title).locator('.superseded-mark');
   await expect(mark).toHaveAttribute('data-tooltip', /^An older copy of this session, replaced .+, has 67 requests the current one lacks\.$/);
   await mark.click();

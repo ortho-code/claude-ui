@@ -5,19 +5,6 @@ import { metaDir, useMetaDir, writeMetaFile } from '../sessions/meta-fixture';
 
 vi.mock('electron', async () => (await import('../sessions/meta-fixture')).electronStub);
 
-// A filter that defaults to on, for the one check that needs one: none does yet, and the rule for a key a file does not have is only seen with one.
-const { defaultsWith } = vi.hoisted(() => ({ defaultsWith: { pinnedOn: false } }));
-vi.mock('../../../../src/shared/config/defaults', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../src/shared/config/defaults')>();
-  return {
-    ...actual,
-    defaultUi: () => {
-      const ui = actual.defaultUi();
-      return defaultsWith.pinnedOn ? { ...ui, filters: { ...ui.filters, pinned: true } } : ui;
-    },
-  };
-});
-
 import { getUiState, setUiState } from '../../../../src/main/sessions/meta';
 
 useMetaDir();
@@ -90,11 +77,8 @@ describe('the history', () => {
 
 describe('ui state', () => {
   const view = {
-    search: 'psalm',
-    filters: { pinned: true, open: false, live: false, setAside: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, finished: false },
-    datePreset: 'custom',
-    dateFrom: 1_700_000_000_000,
-    dateTo: 1_700_500_000_000,
+    query: 'psalm is:pinned active:>=2026-11-01',
+    finished: false,
     filterPanelOpen: true,
     tabBarExpanded: false,
     editor: { docked: true, view: 'split' as const, ignoreWs: true, changesOnly: true },
@@ -114,11 +98,8 @@ describe('ui state', () => {
 
   it('starts unfiltered, unfolded and at the default width', async () => {
     expect(await getUiState()).toEqual({
-      search: '',
-      filters: { pinned: false, open: false, live: false, setAside: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, finished: false },
-      datePreset: 'any',
-      dateFrom: null,
-      dateTo: null,
+      query: '',
+      finished: false,
       filterPanelOpen: false,
       tabBarExpanded: true,
       editor: { docked: false, view: 'fit', ignoreWs: false, changesOnly: false },
@@ -139,11 +120,10 @@ describe('ui state', () => {
   });
 
   it('fills in what an older meta.json never stored', async () => {
-    await writeMetaFile({ ui: { search: 'psalm' }, version: 3 });
+    await writeMetaFile({ ui: { filterPanelOpen: true }, version: 3 });
     const ui = await getUiState();
-    expect(ui.search).toBe('psalm');
-    expect(ui.filters.pinned).toBe(false);
-    expect(ui.datePreset).toBe('any');
+    expect(ui.query).toBe('');
+    expect(ui.finished).toBe(false);
     expect(ui.collapsedProjects).toEqual([]);
     expect(ui.filterCollapsedProjects).toEqual([]);
     expect(ui.panelState).toEqual({ sizes: {}, collapsed: [], active: {} });
@@ -181,12 +161,12 @@ describe('ui state', () => {
 
   it('drops values of the wrong type rather than restoring a broken sidebar', async () => {
     await writeMetaFile({
-      ui: { search: 42, filters: 'all', collapsedProjects: ['/a', 7, null], scrollTop: 'top' },
+      ui: { query: 42, finished: 'yes', collapsedProjects: ['/a', 7, null], scrollTop: 'top' },
       version: 3,
     });
     const ui = await getUiState();
-    expect(ui.search).toBe('');
-    expect(ui.filters.pinned).toBe(false);
+    expect(ui.query).toBe('');
+    expect(ui.finished).toBe(false);
     expect(ui.collapsedProjects).toEqual(['/a']);
     expect(ui.scrollTop).toBe(0);
   });
@@ -212,96 +192,55 @@ describe('ui state', () => {
   });
 });
 
-describe('the live filter, renamed from running', () => {
-  it('adopts the value stored under the old key', async () => {
-    await writeMetaFile({ ui: { filters: { running: true } }, version: 3 });
-    expect((await getUiState()).filters.live).toBe(true);
+describe('a filter stored before the query field', () => {
+  const query = async (ui: Record<string, unknown>): Promise<string> => {
+    await writeMetaFile({ ui, version: 3 });
+    return (await getUiState()).query;
+  };
+
+  it('reads its search and each pill on as the query, the search first', async () => {
+    expect(await query({ search: ' fix login ', filters: { pinned: true, open: true, live: true, setAside: true, worktree: true, gone: true, siblings: true, prs: true, noted: true } })).toBe(
+      'fix login is:pinned is:working is:running is:set-aside is:worktree is:gone is:sibling has:pr has:note',
+    );
   });
 
-  it('prefers the new key once both are there', async () => {
-    await writeMetaFile({ ui: { filters: { running: true, live: false } }, version: 3 });
-    expect((await getUiState()).filters.live).toBe(false);
+  it('reads a pill stored under its older word, and the newer word where both are', async () => {
+    expect(await query({ filters: { running: true, later: true } })).toBe('is:running is:set-aside');
+    expect(await query({ filters: { running: true, live: false } })).toBe('');
   });
 
-  it('stops writing the old key back out', async () => {
-    await writeMetaFile({ ui: { filters: { running: true } }, version: 3 });
+  it('reads a rolling date preset as its term, a custom range by its days, and an unknown preset as nothing', async () => {
+    expect(await query({ datePreset: 'today' })).toBe('active:today');
+    expect(await query({ datePreset: '7d' })).toBe('active:>=today-7d');
+    expect(await query({ datePreset: '30d' })).toBe('active:>=today-30d');
+    expect(await query({ datePreset: 'custom', dateFrom: new Date(2026, 8, 1).getTime(), dateTo: new Date(2026, 8, 30, 23, 59).getTime() })).toBe('active:>=2026-09-01 active:<=2026-09-30');
+    expect(await query({ datePreset: 'yesterday' })).toBe('');
+  });
+
+  it('drops a pill that no longer exists', async () => {
+    expect(await query({ filters: { paused: true, pinned: true } })).toBe('is:pinned');
+  });
+
+  it('reads the finished switch from where it was stored, under its older word too, the newest first', async () => {
+    const finished = async (ui: Record<string, unknown>): Promise<boolean> => {
+      await writeMetaFile({ ui, version: 3 });
+      return (await getUiState()).finished;
+    };
+    expect(await finished({ filters: { finished: true } })).toBe(true);
+    expect(await finished({ filters: { archived: true } })).toBe(true);
+    expect(await finished({ finished: false, filters: { finished: true } })).toBe(false);
+  });
+
+  it('reads a query it has rather than the old fields beside it', async () => {
+    expect(await query({ query: 'is:running', search: 'old', filters: { pinned: true } })).toBe('is:running');
+  });
+
+  it('stops writing the old fields once read', async () => {
+    await writeMetaFile({ ui: { search: 'fix', filters: { pinned: true, archived: true }, datePreset: '7d', dateFrom: null, dateTo: null }, version: 3 });
     await setUiState(await getUiState());
     const raw = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
-    expect(raw.ui.filters.running).toBeUndefined();
-    expect(raw.ui.filters.live).toBe(true);
-  });
-});
-
-describe('the finished filter, renamed from archived', () => {
-  it('adopts the value stored under the old key', async () => {
-    await writeMetaFile({ ui: { filters: { archived: true } }, version: 3 });
-    expect((await getUiState()).filters.finished).toBe(true);
-  });
-
-  it('prefers the new key once both are there', async () => {
-    await writeMetaFile({ ui: { filters: { archived: true, finished: false } }, version: 3 });
-    expect((await getUiState()).filters.finished).toBe(false);
-  });
-
-  it('stops writing the old key back out', async () => {
-    await writeMetaFile({ ui: { filters: { archived: true } }, version: 3 });
-    await setUiState(await getUiState());
-    const raw = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
-    expect(raw.ui.filters.archived).toBeUndefined();
-    expect(raw.ui.filters.finished).toBe(true);
-  });
-});
-
-describe('the set-aside filter, renamed from later', () => {
-  it('adopts the value stored under the old key', async () => {
-    await writeMetaFile({ ui: { filters: { later: true } }, version: 3 });
-    expect((await getUiState()).filters.setAside).toBe(true);
-  });
-
-  it('prefers the new key once both are there', async () => {
-    await writeMetaFile({ ui: { filters: { later: true, setAside: false } }, version: 3 });
-    expect((await getUiState()).filters.setAside).toBe(false);
-  });
-
-  it('stops writing the old key back out', async () => {
-    await writeMetaFile({ ui: { filters: { later: true } }, version: 3 });
-    await setUiState(await getUiState());
-    const raw = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
-    expect(raw.ui.filters.later).toBeUndefined();
-    expect(raw.ui.filters.setAside).toBe(true);
-  });
-});
-
-describe('the paused filter, which gave way to the set-aside one', () => {
-  it('reads as off, and the set-aside pill with it, and is not written back out', async () => {
-    await writeMetaFile({ ui: { filters: { paused: true } }, version: 3 });
-    expect((await getUiState()).filters.setAside).toBe(false);
-    await setUiState(await getUiState());
-    const raw = JSON.parse(await fs.readFile(path.join(metaDir(), 'meta.json'), 'utf8'));
-    expect(raw.ui.filters.paused).toBeUndefined();
-  });
-});
-
-describe('the PR filter, added after filters were first stored', () => {
-  it('reads as off from a file stored before it, keeping the pills that file has on', async () => {
-    await writeMetaFile({ ui: { filters: { pinned: true, siblings: true } }, version: 3 });
-    const { filters } = await getUiState();
-    expect(filters.prs).toBe(false);
-    expect(filters.pinned).toBe(true);
-    expect(filters.siblings).toBe(true);
-  });
-});
-
-describe('a filter a stored file has no value for', () => {
-  it('takes its default, so one that defaults to on does not read as off', async () => {
-    defaultsWith.pinnedOn = true;
-    try {
-      await writeMetaFile({ ui: { filters: { siblings: true } }, version: 3 });
-      const { filters } = await getUiState();
-      expect(filters.pinned).toBe(true);
-      expect(filters.siblings).toBe(true);
-    } finally {
-      defaultsWith.pinnedOn = false;
-    }
+    expect(raw.ui.query).toBe('fix is:pinned active:>=today-7d');
+    expect(raw.ui.finished).toBe(true);
+    for (const old of ['search', 'filters', 'datePreset', 'dateFrom', 'dateTo']) expect(raw.ui[old]).toBeUndefined();
   });
 });

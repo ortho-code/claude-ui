@@ -521,36 +521,10 @@ export interface HistoryUi {
 }
 
 export interface UiState {
-  /** The search box's contents. */
-  search: string;
-  /** The filter toggles, named as their buttons are. */
-  filters: {
-    pinned: boolean;
-    open: boolean;
-    live: boolean;
-    /** Sessions set aside, with a tab or without. */
-    setAside: boolean;
-    worktree: boolean;
-    /** Sessions whose folder is gone. */
-    gone: boolean;
-    siblings: boolean;
-    /** Sessions whose transcript links a PR. */
-    prs: boolean;
-    noted: boolean;
-    /** The finished sessions in place of the rest; stored as `archived` before the act was called Finished. */
-    finished: boolean;
-  };
-  /**
-   * The active date preset, or 'any' when the date filter is off.
-   * A rolling preset ("last 7 days") is recomputed from the current moment on restore, which is what makes it still mean what it said; only 'custom' reads the stored range back.
-   */
-  datePreset: string;
-  /**
-   * The custom range, in epoch ms.
-   * Only meaningful while `datePreset` is 'custom'.
-   */
-  dateFrom: number | null;
-  dateTo: number | null;
+  /** The query field's text, as typed; the pills and date presets write their terms into it. */
+  query: string;
+  /** The finished sessions in place of the rest, a switch beside the query until views say it as a term. */
+  finished: boolean;
   /**
    * Whether the filter panel is open, restored exactly as stored — an active filter included.
    * Closing it over a filter left deliberately on is a choice to keep the results and take the space back, so a shut panel folds down to a row of chips naming what is on, above the count, and the filter icon carries its accent.

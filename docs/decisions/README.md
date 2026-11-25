@@ -261,3 +261,6 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0253](0253-a-superseded-copy-is-marked-on-its-row.md) | 2026-11-24 | A superseded copy is marked on its row | [Reading sessions](../architecture/sessions.md#superseded-copies) |
 | [0254](0254-an-older-copy-is-read-in-the-history.md) | 2026-11-24 | An older copy is read in the history | [In-session history](../architecture/history.md#an-older-copy) |
 | [0255](0255-the-review-counts-whole-days-from-midnight.md) | 2026-11-25 | The review counts whole days from midnight | [The review](../architecture/session-list.md#the-review) |
+| [0256](0256-the-query-field-is-the-filter.md) | 2026-11-25 | The query field is the filter | [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it) |
+| [0257](0257-free-words-are-matched-each-on-its-own.md) | 2026-11-25 | Free words are matched each on its own | [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it) |
+| [0258](0258-a-query-that-does-not-read-keeps-the-last-result.md) | 2026-11-25 | A query that does not read keeps the last result | [Reopening the way you left it](../architecture/window.md#reopening-the-way-you-left-it) |

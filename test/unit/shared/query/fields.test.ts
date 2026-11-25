@@ -132,6 +132,21 @@ describe('free words', () => {
     expect(found('"login page"', {}, [titled, joined])).toEqual(['a']);
   });
 
+  it("holds a word in a session's id only from the id's start or its end, without regard to capitals", () => {
+    const idOf = session({ id: '563e7e99-2908-4b2b-adf6-544b4e30cb41', title: 'x', firstMessage: '', cwd: '/w' });
+    expect(found('563E7E99', {}, [idOf])).toEqual([idOf.id]);
+    expect(found('4E30CB41', {}, [idOf])).toEqual([idOf.id]);
+    expect(found(idOf.id, {}, [idOf])).toEqual([idOf.id]);
+    expect(found('2908', {}, [idOf])).toEqual([]);
+  });
+
+  it("holds a phrase never across a PR's reference and its title, which are texts of their own", () => {
+    const linked = session({ id: 'a', prs: [pr(12)] });
+    const titled = { prTitle: () => 'Fix the tick' };
+    expect(found('"#12 Fix"', titled, [linked, b])).toEqual([]);
+    expect(found('"Fix the"', titled, [linked, b])).toEqual(['a']);
+  });
+
   it("holds a word in the note, the group's name, the folder and a PR's number or title", () => {
     expect(found('why', { note: (s) => (s.id === 'a' ? 'why so' : undefined) })).toEqual(['a']);
     expect(found('shelf', { groupName: (s) => (s.id === 'b' ? 'Shelf' : undefined) })).toEqual(['b']);

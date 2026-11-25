@@ -29,6 +29,26 @@ describe('queryFacts', () => {
     expect([facts.projectName(a), facts.projectName(b)]).toEqual(['The app', 'other']);
   });
 
+  it('reads the worktree mark as the row shows it: a worktree it runs in, one it left, or a checkout it worked in', () => {
+    const facts = queryFacts(view({}));
+    expect(facts.worktree(session({ id: 'w' }))).toBe(false);
+    expect(facts.worktree(session({ id: 'w', worktree: 'wt' }))).toBe(true);
+    expect(facts.worktree(session({ id: 'w', leftWorktree: 'wt' }))).toBe(true);
+    expect(facts.worktree(session({ id: 'w', checkouts: [{ root: '/repo/.claude/worktrees/wt', at: '2026-10-26T10:00:00.000Z', gone: false, own: false }] }))).toBe(true);
+  });
+
+  it('reads a session as gone when its folder is, as its dimmed row does', () => {
+    const facts = queryFacts(view({}));
+    expect(facts.gone(session({ id: 'g', cwd: '/gone', cwdExists: false }))).toBe(true);
+    expect(facts.gone(session({ id: 'g' }))).toBe(false);
+  });
+
+  it('reads a note and a pin only on the session they belong to', () => {
+    const facts = queryFacts(view({ notes: new Map([['a', 'waiting on kars']]), pinned: new Set(['a']) }));
+    expect([facts.note(a), facts.note(b)]).toEqual(['waiting on kars', undefined]);
+    expect([facts.pinned(a), facts.pinned(b)]).toEqual([true, false]);
+  });
+
   it("reads a PR's states, role and title from main's answer", () => {
     const pr = { repository: 'acme/app', number: 1, url: '' };
     const facts = queryFacts(view({ prStatus: { statuses: { 'acme/app#1': { state: 'merged', role: 'reviewing' } }, problem: null }, prNames: new Map([['acme/app#1', { title: 'Tick per host' }]]) }));

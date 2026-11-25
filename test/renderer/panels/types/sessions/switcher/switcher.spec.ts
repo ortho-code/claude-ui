@@ -43,7 +43,8 @@ test("selecting a project scopes the list and the tab bar to it and selects the 
 test('the switcher lists every project with its count, whatever the list is filtered to', async ({ app, page }) => {
   await app.boot({ ...fixture, openSessions: [] });
   await page.locator('#filter-toggle').click();
-  await page.locator('#search').fill(here.title);
+  // Quoted, since "here" alone is in "Over there" too.
+  await page.locator('#search').fill(`"${here.title}"`);
   await expect(headings(page)).toHaveText(['demo']);
 
   await page.locator('#switcher-current').click();

@@ -94,10 +94,11 @@ const WORDS: readonly WordSource[] = [
   { id: 'title', texts: (s) => [s.title] },
   { id: 'first-prompt', texts: (s) => [s.firstMessage] },
   { id: 'folder', texts: (s) => [s.cwd] },
-  { id: 'id', texts: (s) => [s.id] },
+  // From its start or its end only, where a short form of it is cut from: anywhere, a short word such as `12` would be in many ids.
+  { id: 'id', texts: (s) => [s.id], matches: (text, word) => text.toLowerCase().startsWith(word.toLowerCase()) || text.toLowerCase().endsWith(word.toLowerCase()) },
   { id: 'note', texts: (s, f) => [f.note(s) ?? ''] },
   { id: 'group', texts: (s, f) => [f.groupName(s) ?? ''] },
-  { id: 'pr', texts: (s, f) => s.prs.map((pr) => `${prReference(pr)} ${f.prTitle(pr) ?? ''}`) },
+  { id: 'pr', texts: (s, f) => s.prs.flatMap((pr) => [prReference(pr), f.prTitle(pr) ?? '']) },
 ];
 
 /** Every field the app has, the needs-you categories and types as they stand among `needs:`'s values. */

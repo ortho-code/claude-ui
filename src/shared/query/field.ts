@@ -22,6 +22,8 @@ export interface Field extends FieldSyntax {
 export interface WordSource {
   id: string;
   texts(session: SessionSummary, facts: QueryFacts): readonly string[];
+  /** Whether a word matches one of its texts, without regard to capitals; anywhere in it when left out. */
+  matches?(text: string, word: string): boolean;
 }
 
 /** Every field by its name in lower case, which is also what the parser reads, and every text free words search. */
