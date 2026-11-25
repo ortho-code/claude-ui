@@ -5,7 +5,7 @@ import { type App, expect, test } from '../../../support/harness';
 import { goLive } from '../../../support/live';
 import { tab } from '../../../support/window';
 import { here } from '../../layout/layout';
-import { bootDiff, diffLines, editor, editorTabs, file, fileDiff, fileNote, menuRows, rows, summary } from '../explorer/explorer';
+import { bootDiff, diffLines, editor, editorTabs, file, fileDiff, fileLift, fileNote, fileSentence, menuRows, rows, summary } from '../explorer/explorer';
 
 // A file a tool call names in the history opens in the Editor: a file of a checkout as a press in the Explorer opens it, any other file with its changes since the session first changed it.
 
@@ -52,13 +52,15 @@ test('a file the session only read shows as it is, and under Changes only says t
   await expect(mark(page)).toBeHidden();
   await editor(page).locator('.diff-view-button').click();
   await menuRows(page).filter({ hasText: 'Changes only' }).click();
-  await expect(fileNote(page)).toHaveText('This session has not changed this file.');
+  await expect(fileSentence(page)).toHaveText('This session has not changed this file.');
+  await expect(fileLift(page)).toHaveText('Show the whole file');
 });
 
 test('a file no longer on disk says so, with neither a mark nor a line under the header, Changes only or not', async ({ app, page }) => {
   await bootDiff(app, {}, { history: called('Write', NOTES), sessionFiles: { [NOTES]: { path: NOTES, hunks: [], binary: false, lines: null, start: 'created', gone: true } } });
   await pressToolFile(app, page);
   await expect(fileNote(page)).toHaveText('This file is no longer on disk.');
+  await expect(fileNote(page).getByRole('button')).toHaveCount(0);
   await expect(mark(page)).toBeHidden();
   await expect(notice(page)).toBeHidden();
   await editor(page).locator('.diff-view-button').click();
@@ -81,7 +83,8 @@ test('with whitespace hidden, a file no longer on disk still says so, and one th
   await expect(fileNote(page)).toHaveText('This file is no longer on disk.');
   await page.locator('.history-bar').click();
   await page.locator('.exchange-tool-file').nth(1).click();
-  await expect(fileNote(page)).toHaveText('This session has not changed this file.');
+  await expect(fileSentence(page)).toHaveText('This session has not changed this file.');
+  await expect(fileLift(page)).toHaveText('Show the whole file');
 });
 
 test('a file of a checkout opens from the history in the tab a press on its row in the Explorer opens', async ({ app, page }) => {

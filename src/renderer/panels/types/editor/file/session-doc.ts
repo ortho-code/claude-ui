@@ -13,7 +13,7 @@ const NOT_RECORDED = "The text before this session's first edit is not recorded,
 const UNCHANGED: Record<SessionStart, string> = {
   created: "No changes since this session's first edit.",
   recorded: "No changes since this session's first edit.",
-  unknown: 'Nothing to compare with: switch off Changes only to see the file as it is now.',
+  unknown: 'Nothing to compare with.',
   unwritten: 'This session has not changed this file.',
 };
 
@@ -57,10 +57,11 @@ export class SessionDoc implements Doc {
   release(): void {}
 
   /** Why there is nothing to show: the file is gone, or, where there was something to compare and whitespace is hidden, only whitespace changed, else what its start says. */
-  private unchanged(ignoreWs: boolean): string {
-    if (this.gone) return GONE;
+  private unchanged(ignoreWs: boolean): { text: string; whitespace: boolean } {
+    if (this.gone) return { text: GONE, whitespace: false };
     const start = this.start ?? 'unwritten';
-    return ignoreWs && (start === 'created' || start === 'recorded') ? WHITESPACE_HIDDEN : UNCHANGED[start];
+    const whitespace = ignoreWs && (start === 'created' || start === 'recorded');
+    return { text: whitespace ? WHITESPACE_HIDDEN : UNCHANGED[start], whitespace };
   }
 
   private heard(diff: SessionFileDiff): SessionFileDiff {

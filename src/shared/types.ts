@@ -831,6 +831,8 @@ export interface ClaudeUiApi {
   diffFile(dir: string, against: string, file: string, from: string | null, context: number, ignoreWs: boolean): Promise<FileDiff>;
   /** The absolute path `file`'s changes since session `session` first changed it, with `context` unchanged lines around each change, whitespace-only changes left out with `ignoreWs` (src/main/diff/session-file.ts). */
   sessionFileDiff(session: string, file: string, context: number, ignoreWs: boolean): Promise<SessionFileDiff>;
+  /** Each of `candidates` as the absolute path of a file on disk, a relative one read from `dir` and one starting `~/` from the home folder; null where there is no file (src/main/files/resolve.ts). */
+  resolvePaths(dir: string, candidates: string[]): Promise<(string | null)[]>;
   /** The checkout the absolute path `file` is in; null for a path no repository holds, or one its repository ignores. */
   pathCheckout(file: string): Promise<PathCheckout | null>;
   /** The commits between the commit a summary named and `HEAD`, newest first. */

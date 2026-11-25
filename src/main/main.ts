@@ -21,6 +21,7 @@ import { getOpenSessions, getPrLinks, purgeSession, registerMetaIpc } from './se
 import { migrateToSessionKeys } from './sessions/meta-store';
 import { registerGroupsIpc } from './sessions/groups';
 import { registerDiffIpc } from './diff/ipc';
+import { registerFilesIpc } from './files/resolve';
 import { registerMarksIpc } from './status/marks';
 import { readBundledNeedsYou } from './status/needs-you';
 import { registerSettings } from './config/settings';
@@ -120,6 +121,7 @@ registerLinkIpc();
 registerTerminalIpc();
 registerPanelsIpc();
 registerDiffIpc();
+registerFilesIpc();
 
 void app.whenReady().then(async () => {
   installAppMenu();

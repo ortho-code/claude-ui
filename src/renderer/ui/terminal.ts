@@ -101,15 +101,15 @@ function openLink(_event: MouseEvent, uri: string): void {
 }
 
 /**
- * Show where a link goes, under the row the mouse is on: a link a program sends (OSC 8) shows text of its own choosing, which need not be its address.
+ * Show where a link goes, or `words` about it, under the row the mouse is on: a link a program sends (OSC 8) shows text of its own choosing, which need not be its address.
  * The rows are no elements to anchor to, so the row is worked out from the screen's height and its number of rows.
  */
-function showLinkTarget(term: Terminal, event: MouseEvent, uri: string): void {
+export function showLinkTarget(term: Terminal, event: MouseEvent, words: string): void {
   const screen = term.element?.querySelector('.xterm-screen')?.getBoundingClientRect();
   if (!screen) return;
   const rowHeight = screen.height / term.rows;
   const row = Math.floor((event.clientY - screen.top) / rowHeight);
-  showTooltipAt(uri, new DOMRect(event.clientX, screen.top + row * rowHeight, 0, rowHeight));
+  showTooltipAt(words, new DOMRect(event.clientX, screen.top + row * rowHeight, 0, rowHeight));
 }
 
 /**

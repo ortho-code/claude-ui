@@ -39,6 +39,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Dock in the history's head puts it in a column beside claude, so you can read back while you type, at a width you drag; the window remembers it.
 - A press on the file a Read, Edit or Write names in the history opens it in the Editor.
   A file outside every repository, such as a scratchpad file or a plan, shows what changed since the session first changed it.
+- A file path claude prints in a session's terminal opens the file in the Editor on a press, at the line a `:42` after it names.
 
 ### Changed
 

@@ -98,6 +98,8 @@ export interface BridgeFixture {
   nested: Record<string, string[]>;
   /** What main reads of a file's changes since a session first changed it, by session id and then absolute path; a file left out is one the session never changed. */
   sessionFiles: Record<string, Record<string, SessionFileDiff>>;
+  /** The files on disk main resolves a path a terminal prints to, by absolute path; any other path names no file. */
+  diskFiles: string[];
   /**
    * The bases main keeps and offers: the branches it lists and the commits each would count, by checkout root, a branch left out of `counts` failing to count; the repository each checkout is in, by its root, a root left out being its own; what is kept, by repository, which main's reads then measure from; the refs that no longer resolve, a kept one of which gives way to the next layer; and, while `holding`, a keep main has not written yet, which a check lets through by setting it false.
    */
@@ -228,6 +230,7 @@ export function defaultFixture(): BridgeFixture {
     fileDiffs: {},
     nested: {},
     sessionFiles: {},
+    diskFiles: [],
     bases: { candidates: {}, counts: {}, repoOf: {}, kept: {}, gone: [] },
   };
 }

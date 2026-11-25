@@ -154,8 +154,8 @@ export function editorDocked(view = store.get()): boolean {
   return view.editorUi.docked && view.editorDock;
 }
 
-/** Open a file in the Editor for the tab on show, a preview unless `keep`, and put the Editor in sight: in the drawer while it is not docked. */
-export function openInEditor(ref: FileRef, keep: boolean): void {
+/** Open a file in the Editor for the tab on show, a preview unless `keep`, and put the Editor in sight: in the drawer while it is not docked; with `line`, that line of it in sight too. */
+export function openInEditor(ref: FileRef, keep: boolean, line: number | null = null): void {
   changeEditorTabs((set) => opened(set, ref, keep));
-  if (!editorDocked()) store.set({ editorDrawer: true });
+  store.set({ ...(editorDocked() ? {} : { editorDrawer: true }), editorReveal: line === null ? null : { key: keyOf(ref), line } });
 }

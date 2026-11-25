@@ -56,7 +56,10 @@ export class EditorView {
       event.preventDefault();
       store.set({ editorDrawer: false });
     });
-    store.watch(['editorTabs', 'tabs', 'activeTab'], () => this.draw());
+    store.watch(['editorTabs', 'tabs', 'activeTab', 'editorReveal'], () => {
+      this.draw();
+      this.reveal();
+    });
     store.watch(['editorUi', 'editorDock'], (view, before) => {
       if (view.editorUi.ignoreWs !== before.editorUi.ignoreWs) for (const doc of this.docs.values()) doc.view.reload();
       else for (const doc of this.docs.values()) doc.view.redraw();
@@ -127,6 +130,15 @@ export class EditorView {
     }
     const doc = this.docOf(active.key, active.ref);
     if (this.body.firstChild !== doc.view.el) this.body.replaceChildren(doc.view.el);
+  }
+
+  /** Hand a line asked to be brought into sight to the tab on show, when it is the tab it was asked for, and clear the ask, so it is taken once. */
+  private reveal(): void {
+    const asked = store.get().editorReveal;
+    if (!asked) return;
+    const set = editorTabsOnShow();
+    if (set.active === asked.key) this.docs.get(asked.key)?.view.revealLine(asked.line);
+    store.set({ editorReveal: null });
   }
 
   /** The doc of the tab `key`, made for `ref`'s kind: the one it has, showing `ref`, unless the same file is opened again as the other kind, as after git started or stopped ignoring it, or after its checkout could not be read. */

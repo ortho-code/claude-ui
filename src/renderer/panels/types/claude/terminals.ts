@@ -6,6 +6,8 @@ import { clearNeedsYou } from '../../../state/needs-you';
 import { clearNudge } from '../../../state/statuses';
 import { tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, fitTerminal, lastLines } from '../../../ui/terminal';
+import { filePathLinks, fileUriLinks } from '../../../ui/terminal-paths';
+import { openPath } from '../../open-path';
 import { showToast } from '../../../ui/toast';
 import { isQuitting } from '../../../window/quitting';
 import { coolTab } from './leave';
@@ -61,6 +63,11 @@ export function buildTab(session: SessionSummary, scheduledWhenStopped: readonly
     }
     return true;
   });
+
+  // A file path claude prints, or a `file://` link it sends, opens in the Editor; a relative path is read from the session's folder as the listing knows it, where it started or the worktree it moved to, which `reconcileOpenTabs` keeps current on the tab; a shell `cd` claude ran does not move it.
+  const openFile = (path: string, line: number | null): void => void openPath(path, false, line);
+  filePathLinks(term, () => tabOf(token)?.session.cwd ?? session.cwd, openFile);
+  fileUriLinks(term, openFile);
 
   terminals.set(token, { term, fitAddon, el, startedAt: 0, activatedSeq: 0 });
 

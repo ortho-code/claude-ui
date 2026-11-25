@@ -57,7 +57,11 @@ export class FileDoc implements Doc {
   ) {
     this.view = new FileView({
       read: (file, context, ignoreWs) => window.claudeUi.diffFile(this.ref.root, this.ref.diff.against, file.path, file.status === 'R' ? file.from : null, context, ignoreWs),
-      unchanged: () => (host.picks().ignoreWs ? WHITESPACE_HIDDEN : 'No changes against this base.'),
+      // A file the list counts lines for changed, so with no hunks left only whitespace did; one it counts none for changed nothing at all.
+      unchanged: () => {
+        const whitespace = host.picks().ignoreWs && this.ref.file.added + this.ref.file.deleted > 0;
+        return { text: whitespace ? WHITESPACE_HIDDEN : 'No changes against this base.', whitespace };
+      },
       ...drawnAsPicked(host),
       stepFile: (delta) => void this.stepFile(delta),
       place: () => ({ at: this.ref.files.findIndex((step) => isShown(this.ref, step)) + 1, of: this.ref.files.length }),

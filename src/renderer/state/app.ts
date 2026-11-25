@@ -139,6 +139,8 @@ export interface AppState {
   editorDock: boolean;
   /** Whether the drawer over the terminal area shows the Editor, while it is not docked; in memory only. */
   editorDrawer: boolean;
+  /** A line the Editor is to bring into sight in the tab `key` once it is drawn, as a link with a line number asks; taken by the Editor's view, which then clears it. */
+  editorReveal: { key: string; line: number } | null;
   /** The Editor's part of the view kept for the next launch: docked or not, and how it draws a file's diff. */
   editorUi: EditorUi;
   /** The history's part of the view kept for the next launch: docked beside a running claude or not, and the docked column's width. */
@@ -373,6 +375,7 @@ export const store = createStore<AppState>(
     editorTabs: new Map(),
     editorDock: false,
     editorDrawer: false,
+    editorReveal: null,
     editorUi: defaultUi().editor,
     historyUi: defaultUi().history,
   },

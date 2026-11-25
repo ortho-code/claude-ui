@@ -256,3 +256,4 @@ A decision a later one replaces stays as it was written, marked **Replaced** her
 | [0248](0248-each-checkout-answers-its-own-question.md) | 2026-11-20 | Each checkout answers its own question | [The `explorer` type](../architecture/panels.md#the-explorer-type) |
 | [0249](0249-a-checkouts-base-is-picked-in-a-dialog.md) | 2026-11-20 | A checkout's base is picked in a dialog | [The `explorer` type](../architecture/panels.md#the-explorer-type) |
 | [0250](0250-a-file-outside-git-shows-its-changes-since-the-sessions-first-edit.md) | 2026-11-23 | A file outside git shows its changes since the session's first edit | [The `editor` type](../architecture/panels.md#the-editor-type) |
+| [0251](0251-a-path-claude-prints-opens-in-the-editor.md) | 2026-11-25 | A path claude prints opens in the Editor | [The `editor` type](../architecture/panels.md#the-editor-type) |

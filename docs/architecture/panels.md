@@ -359,6 +359,16 @@ Without it, claude sends hyperlinks only when the app inherited a variable namin
 xterm's link handler opens such a link in the OS browser, and main opens http(s) only; the http(s) addresses found in plain text open the same way.
 Hovering either kind shows its address in the app's tooltip, since a program's link shows text of its own choosing.
 
+**A file path claude prints opens in the Editor** ([decided 2026-11-25](../decisions/0251-a-path-claude-prints-opens-in-the-editor.md)), in a session tab's terminal only (`buildTab`), which registers two things from `ui/terminal-paths.ts`.
+`filePathLinks` is a link provider: over a row, the pieces that read as paths (`pathsIn` in `rules/paths-in.ts`: absolute, `~/`, or relative with a folder or an extension, in ASCII letters, digits and `_ . ~ @ + - /`, a `:line` or `:line:column` after it taken in, a URL left out) are asked of main (`resolvePaths`), and only those naming a file on disk become links, so a word that only looks like a path, such as `origin/main`, stays words unless there is such a file.
+A relative path is read from the session's folder as the listing knows it, where it started or the worktree it moved to; a shell `cd` claude ran does not move it.
+Main's answers are kept five seconds, since xterm asks again for each row the mouse crosses.
+A path with a space, a bracket or a letter outside ASCII in it is found in pieces, and one claude breaks over two rows is two pieces, as for a plain-text address.
+`fileUriLinks` takes over the terminal's link handler so a `file://` link claude sends opens its file in the Editor too, any other link going where it went before; for that xterm has to pass on links that are no web address, so a `mailto:` or `ssh:` link claude sends is now underlined too, and a press on it says only web addresses open; no `file://` link from claude has been seen.
+A press opens the file through `openPath` as a press on a file in the history does, as a preview, and a `:line` asks the Editor to bring that line into sight (`editorReveal` in the store, taken once by the Editor's view), opening the fold it sits in under Changes only, and waiting for a read of the file under way, whose draw would put the view back on the stepper's change.
+Nothing moves for a line past the file's end, inside a generated file still folded, inside a fold of a file read without its lines, or in a file that says a sentence in their place.
+A panel's shell gets neither, so its output keeps the web links only.
+
 **Ctrl+C copies a selection** ([decided 2026-11-12](../decisions/0220-ctrl-c-copies-a-selection.md)).
 xterm sends Ctrl+C on as `^C`, and on Linux, where the app has no menu, the only key that copied a selection was Chromium's Ctrl+Insert, which few reach for.
 While something is selected, every terminal copies it on Ctrl+C, says so in a toast as every copy does, and drops the selection, so the next press interrupts again; with nothing selected, Ctrl+C goes on to the program as before.
@@ -428,6 +438,7 @@ Changes only, in the view menu, folds the unchanged lines between changes, five 
 The unchanged lines are drawn from the file as it is on disk, which main reads up to 2 MB; a file it could not read, a deleted one or one past that, stays folded either way, a fold between changes asking git for that many more lines of context around every change, and the end of the file after the last change is not shown.
 A fold opened stays open by its place among the hunks, so after the file changes it can open a different gap.
 A file whose diff has nothing to mark, one with no change against its base, a rename and nothing else, or one that changed only in whitespace while whitespace is hidden, shows whole, as it is, its header naming a rename; with Changes only on, it says why in a sentence instead.
+Where switching a pick off would show something, a button under the sentence does it, in the row of actions a cold tab's pane draws (`.pane-actions` in `base.css`): Show the whole file for Changes only, Show whitespace changes for hidden whitespace, the latter only for a file the list counts changed lines for, since one it counts none for changed nothing at all; it changes the Editor's pick, as the menu does, and a line asked for by a link waits for it.
 Git's heading for a change stands over it, sticky, while the lines above it are folded.
 Fit, the default view, draws the diff unified while the Editor is narrower than 600px and split from it, where Split and Unified hold at any width.
 Split view is one grid of three columns in one scroller, so the two sides scroll together with nothing keeping them in step; a run of removed lines stands beside the run of added lines after it, the shorter padded.

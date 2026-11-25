@@ -8,6 +8,7 @@ import './hunks.css';
  * The unchanged lines between hunks are drawn from the file as it is on disk: all of them for the whole file, else folded, opened whole on a press or 20 lines from either end.
  * Without the file's lines, a deleted file or one past the read's cap, they stay folds either way, which ask git for more context.
  * Every row of a change block carries the block's number (`data-blk`), and the first row of each is handed back, for stepping and the change map.
+ * Every row of the file as it is now carries its line number (`data-line`), for bringing a line into sight.
  */
 
 /** How many lines a fold's steps show from either end. */
@@ -44,6 +45,7 @@ function lineEl(row: DiffRow | null, side: 'old' | 'new', colours: Colour[] | nu
   const line = element('div', `diff-line${empty ? ' empty' : row.kind === 'context' ? '' : ` ${row.kind}`}`);
   const number = element('i');
   number.dataset.n = empty ? '' : String((side === 'old' ? row.old : row.new) ?? '');
+  if (!empty && side === 'new' && row.new !== null) line.dataset.line = String(row.new);
   const text = element('s');
   if (!empty) paint(text, row, colours);
   line.append(number, text);
@@ -57,6 +59,7 @@ function unifiedEl(row: DiffRow, colours: Colour[] | null): HTMLElement {
   old.dataset.n = row.old === null ? '' : String(row.old);
   const now = element('i');
   now.dataset.n = row.new === null ? '' : String(row.new);
+  if (row.new !== null) line.dataset.line = String(row.new);
   const text = element('s');
   paint(text, row, colours);
   line.append(old, now, text);
@@ -160,6 +163,17 @@ function ends(hunk: DiffHunk): { old: number; new: number } {
     now = row.new ?? now;
   }
   return { old, new: now };
+}
+
+/** The fold that holds line `line` of the file as it is now, keyed as `Reveal` keys it, with how many lines it holds; null for a line a hunk shows, or one past the file's end. */
+export function foldHolding(file: FileDiff, line: number): { index: number; count: number } | null {
+  let previous = 0;
+  for (const [index, hunk] of file.hunks.entries()) {
+    if (line > previous && line <= previous + hunk.gapBefore) return { index, count: hunk.gapBefore };
+    previous = ends(hunk).new;
+  }
+  const count = (file.lines?.length ?? 0) - previous;
+  return line > previous && line <= previous + count ? { index: file.hunks.length, count } : null;
 }
 
 export class HunkDrawer {

@@ -126,6 +126,7 @@ const api: ClaudeUiApi = {
   diffFile: (dir, against, file, from, context, ignoreWs) => ipcRenderer.invoke('diff:file', dir, against, file, from, context, ignoreWs),
   sessionFileDiff: (session, file, context, ignoreWs) => ipcRenderer.invoke('diff:sessionFile', session, file, context, ignoreWs),
   pathCheckout: (file) => ipcRenderer.invoke('diff:pathCheckout', file),
+  resolvePaths: (dir, candidates) => ipcRenderer.invoke('files:resolve', dir, candidates),
   diffCommits: (dir, against) => ipcRenderer.invoke('diff:commits', dir, against),
   diffBaseCandidates: (dir) => ipcRenderer.invoke('diff:baseCandidates', dir),
   diffBaseCount: (dir, ref) => ipcRenderer.invoke('diff:baseCount', dir, ref),

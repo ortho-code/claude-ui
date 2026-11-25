@@ -231,11 +231,13 @@ Each session tab has its own files in it; switching tabs switches them, and clos
 A press on a file opens it as a preview, its name in italics, which the next file you open takes the place of; a double click, on the file or on its tab, or Pin in the tab's menu, keeps it, so the next one opens beside it.
 The tab's menu also copies the file's path, and closes the other tabs or this one; its cross closes it too.
 In the history, a press on the file a Read, Edit or Write names opens it in the Editor as a preview, which Pin keeps.
+So does a press on a file path claude prints in a session tab's terminal, underlined when you point at it if the file is there; a line number after it, as in `src/app.ts:42`, brings that line into sight.
 A file outside every repository, such as a scratchpad file or a plan, or one its repository ignores, shows what changed since the session first changed it, as its header says; where claude did not record the text from before, a line says so and the file shows as it is, as does a file the session only read; a file no longer on disk, such as a scratchpad file a restart emptied, says so.
 The Editor only reads for now, and every file says "Read only".
 
 A file is shown whole, with its changes marked where they are.
 The menu in the diff's header picks Fit, which draws the two sides next to each other once the Editor is 600px wide and one above the other below that, or Split or Unified whatever the width; it also hides changes that only touch whitespace, and Changes only folds the unchanged lines between changes, five or more of them: press a fold to show them all, or, on a fold of more than twenty lines, its `↑ 20` and `↓ 20` to show twenty more beside the change below or above it.
+When either leaves nothing to show, the Editor says why, with a button that switches it off: **Show the whole file** or **Show whitespace changes**.
 These picks are kept for the Editor.
 The code is coloured by its language: PHP, TypeScript, JavaScript, JSON (with JSONC and JSON5), HTML, SCSS, CSS, Markdown, YAML, shell scripts, Twig, XML, SQL, a file named `Dockerfile`, INI, TOML, Python, PowerShell, Go and Rust; anything else is plain text.
 The words that changed inside a line are marked, a lockfile or generated file is folded to one line until you press it, and the map at the right edge has a mark for each change.

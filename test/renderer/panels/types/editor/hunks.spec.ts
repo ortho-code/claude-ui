@@ -1,6 +1,6 @@
 import { PROJECT } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { bootDiff, diffLines, editor, file, fileDiff, fileNote, menuRows, position, rows, summary } from '../explorer/explorer';
+import { bootDiff, diffLines, editor, file, fileDiff, fileLift, fileNote, fileSentence, menuRows, position, rows, summary } from '../explorer/explorer';
 import type { App } from '../../../support/harness';
 
 // A file pressed in the Explorer opens in the Editor: the whole file with its changes marked, unified while the Editor is narrow and split from 600px, the words that changed marked, and a stepper through the changes; Changes only folds the unchanged lines between them.
@@ -186,10 +186,12 @@ test('a binary file says so', async ({ app, page }) => {
 test('with whitespace hidden, a file whose only change is whitespace says so under Changes only, and with whitespace shown says it has no changes', async ({ app, page }) => {
   await bootDiff(app, { since: summary({ files: [file('src/a.ts')] }) }, { files: { 'src/a.ts': fileDiff('src/a.ts', [], ['same']) }, editor: { ignoreWs: true, changesOnly: true } });
   await rows(page).first().click();
-  await expect(fileNote(page)).toHaveText('Only whitespace changed here, and whitespace is hidden.');
+  await expect(fileSentence(page)).toHaveText('Only whitespace changed here, and whitespace is hidden.');
+  await expect(fileLift(page)).toHaveText('Show whitespace changes');
   await editor(page).locator('.diff-view-button').click();
   await menuRows(page).filter({ hasText: 'Hide whitespace changes' }).click();
-  await expect(fileNote(page)).toHaveText('No changes against this base.');
+  await expect(fileSentence(page)).toHaveText('No changes against this base.');
+  await expect(fileLift(page)).toHaveText('Show the whole file');
 });
 
 test('hiding whitespace reads the file again without it, and is kept for the window', async ({ app, page }) => {
