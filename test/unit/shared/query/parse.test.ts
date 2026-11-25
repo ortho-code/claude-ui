@@ -63,6 +63,10 @@ describe('parseQuery', () => {
     expect(shape('12:30 fix')).toEqual([['12:30', 'fix']]);
   });
 
+  it('reads a - or a colon inside quotes as part of the words, so a literal -text or text:text is found by quoting it', () => {
+    expect(shape('"-text" "text:text" "is:pinned" -"-text"')).toEqual([['-text', 'text:text', 'is:pinned', '--text']]);
+  });
+
   it('reads OR and AND only in capitals, so a lower-case or is a word', () => {
     expect(shape('this or that')).toEqual([['this', 'or', 'that']]);
   });

@@ -5,11 +5,12 @@
 
 ## Decision
 
-While the query field holds a term the app cannot read, the list keeps filtering by the last query that did read; before any did, it shows nothing.
+While the query field holds a term the app cannot read, the list keeps filtering by the last query that did read, dimmed, with the term underlined and why under the field; before any did, it shows nothing.
 
 ## Why
 
 The list follows the field as you type, and every term is unreadable for a few keys while it is typed (`is:pin` on the way to `is:pinned`), so showing nothing until it reads would empty the list at each of those keys.
+The dimming says the list no longer matches the field, which a list kept as it was would otherwise hide.
 
 ## Turned down
 

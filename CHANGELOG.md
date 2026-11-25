@@ -75,6 +75,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Words are matched each on its own, so `fix login` also finds "login page, fix it"; put a phrase in quotes to find it whole.
   The 7d and 30d presets count whole days from midnight, today included.
   A session's id is found from its start or its end, no longer from its middle, so a short number does not match every id that holds it.
+  A term that does not read is underlined with why under the field, and the list is dimmed until it reads.
 
 ### Fixed
 

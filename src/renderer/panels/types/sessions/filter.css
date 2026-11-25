@@ -177,6 +177,12 @@
   height: 13px;
 }
 
+/* A query that does not read wears the field's own mark for it, so a shut panel says so too. */
+.filter-chip.has-problems {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 .filter-chip-text {
   overflow: hidden;
   text-overflow: ellipsis;

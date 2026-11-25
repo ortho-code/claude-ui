@@ -73,6 +73,35 @@ test('a term half typed keeps the list the last query that read drew', async ({ 
   await expect.poll(() => sortedTitles(page)).toEqual(sorted(pinnedRunning, aside));
 });
 
+test('a term that does not read is underlined and named under the field, and the list dimmed, until it reads', async ({ app, page }) => {
+  await boot(app, page);
+  await typed(page, 'is:set-aside is:pin');
+  await expect(page.locator('#query-mirror .query-problem')).toHaveText(['is:pin']);
+  await expect(page.locator('#query-problems li')).toHaveText(['pin is not a value of is:.']);
+  await expect(page.locator('#search')).toHaveClass(/\bhas-problems\b/);
+  await expect(page.locator('#sessions')).toHaveClass(/\bstale\b/);
+
+  await page.locator('#search').fill('is:set-aside is:pinned');
+  await expect(page.locator('#query-problems')).toBeHidden();
+  await expect(page.locator('#query-mirror .query-problem')).toHaveCount(0);
+  await expect(page.locator('#search')).not.toHaveClass(/\bhas-problems\b/);
+  await expect(page.locator('#sessions')).not.toHaveClass(/\bstale\b/);
+});
+
+test('shut over a query that does not read, the list stays dimmed and the chip says why', async ({ app, page }) => {
+  await boot(app, page);
+  await typed(page, 'is:pin');
+  await page.locator('#filter-toggle').click();
+  await expect(page.locator('#sessions')).toHaveClass(/\bstale\b/);
+  await expect(page.locator('#filter-chips .filter-chip-text')).toHaveText(['is:pin']);
+  await expect(page.locator('#filter-chips .filter-chip')).toHaveClass(/\bhas-problems\b/);
+  await expect(page.locator('#filter-chips .filter-chip-remove')).toHaveAttribute('aria-label', 'Remove: Does not read: pin is not a value of is:.');
+  await page.locator('#filter-toggle').click();
+  await page.locator('#search').fill('is:pinned');
+  await page.locator('#filter-toggle').click();
+  await expect(page.locator('#filter-chips .filter-chip')).not.toHaveClass(/\bhas-problems\b/);
+});
+
 test('a stored query that does not read shows nothing until it does', async ({ app, page }) => {
   await app.boot({ ...fixture, uiState: { ...defaultUi(), query: 'is:set-aside OR is:pin', filterPanelOpen: true } });
   await expect.poll(() => sortedTitles(page)).toEqual([]);

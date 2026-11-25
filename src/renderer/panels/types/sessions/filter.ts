@@ -5,7 +5,9 @@ import { dateTerm, PILL_TERMS, PRESET_TERMS, type PillKey } from '../../../../sh
 import { calendar } from '../../../dialogs/calendar';
 import { byId, fromMarkup } from '../../../ui/dom';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
+import { filterQuery } from '../../../state/filter-query';
 import { queryFields } from '../../../state/query-facts';
+import { followFieldScroll, queryMirror, queryProblemList, showQueryProblems } from './query-problems';
 import { isFiltering } from '../../../state/views';
 import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, svgImage, WORKTREE_ICON } from '../../../ui/svg';
 import { setTooltip } from '../../../ui/tooltip';
@@ -25,7 +27,7 @@ import './filter.css';
 export const filterToggle = fromMarkup(`<button id="filter-toggle" class="icon-btn large" data-tooltip="Filter sessions" aria-label="Filter sessions" aria-expanded="false"></button>`, HTMLButtonElement);
 export const filterPanel = fromMarkup(`
   <div id="filter-panel" hidden>
-    <input id="search" type="search" placeholder="Search, or is:pinned OR is:running…" aria-label="Search or filter sessions" spellcheck="false" />
+    <div id="query-wrap"><input id="search" type="search" placeholder="Search, or is:pinned OR is:running…" aria-label="Search or filter sessions" spellcheck="false" /></div>
     <div id="filters">
       <button id="pinned-filter" data-tooltip="Show only pinned sessions" aria-label="Show only pinned sessions" aria-pressed="false"></button>
       <button id="open-filter" type="button" data-tooltip="Show only sessions with a tab open" aria-label="Show only sessions with a tab open" aria-pressed="false"></button>
@@ -87,6 +89,10 @@ const datePicker = calendar(byId(filterPanel, 'date-range'), {
   },
 });
 const searchInput = byId(filterPanel, 'search', HTMLInputElement);
+const queryWrap = byId(filterPanel, 'query-wrap');
+queryWrap.append(queryMirror);
+queryWrap.after(queryProblemList);
+searchInput.addEventListener('scroll', () => followFieldScroll(searchInput));
 const SEARCH_CLEAR_SIZE = 12;
 searchInput.style.setProperty('--search-clear', svgImage(closeIcon(SEARCH_CLEAR_SIZE)));
 searchInput.style.setProperty('--search-clear-size', `${SEARCH_CLEAR_SIZE}px`);
@@ -237,6 +243,7 @@ export function updateFilterStatus(matches: number, total: number, view: View<'f
   const { query, finished } = view.filter;
   filterStatus.hidden = !filtering;
   searchInput.classList.toggle('active', query.trim() !== '');
+  showQueryProblems(searchInput, filterQuery(store.get()).problems);
   for (const pill of FILTER_PILLS) {
     const on = pill.key === 'finished' ? finished : hasTerm(query, PILL_TERMS[pill.key], vocabulary());
     pill.button.classList.toggle('active', on);
@@ -305,7 +312,12 @@ function queryChips(query: string): HTMLElement[] {
   const text = query.trim();
   if (text === '') return [];
   const [part] = parsed.parts;
-  if (parsed.problems.length > 0 || parsed.parts.length !== 1 || part === undefined) return [filterChip(iconSvg('search', 13), text, `Query: ${text}`, () => setQuery(''))];
+  if (parsed.problems.length > 0) {
+    const chip = filterChip(iconSvg('search', 13), text, `Does not read: ${parsed.problems.map((problem) => problem.message).join(' ')}`, () => setQuery(''));
+    chip.classList.add('has-problems');
+    return [chip];
+  }
+  if (parsed.parts.length !== 1 || part === undefined) return [filterChip(iconSvg('search', 13), text, `Query: ${text}`, () => setQuery(''))];
   return part.map((term) => {
     const said = query.slice(term.from, term.to);
     const remove = (): void => setQuery(withoutTerms(store.get().filter.query, (each) => each.from === term.from, vocabulary()));
