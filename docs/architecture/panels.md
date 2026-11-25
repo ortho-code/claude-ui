@@ -433,7 +433,7 @@ A read asked while the same one, of the same folder and question, is under way j
 What a read finds, a newer commit to compare with or a new order of files, is written back to the tab in the store (`updated`), so the tab shows it again when it comes back on show.
 Every file says "Read only" in its header, since nothing in the Editor edits a file yet.
 How a diff is drawn, the view, hidden whitespace and Changes only, is the Editor's own pick, kept for the window (`editorUi`).
-The diff's header is two rows: the file, then the view's menu, Hide whitespace and Changes only as switches, and the stepper; where that row does not fit, the position turns to numbers by the header's own width (a container query), and then the stepper wraps onto a row of its own ([decided 2026-11-25](../decisions/0261-the-diff-header-is-two-rows.md)).
+The diff's header is two rows: the file, then the view's menu, Hide whitespace and Changes only as switches, and the stepper; under 560px of header, which the row in words needs up to three-digit counts, the position turns to numbers (a container query, by the header's own width), and where the row still does not fit the stepper wraps onto a row of its own, in a header under about 290px a switch too ([decided 2026-11-25](../decisions/0261-the-diff-header-is-two-rows.md)).
 
 **The whole file is shown by default**, its changes marked where they are.
 Changes only, a switch in the diff's header, folds the unchanged lines between changes, five or more of them, fewer being shown, since a fold takes the room of what it hides: the whole fold on a press, or, on a fold hiding more than 20 lines, 20 at a time from the change beside it.
